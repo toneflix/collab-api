@@ -1,0 +1,146 @@
+<?php
+
+return [
+    /*
+    |--------------------------------------------------------------------------
+    | Signature
+    |--------------------------------------------------------------------------
+    |
+    | This is required and will be attached to the end of every message
+    |
+    */
+    'signature' => 'Regards.<br />',
+
+    /*
+    |--------------------------------------------------------------------------
+    | Messages
+    |--------------------------------------------------------------------------
+    |
+    | The message body is made up of lines, each line
+    | represents a new line in the message sent, inline html is also supported
+    | If a line is required to be a button it should be an array in the
+    | following format: ['link' => 'https://tech4all.greysoft.ng/login', 'title' => 'Get Started', 'color' => '#fff']
+    | the color property is optional.
+    |
+    */
+
+    /*
+    |--------------------------------------------------------------------------
+    | SendCode messages
+    |--------------------------------------------------------------------------
+    |
+    | These are messages sent during account or request verification.
+    |
+    */
+    'send_code::reset' => [
+        'subject' => 'Reset your Toneflix Collab password.',
+        'lines' => [
+            'Hello :firstname,',
+            'You are receiving this email because we received a password reset request for your account on Toneflix Collab.',
+            'Use the code or link below to recover your account.',
+            '<h3 style="text-align: center;">:code</h3>',
+            [
+                'link' => 'https://collab.toneflix.ng/reset/password?token=:token',
+                'title' => 'Reset Password',
+            ],
+            'This password reset code will expire in :duration.',
+            'If you did not request a password reset, no further action is required.',
+        ],
+    ],
+    'send_code::verify' => [
+        'subject' => 'Verify your account on Toneflix Collab.',
+        'lines' => [
+            'Hello :firstname,',
+            'You are receiving this email because you created an account on <b>Toneflix Collab</b> and we needed to verify that you own this email addrress. <br />Use the code or link below to verify your email address.',
+            '<h3 style="text-align: center;">:code</h3>',
+            [
+                'link' => 'https://collab.toneflix.ng/account/verify/:type?token=:token',
+                'title' => 'Verify Account',
+            ],
+            'This verification code will expire in :duration.',
+            'If you do not recognize this activity, no further action is required as the associated account will be deleted in few days if left unverified.',
+        ],
+    ],
+    'send_code::otp' => [
+        'subject' => 'Your One Time Password.',
+        'lines' => [
+            'Use the code below to verify your request.',
+            '<h3 style="text-align: center;">:code</h3>',
+            'This OTP will expire in :duration.',
+            'If you do not recognize this request no further action is required or you can take steps to secure your account.',
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | SendVerified messages
+    |--------------------------------------------------------------------------
+    |
+    | These are messages sent after an account is verified.
+    |
+    */
+    'send_verified' => [
+        'subject' => 'Welcome to the Toneflix Collab community.',
+        'lines' => [
+            'Hello :firstname,',
+            'Your Collab account has been verified sucessfully and we want to use this opportunity to welcome you to our community.',
+            [
+                'link' => 'https://collab.toneflix.ng/login',
+                'title' => 'Get Started',
+            ],
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Other messages
+    |--------------------------------------------------------------------------
+    |
+    |
+    */
+    'email_verification' => [
+        'subject' => 'Please verify your email.',
+        'lines' => [
+            'Hello :fullname,',
+            'You initiated an account opening proccess at :app_name, please use the code below to complete your request',
+            '<h3 style="text-align: center;">:code</h3>',
+            'If you need any further assistance please reachout to support.',
+        ],
+    ],
+    'welcome' => [
+        'subject' => ':firstname, welcome to :app_name.',
+        'lines' => [
+            'Hello :fullname,',
+            "We are happy to have you onboard :app_name, your registration was successfull and we can't wait to see what you do next.",
+            "If you do need any assistance please don't fail to reachout to one of our numerous support channels.",
+        ],
+    ],
+    'project::request' => [
+        'subject' => 'Request to join project.',
+        'lines' => [
+            'Hello :fullname,',
+            ":sendername is requesting to join project: :title as a :role.",
+        ],
+    ],
+    'project::request_approved' => [
+        'subject' => 'Request to join project approved.',
+        'lines' => [
+            'Hello :fullname,',
+            "Your request to join project: :title as a :role as been approved.",
+        ],
+    ],
+    'project::invitation' => [
+        'subject' => 'Invitation to join project.',
+        'lines' => [
+            'Hello :fullname,',
+            ":sendername is inviting you to join project: :title as a :role.",
+        ],
+    ],
+    'project::invitation_accepted' => [
+        'subject' => ':sendername joined project.',
+        'lines' => [
+            'Hello :fullname,',
+            ":sendername has accepted your invitaion to join project: :title as a :role.",
+        ],
+    ],
+];

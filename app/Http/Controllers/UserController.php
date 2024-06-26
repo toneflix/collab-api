@@ -1,0 +1,89 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Enums\HttpStatus;
+use App\Http\Resources\UserCollection;
+use App\Http\Resources\UserResource;
+use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\Request;
+
+class UserController extends Controller
+{
+    /**
+     * Display a listing of the resource.
+     */
+    public function index(Request $request)
+    {
+        $query = User::query();
+
+        $query->when($request->has('search'), function (Builder $query) use ($request) {
+            if (str($request->search)->contains('@')) {
+                $query->where('username', str($request->search)->remove('@')->toString());
+            } else if (str($request->search)->contains(['>', '<']) && str($request->search)->numbers()->toInteger() > 0) {
+                $query->where(
+                    'reputation',
+                    substr($request->search, 0, 1),
+                    str($request->search)->numbers()
+                );
+            } else {
+                $query->where(function (Builder $query) use ($request) {
+                    $query->whereRaw("CONCAT(firstname, ' ', lastname) LIKE ?", ["%{$request->search}%"])
+                        ->orWhere('firstname', 'like', "%$request->search%")
+                        ->orWhere('lastname', 'like', "%$request->search%")
+                        ->orWhere('country', $request->search)
+                        ->orWhere('state', $request->search)
+                        ->orWhere('city', $request->search);
+                });
+            }
+        })->when(
+            $request->has('skip'),
+            fn (Builder $q) => $q->whereNotIn('id', str($request->skip)->remove(' ')->explode(','))
+        );
+
+        $users = $query->paginate($request->input('limit', 15));
+
+        return (new UserCollection($users))->additional([
+            'message' => HttpStatus::message(HttpStatus::OK),
+            'status' => 'success',
+            'status_code' => HttpStatus::OK,
+        ]);
+    }
+
+    /**
+     * Store a newly created resource in storage.
+     */
+    public function store(Request $request)
+    {
+        //
+    }
+
+    /**
+     * Display the specified resource.
+     */
+    public function show(User $user)
+    {
+        return (new UserResource($user))->additional([
+            'message' => HttpStatus::message(HttpStatus::OK),
+            'status' => 'success',
+            'status_code' => HttpStatus::OK,
+        ]);
+    }
+
+    /**
+     * Update the specified resource in storage.
+     */
+    public function update(Request $request, User $user)
+    {
+        //
+    }
+
+    /**
+     * Remove the specified resource from storage.
+     */
+    public function destroy(User $user)
+    {
+        //
+    }
+}
