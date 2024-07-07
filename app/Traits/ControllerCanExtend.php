@@ -39,7 +39,7 @@ trait ControllerCanExtend
         Request $request,
         User|TempUser $user,
         int|float $amount,
-        Model $transactable = null
+        ?Model $transactable = null
     ): \Illuminate\Support\Collection {
         $fees = 0;
 

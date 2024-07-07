@@ -10,6 +10,17 @@ class Genre extends Model
 {
     use Fileable, HasFactory;
 
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var array<int, string>
+     */
+    protected $fillable = [
+        'slug',
+        'title',
+        'description',
+    ];
+
     public function registerFileable()
     {
         $this->fileableLoader([

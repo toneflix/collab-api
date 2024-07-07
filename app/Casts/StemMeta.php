@@ -14,7 +14,6 @@ class StemMeta implements Castable
     /**
      * Get the caster class to use when casting from / to this cast target.
      *
-     * @param  array  $arguments
      * @return \Illuminate\Contracts\Database\Eloquent\CastsAttributes<\Illuminate\Support\Collection<array-key, mixed>, iterable>
      */
     public static function castUsing(array $arguments)
@@ -27,7 +26,7 @@ class StemMeta implements Castable
 
             public function get(Model $model, $key, $value, $attributes)
             {
-                if (!isset($attributes[$key])) {
+                if (! isset($attributes[$key])) {
                     return;
                 }
 
@@ -35,8 +34,8 @@ class StemMeta implements Castable
 
                 $collectionClass = $this->arguments[0] ?? Collection::class;
 
-                if (!is_a($collectionClass, Collection::class, true)) {
-                    throw new InvalidArgumentException('The provided class must extend [' . Collection::class . '].');
+                if (! is_a($collectionClass, Collection::class, true)) {
+                    throw new InvalidArgumentException('The provided class must extend ['.Collection::class.'].');
                 }
 
                 $output = is_array($data) ? new $collectionClass($data) : null;
@@ -44,24 +43,24 @@ class StemMeta implements Castable
                 if ($output) {
                     $output = $output->merge([
                         'src' => $model->mediaFileInfo['src']['dynamicLink'],
-                        'end' =>  isset($output['end']) ? (float) $output['end'] :  null,
-                        'gain' =>  isset($output['gain']) ? (float) $output['gain'] :  null,
-                        'title' =>  $model->title ?? '',
-                        'muted' =>  isset($output['muted']) ? filter_var($output['muted'], FILTER_VALIDATE_BOOL) :  null,
-                        'start' =>  isset($output['start']) ? (float) $output['start'] :  null,
-                        'cuein' =>  isset($output['cuein']) ? (float) $output['cuein'] :  null,
-                        'cueout' =>  isset($output['cueout']) && $output['cueout'] > 0 ? (float) $output['cueout'] :  null,
-                        'soloed' =>  isset($output['soloed']) ? filter_var($output['soloed'], FILTER_VALIDATE_BOOL) :  null,
-                        'duration' =>  isset($output['duration']) ? (float) $output['duration'] :  null,
-                        'stereoPan' =>  isset($output['stereoPan']) ? (float) $output['stereoPan'] :  null,
-                    ])->filter(fn ($v, $k) => !str($k)->startsWith(':') && $v !== null);
+                        'end' => isset($output['end']) ? (float) $output['end'] : null,
+                        'gain' => isset($output['gain']) ? (float) $output['gain'] : null,
+                        'title' => $model->title ?? '',
+                        'muted' => isset($output['muted']) ? filter_var($output['muted'], FILTER_VALIDATE_BOOL) : null,
+                        'start' => isset($output['start']) ? (float) $output['start'] : null,
+                        'cuein' => isset($output['cuein']) ? (float) $output['cuein'] : null,
+                        'cueout' => isset($output['cueout']) && $output['cueout'] > 0 ? (float) $output['cueout'] : null,
+                        'soloed' => isset($output['soloed']) ? filter_var($output['soloed'], FILTER_VALIDATE_BOOL) : null,
+                        'duration' => isset($output['duration']) ? (float) $output['duration'] : null,
+                        'stereoPan' => isset($output['stereoPan']) ? (float) $output['stereoPan'] : null,
+                    ])->filter(fn ($v, $k) => ! str($k)->startsWith(':') && $v !== null);
 
                     if (isset($output['fadeIn']['duration'])) {
                         $output = $output->merge([
                             'fadeIn' => [
                                 'shape' => $output['fadeIn']['shape'],
-                                'duration' => (float) $output['fadeIn']['duration']
-                            ]
+                                'duration' => (float) $output['fadeIn']['duration'],
+                            ],
                         ]);
                     }
 
@@ -69,8 +68,8 @@ class StemMeta implements Castable
                         $output = $output->merge([
                             'fadeOut' => [
                                 'shape' => $output['fadeOut']['shape'],
-                                'duration' => (float) $output['fadeOut']['duration']
-                            ]
+                                'duration' => (float) $output['fadeOut']['duration'],
+                            ],
                         ]);
                     }
 
@@ -78,7 +77,7 @@ class StemMeta implements Castable
                         $output = $output->merge([
                             'enabledStates' => collect($output['enabledStates'])
                                 ->map(fn ($state) => filter_var($state, FILTER_VALIDATE_BOOL))
-                                ->toArray()
+                                ->toArray(),
                         ]);
                     }
                 }
@@ -105,6 +104,6 @@ class StemMeta implements Castable
      */
     public static function using($class)
     {
-        return static::class . ':' . $class;
+        return static::class.':'.$class;
     }
 }

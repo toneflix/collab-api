@@ -2,7 +2,9 @@
 
 use App\Helpers\Providers;
 use App\Http\Controllers\ArtistController;
+use App\Http\Controllers\ExploreController;
 use App\Http\Controllers\GenreController;
+use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ReleaseController;
 use App\Http\Controllers\TrackController;
 use App\Http\Controllers\UserController;
@@ -33,7 +35,10 @@ Route::get('/initialize', function () {
 });
 
 Route::apiResource('users', UserController::class)->only(['index', 'show']);
+Route::apiResource('tracks', TrackController::class)->only(['index', 'show']);
 Route::apiResource('genres', GenreController::class)->only(['index', 'show']);
 Route::apiResource('artists', ArtistController::class)->only(['index', 'show']);
+Route::apiResource('explore', ExploreController::class)->only(['index']);
 Route::apiResource('releases', ReleaseController::class)->only(['index', 'show']);
+Route::apiResource('projects', ProjectController::class)->only(['index', 'show']);
 Route::apiResource('releases/{release}/tracks', TrackController::class)->only(['index', 'show']);

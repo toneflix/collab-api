@@ -2,16 +2,24 @@
 
 namespace App\Models;
 
+use App\Traits\Metricable;
 use App\Traits\ModelCanExtend;
+use Coderflex\Laravisit\Concerns\CanVisit;
+use Coderflex\Laravisit\Concerns\HasVisits;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use ToneflixCode\LaravelFileable\Traits\Fileable;
 
-class Release extends Model
+class Release extends Model implements CanVisit
 {
-    use Fileable, HasFactory, ModelCanExtend;
+    use Fileable;
+    use HasFactory;
+    use ModelCanExtend;
+    use HasVisits;
+    use Metricable;
 
     /**
      * The attributes that are mass assignable.
@@ -31,6 +39,7 @@ class Release extends Model
         'genre_id',
         'publisher',
         'artist_id',
+        'project_id',
         'description',
         'record_label',
         'release_date',
@@ -76,6 +85,10 @@ class Release extends Model
         static::saving(function (self $model) {
             $model->slug ??= $model->generateUsername($model->title, 'slug', '-');
         });
+
+        static::deleting(function (self $model) {
+            $model->tracks()->delete();
+        });
     }
 
     /**
@@ -93,36 +106,38 @@ class Release extends Model
 
     /**
      * Get the artist that owns the Release
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
     public function artist(): BelongsTo
     {
-        return $this->belongsTo(Artist::class)->withDefault(fn () => [
-            'id' => null,
+        return $this->belongsTo(Artist::class)->withDefault(fn () => Artist::make([
             'name' => 'Unknown',
-            'about' =>  'Unknown',
-        ]);
+            'about' => 'Unknown',
+            'username' => 'unknown',
+        ]));
     }
 
     /**
      * Get the genre that owns the Release
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
     public function genre(): BelongsTo
     {
-        return $this->belongsTo(Genre::class)->withDefault(fn () => Genre::first() ?? [
-            'id' => null,
+        return $this->belongsTo(Genre::class)->withDefault(fn () => Genre::first() ?? Genre::make([
+            'slug' => 'unknown',
             'title' => 'Unknown',
-            'description' =>  'Unknown',
-        ]);
+            'description' => 'Unknown',
+        ]));
+    }
+
+    /**
+     * Get the project that owns the Release
+     */
+    public function project(): BelongsTo
+    {
+        return $this->belongsTo(Project::class);
     }
 
     /**
      * Get all of the tracks for the Release
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
      */
     public function tracks(): HasMany
     {
@@ -131,8 +146,6 @@ class Release extends Model
 
     /**
      * Get the user that owns the Artist
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
     public function user(): BelongsTo
     {

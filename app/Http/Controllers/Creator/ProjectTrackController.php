@@ -89,7 +89,7 @@ class ProjectTrackController extends Controller
             'artist_id' => ['required', 'string', 'exists:artists,id'],
             'description' => ['nullable', 'string'],
             'meta' => ['nullable', 'array'],
-            'stems' => ['nullable', 'array']
+            'stems' => ['nullable', 'array'],
         ]);
 
         if (isset($valid['preview'])) {
@@ -108,7 +108,7 @@ class ProjectTrackController extends Controller
 
     protected function saveStems(Request $request, ProjectTrack $track): void
     {
-        if (!$request->has('stems')) {
+        if (! $request->has('stems')) {
             return;
         }
 
@@ -123,7 +123,7 @@ class ProjectTrackController extends Controller
             'stems.*.meta' => ['required', 'array'],
             'stems.*.stem_id' => ['nullable', 'exists:project_track_stems,id'],
         ], [
-            'stems.*.id' => 'Invalid track stem.'
+            'stems.*.id' => 'Invalid track stem.',
         ], [
             'stems.*.id' => 'stem',
             'stems.*.src' => 'file',
@@ -136,7 +136,7 @@ class ProjectTrackController extends Controller
             $stem = $track->stems()->find($form['id']);
 
             if ($stem) {
-                $form['src'] = (new Media())->save('stem_files', "stems.*.src", $stem->src, $i);
+                $form['src'] = (new Media())->save('stem_files', 'stems.*.src', $stem->src, $i);
                 $stem->updateQuietly($form);
             }
         });

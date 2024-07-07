@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\HttpStatus;
+use App\Helpers\Freq;
 use App\Http\Resources\UserCollection;
 use App\Http\Resources\UserResource;
 use App\Models\User;
@@ -21,7 +22,7 @@ class UserController extends Controller
         $query->when($request->has('search'), function (Builder $query) use ($request) {
             if (str($request->search)->contains('@')) {
                 $query->where('username', str($request->search)->remove('@')->toString());
-            } else if (str($request->search)->contains(['>', '<']) && str($request->search)->numbers()->toInteger() > 0) {
+            } elseif (str($request->search)->contains(['>', '<']) && str($request->search)->numbers()->toInteger() > 0) {
                 $query->where(
                     'reputation',
                     substr($request->search, 0, 1),
@@ -41,6 +42,35 @@ class UserController extends Controller
             $request->has('skip'),
             fn (Builder $q) => $q->whereNotIn('id', str($request->skip)->remove(' ')->explode(','))
         );
+
+        $filters = str($request->filters)->remove(' ')->explode(',');
+
+        $query
+            ->when($filters->contains('creator'), fn (Builder $q) => $q->creator())
+            ->when(
+                $filters->contains('top'),
+                function (Builder $q) use ($filters, $request) {
+                    $days = Freq::period($request->period);
+
+                    if ($filters->contains('creator')) {
+                        $q->orderByUserProjectVotesLastDays($days);
+                    } else {
+                        $q->orderByFollowersLastDays($days);
+                    }
+                }
+            )
+            ->when(
+                $filters->contains('latest'),
+                function (Builder $q) use ($filters) {
+                    if ($filters->contains('creator')) {
+                        $q->withMax('projects as latest_project_date', 'created_at');
+                        $q->withCount('projects')->having('projects_count', '<=', 1);
+                        $q->latest('latest_project_date');
+                    } else {
+                        $q->latest();
+                    }
+                }
+            );
 
         $users = $query->paginate($request->input('limit', 15));
 

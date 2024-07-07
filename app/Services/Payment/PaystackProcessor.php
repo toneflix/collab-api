@@ -21,7 +21,7 @@ class PaystackProcessor implements PaymentInterface
     /**
      * PaystackProcessor constructor.
      */
-    public function __construct(Request $request, User|TempUser $user = null)
+    public function __construct(Request $request, User|TempUser|null $user = null)
     {
         $this->request = $request;
         $this->user = $user;
@@ -30,16 +30,16 @@ class PaystackProcessor implements PaymentInterface
     /**
      * Initialize a paystack transaction.
      *
-     * @param  int|float  $amount     The amount to initialize the transaction with
-     * @param  callable  $successCallback     The callback function to call when the transaction is initialized
-     * @param  callable  $errorCallback    The callback function to call when an error occurs
-     * @param  bool  $respond     Wether to return a response or not.
+     * @param  int|float  $amount  The amount to initialize the transaction with
+     * @param  callable  $successCallback  The callback function to call when the transaction is initialized
+     * @param  callable  $errorCallback  The callback function to call when an error occurs
+     * @param  bool  $respond  Wether to return a response or not.
      * @return array|object|\App\Services\CustomObject
      */
     public function intent(
         int|float $amount,
-        callable $callback = null,
-        callable $error_callback = null,
+        ?callable $callback = null,
+        ?callable $error_callback = null,
         ?bool $respond = true
     ) {
         $tranx = null;
@@ -132,14 +132,14 @@ class PaystackProcessor implements PaymentInterface
      * Verify a payment intent
      *
      * @param  callable  $successCallback
-     * @param  callable  $errorCallback   The callback function to call when an error occurs
-     * @param  bool  $respond     Wether to return a response or not.
+     * @param  callable  $errorCallback  The callback function to call when an error occurs
+     * @param  bool  $respond  Wether to return a response or not.
      * @return array|object|\App\Services\CustomObject
      */
     public function verify(
         string $reference,
-        callable $callback = null,
-        callable $error_callback = null,
+        ?callable $callback = null,
+        ?callable $error_callback = null,
         ?bool $respond = true
     ) {
         $response = new \stdClass();
@@ -219,12 +219,12 @@ class PaystackProcessor implements PaymentInterface
      *
      * @param  callable  $successCallback
      * @param  callable  $errorCallback
-     * @param  bool  $respond Wether to return a response or not.
+     * @param  bool  $respond  Wether to return a response or not.
      */
     public function deauthorize(
         string $authorization_code,
-        callable $callback = null,
-        callable $error_callback = null,
+        ?callable $callback = null,
+        ?callable $error_callback = null,
         ?bool $respond = true
     ) {
         $response = new \stdClass();
@@ -271,15 +271,15 @@ class PaystackProcessor implements PaymentInterface
      *
      * @param  ?string  $reason
      * @param  ?callable  $successCallback
-     * @param  ?callable  $errorCallback   The callback function to call when an error occurs
-     * @param  bool  $respond     Wether to return a response or not.
+     * @param  ?callable  $errorCallback  The callback function to call when an error occurs
+     * @param  bool  $respond  Wether to return a response or not.
      * @return array|object|\App\Services\CustomObject
      */
     public function transfer(
         int|float $amount,
-        string $reason = null,
-        callable $successCallback = null,
-        callable $errorCallback = null,
+        ?string $reason = null,
+        ?callable $successCallback = null,
+        ?callable $errorCallback = null,
         ?bool $respond = true
     ) {
         $response = new \stdClass();

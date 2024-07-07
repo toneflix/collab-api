@@ -2,7 +2,12 @@
 
 namespace Database\Factories;
 
+use App\Models\Artist;
+use App\Models\Genre;
+use App\Models\Release;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Valorin\Random\Random;
 
 /**
  * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Release>
@@ -16,8 +21,46 @@ class ReleaseFactory extends Factory
      */
     public function definition(): array
     {
+        $one = rand(1, 9);
+        $sev = rand(0000001, 9999999);
+        $ran = Random::string(3, false, true, false, false);
+        $ran1 = Random::string(1, false, true, false, false);
+        $lets = Random::string(3, false, true, false, false);
+
+        $thr1 = rand(001, 999);
+        $thr2 = rand(001, 999);
+        $thr3 = rand(001, 999);
+
         return [
-            //
+            'slug' => $this->faker->slug,
+            'isrc' => "{$ran}{$one}{$ran1}{$sev}",
+            'iswc' => "T-{$thr1}.{$thr2}.{$thr3}-$one",
+            'title' => ucwords($this->faker->words(rand(2, 4), true)),
+            'pline' => date('Y') . " $lets Music Limited",
+            'draft' => false,
+            'image' => $this->faker->imageUrl(480, 480, 'Music', true, null, true, 'jpg'),
+            'privacy' => 'public',
+            'genre_id' => Genre::inRandomOrder()->first()->id,
+            'explicit' => [true, false][rand(0, 1)],
+            'composer' => $this->faker->name,
+            'publisher' => "$lets Music Limited",
+            'artist_id' => Artist::inRandomOrder()->first()->id,
+            'description' => $this->faker->sentences(rand(2, 3), true),
+            'release_date' => now(),
+            'record_label' => "$lets Music",
+            'contains_music' => [true, false][rand(0, 1)],
         ];
+    }
+
+    /**
+     * Configure the model factory.
+     */
+    public function configure(): static
+    {
+        return $this->afterCreating(function (Release $model) {
+            User::inRandomOrder()->limit(rand(1, 10))
+                ->get()
+                ->each(fn (User $user) => $model->stream(0, $user));
+        });
     }
 }

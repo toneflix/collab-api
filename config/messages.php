@@ -119,28 +119,28 @@ return [
         'subject' => 'Request to join project.',
         'lines' => [
             'Hello :fullname,',
-            ":sendername is requesting to join project: :title as a :role.",
+            ':sendername is requesting to join project: :title as a :role.',
         ],
     ],
     'project::request_approved' => [
         'subject' => 'Request to join project approved.',
         'lines' => [
             'Hello :fullname,',
-            "Your request to join project: :title as a :role as been approved.",
+            'Your request to join project: :title as a :role as been approved.',
         ],
     ],
     'project::invitation' => [
         'subject' => 'Invitation to join project.',
         'lines' => [
             'Hello :fullname,',
-            ":sendername is inviting you to join project: :title as a :role.",
+            ':sendername is inviting you to join project: :title as a :role.',
         ],
     ],
     'project::invitation_accepted' => [
         'subject' => ':sendername joined project.',
         'lines' => [
             'Hello :fullname,',
-            ":sendername has accepted your invitaion to join project: :title as a :role.",
+            ':sendername has accepted your invitaion to join project: :title as a :role.',
         ],
     ],
 ];

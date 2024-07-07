@@ -2,6 +2,11 @@
 
 namespace Database\Factories;
 
+use App\Models\Track;
+use App\Models\User;
+use App\Models\Artist;
+use App\Models\Genre;
+use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -9,6 +14,8 @@ use Illuminate\Database\Eloquent\Factories\Factory;
  */
 class TrackFactory extends Factory
 {
+    use WithoutModelEvents;
+
     /**
      * Define the model's default state.
      *
@@ -17,7 +24,26 @@ class TrackFactory extends Factory
     public function definition(): array
     {
         return [
-            //
+            'slug' => $this->faker->slug,
+            'title' => ucwords($this->faker->words(rand(2, 4), true)),
+            'image' => $this->faker->imageUrl(480, 480, 'Music', true, null, true, 'jpg'),
+            'audio' => Track::whereNotNull('audio')->first()?->audio,
+            'privacy' => 'public',
+            'genre_id' => Genre::inRandomOrder()->first()->id,
+            'description' => $this->faker->sentences(rand(2, 3), true),
         ];
+    }
+
+    /**
+     * Configure the model factory.
+     */
+    public function configure(): static
+    {
+        return $this->afterCreating(function (Track $model) {
+            $model->artists()->attach(Artist::inRandomOrder()->first()->id);
+            User::inRandomOrder()->limit(rand(1, 10))
+                ->get()
+                ->each(fn (User $user) => $model->stream(rand(10, 320), $user));
+        });
     }
 }

@@ -52,7 +52,7 @@ class ProjectTrackStemController extends Controller
         $stem = $track->stems()->create($valid);
 
         return (new ProjectTrackStemResource($stem))->additional([
-            'message' => "Track stem created successfully.",
+            'message' => 'Track stem created successfully.',
             'status' => 'success',
             'status_code' => HttpStatus::CREATED,
         ]);
@@ -92,7 +92,7 @@ class ProjectTrackStemController extends Controller
         $stem->update($valid);
 
         return (new ProjectTrackStemResource($stem))->additional([
-            'message' => "Track stem updated successfully.",
+            'message' => 'Track stem updated successfully.',
             'status' => 'success',
             'status_code' => HttpStatus::ACCEPTED,
         ]);
@@ -106,7 +106,7 @@ class ProjectTrackStemController extends Controller
         $stem->delete();
 
         return (new ProjectTrackStemCollection([]))->additional([
-            'message' => "Track stem deleted successfully.",
+            'message' => 'Track stem deleted successfully.',
             'status' => 'success',
             'status_code' => HttpStatus::ACCEPTED,
         ]);

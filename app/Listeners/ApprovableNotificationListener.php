@@ -24,6 +24,7 @@ class ApprovableNotificationListener implements ShouldQueue
 
     /**
      * Handle the event.
+     *
      * @param object{notification:Notification}
      */
     public function handle(ApprovableNotificationCreated|ApprovableNotificationUpdated $event): void
@@ -41,7 +42,7 @@ class ApprovableNotificationListener implements ShouldQueue
                     $event->notification->data['action']
                 ));
             }
-        } else if ($event instanceof ApprovableNotificationUpdated) {
+        } elseif ($event instanceof ApprovableNotificationUpdated) {
             if ($event->notification->actionable instanceof ProjectCollaborator) {
                 /** @var \App\Models\User $user */
                 $user = $event->notification->notifier;

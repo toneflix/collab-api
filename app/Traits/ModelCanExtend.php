@@ -9,11 +9,16 @@ trait ModelCanExtend
     /**
      * Generate a Username for the user.
      *
-     * @param  \Illuminate\Support\Stringable|string  $string
+     *
      * @return string
      */
-    protected static function generateUsername($string, $field = 'username', $separator = '_', $current = null, $model = null)
-    {
+    protected static function generateUsername(
+        string|\Illuminate\Support\Stringable $string,
+        string $field = 'username',
+        string $separator = '_',
+        ?string $current = null,
+        ?\Illuminate\Database\Eloquent\Model $model = null
+    ) {
         $username = str($current ?: $string)->slug($separator);
 
         if (static::where($field, $username)->exists()) {

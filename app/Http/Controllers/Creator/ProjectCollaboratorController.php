@@ -8,7 +8,6 @@ use App\Http\Resources\ProjectCollaboratorCollection;
 use App\Http\Resources\ProjectCollaboratorResource;
 use App\Models\Project;
 use App\Models\ProjectCollaborator;
-use App\Notifications\JoinProjectRequestNotification;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -42,12 +41,12 @@ class ProjectCollaboratorController extends Controller
                 'required',
                 'string',
                 'exists:users,id',
-                Rule::unique('project_collaborators', 'user_id')->where('project_id', $project->id)
+                Rule::unique('project_collaborators', 'user_id')->where('project_id', $project->id),
             ],
             'role' => ['nullable', 'string'],
-            'custom' => ['nullable', 'required_if:role,custom', 'string']
+            'custom' => ['nullable', 'required_if:role,custom', 'string'],
         ], [
-            'user_id.unique' => 'This user is already a collaber or already invited.'
+            'user_id.unique' => 'This user is already a collaber or already invited.',
         ]);
 
         if (isset($valid['custom'])) {
@@ -63,7 +62,7 @@ class ProjectCollaboratorController extends Controller
         $user->sendApprovableNotification(
             $collaborator->user,
             'Invitation to join project',
-            __(":0 is inviting you to to join the project: :1", [$user->fullname, $project->title]),
+            __(':0 is inviting you to to join the project: :1', [$user->fullname, $project->title]),
             ['type' => 'project_invitation', 'action' => 'invitation'],
             $collaborator
         );
@@ -94,7 +93,7 @@ class ProjectCollaboratorController extends Controller
     {
         $valid = $this->validate($request, [
             'role' => ['nullable', 'string'],
-            'custom' => ['nullable', 'required_if:role,custom', 'string']
+            'custom' => ['nullable', 'required_if:role,custom', 'string'],
         ]);
 
         if (isset($valid['custom'])) {
@@ -104,7 +103,7 @@ class ProjectCollaboratorController extends Controller
         $collaborator->update($valid);
 
         return (new ProjectCollaboratorResource($collaborator))->additional([
-            'message' => __("Collaber updated"),
+            'message' => __('Collaber updated'),
             'status' => 'success',
             'status_code' => HttpStatus::OK,
         ]);
@@ -118,7 +117,7 @@ class ProjectCollaboratorController extends Controller
         $collaborator->delete();
 
         return (new ProjectCollaboratorResource($collaborator))->additional([
-            'message' => __(":0 has been removed from the project", [$collaborator->user->fullname]),
+            'message' => __(':0 has been removed from the project', [$collaborator->user->fullname]),
             'status' => 'success',
             'status_code' => HttpStatus::OK,
         ]);

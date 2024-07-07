@@ -7,7 +7,6 @@ use App\Helpers\Providers;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\TrackCollection;
 use App\Http\Resources\TrackResource;
-use App\Models\Track;
 use Illuminate\Http\Request;
 
 class TrackController extends Controller
@@ -77,7 +76,7 @@ class TrackController extends Controller
         $track->artists()->sync($artists);
 
         return (new TrackResource($track))->additional([
-            'message' => "New track created successfully.",
+            'message' => 'New track created successfully.',
             'status' => 'success',
             'status_code' => HttpStatus::CREATED,
         ]);
@@ -126,7 +125,7 @@ class TrackController extends Controller
         $track->artists()->sync($artists);
 
         return (new TrackResource($track))->additional([
-            'message' => "Track updated successfully.",
+            'message' => 'Track updated successfully.',
             'status' => 'success',
             'status_code' => HttpStatus::ACCEPTED,
         ]);
@@ -193,7 +192,7 @@ class TrackController extends Controller
         $release->tracks()->whereId($id)->orWhere('slug', $id)->delete();
 
         return (new TrackCollection([]))->additional([
-            'message' => "Track deleted successfully.",
+            'message' => 'Track deleted successfully.',
             'status' => 'success',
             'status_code' => HttpStatus::ACCEPTED,
         ]);

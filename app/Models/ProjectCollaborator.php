@@ -29,7 +29,7 @@ class ProjectCollaborator extends Model
      */
     protected $attributes = [
         'accepted' => false,
-        'meta' => '{}'
+        'meta' => '{}',
     ];
 
     /**

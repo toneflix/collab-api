@@ -4,7 +4,6 @@ namespace App\Notifications;
 
 use App\Helpers\Providers;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use ToneflixCode\ApprovableNotifications\Models\Notification as ModelsNotification;
@@ -72,7 +71,7 @@ class JoinProjectRequestNotification extends Notification
             ]
         );
 
-        return SmsProvider::getMessage(join("\n", $message->lines));
+        return SmsProvider::getMessage(implode("\n", $message->lines));
     }
 
     public function toTwilio($n): \NotificationChannels\Twilio\TwilioSmsMessage

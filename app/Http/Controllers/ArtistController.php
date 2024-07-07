@@ -18,24 +18,29 @@ class ArtistController extends Controller
     {
         $query = Artist::query();
 
-        $query->when($request->has('search'), function (Builder $query) use ($request) {
-            if (str($request->search)->contains('@')) {
-                $query->where('username', str($request->search)->remove('@')->toString());
-            } else if (str($request->search)->contains(['>', '<']) && str($request->search)->numbers()->toInteger() > 0) {
-                $query->where(
-                    'reputation',
-                    substr($request->search, 0, 1),
-                    str($request->search)->numbers()
-                );
-            } else {
-                $query->where(function ($query) use ($request) {
-                    $query->where('name', 'like', "%$request->search%")
-                        // ->orWhere('country', $request->search)
-                        // ->orWhere('city', $request->search)
-                        ->orWhereFullText('about', $request->search);
-                });
-            }
-        })->when($request->has('user_id'), fn (Builder $q) => $q->whereUserId($request->user_id));
+        $filters = str($request->filters)->remove(' ')->explode(',');
+
+        $query
+            ->when($request->has('search'), function (Builder $query) use ($request) {
+                if (str($request->search)->contains('@')) {
+                    $query->where('username', str($request->search)->remove('@')->toString());
+                } elseif (str($request->search)->contains(['>', '<']) && str($request->search)->numbers()->toInteger() > 0) {
+                    $query->where(
+                        'reputation',
+                        substr($request->search, 0, 1),
+                        str($request->search)->numbers()
+                    );
+                } else {
+                    $query->where(function ($query) use ($request) {
+                        $query->where('name', 'like', "%$request->search%")
+                            // ->orWhere('country', $request->search)
+                            // ->orWhere('city', $request->search)
+                            ->orWhereFullText('about', $request->search);
+                    });
+                }
+            })
+            ->when($request->has('user_id'), fn (Builder $q) => $q->whereUserId($request->user_id))
+            ->when($filters->contains('trending'), fn (Builder $q) => $q->trending($request->period));
 
         $artists = $query->paginate($request->input('limit', 15));
 

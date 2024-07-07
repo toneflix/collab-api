@@ -3,17 +3,15 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use ToneflixCode\LaravelFileable\Traits\Fileable;
 
 class ProjectTrackStem extends Model
 {
-    use HasFactory;
     use Fileable;
+    use HasFactory;
 
     /**
      * The attributes that are mass assignable.
@@ -48,7 +46,7 @@ class ProjectTrackStem extends Model
             "cuein": 0,
             "customClass": null,
             "waveOutlineColor": null
-        }'
+        }',
     ];
 
     /**
@@ -80,8 +78,6 @@ class ProjectTrackStem extends Model
 
     /**
      * Get the project track that owns this ProjectTrackStem
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
     public function track(): BelongsTo
     {
@@ -90,8 +86,6 @@ class ProjectTrackStem extends Model
 
     /**
      * Get the ProjectTrackStem that this ProjectTrackStem is a clone of if any
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
     public function stem(): BelongsTo
     {
@@ -100,8 +94,6 @@ class ProjectTrackStem extends Model
 
     /**
      * Get the user that owns this ProjectTrackStem
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
     public function user(): BelongsTo
     {

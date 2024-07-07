@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use ToneflixCode\LaravelFileable\Traits\Fileable;
 
@@ -38,7 +39,7 @@ class ProjectTrack extends Model
      */
     protected $attributes = [
         'privacy' => 'private',
-        'meta' => "{}",
+        'meta' => '{}',
     ];
 
     /**
@@ -63,6 +64,25 @@ class ProjectTrack extends Model
         static::creating(function (self $model) {
             $model->slug ??= $model->generateUsername($model->title, 'slug', '-');
         });
+
+        static::deleting(function (self $model) {
+            $model->stems()->delete();
+            $model->assets()->delete();
+            $model->releasedTrack()->delete();
+        });
+
+        static::updated(function (self $model) {
+            if ($model->releasedTrack) {
+                $model->releasedTrack->title = $model->title;
+                $model->releasedTrack->genre_id = $model->genre_id;
+                $artists = [];
+                if ($model->isDirty('artist_id')) {
+                    $artists[$model->artist_id] = ['type' => 'primary'];
+                    $model->releasedTrack->artists()->sync($artists);
+                }
+                $model->releasedTrack->saveQuietly();
+            }
+        });
     }
 
     /**
@@ -83,15 +103,13 @@ class ProjectTrack extends Model
 
     /**
      * Get the genre that owns the Release
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
     public function genre(): BelongsTo
     {
         return $this->belongsTo(Genre::class)->withDefault(fn () => Genre::first() ?? [
             'id' => null,
             'title' => 'Unknown',
-            'description' =>  'Unknown',
+            'description' => 'Unknown',
         ]);
     }
 
@@ -101,6 +119,14 @@ class ProjectTrack extends Model
     public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class);
+    }
+
+    /**
+     * Get the released track for this project Track if available
+     */
+    public function releasedTrack(): HasOne
+    {
+        return $this->hasOne(Track::class);
     }
 
     /**

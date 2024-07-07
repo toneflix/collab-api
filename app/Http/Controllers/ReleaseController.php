@@ -6,6 +6,7 @@ use App\Enums\HttpStatus;
 use App\Http\Resources\ReleaseCollection;
 use App\Http\Resources\ReleaseResource;
 use App\Models\Release;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 
 class ReleaseController extends Controller
@@ -15,7 +16,16 @@ class ReleaseController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Release::query()->make();
+        $query = Release::query();
+
+        $filters = str($request->filters)->remove(' ')->explode(',');
+
+        $query
+            ->when($filters->contains('album'), function (Builder $q) {
+                $q->withCount('tracks')->having('tracks_count', '>', 1);
+            })
+            ->when($filters->contains('latest'), fn (Builder $q) => $q->latestInPeriod('weeks_2'))
+            ->when($filters->contains('top'), fn (Builder $q) => $q->popular('top', $request->period));
 
         $releases = $query->paginate($request->input('limit', 15));
 
@@ -38,6 +48,8 @@ class ReleaseController extends Controller
      */
     public function show(Release $release)
     {
+        $release->stream(0, request()->user('sanctum'));
+
         return (new ReleaseResource($release))->additional([
             'message' => HttpStatus::message(HttpStatus::OK),
             'status' => 'success',

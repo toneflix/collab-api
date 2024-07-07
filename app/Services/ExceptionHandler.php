@@ -29,9 +29,9 @@ class ExceptionHandler // extends Handler
         static::$request = $request;
 
         if ($request->isXmlHttpRequest() || request()->is('api/*')) {
-            $line = method_exists($e, 'getFile') ? ' in ' . $e->getFile() : '';
-            $line .= method_exists($e, 'getLine') ? ' on line ' . $e->getLine() : '';
-            $msg = method_exists($e, 'getMessage') ? $e->getMessage() . $line : 'An error occured' . $line;
+            $line = method_exists($e, 'getFile') ? ' in '.$e->getFile() : '';
+            $line .= method_exists($e, 'getLine') ? ' on line '.$e->getLine() : '';
+            $msg = method_exists($e, 'getMessage') ? $e->getMessage().$line : 'An error occured'.$line;
             $getCode = method_exists($e, 'getCode') ? $e->getCode() : null;
             $plainMessage = method_exists($e, 'getMessage') ? $e->getMessage() : null;
 
@@ -39,32 +39,31 @@ class ExceptionHandler // extends Handler
                 static::$message = $e->getMessage();
             }
 
-            $prefix = $e instanceof ModelNotFoundException ? str($e->getModel())->afterLast('\\')->lower() : '';
+            $prefix = $e->getPrevious() instanceof ModelNotFoundException
+                ? str($e->getPrevious()->getModel())->afterLast('\\')->lower()
+                : null;
 
             return match (true) {
-                $e instanceof \Symfony\Component\HttpKernel\Exception\HttpException => static::renderException(
-                    $plainMessage ?: HttpStatus::message(HttpStatus::FORBIDDEN),
-                    $getCode ?: HttpStatus::FORBIDDEN
-                ),
                 $e instanceof NotFoundHttpException ||
-                    $e instanceof ModelNotFoundException => static::renderException(
-                    str(str($msg)->contains('The route')
-                        ? str($msg)->before('.')->append('.')
-                        : HttpStatus::message(HttpStatus::NOT_FOUND))->replace('resource', $prefix ?: 'resource'),
-                    HttpStatus::NOT_FOUND
-                ),
+                    $e instanceof ModelNotFoundException ||
+                    $e->getPrevious() instanceof ModelNotFoundException => static::renderException(
+                        str(str($msg)->contains('The route')
+                            ? str($msg)->before('.').'.'
+                            : HttpStatus::message(HttpStatus::NOT_FOUND))->replace('resource', $prefix ?: 'resource'),
+                        HttpStatus::NOT_FOUND
+                    ),
                 $e instanceof \Spatie\Permission\Exceptions\UnauthorizedException ||
                     $e instanceof AuthorizationException ||
                     $e instanceof AccessDeniedHttpException ||
                     $e->getCode() === HttpStatus::FORBIDDEN => static::renderException(
-                    $plainMessage ? $plainMessage : HttpStatus::message(HttpStatus::FORBIDDEN),
-                    HttpStatus::FORBIDDEN
-                ),
+                        $plainMessage ? $plainMessage : HttpStatus::message(HttpStatus::FORBIDDEN),
+                        HttpStatus::FORBIDDEN
+                    ),
                 $e instanceof AuthenticationException ||
                     $e instanceof UnauthorizedHttpException => static::renderException(
-                    HttpStatus::message(HttpStatus::UNAUTHORIZED),
-                    HttpStatus::UNAUTHORIZED
-                ),
+                        HttpStatus::message(HttpStatus::UNAUTHORIZED),
+                        HttpStatus::UNAUTHORIZED
+                    ),
                 $e instanceof MethodNotAllowedHttpException => static::renderException(
                     HttpStatus::message(HttpStatus::METHOD_NOT_ALLOWED),
                     HttpStatus::METHOD_NOT_ALLOWED
@@ -81,6 +80,10 @@ class ExceptionHandler // extends Handler
                 $e instanceof ThrottleRequestsException => static::renderException(
                     HttpStatus::message(HttpStatus::TOO_MANY_REQUESTS),
                     HttpStatus::TOO_MANY_REQUESTS
+                ),
+                $e instanceof \Symfony\Component\HttpKernel\Exception\HttpException => static::renderException(
+                    $plainMessage ?: HttpStatus::message(HttpStatus::FORBIDDEN),
+                    $getCode ?: HttpStatus::FORBIDDEN
                 ),
                 default => static::renderException($msg, HttpStatus::SERVER_ERROR),
             };

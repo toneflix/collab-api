@@ -68,7 +68,7 @@ class Configuration extends Model
 
         /** @var \Illuminate\Support\Collection<TMapWithKeysKey, TMapWithKeysValue> $config */
         $config = Cache::remember('configuration::build', null, function () {
-            return Configuration::all()->filter(fn ($conf) => !$conf->secret)->mapWithKeys(function ($item) {
+            return Configuration::all()->filter(fn ($conf) => ! $conf->secret)->mapWithKeys(function ($item) {
                 return [$item->key => $item->value];
             });
         });

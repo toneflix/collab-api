@@ -3,16 +3,21 @@
 namespace App\Models;
 
 use App\Traits\ModelCanExtend;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 use ToneflixCode\LaravelFileable\Traits\Fileable;
+use App\Traits\Metricable;
 
 class Track extends Model
 {
-    use HasFactory, Fileable, ModelCanExtend;
+    use Fileable;
+    use HasFactory;
+    use ModelCanExtend;
+    use Metricable;
 
     /**
      * The attributes that are mass assignable.
@@ -27,6 +32,7 @@ class Track extends Model
         'privacy',
         'genre_id',
         'description',
+        'project_track_id',
     ];
 
     /**
@@ -49,22 +55,32 @@ class Track extends Model
         if ($key === 'artist') {
             return $this->artist()->first();
         }
+
         return $this->getAttribute($key);
     }
 
     public function registerFileable()
     {
         $this->fileableLoader([
-            'image' => 'artwork',
             'audio' => 'music_tracks',
+            'image' => 'artwork',
         ], 'default', true);
     }
 
     public static function registerEvents()
     {
-        static::saving(function (self $model) {
+        static::creating(function (self $model) {
             $model->slug ??= $model->generateUsername($model->title, 'slug', '-');
         });
+
+        static::deleting(function (self $model) {
+            $model->artists()->detach();
+        });
+    }
+
+    public function gusm(string $str, string $sep = '-', ?string $cur = null)
+    {
+        return $this->generateUsername($str, 'slug', $sep, $cur);
     }
 
     /**
@@ -88,28 +104,32 @@ class Track extends Model
 
     /**
      * Get the genre that owns the Release
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
     public function genre(): BelongsTo
     {
         return $this->belongsTo(Genre::class)->withDefault(fn () => Genre::first() ?? [
             'id' => null,
             'title' => 'Unknown',
-            'description' =>  'Unknown',
+            'description' => 'Unknown',
         ]);
     }
 
     /**
      * Get the release that owns the Track
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
     public function release(): BelongsTo
     {
         return $this->belongsTo(Release::class)->withDefault(fn () => [
-            'title' => 'Unknown'
+            'title' => 'Unknown',
         ]);
+    }
+
+    /**
+     * Get the project track that owns the Track
+     */
+    public function projectTrack(): BelongsTo
+    {
+        return $this->belongsTo(ProjectTrack::class);
     }
 
     /**
@@ -120,5 +140,10 @@ class Track extends Model
     public function user(): HasOneThrough
     {
         return $this->hasOneThrough(User::class, Release::class)->withDefault(fn () => User::firstWhere('curator', true));
+    }
+
+    public function scopeRecentlyPlayed(Builder $query, User|string $user, int $days = 1): void
+    {
+        $query->userThatPlayed($user)->popularPlayedLastDays($days);
     }
 }

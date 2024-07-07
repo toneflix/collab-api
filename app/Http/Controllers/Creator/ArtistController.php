@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Creator;
 use App\Enums\HttpStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ArtistResource;
-use App\Models\Artist;
 use Illuminate\Http\Request;
 
 class ArtistController extends Controller
@@ -18,7 +17,7 @@ class ArtistController extends Controller
         $this->validate($request, [
             'name' => ['required', 'string'],
             'about' => ['nullable', 'string'],
-            'image' => ['nullable', 'image', 'mimes:png,jpg']
+            'image' => ['nullable', 'image', 'mimes:png,jpg'],
         ]);
 
         $artist = $this->user->artists()->make();
@@ -27,7 +26,7 @@ class ArtistController extends Controller
         $artist->save();
 
         return (new ArtistResource($artist))->additional([
-            'message' => "New artist created successfully.",
+            'message' => 'New artist created successfully.',
             'status' => 'success',
             'status_code' => HttpStatus::CREATED,
         ]);
@@ -43,7 +42,7 @@ class ArtistController extends Controller
             ->firstOrFail();
 
         return (new ArtistResource($artist))->additional([
-            'message' => "Artist updated successfully.",
+            'message' => 'Artist updated successfully.',
             'status' => 'success',
             'status_code' => HttpStatus::ACCEPTED,
         ]);

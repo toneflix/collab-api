@@ -16,6 +16,11 @@ class ReleaseResource extends JsonResource
     {
         $with = str($request->input('with'))->remove(' ')->explode(',');
 
+        $imageUrl = $this->files['artwork'];
+        if (! $this->image && isset($this->project)) {
+            $imageUrl = $this->project->files['image'];
+        }
+
         return [
             'id' => $this->id,
             'slug' => $this->slug,
@@ -26,26 +31,31 @@ class ReleaseResource extends JsonResource
             'genre' => $this->when($with->contains('genre'), fn () => new GenreResource($this->genre)),
             'tracks' => $this->when($with->contains('tracks'), fn () => new TrackCollection($this->tracks)),
             'artist' => $this->when(
-                $with->contains('artist') && $this->artist,
+                $with->contains('artist') && $this->artist && ! is_array($this->artist),
                 fn () => new ArtistResource($this->artist),
                 new \stdClass()
             ),
+            'project' => $this->when(
+                (bool) $this->project && $with->contains('project'),
+                fn () => new ProjectResource($this->project),
+            ),
             'privacy' => $this->privacy,
             'streams' => $this->streams,
-            'imageUrl' => $this->files['artwork'],
+            'imageUrl' => $imageUrl,
             'genre_id' => $this->genre_id,
-            'duration' => $this->duration,
+            'duration' => $this->duration ?? 0,
             'description' => $this->description,
             'tracks_count' => $this->tracks->count(),
             'isrc' => $this->isrc,
             'iswc' => $this->iswc,
             'pline' => $this->pline,
             'label' => $this->record_label,
-            'record_label' => $this->record_label,
             'explicit' => $this->explicit,
             'composer' => $this->composer,
             'publisher' => $this->publisher,
             'artist_id' => $this->artist_id,
+            'project_id' => $this->project_id,
+            'record_label' => $this->record_label,
             'contains_music' => $this->contains_music,
             'releaseDate' => $this->release_date?->format('Y/m/d'),
             'updatedAt' => $this->updated_at,

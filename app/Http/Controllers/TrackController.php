@@ -7,6 +7,7 @@ use App\Http\Resources\TrackCollection;
 use App\Http\Resources\TrackResource;
 use App\Models\Release;
 use App\Models\Track;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 
 class TrackController extends Controller
@@ -14,9 +15,22 @@ class TrackController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request, Release $release)
+    public function index(Request $request, ?Release $release = null)
     {
-        $query = $release->tracks()->getQuery();
+        $query = $release
+            ? $release->tracks()->getQuery()
+            : Track::query();
+
+        $filters = str($request->filters)->remove(' ')->explode(',');
+
+        $query
+            ->when(
+                $filters->contains('recently_played') && $request->user('sanctum'),
+                fn (Builder $q) => $q->recentlyPlayed($request->user('sanctum'), 3)
+            )->when(
+                $filters->contains('trending'),
+                fn (Builder $q) => $q->popular('top', $request->period)
+            );
 
         $tracks = $query->paginate($request->input('limit', 15));
 
@@ -40,6 +54,8 @@ class TrackController extends Controller
      */
     public function show(Release $release, Track $track)
     {
+        $track->stream(0, request()->user('sanctum'));
+
         return (new TrackResource($track))->additional([
             'message' => HttpStatus::message(HttpStatus::OK),
             'status' => 'success',

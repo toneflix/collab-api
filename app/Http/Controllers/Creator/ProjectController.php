@@ -6,7 +6,6 @@ use App\Enums\HttpStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ProjectCollection;
 use App\Http\Resources\ProjectResource;
-use App\Models\Project;
 use Illuminate\Http\Request;
 
 class ProjectController extends Controller
@@ -91,7 +90,7 @@ class ProjectController extends Controller
         ]);
 
         return (new ProjectResource($project))->additional([
-            'message' => "Project updated successfully.",
+            'message' => 'Project updated successfully.',
             'status' => 'success',
             'status_code' => HttpStatus::ACCEPTED,
         ]);
@@ -103,15 +102,15 @@ class ProjectController extends Controller
     public function destroy(Request $request, string $id)
     {
         /** @var \App\Models\Project $project */
-        $project = $this->user->collabProjects()
-            ->whereId($id)
+        $project = $this->user->projects()
+            ->where('projects.id', [$id])
             ->orWhere('slug', $id)
             ->firstOrFail();
 
         $project->delete();
 
         return (new ProjectCollection([]))->additional([
-            'message' => "Project deleted successfully.",
+            'message' => 'Project deleted successfully.',
             'status' => 'success',
             'status_code' => HttpStatus::ACCEPTED,
         ]);

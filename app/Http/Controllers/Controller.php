@@ -20,7 +20,7 @@ abstract class Controller extends BaseController
      * @\return \App\Models\User
      */
     // public \Closure $user;
-    public \App\Models\User|null $user;
+    public ?\App\Models\User $user;
 
     public function __construct()
     {

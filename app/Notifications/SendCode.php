@@ -24,7 +24,7 @@ class SendCode extends Notification implements ShouldQueue
      *
      * @return void
      */
-    public function __construct(string $code = null, string $type = 'reset', string $token = null)
+    public function __construct(?string $code = null, string $type = 'reset', ?string $token = null)
     {
         $this->type = $type;
         $this->code = $code;
@@ -118,7 +118,7 @@ class SendCode extends Notification implements ShouldQueue
         ];
 
         if (isset($message[$this->type])) {
-            $message = __('Hi :0, ', [$n->firstname]) . $message[$this->type];
+            $message = __('Hi :0, ', [$n->firstname]).$message[$this->type];
 
             return SmsProvider::getMessage($message);
         }

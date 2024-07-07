@@ -29,7 +29,7 @@ class NotificationRequestController extends Controller
             'message' => HttpStatus::message(HttpStatus::OK),
             'status' => 'success',
             'status_code' => HttpStatus::ACCEPTED,
-            'pending_count' => $user->approvableNotifications()->pending()->count()
+            'pending_count' => $user->approvableNotifications()->pending()->count(),
         ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 
@@ -66,7 +66,7 @@ class NotificationRequestController extends Controller
         $notification->markAsRead();
 
         $this->validate($request, [
-            'status' => ['required', 'numeric', 'in:0,2']
+            'status' => ['required', 'numeric', 'in:0,2'],
         ]);
 
         if ($request->integer('status') === 0) {

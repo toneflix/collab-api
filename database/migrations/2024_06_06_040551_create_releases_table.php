@@ -18,6 +18,7 @@ return new class extends Migration
             $table->foreignId('user_id')->nullable()->constrained('users')->cascadeOnUpdate()->nullOnDelete();
             $table->foreignId('genre_id')->nullable()->constrained('genres')->cascadeOnUpdate()->nullOnDelete();
             $table->foreignId('artist_id')->nullable()->constrained('artists')->cascadeOnUpdate()->nullOnDelete();
+            $table->foreignId('project_id')->nullable()->constrained('projects')->cascadeOnUpdate()->nullOnDelete();
             $table->string('image')->nullable();
             $table->string('privacy')->nullable()->default('public')->comment('[private, public]');
             $table->text('description')->nullable();

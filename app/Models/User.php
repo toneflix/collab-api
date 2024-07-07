@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Notifications\SendCode;
 use App\Traits\ModelCanExtend;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -13,20 +14,29 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Overtrue\LaravelFollow\Traits\Followable;
+use Overtrue\LaravelFollow\Traits\Follower;
 use Spatie\Permission\Traits\HasRoles;
 use ToneflixCode\ApprovableNotifications\Traits\ApprovableNotifiable;
 use ToneflixCode\LaravelFileable\Traits\Fileable;
+use ToneflixCode\SocialInteractions\Models\SocialInteraction;
+use ToneflixCode\SocialInteractions\Traits\CanSocialInteract;
 use Valorin\Random\Random;
 
 class User extends Authenticatable
 {
+    use ApprovableNotifiable;
+    use CanSocialInteract;
     use Fileable;
+    use Followable;
+    use Follower;
     use HasApiTokens;
     use HasFactory;
     use HasRoles;
     use ModelCanExtend;
     use Notifiable;
-    use ApprovableNotifiable;
+
+    public $eraseOnDelete = false;
 
     /**
      * The attributes that are mass assignable.
@@ -74,7 +84,8 @@ class User extends Authenticatable
                 "notifications": {
                     "email": true
                 }
-            }
+            },
+            "eraseOnDelete": false
         }',
         'access_data' => '{}',
     ];
@@ -121,6 +132,19 @@ class User extends Authenticatable
     {
         static::creating(function (User $model) {
             $model->username ??= $model->generateUsername($model->firstname);
+        });
+
+        static::deleting(function (User $model) {
+            $model->projects()->delete();
+            $model->followers()->delete();
+            $model->followings()->delete();
+            // $model->collabProjects();
+            $model->approvableNotifications()->delete();
+
+            if (@$model->data['eraseOnDelete'] === true) {
+                $model->releases()->delete();
+                $model->artists()->delete();
+            }
         });
     }
 
@@ -227,11 +251,38 @@ class User extends Authenticatable
     }
 
     /**
-     * Get all of the releases created by the User
+     * Get all of the collabProjects the User is associated with
      */
-    public function tracks(): HasManyThrough
+    public function collabProjects(): HasManyThrough
     {
-        return $this->hasManyThrough(Track::class, Release::class);
+        return $this->hasManyThrough(
+            Project::class,
+            ProjectCollaborator::class,
+            'user_id',
+            'id',
+            'id',
+            'project_id'
+        );
+    }
+
+    /**
+     * Get all of the interaction recieved by the User's projects
+     */
+    public function projects(): HasMany
+    {
+        return $this->hasMany(Project::class);
+    }
+
+    public function projectInteractions(): HasManyThrough
+    {
+        return $this->hasManyThrough(
+            SocialInteraction::class,
+            Project::class,
+            'user_id',
+            'interactable_id',
+            'id',
+            'id'
+        )->where('social_interactions.interactable_type', Project::class);
     }
 
     /**
@@ -242,20 +293,40 @@ class User extends Authenticatable
         return $this->hasMany(Release::class);
     }
 
-    /**
-     * Get all of the projects created by the User
-     */
-    public function projects(): HasMany
+    public function scopeCreator(Builder $query): void
     {
-        return $this->hasMany(Project::class);
+        $query->whereHas('projects');
+        $query->orWhereHas('collabProjects');
+    }
+
+    public function scopeOrderByUserProjectVotesLastDays(Builder $query, int $days = 7, string $direction = 'desc')
+    {
+        $scope = fn (Builder $q) => $q
+            ->whereBetween('social_interactions.created_at', [now()->subDays($days), now()]);
+
+        $query
+            ->whereHas('projectInteractions', $scope)
+            ->withMax(['projectInteractions' => $scope], 'votes')
+            ->orderBy('project_interactions_max_votes', $direction);
+    }
+
+    public function scopeOrderByFollowersLastDays(Builder $query, int $days = 7, string $direction = 'desc')
+    {
+        $scope = fn (Builder $q) => $q
+            ->whereBetween('followables.created_at', [now()->subDays($days), now()]);
+
+        $query
+            ->whereHas('followers', $scope)
+            ->withCount(['followers' => $scope])
+            ->orderBy('followers_count', $direction);
     }
 
     /**
-     * Get all of the collabProjects created by the User
+     * Get all of the releases created by the User
      */
-    public function collabProjects(): HasManyThrough
+    public function tracks(): HasManyThrough
     {
-        return $this->hasManyThrough(Project::class, ProjectCollaborator::class, 'user_id', 'id', 'id', 'project_id');
+        return $this->hasManyThrough(Track::class, Release::class);
     }
 
     /**

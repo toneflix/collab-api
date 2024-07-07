@@ -23,7 +23,7 @@ return new class extends Migration
                 ->cascadeOnUpdate()
                 ->cascadeOnDelete();
             $table->foreignId('track_id')
-                ->constrained('tracks')
+                ->constrained('project_tracks')
                 ->cascadeOnUpdate()
                 ->cascadeOnDelete();
             $table->string('title')->nullable();

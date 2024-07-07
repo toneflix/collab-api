@@ -22,7 +22,7 @@ class ProjectTrackResource extends JsonResource
             'title' => $this->title,
             'genre' => $this->when($with->contains('genre'), fn () => new GenreResource($this->genre), new \stdClass()),
             'artist' => $this->when(
-                $with->contains('artist') && $this->artist,
+                ($with->contains('artist') || $with->contains('artists')) && $this->artist,
                 fn () => new ArtistResource($this->artist),
                 new \stdClass()
             ),
@@ -31,6 +31,7 @@ class ProjectTrackResource extends JsonResource
             'duration' => 3111,
             'genre_id' => $this->genre_id,
             'artist_id' => $this->artist_id,
+            'stemsCount' => $this->stems()->count(),
             'project_id' => $this->project_id,
             'description' => $this->description,
         ];
