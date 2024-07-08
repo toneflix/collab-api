@@ -40,8 +40,8 @@ class ProjectResource extends JsonResource
             'imageUrl' => $this->images['image'],
             'interaction' => $interaction,
             'description' => $this->description,
-            'tracksCount' => $this->tracks()->count(),
-            'collaboratorsCount' => $this->collaborators()->count(),
+            'tracksCount' => $this->tracks_count,
+            'collaboratorsCount' => $this->collaborators_count,
             'updatedAt' => $this->updated_at,
             'createdAt' => $this->created_at,
         ];

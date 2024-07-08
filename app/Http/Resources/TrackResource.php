@@ -22,7 +22,7 @@ class TrackResource extends JsonResource
         }
 
         $imageUrl = $this->files['image'];
-        if (! $this->image && isset($this->projectTrack->project)) {
+        if (!$this->image && isset($this->projectTrack->project)) {
             $imageUrl = $this->projectTrack->project->files['image'];
         }
 
@@ -33,12 +33,23 @@ class TrackResource extends JsonResource
             'loved' => $this->loved,
             'loves' => $this->loves,
             'genre' => $this->when($with->contains('genre'), fn () => new GenreResource($this->genre)),
-            'release' => $this->when($with->contains('release') && ! $with->contains('tracks'), fn () => new ReleaseResource($this->release)),
-            'artist' => $this->when(
-                $with->contains('artist') && $this->artist,
-                fn () => new ArtistResource($this->artist),
-                new \stdClass()
+            'release' => $this->when(
+                $with->contains('release') && !$with->contains('tracks'),
+                fn () => new ReleaseResource($this->release)
             ),
+            'artist' => $this->when($with->contains('artist') && $this->artist, fn () => [
+                'id' => $this->artist->id,
+                'name' => $this->artist->name,
+                'fullname' => $this->artist->name,
+                'username' => $this->artist->id,
+                'imageUrl' => $this->artist->images['image'],
+            ], [
+                'id' => 'unknown',
+                'name' => 'Unknown',
+                'fullname' => 'Unknown',
+                'username' => 'unknown',
+                'imageUrl' => $this->files['image'] ?? $this->projectTrack->project->files['image'] ?? '',
+            ]),
             'privacy' => $this->privacy,
             'streams' => $this->streams,
             'genre_id' => $this->genre_id,
@@ -48,7 +59,7 @@ class TrackResource extends JsonResource
             'streamUrl' => $streamUrl,
             'explicit' => $this->explicit,
             'description' => $this->description,
-            'defaultStream' => ! $this->audio,
+            'defaultStream' => !$this->audio,
             'project_track_id' => $this->projectTrack?->id,
             'updatedAt' => $this->updated_at,
             'createdAt' => $this->created_at,

@@ -6,11 +6,13 @@ namespace App\Models;
 
 use App\Notifications\SendCode;
 use App\Traits\ModelCanExtend;
+use Coderflex\Laravisit\Models\Visit;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -21,6 +23,7 @@ use ToneflixCode\ApprovableNotifications\Traits\ApprovableNotifiable;
 use ToneflixCode\LaravelFileable\Traits\Fileable;
 use ToneflixCode\SocialInteractions\Models\SocialInteraction;
 use ToneflixCode\SocialInteractions\Traits\CanSocialInteract;
+use Staudenmeir\EloquentJsonRelations\HasJsonRelationships;
 use Valorin\Random\Random;
 
 class User extends Authenticatable
@@ -35,6 +38,7 @@ class User extends Authenticatable
     use HasRoles;
     use ModelCanExtend;
     use Notifiable;
+    use HasJsonRelationships;
 
     public $eraseOnDelete = false;
 
@@ -138,6 +142,11 @@ class User extends Authenticatable
             $model->projects()->delete();
             $model->followers()->delete();
             $model->followings()->delete();
+            $model->recommendings()->delete();
+            $model->viewingHistory()->delete();
+            $model->recommendations()->delete();
+            $model->socialInteracts()->delete();
+            $model->savedSocialInteracts()->delete();
             // $model->collabProjects();
             $model->approvableNotifications()->delete();
 
@@ -146,6 +155,10 @@ class User extends Authenticatable
                 $model->artists()->delete();
             }
         });
+
+        static::addGlobalScopes([
+            fn (Builder $query) => $query->withCount('projects')
+        ]);
     }
 
     /**
@@ -285,6 +298,16 @@ class User extends Authenticatable
         )->where('social_interactions.interactable_type', Project::class);
     }
 
+    public function recommendations(): HasMany
+    {
+        return $this->hasMany(Recommendation::class)->latest();
+    }
+
+    public function recommendings(): MorphMany
+    {
+        return $this->morphMany(Recommendation::class, 'recommendable')->latest();
+    }
+
     /**
      * Get all of the releases created by the User
      */
@@ -350,5 +373,10 @@ class User extends Authenticatable
                 ? json_encode($value, JSON_FORCE_OBJECT)
                 : $value,
         );
+    }
+
+    public function viewingHistory()
+    {
+        return $this->hasMany(Visit::class, 'data->user');
     }
 }

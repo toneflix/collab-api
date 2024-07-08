@@ -64,7 +64,7 @@ class UserController extends Controller
                 function (Builder $q) use ($filters) {
                     if ($filters->contains('creator')) {
                         $q->withMax('projects as latest_project_date', 'created_at');
-                        $q->withCount('projects')->having('projects_count', '<=', 1);
+                        $q->having('projects_count', '<=', 1);
                         $q->latest('latest_project_date');
                     } else {
                         $q->latest();

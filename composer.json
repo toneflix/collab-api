@@ -25,6 +25,7 @@
         "matomo/device-detector": "^6.3",
         "overtrue/laravel-follow": "^5.2",
         "spatie/laravel-permission": "^6.4",
+        "staudenmeir/eloquent-json-relations": "^1.1",
         "toneflix-code/approvable-notifications": "^1.0",
         "toneflix-code/kudisms-notification": "^1.0",
         "toneflix-code/laravel-fileable": "^2.0",

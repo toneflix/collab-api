@@ -17,7 +17,7 @@ class ReleaseResource extends JsonResource
         $with = str($request->input('with'))->remove(' ')->explode(',');
 
         $imageUrl = $this->files['artwork'];
-        if (! $this->image && isset($this->project)) {
+        if (!$this->image && isset($this->project)) {
             $imageUrl = $this->project->files['image'];
         }
 
@@ -30,11 +30,13 @@ class ReleaseResource extends JsonResource
             'draft' => $this->draft,
             'genre' => $this->when($with->contains('genre'), fn () => new GenreResource($this->genre)),
             'tracks' => $this->when($with->contains('tracks'), fn () => new TrackCollection($this->tracks)),
-            'artist' => $this->when(
-                $with->contains('artist') && $this->artist && ! is_array($this->artist),
-                fn () => new ArtistResource($this->artist),
-                new \stdClass()
-            ),
+            'artist' => $this->when($with->contains('artist'), [
+                'id' => $this->artist->id,
+                'name' => $this->artist->name,
+                'fullname' => $this->artist->name,
+                'username' => $this->artist->id,
+                'imageUrl' => $this->artist->images['image'],
+            ]),
             'project' => $this->when(
                 (bool) $this->project && $with->contains('project'),
                 fn () => new ProjectResource($this->project),
@@ -45,7 +47,7 @@ class ReleaseResource extends JsonResource
             'genre_id' => $this->genre_id,
             'duration' => $this->duration ?? 0,
             'description' => $this->description,
-            'tracks_count' => $this->tracks->count(),
+            'tracksCount' => $this->tracks_count,
             'isrc' => $this->isrc,
             'iswc' => $this->iswc,
             'pline' => $this->pline,

@@ -16,12 +16,9 @@ trait Metricable
     use HasVisits;
     use FilterByPlayPopularityTimeFrame;
 
-    /**
-     * Get the plays for the model.
-     */
-    public function plays(): MorphMany
+    public function recommendations(): MorphMany
     {
-        return $this->morphMany(Play::class, 'playable');
+        return $this->morphMany(Recommendation::class, 'recommendable')->latest();
     }
 
     /**

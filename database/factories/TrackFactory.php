@@ -40,7 +40,11 @@ class TrackFactory extends Factory
     public function configure(): static
     {
         return $this->afterCreating(function (Track $model) {
-            $model->artists()->attach(Artist::inRandomOrder()->first()->id);
+            if ($model->release?->artist_id) {
+                $model->artists()->attach($model->release?->artist_id);
+            } else {
+                $model->artists()->attach(Artist::inRandomOrder()->first()->id);
+            }
             User::inRandomOrder()->limit(rand(1, 10))
                 ->get()
                 ->each(fn (User $user) => $model->stream(rand(10, 320), $user));

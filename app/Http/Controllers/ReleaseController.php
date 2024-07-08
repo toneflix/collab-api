@@ -22,8 +22,9 @@ class ReleaseController extends Controller
 
         $query
             ->when($filters->contains('album'), function (Builder $q) {
-                $q->withCount('tracks')->having('tracks_count', '>', 1);
+                $q->having('tracks_count', '>', 1);
             })
+            ->when($request->has('artist_id'), fn (Builder $q) => $q->forArtist($request->artist_id))
             ->when($filters->contains('latest'), fn (Builder $q) => $q->latestInPeriod('weeks_2'))
             ->when($filters->contains('top'), fn (Builder $q) => $q->popular('top', $request->period));
 

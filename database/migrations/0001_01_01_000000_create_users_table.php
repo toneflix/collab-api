@@ -19,6 +19,7 @@ return new class extends Migration
             $table->string('image')->nullable();
             $table->string('email')->unique();
             $table->string('phone')->unique()->nullable();
+            $table->text('about')->nullable()->fulltext();
             $table->string('address')->nullable();
             $table->string('country')->nullable();
             $table->string('state')->nullable();

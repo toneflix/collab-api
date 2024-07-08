@@ -16,6 +16,7 @@ class ArtistController extends Controller
      */
     public function index(Request $request)
     {
+        $user = $request->user('sanctum');
         $query = Artist::query();
 
         $filters = str($request->filters)->remove(' ')->explode(',');
@@ -40,7 +41,15 @@ class ArtistController extends Controller
                 }
             })
             ->when($request->has('user_id'), fn (Builder $q) => $q->whereUserId($request->user_id))
-            ->when($filters->contains('trending'), fn (Builder $q) => $q->trending($request->period));
+            ->when($filters->contains('latest'), fn (Builder $q) => $q->latest('created_at'))
+            ->when($filters->contains('trending'), fn (Builder $q) => $q->trending($request->period))
+            ->when(
+                $user && $filters->contains('recommends'),
+                fn (Builder $q) => $q->whereHas(
+                    'recommendings',
+                    fn (Builder $qx) => $qx->whereUserId($user->id)->orWhereNull('user_id')
+                )
+            );
 
         $artists = $query->paginate($request->input('limit', 15));
 

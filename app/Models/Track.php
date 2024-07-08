@@ -89,6 +89,13 @@ class Track extends Model
     public function artist()
     {
         return $this->artists()->wherePivot('type', 'primary');
+        // ->withDefault(fn () => $this->artists()->first() ?? [
+        //     'id' => 'unknown',
+        //     'name' => 'Unknown',
+        //     'fullname' => 'Unknown',
+        //     'username' => 'unknown',
+        //     'imageUrl' => $this->files['image'] ?? $this->projectTrack->project->files['image'] ?? '',
+        // ]);
     }
 
     /**
@@ -140,6 +147,25 @@ class Track extends Model
     public function user(): HasOneThrough
     {
         return $this->hasOneThrough(User::class, Release::class)->withDefault(fn () => User::firstWhere('curator', true));
+    }
+
+    public function scopeForFeaturedArtist(Builder $query, Artist|string $artist): void
+    {
+        $id = is_string($artist) ? $artist : $artist->id;
+        $query->whereHas('artists', function (Builder $q) use ($id) {
+            $q->whereNot('track_artist.type', 'primary');
+            $q->where(function (Builder $qx) use ($id) {
+                $qx->where('artists.id', $id)->orWhere('artists.username', $id);
+            });
+        });
+    }
+
+    public function scopeForArtist(Builder $query, Artist|string $artist): void
+    {
+        $id = is_string($artist) ? $artist : $artist->id;
+        $query->whereHas('artists', function (Builder $q) use ($id) {
+            $q->where('artists.id', $id)->orWhere('artists.username', $id);
+        });
     }
 
     public function scopeRecentlyPlayed(Builder $query, User|string $user, int $days = 1): void

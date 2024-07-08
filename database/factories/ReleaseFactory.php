@@ -41,14 +41,14 @@ class ReleaseFactory extends Factory
             'image' => $this->faker->imageUrl(480, 480, 'Music', true, null, true, 'jpg'),
             'privacy' => 'public',
             'genre_id' => Genre::inRandomOrder()->first()->id,
-            'explicit' => [true, false][rand(0, 1)],
+            'explicit' => $this->faker->boolean(),
             'composer' => $this->faker->name,
             'publisher' => "$lets Music Limited",
-            'artist_id' => Artist::inRandomOrder()->first()->id,
+            'artist_id' => Artist::inRandomOrder()->first()?->id ?? Artist::factory()->create()->id,
             'description' => $this->faker->sentences(rand(2, 3), true),
             'release_date' => now(),
             'record_label' => "$lets Music",
-            'contains_music' => [true, false][rand(0, 1)],
+            'contains_music' => $this->faker->boolean(),
         ];
     }
 

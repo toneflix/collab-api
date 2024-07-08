@@ -2,6 +2,8 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Artist;
+use App\Models\Release;
 use App\Models\User;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
@@ -32,6 +34,7 @@ class ClearDummyUserData extends Command
         //   Release
         //   Track
         //   Transaction
+        //   Coderflex\Laravisit\Models\Visit
         //   Overtrue\LaravelFollow\Followable
         //   ToneflixCode\ApprovableNotifications\Models\Notification
         //   Project
@@ -44,15 +47,27 @@ class ClearDummyUserData extends Command
             $user->delete();
         });
 
+        Release::whereNull('user_id')->where('image', 'like', '%via.placeholder.com%')->each(function (Release $model) {
+            $model->delete();
+        });
+
+        Artist::whereNull('user_id')->where('image', 'like', '%via.placeholder.com%')->each(function (Artist $model) {
+            $model->delete();
+        });
+
         collect([
-            'Artist', 'User', 'Transaction', 'Release', "Track", 'Project', 'ProjectTrack', 'Followable',
-            'ProjectCollaborator', 'SocialInteractions', 'SocialInteractionSave', 'ApprovableNotification'
+            'Artist', 'User', 'Transaction', 'Release', "Track", "TrackArtist", 'Project', 'ProjectTrack', 'Followable',
+            'ProjectCollaborator', 'SocialInteractions', 'SocialInteractionSave', 'ApprovableNotification', 'Laravisit',
+            'Recommendation'
         ])->each(fn (string $t) => $this->resetAutoincrement($t));
     }
 
     protected function resetAutoincrement(string $table): void
     {
-        $table = str($table)->snake()->lower()->plural(2)->toString();
+        $table = str($table)->snake()->lower()->when(!in_array(
+            $table,
+            ['TrackArtist']
+        ), fn ($s) => $s->plural(2))->toString();
 
         $max = DB::table($table)->max('id') + 1;
         if (config('database.default') === 'mysql' || config('database.default') === 'mariadb') {

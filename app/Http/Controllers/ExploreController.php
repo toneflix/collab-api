@@ -18,7 +18,10 @@ class ExploreController extends Controller
                 'limit' => $request->input('recently_played', 15)
             ]));
 
-            $data->put('recently_played', ['list' => $resource, 'lastPage' => $resource->resource->lastPage()]);
+            $data->put(
+                'recently_played',
+                Providers::paginator($resource->resource, ['data' => 'list'], ['links', 'meta' => ['links', 'path']])
+            );
         }
 
         if ($request->has('trending')) {
@@ -28,7 +31,10 @@ class ExploreController extends Controller
                 'limit' => $request->input('trending', 18)
             ]));
 
-            $data->put('trending', ['list' => $resource, 'lastPage' => $resource->resource->lastPage()]);
+            $data->put(
+                'trending',
+                Providers::paginator($resource->resource, ['data' => 'list'], ['links', 'meta' => ['links', 'path']])
+            );
         }
 
         if ($request->has('top_creators')) {
@@ -38,7 +44,10 @@ class ExploreController extends Controller
                 'limit' => $request->input('top_creators', 18)
             ]));
 
-            $data->put('top_creators', ['list' => $resource, 'lastPage' => $resource->resource->lastPage()]);
+            $data->put(
+                'top_creators',
+                Providers::paginator($resource->resource, ['data' => 'list'], ['links', 'meta' => ['links', 'path']])
+            );
         }
 
         if ($request->has('new_creators')) {
@@ -48,7 +57,10 @@ class ExploreController extends Controller
                 'limit' => $request->input('new_creators', 18)
             ]));
 
-            $data->put('new_creators', ['list' => $resource, 'lastPage' => $resource->resource->lastPage()]);
+            $data->put(
+                'new_creators',
+                Providers::paginator($resource->resource, ['data' => 'list'], ['links', 'meta' => ['links', 'path']])
+            );
         }
 
         if ($request->has('top_projects')) {
@@ -58,7 +70,10 @@ class ExploreController extends Controller
                 'limit' => $request->input('top_projects', 18)
             ]));
 
-            $data->put('top_projects', ['list' => $resource, 'lastPage' => $resource->resource->lastPage()]);
+            $data->put(
+                'top_projects',
+                Providers::paginator($resource->resource, ['data' => 'list'], ['links', 'meta' => ['links', 'path']])
+            );
         }
 
         if ($request->has('active_projects')) {
@@ -68,7 +83,10 @@ class ExploreController extends Controller
                 'limit' => $request->input('active_projects', 18)
             ]));
 
-            $data->put('active_projects', ['list' => $resource, 'lastPage' => $resource->resource->lastPage()]);
+            $data->put(
+                'active_projects',
+                Providers::paginator($resource->resource, ['data' => 'list'], ['links', 'meta' => ['links', 'path']])
+            );
         }
 
         if ($request->has('top_albums')) {
@@ -78,7 +96,10 @@ class ExploreController extends Controller
                 'limit' => $request->input('top_albums', 18)
             ]));
 
-            $data->put('top_albums', ['list' => $resource, 'lastPage' => $resource->resource->lastPage()]);
+            $data->put(
+                'top_albums',
+                Providers::paginator($resource->resource, ['data' => 'list'], ['links', 'meta' => ['links', 'path']])
+            );
         }
 
         if ($request->has('latest_albums')) {
@@ -88,7 +109,22 @@ class ExploreController extends Controller
                 'limit' => $request->input('latest_albums', 18)
             ]));
 
-            $data->put('latest_albums', ['list' => $resource, 'lastPage' => $resource->resource->lastPage()]);
+            $data->put(
+                'latest_albums',
+                Providers::paginator($resource->resource, ['data' => 'list'], ['links', 'meta' => ['links', 'path']])
+            );
+        }
+
+        if ($request->has('latest_artists')) {
+            $resource = (new ArtistController())->index(Request::createFrom($request)->merge([
+                'filters' => 'latest',
+                'limit' => $request->input('latest_artists', 18)
+            ]));
+
+            $data->put(
+                'latest_artists',
+                Providers::paginator($resource->resource, ['data' => 'list'], ['links', 'meta' => ['links', 'path']])
+            );
         }
 
         if ($request->has('trending_artists')) {
@@ -98,7 +134,22 @@ class ExploreController extends Controller
                 'limit' => $request->input('trending_artists', 18)
             ]));
 
-            $data->put('trending_artists', ['list' => $resource, 'lastPage' => $resource->resource->lastPage()]);
+            $data->put(
+                'trending_artists',
+                Providers::paginator($resource->resource, ['data' => 'list'], ['links', 'meta' => ['links', 'path']])
+            );
+        }
+
+        if ($request->has('recommended_artists')) {
+            $resource = (new ArtistController())->index(Request::createFrom($request)->merge([
+                'filters' => 'recommends',
+                'limit' => $request->input('recommended_artists', 18)
+            ]));
+
+            $data->put(
+                'recommended_artists',
+                Providers::paginator($resource->resource, ['data' => 'list'], ['links', 'meta' => ['links', 'path']])
+            );
         }
 
         // $data->dd();

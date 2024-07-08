@@ -16,6 +16,7 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained('users')->cascadeOnUpdate()->cascadeOnDelete();
             $table->foreignId('project_id')->constrained('projects')->cascadeOnUpdate()->cascadeOnDelete();
             $table->string('role')->nullable()->default('primary')->comment('[creator, singer, producer, beats, etc]');
+            $table->json('meta')->nullable();
             $table->boolean('accepted')->default(false);
             $table->timestamps();
         });

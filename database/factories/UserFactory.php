@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\Artist;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
@@ -35,12 +36,17 @@ class UserFactory extends Factory
                 "eraseOnDelete" => true,
             ],
             'image' => $this->faker->imageUrl(480, 480, 'Music', true, null, true, 'jpg'),
-            'email' => fake()->unique()->safeEmail(),
-            'phone' => fake()->unique()->phoneNumber(),
-            'username' => str(fake()->unique()->userName())->slug()->toString(),
-            'lastname' => fake()->lastName,
+            'email' => $this->faker->unique()->email(),
+            'phone' => $this->faker->unique()->phoneNumber(),
+            'city' => $this->faker->city(),
+            'about' => $this->faker->sentences(rand(2, 3), true),
+            'state' => $this->faker->city(),
+            'country' => $this->faker->country(),
+            'username' => str($this->faker->unique()->userName())->slug()->toString() . rand(01, 99),
+            'lastname' => $this->faker->lastName,
             'password' => static::$password ??= Hash::make('password'),
-            'firstname' => fake()->firstName,
+            'verified' => fake()->boolean(),
+            'firstname' => $this->faker->firstName,
             'remember_token' => Str::random(10),
             'email_verified_at' => now(),
         ];
@@ -62,11 +68,18 @@ class UserFactory extends Factory
     public function configure(): static
     {
         return $this->afterCreating(function (User $model) {
-            User::inRandomOrder()->limit(rand(1, 14))
+            $count = rand(1, 14);
+
+            User::inRandomOrder()->limit($count)
                 ->get()
-                ->each(function (User $user, int $i) use ($model) {
-                    $i < 7 && $model->follow($user);
-                    $i > 6 && $user->follow($model);
+                ->each(function (User $user, int $i) use ($model, $count) {
+                    $i < ($count / 2) && $model->isNot($user) && $model->follow($user);
+                    $i >= ($count / 2) && $user->isNot($model) && $user->follow($model);
+                });
+            Artist::inRandomOrder()->limit(rand(1, 6))
+                ->get()
+                ->each(function (Artist $user) use ($model) {
+                    $model->follow($user);
                 });
         });
     }

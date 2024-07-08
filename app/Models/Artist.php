@@ -10,12 +10,18 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Overtrue\LaravelFollow\Traits\Followable;
 use ToneflixCode\LaravelFileable\Traits\Fileable;
 
 class Artist extends Model
 {
-    use Fileable, HasFactory, ModelCanExtend;
+    use Fileable;
+    use HasFactory;
+    use ModelCanExtend;
+    use Followable;
 
     /**
      * The attributes that are mass assignable.
@@ -62,6 +68,10 @@ class Artist extends Model
         static::creating(function (self $model) {
             $model->username ??= $model->generateUsername($model->name);
         });
+
+        static::addGlobalScopes([
+            fn (Builder $query) => $query->withCount(['followers'])
+        ]);
     }
 
     /**
@@ -78,7 +88,7 @@ class Artist extends Model
     }
 
     /**
-     * Get all of the artists for the Track
+     * Get all of the tracks for the Artist
      */
     public function tracks(): BelongsToMany
     {
@@ -86,6 +96,14 @@ class Artist extends Model
             ->using(TrackArtist::class)
             ->as('artist')
             ->withTimestamps();
+    }
+
+    /**
+     * Get all of the releases for the Artist
+     */
+    public function releases(): HasMany
+    {
+        return $this->hasMany(Release::class);
     }
 
     public function tracksViews(): HasManyThrough
@@ -106,6 +124,11 @@ class Artist extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class)->withDefault(fn () => User::firstWhere('curator', true));
+    }
+
+    public function recommendings(): MorphMany
+    {
+        return $this->morphMany(Recommendation::class, 'recommendable')->latest();
     }
 
     public function scopeTrending(Builder $query, ?string $period = 'years_2', string $direction = 'desc'): void

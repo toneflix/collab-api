@@ -6,6 +6,7 @@ use App\Traits\Metricable;
 use App\Traits\ModelCanExtend;
 use Coderflex\Laravisit\Concerns\CanVisit;
 use Coderflex\Laravisit\Concerns\HasVisits;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -89,6 +90,10 @@ class Release extends Model implements CanVisit
         static::deleting(function (self $model) {
             $model->tracks()->delete();
         });
+
+        static::addGlobalScopes([
+            fn (Builder $query) => $query->withCount(['tracks'])
+        ]);
     }
 
     /**
@@ -150,5 +155,13 @@ class Release extends Model implements CanVisit
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class)->withDefault(fn () => User::firstWhere('curator', true));
+    }
+
+    public function scopeForArtist(Builder $query, Artist|string $artist): void
+    {
+        $id = is_string($artist) ? $artist : $artist->id;
+        $query->whereHas('artist', function (Builder $q) use ($id) {
+            $q->where('id', $id)->orWhere('username', $id);
+        });
     }
 }

@@ -30,6 +30,12 @@ class TrackController extends Controller
             )->when(
                 $filters->contains('trending'),
                 fn (Builder $q) => $q->popular('top', $request->period)
+            )->when(
+                $request->has('artist_id') && !$filters->contains('features'),
+                fn (Builder $q) => $q->forArtist($request->artist_id)
+            )->when(
+                $filters->contains('features') && $request->has('artist_id'),
+                fn (Builder $q) => $q->forFeaturedArtist($request->artist_id)
             );
 
         $tracks = $query->paginate($request->input('limit', 15));

@@ -69,6 +69,10 @@ class Project extends Model
                 $model->release->saveQuietly();
             }
         });
+
+        static::addGlobalScopes([
+            fn (Builder $query) => $query->withCount(['tracks', 'collaborators'])
+        ]);
     }
 
     /**

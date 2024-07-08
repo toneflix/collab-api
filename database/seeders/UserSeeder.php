@@ -32,7 +32,7 @@ class UserSeeder extends Seeder
                     ->count(rand(1, 3)),
                 'projects'
             )
-            ->count(50)
+            ->count(100)
             ->create();
     }
 }
