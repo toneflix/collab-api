@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Notifications\SendCode;
 use App\Traits\ModelCanExtend;
+use BeyondCode\Comments\Contracts\Commentator;
 use Coderflex\Laravisit\Models\Visit;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -26,7 +27,7 @@ use ToneflixCode\SocialInteractions\Traits\CanSocialInteract;
 use Staudenmeir\EloquentJsonRelations\HasJsonRelationships;
 use Valorin\Random\Random;
 
-class User extends Authenticatable
+class User extends Authenticatable implements Commentator
 {
     use ApprovableNotifiable;
     use CanSocialInteract;
@@ -279,6 +280,16 @@ class User extends Authenticatable
     }
 
     /**
+     * Check if a comment for a specific model needs to be approved.
+     * @param mixed $model
+     * @return bool
+     */
+    public function needsCommentApproval($model): bool
+    {
+        return false;
+    }
+
+    /**
      * Get all of the interaction recieved by the User's projects
      */
     public function projects(): HasMany
@@ -320,6 +331,18 @@ class User extends Authenticatable
     {
         $query->whereHas('projects');
         $query->orWhereHas('collabProjects');
+    }
+
+    public function scopeForProject(Builder $query, Project|string $project): void
+    {
+        $id = is_string($project) ? $project : $project->id;
+
+        $scope = function (Builder $q) use ($id) {
+            $q->where('projects.id', $id)->orWhere('projects.slug', $id);
+        };
+
+        $query->whereHas('projects', $scope);
+        $query->orWhereHas('collabProjects', $scope);
     }
 
     public function scopeOrderByUserProjectVotesLastDays(Builder $query, int $days = 7, string $direction = 'desc')

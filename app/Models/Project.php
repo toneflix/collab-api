@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Traits\ModelCanExtend;
+use BeyondCode\Comments\Traits\HasComments;
 use Coderflex\Laravisit\Concerns\HasVisits;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -20,6 +21,7 @@ class Project extends Model
     use HasSocialInteractions;
     use ModelCanExtend;
     use HasVisits;
+    use HasComments;
 
     /**
      * The attributes that are mass assignable.

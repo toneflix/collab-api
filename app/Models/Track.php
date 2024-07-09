@@ -53,10 +53,29 @@ class Track extends Model
     public function __get($key)
     {
         if ($key === 'artist') {
-            return $this->artist()->first();
+            return $this->artist()->first() ?? $this->artists()->first() ?? [
+                'id' => 'unknown',
+                'name' => 'Unknown',
+                'fullname' => 'Unknown',
+                'username' => 'unknown',
+                'imageUrl' => $this->files['image'] ?? $this->projectTrack->project->files['image'] ?? '',
+            ];
         }
 
         return $this->getAttribute($key);
+    }
+
+    /**
+     * Retrieve the model for a bound value.
+     *
+     * @param  string|null  $field
+     * @return \Illuminate\Database\Eloquent\Model|null
+     */
+    public function resolveRouteBinding($value, $field = null)
+    {
+        return $this->where('id', $value)
+            ->orWhere('slug', $value)
+            ->firstOrFail();
     }
 
     public function registerFileable()
@@ -89,13 +108,6 @@ class Track extends Model
     public function artist()
     {
         return $this->artists()->wherePivot('type', 'primary');
-        // ->withDefault(fn () => $this->artists()->first() ?? [
-        //     'id' => 'unknown',
-        //     'name' => 'Unknown',
-        //     'fullname' => 'Unknown',
-        //     'username' => 'unknown',
-        //     'imageUrl' => $this->files['image'] ?? $this->projectTrack->project->files['image'] ?? '',
-        // ]);
     }
 
     /**

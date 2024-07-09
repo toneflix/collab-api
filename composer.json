@@ -15,6 +15,7 @@
     "license": "MIT",
     "require": {
         "php": "^8.2",
+        "beyondcode/laravel-comments": "^1.5",
         "cartalyst/stripe-laravel": "^16.0",
         "coderflexx/laravisit": "^2.0",
         "cyrildewit/eloquent-viewable": "^7.0",

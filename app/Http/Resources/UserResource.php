@@ -39,6 +39,7 @@ class UserResource extends JsonResource
             'firstname' => $this->firstname,
             'reputation' => $this->reputation ?: rand(10, 9999),
             'projectsCount' => $this->projects_count,
+            'isProjectCreator' => $this->when($request->has('project_id'), $this->is_project_creator),
             'youFollow' => $request->user('sanctum') ? $this->isFollowedBy($request->user('sanctum')) : false,
             'country' => $this->country,
             'state' => $this->state,

@@ -34,7 +34,7 @@ class ReleaseResource extends JsonResource
                 'id' => $this->artist->id,
                 'name' => $this->artist->name,
                 'fullname' => $this->artist->name,
-                'username' => $this->artist->id,
+                'username' => $this->artist->username,
                 'imageUrl' => $this->artist->images['image'],
             ]),
             'project' => $this->when(
