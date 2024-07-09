@@ -27,13 +27,13 @@ class UserFactory extends Factory
     {
         return [
             'data' => [
-                "fake" => true,
-                "settings" => [
-                    "notifications" => [
-                        "email" => true
-                    ]
+                'fake' => true,
+                'settings' => [
+                    'notifications' => [
+                        'email' => true,
+                    ],
                 ],
-                "eraseOnDelete" => true,
+                'eraseOnDelete' => true,
             ],
             'image' => $this->faker->imageUrl(480, 480, 'Music', true, null, true, 'jpg'),
             'email' => $this->faker->unique()->email(),

@@ -21,7 +21,7 @@ class PaystackProcessor implements PaymentInterface
     /**
      * PaystackProcessor constructor.
      */
-    public function __construct(Request $request, User|TempUser|null $user = null)
+    public function __construct(Request $request, User|TempUser $user = null)
     {
         $this->request = $request;
         $this->user = $user;
@@ -38,8 +38,8 @@ class PaystackProcessor implements PaymentInterface
      */
     public function intent(
         int|float $amount,
-        ?callable $callback = null,
-        ?callable $error_callback = null,
+        callable $callback = null,
+        callable $error_callback = null,
         ?bool $respond = true
     ) {
         $tranx = null;
@@ -138,8 +138,8 @@ class PaystackProcessor implements PaymentInterface
      */
     public function verify(
         string $reference,
-        ?callable $callback = null,
-        ?callable $error_callback = null,
+        callable $callback = null,
+        callable $error_callback = null,
         ?bool $respond = true
     ) {
         $response = new \stdClass();
@@ -223,8 +223,8 @@ class PaystackProcessor implements PaymentInterface
      */
     public function deauthorize(
         string $authorization_code,
-        ?callable $callback = null,
-        ?callable $error_callback = null,
+        callable $callback = null,
+        callable $error_callback = null,
         ?bool $respond = true
     ) {
         $response = new \stdClass();
@@ -277,9 +277,9 @@ class PaystackProcessor implements PaymentInterface
      */
     public function transfer(
         int|float $amount,
-        ?string $reason = null,
-        ?callable $successCallback = null,
-        ?callable $errorCallback = null,
+        string $reason = null,
+        callable $successCallback = null,
+        callable $errorCallback = null,
         ?bool $respond = true
     ) {
         $response = new \stdClass();

@@ -25,7 +25,7 @@ class ProjectResource extends JsonResource
             'props' => $this->props,
             'group' => $this->group,
             'tracks' => $this->when(
-                $with->contains('tracks') && !$with->contains('ready'),
+                $with->contains('tracks') && ! $with->contains('ready'),
                 fn () => new ProjectTrackCollection($this->tracks)
             ),
             'tracks' => $this->when(

@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use ToneflixCode\LaravelFileable\Traits\Fileable;
@@ -17,11 +18,11 @@ use ToneflixCode\SocialInteractions\Traits\HasSocialInteractions;
 class Project extends Model
 {
     use Fileable;
+    use HasComments;
     use HasFactory;
     use HasSocialInteractions;
-    use ModelCanExtend;
     use HasVisits;
-    use HasComments;
+    use ModelCanExtend;
 
     /**
      * The attributes that are mass assignable.
@@ -58,6 +59,8 @@ class Project extends Model
 
         static::deleting(function (self $model) {
             $model->tracks()->delete();
+            $model->comments()->delete();
+            $model->comments()->delete();
             $model->collaborators()->delete();
             $model->socialInteractions()->delete();
             $model->socialInteractionSaves()->delete();
@@ -73,7 +76,7 @@ class Project extends Model
         });
 
         static::addGlobalScopes([
-            fn (Builder $query) => $query->withCount(['tracks', 'collaborators'])
+            fn (Builder $query) => $query->withCount(['tracks', 'collaborators']),
         ]);
     }
 
@@ -96,6 +99,13 @@ class Project extends Model
     public function collaborators(): HasMany
     {
         return $this->hasMany(ProjectCollaborator::class);
+    }
+
+    public function ready(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->tracks()->ready()->exists(),
+        );
     }
 
     /**
@@ -138,6 +148,19 @@ class Project extends Model
         }
     }
 
+    public function scopeCollaber(Builder $query, User|string $user): void
+    {
+        $id = is_string($user) ? $user : $user->id;
+
+        $query->whereHas('collaborators', function (Builder $q) use ($id) {
+            $q->accepted();
+            $q->whereHas('user', function (Builder $qx) use ($id) {
+                $qx->where('id', $id)->orWhere('username', $id);
+            });
+        });
+        $query->orWhere('user_id', $id);
+    }
+
     public function scopeOrderByLastDays(Builder $query, int $days = 7, string $direction = 'desc')
     {
         $query
@@ -161,10 +184,11 @@ class Project extends Model
         return $this->tracks()->ready();
     }
 
-    public function ready(): Attribute
+    /**
+     * Get the user that created the Project
+     */
+    public function user(): BelongsTo
     {
-        return Attribute::make(
-            get: fn () => $this->tracks()->ready()->exists(),
-        );
+        return $this->belongsTo(User::class);
     }
 }

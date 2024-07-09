@@ -15,7 +15,7 @@
     "license": "MIT",
     "require": {
         "php": "^8.2",
-        "beyondcode/laravel-comments": "^1.5",
+        "beyondcode/laravel-comments": "dev-master",
         "cartalyst/stripe-laravel": "^16.0",
         "coderflexx/laravisit": "^2.0",
         "cyrildewit/eloquent-viewable": "^7.0",
@@ -88,6 +88,12 @@
             "php-http/discovery": true
         }
     },
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/toneflix-forks/laravel-comments.git"
+        }
+    ],
     "minimum-stability": "stable",
     "prefer-stable": true
 }

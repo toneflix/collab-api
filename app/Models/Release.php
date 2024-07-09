@@ -11,16 +11,15 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use ToneflixCode\LaravelFileable\Traits\Fileable;
 
 class Release extends Model implements CanVisit
 {
     use Fileable;
     use HasFactory;
-    use ModelCanExtend;
     use HasVisits;
     use Metricable;
+    use ModelCanExtend;
 
     /**
      * The attributes that are mass assignable.
@@ -92,7 +91,7 @@ class Release extends Model implements CanVisit
         });
 
         static::addGlobalScopes([
-            fn (Builder $query) => $query->withCount(['tracks'])
+            fn (Builder $query) => $query->withCount(['tracks']),
         ]);
     }
 

@@ -16,8 +16,8 @@ trait ModelCanExtend
         string|\Illuminate\Support\Stringable $string,
         string $field = 'username',
         string $separator = '_',
-        ?string $current = null,
-        ?\Illuminate\Database\Eloquent\Model $model = null
+        string $current = null,
+        \Illuminate\Database\Eloquent\Model $model = null
     ) {
         $username = str($current ?: $string)->slug($separator);
 

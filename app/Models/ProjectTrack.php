@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Traits\ModelCanExtend;
+use BeyondCode\Comments\Traits\HasComments;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -17,6 +18,7 @@ class ProjectTrack extends Model
     use Fileable;
     use HasFactory;
     use ModelCanExtend;
+    use HasComments;
 
     /**
      * The attributes that are mass assignable.
@@ -140,5 +142,13 @@ class ProjectTrack extends Model
     public function scopeReady(Builder $query): void
     {
         $query->whereHas('stems', fn (Builder $q) => $q->whereNotNull('src'));
+    }
+
+    /**
+     * Get the user that created the Project
+     */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
     }
 }

@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Enums\PeriodDays;
 use App\Models\Artist;
-use App\Models\Track;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -12,23 +11,23 @@ use Illuminate\Database\Eloquent\Model;
 class Recommendation
 {
     public int $max = 0;
+
     public int $limit = 0;
 
     /**
      * Create a new class instance.
      *
-     * @param User|null $user
-     * @param array<int,class-string> $recommendables
+     * @param  array<int,class-string>  $recommendables
      */
     public function __construct(
         public ?User $user = null,
         public ?array $recommendables = null
     ) {
         $this->max = config('settings.max_daily_recommendation', 2) * config('settings.recommendation_expiry', PeriodDays::DAY)->value;
-        $this->limit = (int)floor($recommendables ? $this->max / count($recommendables) : $this->max / 2);
+        $this->limit = (int) floor($recommendables ? $this->max / count($recommendables) : $this->max / 2);
     }
 
-    protected function recommend(?string $search, Model $related, ?callable $callbackQuery = null): void
+    protected function recommend(?string $search, Model $related, callable $callbackQuery = null): void
     {
         // Initialize an empty recommended array
         $recommended = [];
@@ -79,7 +78,7 @@ class Recommendation
             ->limit($max)
             ->inRandomOrder()
             ->chunk($max / 2, function (\Illuminate\Database\Eloquent\Collection $models) {
-                /** @var \ToneflixCode\SocialInteractions\Models\SocialInteraction $model*/
+                /** @var \ToneflixCode\SocialInteractions\Models\SocialInteraction $model */
                 foreach ($models as $model) {
                     if ($model->interactable) {
                         $search = $model->interactable->title ?? $model->interactable->name ?? null;
@@ -94,7 +93,7 @@ class Recommendation
             ->limit($max)
             ->inRandomOrder()
             ->chunk($max / 2, function (\Illuminate\Database\Eloquent\Collection $models) {
-                /** @var \Coderflex\Laravisit\Models\Visit $model*/
+                /** @var \Coderflex\Laravisit\Models\Visit $model */
                 foreach ($models as $model) {
                     if ($model->visitable) {
                         $search = $model->visitable->title ?? $model->visitable->name;
@@ -109,7 +108,7 @@ class Recommendation
             ->limit($max)
             ->inRandomOrder()
             ->chunk($max / 2, function (\Illuminate\Database\Eloquent\Collection $models) {
-                /** @var \Overtrue\LaravelFollow\Followable $model*/
+                /** @var \Overtrue\LaravelFollow\Followable $model */
                 foreach ($models as $model) {
 
                     if ($model->followable) {

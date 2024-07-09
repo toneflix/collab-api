@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\Metricable;
 use App\Traits\ModelCanExtend;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -10,14 +11,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 use ToneflixCode\LaravelFileable\Traits\Fileable;
-use App\Traits\Metricable;
 
 class Track extends Model
 {
     use Fileable;
     use HasFactory;
-    use ModelCanExtend;
     use Metricable;
+    use ModelCanExtend;
 
     /**
      * The attributes that are mass assignable.
@@ -97,7 +97,7 @@ class Track extends Model
         });
     }
 
-    public function gusm(string $str, string $sep = '-', ?string $cur = null)
+    public function gusm(string $str, string $sep = '-', string $cur = null)
     {
         return $this->generateUsername($str, 'slug', $sep, $cur);
     }

@@ -6,6 +6,7 @@ use App\Enums\HttpStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ProjectCollection;
 use App\Http\Resources\ProjectResource;
+use App\Models\Project;
 use Illuminate\Http\Request;
 
 class ProjectController extends Controller
@@ -15,11 +16,8 @@ class ProjectController extends Controller
      */
     public function index(Request $request)
     {
-        if ($request->type == 'collab') {
-            $query = $this->user->collabProjects()->getQuery();
-        } else {
-            $query = $this->user->projects()->getQuery();
-        }
+        $query = Project::query();
+        $query->collaber($this->user);
 
         $projects = $query->paginate($request->input('limit', 45));
 
@@ -60,7 +58,10 @@ class ProjectController extends Controller
      */
     public function show(Request $request, string $id)
     {
-        $project = $this->user->projects()->whereSlug($id)->orWhere('id', $id)->firstOrFail();
+        $query = Project::query();
+        $query->collaber($this->user);
+
+        $project = $query->whereSlug($id)->orWhere('id', $id)->firstOrFail();
 
         return (new ProjectResource($project))->additional([
             'message' => HttpStatus::message(HttpStatus::OK),
@@ -74,7 +75,9 @@ class ProjectController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        $project = $this->user->projects()->whereSlug($id)->orWhere('id', $id)->firstOrFail();
+        $query = Project::query();
+        $query->collaber($this->user);
+        $project = $query->whereSlug($id)->orWhere('id', $id)->firstOrFail();
 
         $this->validate($request, [
             'image' => ['nullable', 'image', 'mimes:png,jpg'],
@@ -105,7 +108,11 @@ class ProjectController extends Controller
         $project = $this->user->projects()
             ->where('projects.id', [$id])
             ->orWhere('slug', $id)
-            ->firstOrFail();
+            ->first();
+
+        if (!$project) {
+            abort(HttpStatus::FORBIDDEN, 'You are not autorized to perform this action');
+        }
 
         $project->delete();
 

@@ -56,15 +56,15 @@ class ClearDummyUserData extends Command
         });
 
         collect([
-            'Artist', 'User', 'Transaction', 'Release', "Track", "TrackArtist", 'Project', 'ProjectTrack', 'Followable',
+            'Artist', 'User', 'Transaction', 'Release', 'Track', 'TrackArtist', 'Project', 'ProjectTrack', 'Followable',
             'ProjectCollaborator', 'SocialInteractions', 'SocialInteractionSave', 'ApprovableNotification', 'Laravisit',
-            'Recommendation'
+            'Recommendation',
         ])->each(fn (string $t) => $this->resetAutoincrement($t));
     }
 
     protected function resetAutoincrement(string $table): void
     {
-        $table = str($table)->snake()->lower()->when(!in_array(
+        $table = str($table)->snake()->lower()->when(! in_array(
             $table,
             ['TrackArtist']
         ), fn ($s) => $s->plural(2))->toString();
@@ -72,7 +72,7 @@ class ClearDummyUserData extends Command
         $max = DB::table($table)->max('id') + 1;
         if (config('database.default') === 'mysql' || config('database.default') === 'mariadb') {
             DB::statement("ALTER TABLE $table AUTO_INCREMENT =  $max");
-        } else if (config('database.default') === 'pgsql') {
+        } elseif (config('database.default') === 'pgsql') {
             DB::statement("ALTER TABLE $table AUTO_INCREMENT =  $max");
         }
     }

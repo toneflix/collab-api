@@ -24,7 +24,7 @@ class SendCode extends Notification implements ShouldQueue
      *
      * @return void
      */
-    public function __construct(?string $code = null, string $type = 'reset', ?string $token = null)
+    public function __construct(string $code = null, string $type = 'reset', string $token = null)
     {
         $this->type = $type;
         $this->code = $code;

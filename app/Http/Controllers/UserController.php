@@ -48,6 +48,7 @@ class UserController extends Controller
         $query
             ->when($request->has('project_id'), fn (Builder $q) => $q->forProject($request->project_id))
             ->when($filters->contains('creator'), fn (Builder $q) => $q->creator())
+            ->when($filters->contains('random'), fn (Builder $q) => $q->inRandomOrder())
             ->when(
                 $filters->contains('top'),
                 function (Builder $q) use ($filters, $request) {

@@ -3,7 +3,6 @@
 namespace App\Traits;
 
 use App\Helpers\Freq;
-use App\Models\Play;
 use App\Models\Release;
 use App\Models\Track;
 use App\Models\User;
@@ -13,8 +12,8 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 trait Metricable
 {
-    use HasVisits;
     use FilterByPlayPopularityTimeFrame;
+    use HasVisits;
 
     public function recommendations(): MorphMany
     {
@@ -24,8 +23,6 @@ trait Metricable
     /**
      * Scope a query to only include latest items.
      *
-     * @param  Builder  $query
-     * @param  string|null  $period
      *
      * @return \Illuminate\Database\Eloquent\Builder
      */
@@ -40,9 +37,6 @@ trait Metricable
     /**
      * Scope a query to only include popular items.
      *
-     * @param  Builder  $query
-     * @param  string|null  $filter
-     * @param  string|null  $period
      *
      * @return \Illuminate\Database\Eloquent\Builder
      */
@@ -69,7 +63,7 @@ trait Metricable
     {
         $user = auth()->user('sanctum');
 
-        if (!$user) {
+        if (! $user) {
             return $query->whereNull('id');
         }
 
@@ -132,14 +126,14 @@ trait Metricable
      */
     public function stream($duration = 0, User $user = null): void
     {
-        if (!$user) {
+        if (! $user) {
             return;
         }
 
         $this->visits()
             ->when($duration > 0, fn ($q) => $q->where('created_at', '>=', now()->subSeconds($this->duration ?? 0)))
             ->updateOrCreate([
-                'data->user' => $user->id
+                'data->user' => $user->id,
             ], [
                 'data' => collect([
                     'user_agent' => request()->userAgent(),

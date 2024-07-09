@@ -14,7 +14,7 @@ return new class extends Migration
     public function up(): void
     {
         foreach ($this->tables as $tn) {
-            if (!Schema::hasIndex($tn, "{$tn}_description_fulltext")) {
+            if (! Schema::hasIndex($tn, "{$tn}_description_fulltext")) {
                 Schema::table($tn, function (Blueprint $table) {
                     $table->text('description')->change()->nullable()->fulltext();
                 });

@@ -29,6 +29,7 @@ class ProjectTrackResource extends JsonResource
             'preview' => $this->mediaFileInfo['preview']['dynamicLink'],
             'privacy' => $this->privacy,
             'duration' => 3111,
+            'user_id' => $this->user_id,
             'genre_id' => $this->genre_id,
             'artist_id' => $this->artist_id,
             'stemsCount' => $this->stems()->count(),

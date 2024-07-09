@@ -19,9 +19,9 @@ use ToneflixCode\LaravelFileable\Traits\Fileable;
 class Artist extends Model
 {
     use Fileable;
+    use Followable;
     use HasFactory;
     use ModelCanExtend;
-    use Followable;
 
     /**
      * The attributes that are mass assignable.
@@ -70,7 +70,7 @@ class Artist extends Model
         });
 
         static::addGlobalScopes([
-            fn (Builder $query) => $query->withCount(['followers'])
+            fn (Builder $query) => $query->withCount(['followers']),
         ]);
     }
 

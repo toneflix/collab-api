@@ -20,11 +20,11 @@ use Laravel\Sanctum\HasApiTokens;
 use Overtrue\LaravelFollow\Traits\Followable;
 use Overtrue\LaravelFollow\Traits\Follower;
 use Spatie\Permission\Traits\HasRoles;
+use Staudenmeir\EloquentJsonRelations\HasJsonRelationships;
 use ToneflixCode\ApprovableNotifications\Traits\ApprovableNotifiable;
 use ToneflixCode\LaravelFileable\Traits\Fileable;
 use ToneflixCode\SocialInteractions\Models\SocialInteraction;
 use ToneflixCode\SocialInteractions\Traits\CanSocialInteract;
-use Staudenmeir\EloquentJsonRelations\HasJsonRelationships;
 use Valorin\Random\Random;
 
 class User extends Authenticatable implements Commentator
@@ -36,10 +36,10 @@ class User extends Authenticatable implements Commentator
     use Follower;
     use HasApiTokens;
     use HasFactory;
+    use HasJsonRelationships;
     use HasRoles;
     use ModelCanExtend;
     use Notifiable;
-    use HasJsonRelationships;
 
     public $eraseOnDelete = false;
 
@@ -158,7 +158,9 @@ class User extends Authenticatable implements Commentator
         });
 
         static::addGlobalScopes([
-            fn (Builder $query) => $query->withCount('projects')
+            fn (Builder $query) => $query
+                ->withCount('projects')
+                ->withCount('collabProjects'),
         ]);
     }
 
@@ -280,9 +282,21 @@ class User extends Authenticatable implements Commentator
     }
 
     /**
+     * Get the user's fullname.
+     *
+     * @return string
+     */
+    protected function name(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->fullname,
+        );
+    }
+
+    /**
      * Check if a comment for a specific model needs to be approved.
-     * @param mixed $model
-     * @return bool
+     *
+     * @param  mixed  $model
      */
     public function needsCommentApproval($model): bool
     {
@@ -295,6 +309,18 @@ class User extends Authenticatable implements Commentator
     public function projects(): HasMany
     {
         return $this->hasMany(Project::class);
+    }
+
+    /**
+     * Get the user's fullname.
+     *
+     * @return string
+     */
+    protected function projectsCount(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value) => $value + $this->collab_projects_count,
+        );
     }
 
     public function projectInteractions(): HasManyThrough

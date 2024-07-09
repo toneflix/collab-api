@@ -16,6 +16,7 @@ return new class extends Migration
             $table->string('slug')->unique();
             $table->string('title')->nullable();
             $table->string('preview')->nullable();
+            $table->foreignId('user_id')->constrained('users')->cascadeOnUpdate()->nullOnDelete();
             $table->foreignId('artist_id')->nullable()->constrained('artists')->cascadeOnUpdate()->nullOnDelete();
             $table->foreignId('genre_id')->nullable()->constrained('genres')->cascadeOnUpdate()->nullOnDelete();
             $table->foreignId('project_id')->nullable()->constrained('projects')->cascadeOnUpdate()->cascadeOnDelete();

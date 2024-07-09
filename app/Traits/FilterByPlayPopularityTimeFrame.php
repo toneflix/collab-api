@@ -16,24 +16,18 @@ trait FilterByPlayPopularityTimeFrame
 
     /**
      * Get the total visit count
-     *
-     * @param Builder $builder
-     * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopeWithTotalPlaysCount(Builder $builder): Builder
     {
         return $builder->withCount([
             'visits as visit_count_total' => fn (Builder $q) => $q
                 ->where('data->duration', '>', 0)
-                ->when($this->userThatPlayedId, fn (Builder $q) => $q->where('data->user', $this->userThatPlayedId))
+                ->when($this->userThatPlayedId, fn (Builder $q) => $q->where('data->user', $this->userThatPlayedId)),
         ]);
     }
 
     /**
      * Get the popular visits all time
-     *
-     * @param Builder $builder
-     * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopePopularPlayedAllTime(Builder $builder): Builder
     {
@@ -43,9 +37,6 @@ trait FilterByPlayPopularityTimeFrame
 
     /**
      * Get the popular visits today
-     *
-     * @param Builder $builder
-     * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopePopularPlayedToday(Builder $builder): Builder
     {
@@ -57,10 +48,6 @@ trait FilterByPlayPopularityTimeFrame
 
     /**
      * Get the popular visits last given days
-     *
-     * @param Builder $builder
-     * @param int $days
-     * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopePopularPlayedLastDays(Builder $builder, int $days): Builder
     {
@@ -72,9 +59,6 @@ trait FilterByPlayPopularityTimeFrame
 
     /**
      * Get the popular visits this week
-     *
-     * @param Builder $builder
-     * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopePopularPlayedThisWeek(Builder $builder): Builder
     {
@@ -86,9 +70,6 @@ trait FilterByPlayPopularityTimeFrame
 
     /**
      * Get the popular visits last week
-     *
-     * @param Builder $builder
-     * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopePopularPlayedLastWeek(Builder $builder): Builder
     {
@@ -100,9 +81,6 @@ trait FilterByPlayPopularityTimeFrame
 
     /**
      * Get the popular visits this month
-     *
-     * @param Builder $builder
-     * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopePopularPlayedThisMonth(Builder $builder): Builder
     {
@@ -114,9 +92,6 @@ trait FilterByPlayPopularityTimeFrame
 
     /**
      * Get the popular visits last month
-     *
-     * @param Builder $builder
-     * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopePopularPlayedLastMonth(Builder $builder): Builder
     {
@@ -128,9 +103,6 @@ trait FilterByPlayPopularityTimeFrame
 
     /**
      * Get the popular visits this year
-     *
-     * @param Builder $builder
-     * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopePopularPlayedThisYear(Builder $builder): Builder
     {
@@ -142,9 +114,6 @@ trait FilterByPlayPopularityTimeFrame
 
     /**
      * Get the popular visits last year
-     *
-     * @param Builder $builder
-     * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopePopularPlayedLastYear(Builder $builder): Builder
     {
@@ -156,11 +125,6 @@ trait FilterByPlayPopularityTimeFrame
 
     /**
      * Get the popular visits between two dates
-     *
-     * @param Builder $builder
-     * @param Carbon $from
-     * @param Carbon $to
-     * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopePopularPlayedBetween(Builder $builder, Carbon $from, Carbon $to): Builder
     {
@@ -177,10 +141,6 @@ trait FilterByPlayPopularityTimeFrame
 
     /**
      * Get the popular visits between two dates
-     *
-     * @param Carbon $from
-     * @param Carbon $to
-     * @return Closure
      */
     protected function betweenPlayedScope(Carbon $from, Carbon $to): Closure
     {

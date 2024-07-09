@@ -67,9 +67,9 @@ class SyncRoles extends Command
             ["\n", "\t", '  '],
             ["\n ", '', ''],
             'You have not specified any roles or permissions.
-            Do you want to remove all roles from the user(s) ' .
-                (!$supes
-                    ? '(This excludes the "' . config('permission-defs.super-admin-role', 'super-admin') . ' role)?'
+            Do you want to remove all roles from the user(s) '.
+                (! $supes
+                    ? '(This excludes the "'.config('permission-defs.super-admin-role', 'super-admin').' role)?'
                     : ''
                 )
         );
@@ -79,18 +79,18 @@ class SyncRoles extends Command
             if (app()->runningInConsole() && $this->confirm($conf)) {
                 $roles = Role::whereNotIn(
                     'name',
-                    !$supes ? [config('permission-defs.super-admin-role', 'super-admin')] : []
+                    ! $supes ? [config('permission-defs.super-admin-role', 'super-admin')] : []
                 )->pluck('name');
             } else {
                 $this->error('No roles or permissions were specified. Exiting...');
 
                 return;
             }
-        } elseif (!empty($roles)) {
+        } elseif (! empty($roles)) {
             $roles = Role::whereIn('name', $roles)->orWhereIn('id', $roles)->pluck('name');
         }
 
-        if (!empty($permissions)) {
+        if (! empty($permissions)) {
             $permissions = Permission::whereIn('name', $permissions)->orWhereIn('id', $permissions)->pluck('name');
         } else {
             $permissions = collect();
@@ -142,9 +142,9 @@ class SyncRoles extends Command
             ["\n", "\t", '  '],
             ["\n ", '', ''],
             'You have not specified any roles or permissions.
-            Do you want to assign all roles to the user(s) ' .
-                (!$supes
-                    ? '(This excludes the "' . config('permission-defs.super-admin-role', 'super-admin') . ' role)?'
+            Do you want to assign all roles to the user(s) '.
+                (! $supes
+                    ? '(This excludes the "'.config('permission-defs.super-admin-role', 'super-admin').' role)?'
                     : ''
                 )
         );
@@ -154,18 +154,18 @@ class SyncRoles extends Command
             if (app()->runningInConsole() && $this->confirm($conf)) {
                 $roles = Role::whereNotIn(
                     'name',
-                    !$supes ? [config('permission-defs.super-admin-role', 'super-admin')] : []
+                    ! $supes ? [config('permission-defs.super-admin-role', 'super-admin')] : []
                 )->pluck('name');
             } else {
                 $this->error('No roles or permissions were specified. Exiting...');
 
                 return;
             }
-        } elseif (!empty($roles)) {
+        } elseif (! empty($roles)) {
             $roles = Role::whereIn('name', $roles)->orWhereIn('id', $roles)->pluck('name');
         }
 
-        if (!empty($permissions)) {
+        if (! empty($permissions)) {
             $permissions = Permission::whereIn('name', $permissions)->orWhereIn('id', $permissions)->pluck('name');
         }
 

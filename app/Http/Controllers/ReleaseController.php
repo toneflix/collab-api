@@ -26,6 +26,7 @@ class ReleaseController extends Controller
             })
             ->when($request->has('artist_id'), fn (Builder $q) => $q->forArtist($request->artist_id))
             ->when($filters->contains('latest'), fn (Builder $q) => $q->latestInPeriod('weeks_2'))
+            ->when($filters->contains('random'), fn (Builder $q) => $q->inRandomOrder())
             ->when($filters->contains('top'), fn (Builder $q) => $q->popular('top', $request->period));
 
         $releases = $query->paginate($request->input('limit', 15));

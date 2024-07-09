@@ -15,9 +15,9 @@ class ArtistSeeder extends Seeder
     {
         Artist::factory()
             ->sequence(fn () => [
-                'user_id' => User::where('data->fake', true)->inRandomOrder()->first()->id
+                'user_id' => User::where('data->fake', true)->inRandomOrder()->first()->id,
             ])
-            ->count(10)
+            ->count(50)
             ->create();
     }
 }

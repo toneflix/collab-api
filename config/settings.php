@@ -23,5 +23,5 @@ return [
         'publish_first_project' => 100,
         'project_collab_accepted' => 20,
         'create_project_track_stem' => 10,
-    ]
+    ],
 ];

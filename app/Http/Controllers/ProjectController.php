@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Enums\HttpStatus;
-use App\Enums\PeriodDays;
 use App\Helpers\Freq;
 use App\Http\Resources\ProjectCollection;
 use App\Http\Resources\ProjectResource;
@@ -34,7 +33,8 @@ class ProjectController extends Controller
             })
             ->when($filters->contains('top'), fn ($q) => $q->top(true))
             ->when($filters->contains('latest'), fn ($q) => $q->orderByLastDays($days, 'desc'))
-            ->when($filters->contains('active'), fn ($q) => $q->released(false)->latest());
+            ->when($filters->contains('active'), fn ($q) => $q->released(false)->latest())
+            ->when($request->has('creator_id'), fn ($q) => $q->collaber($request->creator_id)->latest());
 
         $projects = $query->paginate($request->input('limit', 45));
 

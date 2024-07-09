@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -66,5 +67,10 @@ class ProjectCollaborator extends Model
         return new Attribute(
             get: fn ($value) => strtolower($value === 'custom' ? $this->meta['custom'] : $value),
         );
+    }
+
+    public function scopeAccepted(Builder $query, $accepted = true): void
+    {
+        $query->where('accepted', $accepted);
     }
 }

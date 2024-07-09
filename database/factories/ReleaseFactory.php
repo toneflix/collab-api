@@ -60,7 +60,7 @@ class ReleaseFactory extends Factory
         return $this->afterCreating(function (Release $model) {
             User::inRandomOrder()->limit(rand(1, 10))
                 ->get()
-                ->each(fn (User $user) => $model->stream(0, $user));
+                ->each(fn (User $user) => $model->stream(rand(10, 320), $user));
         });
     }
 }

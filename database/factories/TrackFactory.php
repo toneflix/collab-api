@@ -2,10 +2,10 @@
 
 namespace Database\Factories;
 
-use App\Models\Track;
-use App\Models\User;
 use App\Models\Artist;
 use App\Models\Genre;
+use App\Models\Track;
+use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Eloquent\Factories\Factory;
 

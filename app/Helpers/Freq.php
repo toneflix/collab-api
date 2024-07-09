@@ -23,7 +23,7 @@ class Freq
 
     public static function period(?string $period): int
     {
-        if (!$period) {
+        if (! $period) {
             $period = 'year';
         }
 
