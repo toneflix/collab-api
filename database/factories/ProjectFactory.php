@@ -20,7 +20,7 @@ class ProjectFactory extends Factory
     {
         return [
             'slug' => $this->faker->slug,
-            'image' => $this->faker->imageUrl(480, 480, 'Music', true, null, true, 'jpg'),
+            'image' => $this->faker->imageUrl(480, 480, 'album', true),
             'title' => ucwords($this->faker->words(rand(2, 4), true)),
             'privacy' => 'public',
             'description' => $this->faker->sentences(rand(2, 3), true),

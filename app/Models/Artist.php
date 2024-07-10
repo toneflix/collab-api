@@ -131,6 +131,20 @@ class Artist extends Model
         return $this->morphMany(Recommendation::class, 'recommendable')->latest();
     }
 
+    public function scopeGenre(Builder $query, string $genre): void
+    {
+        $query->whereHas('releases', function (Builder $q) use ($genre) {
+            $q->whereHas('genre', function (Builder $q) use ($genre) {
+                $q->where('id', $genre)->orWhere('slug', $genre);
+            });
+            $q->orWhereHas('tracks', function (Builder $qx) use ($genre) {
+                $qx->whereHas('genre', function (Builder $q) use ($genre) {
+                    $q->where('id', $genre)->orWhere('slug', $genre);
+                });
+            });
+        });
+    }
+
     public function scopeTrending(Builder $query, ?string $period = 'years_2', string $direction = 'desc'): void
     {
         $days = Freq::period($period);

@@ -40,6 +40,7 @@ class ArtistController extends Controller
                     });
                 }
             })
+            ->when($request->has('genre'), fn (Builder $q) => $q->genre($request->genre))
             ->when($request->has('user_id'), fn (Builder $q) => $q->whereUserId($request->user_id))
             ->when($filters->contains('random'), fn (Builder $q) => $q->inRandomOrder())
             ->when($filters->contains('latest'), fn (Builder $q) => $q->latest('created_at'))

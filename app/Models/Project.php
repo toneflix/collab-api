@@ -123,6 +123,20 @@ class Project extends Model
         );
     }
 
+    public function scopeGenre(Builder $query, string $genre): void
+    {
+        $query->whereHas('release', function (Builder $q) use ($genre) {
+            $q->whereHas('genre', function (Builder $q) use ($genre) {
+                $q->where('id', $genre)->orWhere('slug', $genre);
+            });
+            $q->orWhereHas('tracks', function (Builder $qx) use ($genre) {
+                $qx->whereHas('genre', function (Builder $q) use ($genre) {
+                    $q->where('id', $genre)->orWhere('slug', $genre);
+                });
+            });
+        });
+    }
+
     public function scopeReleased(Builder $query, $released = true): void
     {
         if ($released === true) {
@@ -177,7 +191,7 @@ class Project extends Model
     }
 
     /**
-     * Get all of the tracks for the Project
+     * Get all of the tracks for the Project that are ready
      */
     public function tracksReady(): HasMany
     {

@@ -24,6 +24,7 @@ class TrackController extends Controller
         $filters = str($request->filters)->remove(' ')->explode(',');
 
         $query
+            ->when($request->has('genre'), fn (Builder $q) => $q->genre($request->genre))
             ->when($filters->contains('latest'), fn (Builder $q) => $q->latestInPeriod($request->period))
             ->when(
                 $filters->contains('recently_played') && $request->user('sanctum'),

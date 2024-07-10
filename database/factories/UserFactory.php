@@ -35,7 +35,7 @@ class UserFactory extends Factory
                 ],
                 'eraseOnDelete' => true,
             ],
-            'image' => $this->faker->imageUrl(480, 480, 'Music', true, null, true, 'jpg'),
+            'image' => $this->faker->imageUrl(480, 480, 'avatar', true),
             'email' => $this->faker->unique()->email(),
             'phone' => $this->faker->unique()->phoneNumber(),
             'city' => $this->faker->city(),

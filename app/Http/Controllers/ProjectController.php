@@ -31,6 +31,7 @@ class ProjectController extends Controller
                     fn (Builder $q) => $q->whereUserId(auth('sanctum')->id())->whereAccepted(true)
                 );
             })
+            ->when($request->has('genre'), fn (Builder $q) => $q->genre($request->genre))
             ->when($filters->contains('top'), fn ($q) => $q->top(true))
             ->when($filters->contains('latest'), fn ($q) => $q->orderByLastDays($days, 'desc'))
             ->when($filters->contains('active'), fn ($q) => $q->released(false)->latest())

@@ -26,7 +26,7 @@ class TrackFactory extends Factory
         return [
             'slug' => $this->faker->slug,
             'title' => ucwords($this->faker->words(rand(2, 4), true)),
-            'image' => $this->faker->imageUrl(480, 480, 'Music', true, null, true, 'jpg'),
+            'image' => $this->faker->imageUrl(480, 480, 'album', true),
             'audio' => Track::whereNotNull('audio')->first()?->audio,
             'privacy' => 'public',
             'genre_id' => Genre::inRandomOrder()->first()->id,

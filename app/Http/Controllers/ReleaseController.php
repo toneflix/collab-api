@@ -24,6 +24,7 @@ class ReleaseController extends Controller
             ->when($filters->contains('album'), function (Builder $q) {
                 $q->having('tracks_count', '>', 1);
             })
+            ->when($request->has('genre'), fn (Builder $q) => $q->genre($request->genre))
             ->when($request->has('artist_id'), fn (Builder $q) => $q->forArtist($request->artist_id))
             ->when($filters->contains('latest'), fn (Builder $q) => $q->latestInPeriod('weeks_2'))
             ->when($filters->contains('random'), fn (Builder $q) => $q->inRandomOrder())

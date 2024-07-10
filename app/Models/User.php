@@ -371,6 +371,20 @@ class User extends Authenticatable implements Commentator
         $query->orWhereHas('collabProjects', $scope);
     }
 
+    public function scopeGenre(Builder $query, string $genre): void
+    {
+        $query->whereHas('releases', function (Builder $q) use ($genre) {
+            $q->whereHas('genre', function (Builder $q) use ($genre) {
+                $q->where('id', $genre)->orWhere('slug', $genre);
+            });
+            $q->orWhereHas('tracks', function (Builder $qx) use ($genre) {
+                $qx->whereHas('genre', function (Builder $q) use ($genre) {
+                    $q->where('id', $genre)->orWhere('slug', $genre);
+                });
+            });
+        });
+    }
+
     public function scopeOrderByUserProjectVotesLastDays(Builder $query, int $days = 7, string $direction = 'desc')
     {
         $scope = fn (Builder $q) => $q

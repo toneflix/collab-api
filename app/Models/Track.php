@@ -95,6 +95,12 @@ class Track extends Model
         static::deleting(function (self $model) {
             $model->artists()->detach();
         });
+
+        static::addGlobalScopes([
+            fn (Builder $query) => $query->withCount([
+                'visits as streams' => fn ($q) => $q->where('data->duration', '>', 0)
+            ]),
+        ]);
     }
 
     public function gusm(string $str, string $sep = '-', string $cur = null)
@@ -177,6 +183,13 @@ class Track extends Model
         $id = is_string($artist) ? $artist : $artist->id;
         $query->whereHas('artists', function (Builder $q) use ($id) {
             $q->where('artists.id', $id)->orWhere('artists.username', $id);
+        });
+    }
+
+    public function scopeGenre(Builder $query, string $genre): void
+    {
+        $query->whereHas('genre', function (Builder $q) use ($genre) {
+            $q->where('id', $genre)->orWhere('slug', $genre);
         });
     }
 

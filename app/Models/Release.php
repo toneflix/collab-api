@@ -6,7 +6,9 @@ use App\Traits\Metricable;
 use App\Traits\ModelCanExtend;
 use Coderflex\Laravisit\Concerns\CanVisit;
 use Coderflex\Laravisit\Concerns\HasVisits;
+use Coderflex\Laravisit\Models\Visit;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -149,6 +151,23 @@ class Release extends Model implements CanVisit
     }
 
     /**
+     * Get all of the tracks for the Release
+     */
+    public function streams(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => Visit::whereHasMorph(
+                'visitable',
+                [Track::class],
+                fn ($q) => $q->where('data->duration', '>', 0)->whereHas(
+                    'release',
+                    fn ($q) => $q->whereId($this->id)
+                )
+            )->count(),
+        );
+    }
+
+    /**
      * Get the user that owns the Artist
      */
     public function user(): BelongsTo
@@ -161,6 +180,13 @@ class Release extends Model implements CanVisit
         $id = is_string($artist) ? $artist : $artist->id;
         $query->whereHas('artist', function (Builder $q) use ($id) {
             $q->where('id', $id)->orWhere('username', $id);
+        });
+    }
+
+    public function scopeGenre(Builder $query, string $genre): void
+    {
+        $query->whereHas('genre', function (Builder $q) use ($genre) {
+            $q->where('id', $genre)->orWhere('slug', $genre);
         });
     }
 }

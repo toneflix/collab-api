@@ -38,7 +38,7 @@ class ReleaseFactory extends Factory
             'title' => ucwords($this->faker->words(rand(2, 4), true)),
             'pline' => date('Y') . " $lets Music Limited",
             'draft' => false,
-            'image' => $this->faker->imageUrl(480, 480, 'Music', true, null, true, 'jpg'),
+            'image' => $this->faker->imageUrl(480, 480, 'album', true),
             'privacy' => 'public',
             'genre_id' => Genre::inRandomOrder()->first()->id,
             'explicit' => $this->faker->boolean(),

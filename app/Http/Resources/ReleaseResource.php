@@ -17,7 +17,7 @@ class ReleaseResource extends JsonResource
         $with = str($request->input('with'))->remove(' ')->explode(',');
 
         $imageUrl = $this->files['artwork'];
-        if (! $this->image && isset($this->project)) {
+        if (!$this->image && isset($this->project)) {
             $imageUrl = $this->project->files['image'];
         }
 
