@@ -14,7 +14,9 @@ class UserResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        $iam_admin = $request?->user()?->hasAnyRole(config('permission.admin_roles')) ||
+        $user = $request->user('sanctum');
+
+        $iam_admin = $user?->hasAnyRole(config('permission.admin_roles')) ||
             $this->hasAnyPermission(['manage-users', 'manage-admins']) ||
             false;
 
@@ -38,10 +40,21 @@ class UserResource extends JsonResource
             'username' => $this->username,
             'lastname' => $this->lastname,
             'firstname' => $this->firstname,
-            'reputation' => $this->reputation ?: rand(10, 9999),
+            'followers' => $this->whenLoaded(
+                'followers',
+                fn () => $this->followers->count(),
+                fn () => $this->followers()->count(),
+            ),
+            'following' => $this->whenLoaded(
+                'followings',
+                fn () => $this->followings->count(),
+                fn () => $this->followings()->count(),
+            ),
+            'reputation' => $this->reputation,
             'projectsCount' => $this->projects_count,
             'isProjectCreator' => $this->when($request->has('project_id'), $this->is_project_creator),
-            'youFollow' => $request->user('sanctum') ? $this->isFollowedBy($request->user('sanctum')) : false,
+            'followsYou' => $user ? $user->isFollowedBy($this->resource) : false,
+            'youFollow' => $user ? $this->isFollowedBy($user) : false,
             'country' => $this->country,
             'state' => $this->state,
             $this->mergeWhen($previleged, fn () => [

@@ -27,13 +27,21 @@ class TrackController extends Controller
             ->when($request->has('genre'), fn (Builder $q) => $q->genre($request->genre))
             ->when($filters->contains('latest'), fn (Builder $q) => $q->latestInPeriod($request->period))
             ->when(
+                $filters->contains('liked') && $request->user('sanctum'),
+                fn (Builder $q) => $q->isLiked($request->user('sanctum'))
+            )
+            ->when(
+                $filters->contains('own_collabs') && $request->user('sanctum'),
+                fn (Builder $q) => $q->userCollabs($request->user('sanctum'), $request->period)
+            )
+            ->when(
                 $filters->contains('recently_played') && $request->user('sanctum'),
                 fn (Builder $q) => $q->recentlyPlayed($request->user('sanctum'), 3)
             )->when(
                 $filters->contains('trending'),
                 fn (Builder $q) => $q->popular('top', $request->period)
             )->when(
-                $request->has('artist_id') && !$filters->contains('features'),
+                $request->has('artist_id') && ! $filters->contains('features'),
                 fn (Builder $q) => $q->forArtist($request->artist_id)
             )->when(
                 $filters->contains('features') && $request->has('artist_id'),

@@ -16,13 +16,14 @@ class TrackResource extends JsonResource
     {
         $with = str($request->input('with'))->remove(' ')->explode(',');
         $streamUrl = $this->getFiles['audio']['dynamicLink'];
+        $interaction = $this->socialInteractionData($request->user('sanctum'));
 
         if ($streamUrl === '' && isset($this->projectTrack)) {
             $streamUrl = $this->projectTrack->getFiles['preview']['dynamicLink'];
         }
 
         $imageUrl = $this->files['image'];
-        if (!$this->image && isset($this->projectTrack->project)) {
+        if (! $this->image && isset($this->projectTrack->project)) {
             $imageUrl = $this->projectTrack->project->files['image'];
         }
 
@@ -30,11 +31,9 @@ class TrackResource extends JsonResource
             'id' => $this->id,
             'slug' => $this->slug,
             'title' => $this->title,
-            'loved' => $this->loved,
-            'loves' => $this->loves,
             'genre' => $this->when($with->contains('genre'), fn () => new GenreResource($this->genre)),
             'release' => $this->when(
-                $with->contains('release') && !$with->contains('tracks'),
+                $with->contains('release') && ! $with->contains('tracks'),
                 fn () => new ReleaseResource($this->release)
             ),
             'artist' => $this->when($with->contains('artist') && $this->artist, fn () => [
@@ -43,6 +42,14 @@ class TrackResource extends JsonResource
                 'fullname' => $this->artist->name,
                 'username' => $this->artist->username,
                 'imageUrl' => $this->artist->images['image'],
+            ]),
+            $this->mergeWhen($with->contains('interaction'), fn () => [
+                'interaction' => $interaction,
+                'liked' => $interaction['liked'],
+                'likes' => $interaction['likes'],
+            ], [
+                'liked' => $interaction['liked'],
+                'likes' => $interaction['likes'],
             ]),
             'privacy' => $this->privacy,
             'streams' => $this->streams,
@@ -53,7 +60,8 @@ class TrackResource extends JsonResource
             'streamUrl' => $streamUrl,
             'explicit' => $this->explicit,
             'description' => $this->description,
-            'defaultStream' => !$this->audio,
+            'defaultStream' => ! $this->audio,
+            'commentsCount' => $this->when($with->contains('comments_count'), fn () => $this->comments()->count()),
             'project_track_id' => $this->projectTrack?->id,
             'updatedAt' => $this->updated_at,
             'createdAt' => $this->created_at,

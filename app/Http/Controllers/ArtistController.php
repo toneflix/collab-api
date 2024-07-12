@@ -46,6 +46,10 @@ class ArtistController extends Controller
             ->when($filters->contains('latest'), fn (Builder $q) => $q->latest('created_at'))
             ->when($filters->contains('trending'), fn (Builder $q) => $q->trending($request->period))
             ->when(
+                $filters->contains('recently_played'),
+                fn (Builder $q) => $q->recentlyPlayed($request->user('sanctum'), $request->period ?? 'week')
+            )
+            ->when(
                 $user && $filters->contains('recommends'),
                 fn (Builder $q) => $q->whereHas(
                     'recommendings',

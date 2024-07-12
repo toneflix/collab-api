@@ -23,7 +23,11 @@ class ArtistResource extends JsonResource
             'verified' => $this->verified,
             'username' => $this->username,
             'imageUrl' => $this->images['image'],
-            'followers' => $this->followers_count,
+            'followers' => $this->whenLoaded(
+                'followers',
+                fn () => $this->followers->count(),
+                fn () => $this->followers()->count(),
+            ),
             'following' => 0,
             'youFollow' => $request->user('sanctum') ? $this->isFollowedBy($request->user('sanctum')) : false,
             'followsYou' => false,

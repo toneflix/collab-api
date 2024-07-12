@@ -5,6 +5,7 @@ namespace App\Helpers;
 use App\Enums\PeriodDays;
 use App\Models\Release;
 use App\Models\Track;
+use App\Services\Reputation;
 use Coderflex\Laravisit\PendingVisit;
 
 class Freq
@@ -13,7 +14,18 @@ class Freq
     {
         $visitor = auth('sanctum')->check()
             ? ['user' => auth('sanctum')->user()]
-            : ['ip' => request()->ip()];
+            : ['ip' => request(null)->ip()];
+
+        if ($visitable instanceof Track) {
+            $owner = $visitable->release->user;
+            $event = 'track_views';
+        } else {
+            $owner = $visitable->user;
+            $event = 'release_views';
+        }
+
+        // Add reputation for the owner
+        (new Reputation($owner, $event))->add();
 
         return $visitable
             ->visit()
@@ -23,7 +35,7 @@ class Freq
 
     public static function period(?string $period): int
     {
-        if (! $period) {
+        if (!$period) {
             $period = 'year';
         }
 

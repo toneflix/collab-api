@@ -7,6 +7,7 @@ use BeyondCode\Comments\Traits\HasComments;
 use Coderflex\Laravisit\Concerns\HasVisits;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -15,6 +16,9 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use ToneflixCode\LaravelFileable\Traits\Fileable;
 use ToneflixCode\SocialInteractions\Traits\HasSocialInteractions;
 
+/**
+ * @property Collection $collaborators
+ */
 class Project extends Model
 {
     use Fileable;
@@ -84,7 +88,7 @@ class Project extends Model
      * Retrieve the model for a bound value.
      *
      * @param  string|null  $field
-     * @return \Illuminate\Database\Eloquent\Model|null
+     * @return static
      */
     public function resolveRouteBinding($value, $field = null)
     {
@@ -101,10 +105,21 @@ class Project extends Model
         return $this->hasMany(ProjectCollaborator::class);
     }
 
+    public function isCollaber(User $user): bool
+    {
+        if ($this->relationLoaded('collaborators')) {
+            return $this->collaborators->where('accepted', true)->contains($user);
+        }
+
+        return $this->collaborators()->accepted()->forUser($user)->exists();
+    }
+
     public function ready(): Attribute
     {
         return Attribute::make(
-            get: fn () => $this->tracks()->ready()->exists(),
+            get: function () {
+                $this->tracks()->ready()->exists();
+            }
         );
     }
 
@@ -162,17 +177,21 @@ class Project extends Model
         }
     }
 
-    public function scopeCollaber(Builder $query, User|string $user): void
+    public function scopeCollaber(Builder $query, User|string $user, int $days = null): void
     {
         $id = is_string($user) ? $user : $user->id;
 
         $query->whereHas('collaborators', function (Builder $q) use ($id) {
             $q->accepted();
             $q->whereHas('user', function (Builder $qx) use ($id) {
-                $qx->where('id', $id)->orWhere('username', $id);
+                $qx->where('users.id', $id)->orWhere('users.username', $id);
             });
         });
-        $query->orWhere('user_id', $id);
+        $query->orWhere('projects.user_id', $id);
+
+        if ($days) {
+            $query->whereBetween('updated_at', [now()->subDays($days), now()]);
+        }
     }
 
     public function scopeOrderByLastDays(Builder $query, int $days = 7, string $direction = 'desc')

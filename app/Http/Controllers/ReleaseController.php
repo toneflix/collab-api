@@ -24,6 +24,18 @@ class ReleaseController extends Controller
             ->when($filters->contains('album'), function (Builder $q) {
                 $q->having('tracks_count', '>', 1);
             })
+            ->when(
+                $filters->contains('recently_played'),
+                fn (Builder $q) => $q->recentlyPlayed($request->user('sanctum'), $request->period ?? 'week')
+            )
+            ->when(
+                $filters->contains('liked') && $request->user('sanctum'),
+                fn (Builder $q) => $q->isLiked($request->user('sanctum'))
+            )
+            ->when(
+                $filters->contains('own_collabs') && $request->user('sanctum'),
+                fn (Builder $q) => $q->userCollabs($request->user('sanctum'), $request->period)
+            )
             ->when($request->has('genre'), fn (Builder $q) => $q->genre($request->genre))
             ->when($request->has('artist_id'), fn (Builder $q) => $q->forArtist($request->artist_id))
             ->when($filters->contains('latest'), fn (Builder $q) => $q->latestInPeriod('weeks_2'))
@@ -49,9 +61,9 @@ class ReleaseController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Release $release)
+    public function show(Request $request, Release $release)
     {
-        $release->stream(0, request()->user('sanctum'));
+        $release->stream(0, $request->user('sanctum'));
 
         return (new ReleaseResource($release))->additional([
             'message' => HttpStatus::message(HttpStatus::OK),

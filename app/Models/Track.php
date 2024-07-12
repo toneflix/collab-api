@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Traits\Metricable;
 use App\Traits\ModelCanExtend;
+use BeyondCode\Comments\Traits\HasComments;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -11,11 +12,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 use ToneflixCode\LaravelFileable\Traits\Fileable;
+use ToneflixCode\SocialInteractions\Traits\HasSocialInteractions;
 
 class Track extends Model
 {
     use Fileable;
+    use HasComments;
     use HasFactory;
+    use HasSocialInteractions;
     use Metricable;
     use ModelCanExtend;
 
@@ -98,7 +102,7 @@ class Track extends Model
 
         static::addGlobalScopes([
             fn (Builder $query) => $query->withCount([
-                'visits as streams' => fn ($q) => $q->where('data->duration', '>', 0)
+                'visits as streams' => fn ($q) => $q->where('data->duration', '>', 0),
             ]),
         ]);
     }
@@ -196,5 +200,12 @@ class Track extends Model
     public function scopeRecentlyPlayed(Builder $query, User|string $user, int $days = 1): void
     {
         $query->userThatPlayed($user)->popularPlayedLastDays($days);
+    }
+
+    public function scopeUserCollabs(Builder $query, User|string $user, ?string $period = 'years_2'): void
+    {
+        $query->whereHas('release', function (Builder $q) use ($period, $user) {
+            $q->userCollabs($user, $period);
+        });
     }
 }

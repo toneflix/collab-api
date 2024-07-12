@@ -6,6 +6,7 @@ use App\Helpers\Freq;
 use App\Models\Release;
 use App\Models\Track;
 use App\Models\User;
+use App\Services\Reputation;
 use Coderflex\Laravisit\Concerns\HasVisits;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
@@ -63,7 +64,7 @@ trait Metricable
     {
         $user = auth()->user('sanctum');
 
-        if (! $user) {
+        if (!$user) {
             return $query->whereNull('id');
         }
 
@@ -126,7 +127,7 @@ trait Metricable
      */
     public function stream($duration = 0, User $user = null): void
     {
-        if (! $user) {
+        if (!$user) {
             return;
         }
 
@@ -136,10 +137,22 @@ trait Metricable
                 'data->user' => $user->id,
             ], [
                 'data' => collect([
-                    'user_agent' => request()->userAgent(),
+                    'user_agent' => request(null)->userAgent(),
                     'user' => $user->id,
-                    'ip' => request()->ip(),
+                    'ip' => request(null)->ip(),
                 ])->when($duration > 0, fn ($c) => $c->merge(['duration' => $duration]))->toArray(),
             ]);
+
+        // Compute the reputation owner and type
+        if ($this instanceof Track) {
+            $owner = $this->release->user;
+            $event = $duration > 0 ? 'track_views' : 'track_streams';
+        } else {
+            $owner = $this->user;
+            $event = 'release_views';
+        }
+
+        // Add reputation for the owner
+        (new Reputation($owner, $event))->add();
     }
 }

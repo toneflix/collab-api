@@ -2,11 +2,13 @@
 
 use App\Helpers\Providers;
 use App\Http\Controllers\ArtistController;
+use App\Http\Controllers\CommentController;
 use App\Http\Controllers\ExploreController;
+use App\Http\Controllers\FollowController;
 use App\Http\Controllers\GenreController;
-use App\Http\Controllers\ProjectCommentController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ReleaseController;
+use App\Http\Controllers\SocialInteractionController;
 use App\Http\Controllers\TrackController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\File;
@@ -44,4 +46,16 @@ Route::apiResource('releases', ReleaseController::class)->only(['index', 'show']
 Route::apiResource('releases/{release}/tracks', TrackController::class)->only(['index', 'show']);
 
 Route::apiResource('projects', ProjectController::class)->only(['index', 'show']);
-Route::middleware(['auth:sanctum'])->apiResource('projects/{project}/comments', ProjectCommentController::class);
+
+Route::middleware(['auth:sanctum'])->group(function () {
+    foreach (['releases', 'projects', 'tracks'] as $path) {
+        $param = str($path)->singular()->toString();
+        Route::apiResource("$path/{{$param}}/comments", CommentController::class);
+        Route::apiResource("$path/{{$param}}/interactions", SocialInteractionController::class)->only(['store', 'index']);
+    }
+
+    foreach (['users', 'artists'] as $path) {
+        $param = str($path)->singular()->toString();
+        Route::apiResource("$path/{{$param}}/follows", FollowController::class)->only(['store', 'index']);
+    }
+});

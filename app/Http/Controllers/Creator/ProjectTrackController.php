@@ -9,6 +9,7 @@ use App\Http\Resources\ProjectTrackCollection;
 use App\Http\Resources\ProjectTrackResource;
 use App\Models\Project;
 use App\Models\ProjectTrack;
+use App\Services\Reputation;
 use Illuminate\Http\Request;
 use ToneflixCode\LaravelFileable\Media;
 
@@ -51,6 +52,9 @@ class ProjectTrackController extends Controller
         ]);
 
         $track = $project->tracks()->create($valid);
+
+        // Add reputation for the owner
+        (new Reputation($this->user, 'create_project_track'))->add();
 
         return (new ProjectTrackResource($track))->additional([
             'message' => 'Project track created successfully',
@@ -108,7 +112,7 @@ class ProjectTrackController extends Controller
 
     protected function saveStems(Request $request, ProjectTrack $track): void
     {
-        if (! $request->has('stems')) {
+        if (!$request->has('stems')) {
             return;
         }
 
@@ -134,6 +138,9 @@ class ProjectTrackController extends Controller
         collect($stems)->each(function ($form, $i) use ($track) {
             /** @var \App\Models\ProjectTrack $stem */
             $stem = $track->stems()->find($form['id']);
+
+            // Add reputation for the owner
+            (new Reputation($this->user, 'create_project_track_stem'))->add();
 
             if ($stem) {
                 $form['src'] = (new Media())->save('stem_files', 'stems.*.src', $stem->src, $i);

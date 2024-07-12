@@ -12,14 +12,14 @@ use Illuminate\Database\Seeder;
 
 class MetricSeeder extends Seeder
 {
-    use WithoutModelEvents;
+    // use WithoutModelEvents;
 
     /**
      * Run the database seeds.
      */
     public function run(): void
     {
-        // Add dummy views for releases
+        // Add dummy views and likes for releases
         $releases = Release::where('draft', false)
             ->limit(50)
             ->inRandomOrder()
@@ -27,14 +27,20 @@ class MetricSeeder extends Seeder
 
         /** @var Release $model */
         foreach ($releases as $model) {
+            $xuser = User::inRandomOrder()->first();
             User::inRandomOrder()
                 ->where('data->fake', true)
                 ->limit(rand(1, 10))
                 ->get()
-                ->each(fn (User $user) => $model->stream(0, $user));
+                ->each(function (User $user) use ($model, $xuser) {
+                    $model->react($user, 'like');
+                    $model->stream(0, $user);
+                    $comment = $model->commentAsUser($user, fake()->sentences(rand(1, 3), true));
+                    $comment->commentAsUser($xuser, fake()->sentences(rand(1, 3), true));
+                });
         }
 
-        // Add dummy stream for tracks
+        // Add dummy stream and likes for tracks
         $tracks = Track::whereHas('release', fn ($q) => $q->where('draft', false))
             ->limit(50)
             ->inRandomOrder()
@@ -42,11 +48,17 @@ class MetricSeeder extends Seeder
 
         /** @var Track $model */
         foreach ($tracks as $model) {
+            $xuser = User::inRandomOrder()->first();
             User::inRandomOrder()
                 ->where('data->fake', true)
                 ->limit(rand(1, 10))
                 ->get()
-                ->each(fn (User $user) => $model->stream(rand(50, 210), $user));
+                ->each(function (User $user) use ($model, $xuser) {
+                    $model->react($user, 'like');
+                    $model->stream(rand(50, 210), $user);
+                    $comment = $model->commentAsUser($user, fake()->sentences(rand(1, 3), true));
+                    $comment->commentAsUser($xuser, fake()->sentences(rand(1, 3), true));
+                });
         }
 
         // Add dummy props for active projects
@@ -57,11 +69,16 @@ class MetricSeeder extends Seeder
 
         /** @var Project $model */
         foreach ($projects as $model) {
+            $xuser = User::inRandomOrder()->first();
             User::inRandomOrder()
                 ->where('data->fake', true)
                 ->limit(rand(1, 10))
                 ->get()
-                ->each(fn (User $user) => $model->giveVote($user));
+                ->each(function (User $user) use ($model, $xuser) {
+                    $model->giveVote($user);
+                    $comment = $model->commentAsUser($user, fake()->sentences(rand(1, 3), true));
+                    $comment->commentAsUser($xuser, fake()->sentences(rand(1, 3), true));
+                });
         }
 
         // Add dummy followers for user

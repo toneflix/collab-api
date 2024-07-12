@@ -10,6 +10,7 @@ use App\Http\Resources\ProjectTrackStemResource;
 use App\Models\Project;
 use App\Models\ProjectTrack;
 use App\Models\ProjectTrackStem;
+use App\Services\Reputation;
 use Illuminate\Http\Request;
 
 class ProjectTrackStemController extends Controller
@@ -50,6 +51,9 @@ class ProjectTrackStemController extends Controller
         $valid['user_id'] = $request->user()->id;
 
         $stem = $track->stems()->create($valid);
+
+        // Add reputation for the owner
+        (new Reputation($this->user, 'create_project_track_stem'))->add();
 
         return (new ProjectTrackStemResource($stem))->additional([
             'message' => 'Track stem created successfully.',

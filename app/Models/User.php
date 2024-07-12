@@ -266,6 +266,11 @@ class User extends Authenticatable implements Commentator
         return $this->hasMany(Artist::class);
     }
 
+    public function projectCollaborations(): HasMany
+    {
+        return $this->hasMany(ProjectCollaborator::class);
+    }
+
     /**
      * Get all of the collabProjects the User is associated with
      */
@@ -357,6 +362,16 @@ class User extends Authenticatable implements Commentator
     {
         $query->whereHas('projects');
         $query->orWhereHas('collabProjects');
+    }
+
+    public function scopeCollabing(Builder $query, User|string $user): void
+    {
+        $id = is_string($user) ? $user : $user->id;
+
+        $query->whereHas(
+            'collabProjects',
+            fn (Builder $q) => $q->where('users.id', $id)
+        );
     }
 
     public function scopeForProject(Builder $query, Project|string $project): void

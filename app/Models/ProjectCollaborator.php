@@ -73,4 +73,9 @@ class ProjectCollaborator extends Model
     {
         $query->where('accepted', $accepted);
     }
+
+    public function scopeForUser(Builder $query, User $user): void
+    {
+        $query->where('user_id', $user->id);
+    }
 }

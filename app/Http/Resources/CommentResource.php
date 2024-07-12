@@ -15,8 +15,10 @@ class CommentResource extends JsonResource
     public function toArray(Request $request): array
     {
         $with = str($request->input('with'))->remove(' ')->explode(',');
+
         return [
             'id' => $this->id,
+            'cid' => $this->commentable_id,
             'comment' => $this->comment,
             'isApproved' => $this->is_approved,
             'userId' => $this->user_id,

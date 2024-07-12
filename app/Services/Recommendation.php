@@ -23,7 +23,9 @@ class Recommendation
         public ?User $user = null,
         public ?array $recommendables = null
     ) {
-        $this->max = config('settings.max_daily_recommendation', 2) * config('settings.recommendation_expiry', PeriodDays::DAY)->value;
+        $this->max = config('settings.max_daily_recommendation', 2) *
+            config('settings.recommendation_expiry', PeriodDays::DAY)->value;
+
         $this->limit = (int) floor($recommendables ? $this->max / count($recommendables) : $this->max / 2);
     }
 

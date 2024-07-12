@@ -68,10 +68,6 @@ class Artist extends Model
         static::creating(function (self $model) {
             $model->username ??= $model->generateUsername($model->name);
         });
-
-        static::addGlobalScopes([
-            fn (Builder $query) => $query->withCount(['followers']),
-        ]);
     }
 
     /**
@@ -141,6 +137,20 @@ class Artist extends Model
                 $qx->whereHas('genre', function (Builder $q) use ($genre) {
                     $q->where('id', $genre)->orWhere('slug', $genre);
                 });
+            });
+        });
+    }
+
+    public function scopeRecentlyPlayed(Builder $query, User|string $user, ?string $period = 'years_2'): void
+    {
+        $days = Freq::period($period);
+
+        $query->whereHas('tracks', function (Builder $q) use ($days, $user) {
+            $q->userThatPlayed($user)->popularPlayedLastDays($days);
+        });
+        $query->orWhereHas('releases', function (Builder $q) use ($days, $user) {
+            $q->whereHas('tracks', function (Builder $qx) use ($days, $user) {
+                $qx->userThatPlayed($user)->popularPlayedLastDays($days);
             });
         });
     }

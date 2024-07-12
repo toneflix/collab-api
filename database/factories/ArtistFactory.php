@@ -25,7 +25,7 @@ class ArtistFactory extends Factory
             'about' => $this->faker->sentences(rand(2, 3), true),
             'image' => $this->faker->imageUrl(480, 480, 'avatar', true, null, true, 'jpg'),
             'verified' => fake()->boolean(),
-            'username' => str($this->faker->unique()->userName())->slug()->toString() . rand(0, 9),
+            'username' => str($this->faker->unique()->userName())->slug()->toString().rand(0, 9),
         ];
     }
 

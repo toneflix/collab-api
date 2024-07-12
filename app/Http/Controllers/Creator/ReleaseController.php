@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\ReleaseCollection;
 use App\Http\Resources\ReleaseResource;
 use App\Models\Release;
+use App\Services\Reputation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use ToneflixCode\LaravelFileable\Media;
@@ -114,6 +115,7 @@ class ReleaseController extends Controller
      */
     public function update(Request $request, string $id)
     {
+        /** @var \App\Models\Release $release */
         $release = $this->user->releases()
             ->whereId($id)
             ->orWhere('slug', $id)
@@ -158,6 +160,9 @@ class ReleaseController extends Controller
         if ($release->slug) {
             $release->slug = $request->input('slug', $release->slug);
         }
+
+        $draft = $release->draft;
+
         $release->isrc = $request->input('isrc', '');
         $release->iswc = $request->input('iswc', '');
         $release->title = $request->input('title', $release->title);
@@ -176,6 +181,12 @@ class ReleaseController extends Controller
         $release->contains_music ??= $request->boolean('contains_music', true);
         $release->save();
 
+        // Add reputation for the owner
+        if ($draft && !$release->draft && $release->project) {
+            $repType = $this->user->projects()->released()->count() > 1 ? 'publish_project' : 'publish_first_project';
+            (new Reputation($this->user, $repType))->add();
+        }
+
         return (new ReleaseResource($release))->additional([
             'message' => __('Release :0 successfully.', [$request->publish ? 'published' : 'updated']),
             'status' => 'success',
@@ -185,7 +196,7 @@ class ReleaseController extends Controller
 
     public function saveTracks(Request $request, Release $release): void
     {
-        if (! $request->has('tracks')) {
+        if (!$request->has('tracks')) {
             return;
         }
 
@@ -214,7 +225,7 @@ class ReleaseController extends Controller
         ]);
 
         collect($tracks)->each(function ($form, $i) use ($release, $request) {
-            if (isset($form['project_track_id']) && ! isset($form['id'])) {
+            if (isset($form['project_track_id']) && !isset($form['id'])) {
                 /** @var \App\Models\Track $track */
                 $track = $release->tracks()->firstOrNew(['project_track_id' => $form['project_track_id']], $form);
                 $track->slug = $track->gusm($track->title, '-');
@@ -229,7 +240,7 @@ class ReleaseController extends Controller
                     $form['image'] = (new Media())->save('artwork', 'tracks.*.image', $track->image, $i);
                 }
 
-                if (isset(Arr::dot($request->allFiles())["tracks.$i.audio"]) && (! $track->exists || ! $track->audio)) {
+                if (isset(Arr::dot($request->allFiles())["tracks.$i.audio"]) && (!$track->exists || !$track->audio)) {
                     $form['audio'] = (new Media())->save('music_tracks', 'tracks.*.audio', $track->audio, $i);
                 } else {
                     unset($form['audio']);

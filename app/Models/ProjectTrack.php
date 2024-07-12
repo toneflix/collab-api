@@ -16,9 +16,9 @@ use ToneflixCode\LaravelFileable\Traits\Fileable;
 class ProjectTrack extends Model
 {
     use Fileable;
+    use HasComments;
     use HasFactory;
     use ModelCanExtend;
-    use HasComments;
 
     /**
      * The attributes that are mass assignable.

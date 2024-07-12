@@ -2,8 +2,10 @@
 
 namespace App\Models;
 
+use App\Helpers\Freq;
 use App\Traits\Metricable;
 use App\Traits\ModelCanExtend;
+use BeyondCode\Comments\Traits\HasComments;
 use Coderflex\Laravisit\Concerns\CanVisit;
 use Coderflex\Laravisit\Concerns\HasVisits;
 use Coderflex\Laravisit\Models\Visit;
@@ -14,11 +16,14 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use ToneflixCode\LaravelFileable\Traits\Fileable;
+use ToneflixCode\SocialInteractions\Traits\HasSocialInteractions;
 
 class Release extends Model implements CanVisit
 {
     use Fileable;
+    use HasComments;
     use HasFactory;
+    use HasSocialInteractions;
     use HasVisits;
     use Metricable;
     use ModelCanExtend;
@@ -187,6 +192,24 @@ class Release extends Model implements CanVisit
     {
         $query->whereHas('genre', function (Builder $q) use ($genre) {
             $q->where('id', $genre)->orWhere('slug', $genre);
+        });
+    }
+
+    public function scopeRecentlyPlayed(Builder $query, User|string $user, ?string $period = 'years_2'): void
+    {
+        $days = Freq::period($period);
+
+        $query->whereHas('tracks', function (Builder $q) use ($days, $user) {
+            $q->userThatPlayed($user)->popularPlayedLastDays($days);
+        });
+    }
+
+    public function scopeUserCollabs(Builder $query, User|string $user, ?string $period = 'years_2'): void
+    {
+        $days = Freq::period($period);
+
+        $query->whereHas('project', function (Builder $q) use ($days, $user) {
+            $q->collaber($user, $days);
         });
     }
 }

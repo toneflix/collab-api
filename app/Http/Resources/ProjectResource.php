@@ -15,6 +15,7 @@ class ProjectResource extends JsonResource
     public function toArray(Request $request): array
     {
         $with = str($request->input('with'))->remove(' ')->explode(',');
+        $user = $request->user('sanctum');
         $interaction = $this->socialInteractionData($request->user('sanctum'));
 
         return [
@@ -32,6 +33,8 @@ class ProjectResource extends JsonResource
                 $with->contains('tracks') && $with->contains('ready'),
                 fn () => new ProjectTrackCollection($this->tracksReady)
             ),
+            'isCollaber' => $this->when($user, fn () => $this->isCollaber($user)),
+            'isOwner' => $this->when($user, fn () => $user->id === $this->user_id),
             'props' => $interaction['props'],
             'proped' => $interaction['proped'] ?? false,
             'privacy' => $this->privacy,
@@ -41,6 +44,8 @@ class ProjectResource extends JsonResource
             'interaction' => $interaction,
             'description' => $this->description,
             'tracksCount' => $this->tracks_count,
+            'commentsCount' => $this->when($with->contains('comments_count'), fn () => $this->comments()->count()),
+            // 'commentsCount' => $this->comments()->count(),
             'collaboratorsCount' => $this->collaborators_count,
             'updatedAt' => $this->updated_at,
             'createdAt' => $this->created_at,

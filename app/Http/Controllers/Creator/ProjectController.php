@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\ProjectCollection;
 use App\Http\Resources\ProjectResource;
 use App\Models\Project;
+use App\Services\Reputation;
 use Illuminate\Http\Request;
 
 class ProjectController extends Controller
@@ -16,8 +17,16 @@ class ProjectController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Project::query();
-        $query->collaber($this->user);
+        $filters = str($request->filters)->remove(' ')->explode(',');
+
+        if ($request->boolean('own')) {
+            $query = $this->user->projects()->getQuery();
+        } else {
+            $query = Project::query();
+            $query->collaber($this->user);
+        }
+
+        $query->when($filters->contains('latest'), fn ($q) => $q->latest());
 
         $projects = $query->paginate($request->input('limit', 45));
 
@@ -45,6 +54,11 @@ class ProjectController extends Controller
             'privacy' => $request->input('privacy', 'private'),
             'description' => $request->input('description'),
         ]);
+
+        (new Reputation(
+            $this->user,
+            $this->user->projects()->count() > 1 ? 'create_project' : 'first_project'
+        ))->add();
 
         return (new ProjectResource($project))->additional([
             'message' => HttpStatus::message(HttpStatus::CREATED),
@@ -111,10 +125,12 @@ class ProjectController extends Controller
             ->first();
 
         if (!$project) {
-            abort(HttpStatus::FORBIDDEN, 'You are not autorized to perform this action');
+            abort(HttpStatus::FORBIDDEN->value, 'You are not autorized to perform this action');
         }
 
-        $project->delete();
+        if ($project->delete()) {
+            (new Reputation($this->user, 'delete_project'))->add($project->socialInteractionData()['props']);
+        }
 
         return (new ProjectCollection([]))->additional([
             'message' => 'Project deleted successfully.',

@@ -42,7 +42,7 @@ class UserFactory extends Factory
             'about' => $this->faker->sentences(rand(2, 3), true),
             'state' => $this->faker->city(),
             'country' => $this->faker->country(),
-            'username' => str($this->faker->unique()->userName())->slug()->toString() . rand(01, 99),
+            'username' => str($this->faker->unique()->userName())->slug()->toString().rand(01, 99),
             'lastname' => $this->faker->lastName,
             'password' => static::$password ??= Hash::make('password'),
             'verified' => fake()->boolean(),

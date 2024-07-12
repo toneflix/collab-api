@@ -16,8 +16,10 @@ class ReleaseResource extends JsonResource
     {
         $with = str($request->input('with'))->remove(' ')->explode(',');
 
+        $interaction = $this->socialInteractionData($request->user('sanctum'));
+
         $imageUrl = $this->files['artwork'];
-        if (!$this->image && isset($this->project)) {
+        if (! $this->image && isset($this->project)) {
             $imageUrl = $this->project->files['image'];
         }
 
@@ -25,8 +27,6 @@ class ReleaseResource extends JsonResource
             'id' => $this->id,
             'slug' => $this->slug,
             'title' => $this->title,
-            'loved' => $this->loved,
-            'loves' => $this->loves,
             'draft' => $this->draft,
             'genre' => $this->when($with->contains('genre'), fn () => new GenreResource($this->genre)),
             'tracks' => $this->when($with->contains('tracks'), fn () => new TrackCollection($this->tracks)),
@@ -47,7 +47,16 @@ class ReleaseResource extends JsonResource
             'genre_id' => $this->genre_id,
             'duration' => $this->duration ?? 0,
             'description' => $this->description,
+            $this->mergeWhen($with->contains('interaction'), fn () => [
+                'interaction' => $interaction,
+                'liked' => $interaction['liked'],
+                'likes' => $interaction['likes'],
+            ], [
+                'liked' => $interaction['liked'],
+                'likes' => $interaction['likes'],
+            ]),
             'tracksCount' => $this->tracks_count,
+            'commentsCount' => $this->when($with->contains('comments_count'), fn () => $this->comments()->count()),
             'isrc' => $this->isrc,
             'iswc' => $this->iswc,
             'pline' => $this->pline,
