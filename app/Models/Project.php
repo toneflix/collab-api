@@ -123,6 +123,11 @@ class Project extends Model
         return $this->collaborators()->accepted()->forUser($user)->exists();
     }
 
+    public function collaberData(User $user, $pending = false): ProjectCollaborator|null
+    {
+        return $this->collaborators()->accepted(!$pending)->forUser($user)->first();
+    }
+
     public function ready(): Attribute
     {
         return Attribute::make(

@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Models\ProjectCollaborator;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -42,6 +43,10 @@ class ProjectResource extends JsonResource
             'released' => $this->released,
             'imageUrl' => $this->images['image'],
             'interaction' => $interaction,
+            'pendingData' => $this->when(
+                $user && $with->contains('pending_data') && ($clbd = $this->collaberData($user, true)),
+                fn () => new ProjectCollaboratorResource($clbd)
+            ),
             'description' => $this->description,
             'tracksCount' => $this->tracks_count,
             'commentsCount' => $this->when($with->contains('comments_count'), fn () => $this->comments()->count()),

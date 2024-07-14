@@ -51,17 +51,22 @@ Route::apiResource('projects', ProjectController::class)->only(['index', 'show']
 Route::apiResource('playlist', PlaylistController::class)->only(['index']);
 
 Route::middleware(['auth:sanctum'])->group(function () {
+    // Collaborators Routes
     Route::apiResource(
         'projects/{project}/collaborators',
         ProjectCollaboratorController::class
-    )->only(['store', 'index', 'destroy']);
+    )->except(['update', 'show']);
 
     foreach (['releases', 'projects', 'tracks'] as $path) {
         $param = str($path)->singular()->toString();
+
+        // Comments routes
         Route::apiResource(
             "$path/{{$param}}/comments",
             CommentController::class
         );
+
+        // Interaction Routes
         Route::apiResource(
             "$path/{{$param}}/interactions",
             SocialInteractionController::class
@@ -70,6 +75,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     foreach (['users', 'artists'] as $path) {
         $param = str($path)->singular()->toString();
+
+        // Follows Routes
         Route::apiResource("$path/{{$param}}/follows", FollowController::class)->only(['store', 'index']);
     }
 });

@@ -104,13 +104,18 @@ class ProjectCollaboratorController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Request $request, Project $project, ProjectCollaborator $collaborator)
+    public function destroy(Request $request, Project $project, string $cid)
     {
+        $collaborator = $project->collaborators()->getQuery()
+            ->when($cid === 'self', fn (Builder $q) => $q->whereUserId($request->user('sanctum')?->id))
+            ->when($cid !== 'self', fn (Builder $q) => $q->whereId($cid))
+            ->firstOrFail();
+
         $collaborator->request()->delete();
         $collaborator->delete();
 
         return (new ProjectCollaboratorResource($collaborator))->additional([
-            'message' => __('Your request has been cancelled.'),
+            'message' => __(!$collaborator->accepted ? 'Your request has been cancelled.' : 'You have now left the project.'),
             'status' => 'success',
             'status_code' => HttpStatus::ACCEPTED,
         ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);

@@ -288,7 +288,8 @@ class User extends Authenticatable implements Commentator
             'id',
             'user_id'
         )
-            ->where('user_id', '!=', $this->id);
+            ->where('project_collaborators.user_id', '!=', $this->id)
+            ->where('project_collaborators.accepted', true);
     }
 
     /**
@@ -301,7 +302,7 @@ class User extends Authenticatable implements Commentator
             'project_collaborators',
             'user_id',
             'project_id'
-        );
+        )->wherePivot('accepted', true);
     }
 
     /**
