@@ -7,7 +7,7 @@ use App\Models\Project;
 use App\Models\ProjectCollaborator;
 use App\Models\Release;
 use App\Models\User;
-use BeyondCode\Comments\Comment;
+use App\Models\Comment;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Scope;
@@ -30,7 +30,7 @@ class RestrictBlockedUserScope implements Scope
     {
         if (auth('sanctum')->hasUser()) {
             if (in_array(get_class($model), self::$blockable)) {
-                $table = str(get_class($model))->afterLast('\\')->lower()->plural()->toString();
+                $table = str(get_class($model))->afterLast('\\')->snake()->lower()->plural()->toString();
 
                 $builder->whereNotIn("{$table}.user_id", function (QueryBuilder $query) {
                     $query->select('blocks.blockable_id')

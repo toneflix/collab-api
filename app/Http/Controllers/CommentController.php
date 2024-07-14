@@ -6,7 +6,6 @@ use App\Enums\HttpStatus;
 use App\Helpers\Providers;
 use App\Http\Resources\CommentCollection;
 use App\Http\Resources\CommentResource;
-use BeyondCode\Comments\Comment;
 use Illuminate\Http\Request;
 
 class CommentController extends Controller
@@ -103,7 +102,7 @@ class CommentController extends Controller
      *
      * @return array{
      *  0:\App\Models\Project|\App\Models\Track|\App\Models\Release,
-     *  1:\BeyondCode\Comments\Comment|null
+     *  1:\App\Models\Comment|null
      * }
      */
     public function resolver(Request $request, string $commentable_id, string $comment_id = null)
@@ -128,7 +127,7 @@ class CommentController extends Controller
 
         if ($commentable) {
             if ($comment_id) {
-                /** @var \BeyondCode\Comments\Comment $comment */
+                /** @var \App\Models\Comment $comment */
                 $comment = $commentable->comments()->findOrFail($comment_id);
             }
         }

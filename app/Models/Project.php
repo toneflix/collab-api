@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Scopes\HideReportedModels;
 use App\Models\Scopes\RestrictBlockedUserScope;
 use App\Traits\ModelCanExtend;
 use BeyondCode\Comments\Traits\HasComments;
@@ -23,7 +24,10 @@ use ToneflixCode\SocialInteractions\Traits\HasSocialInteractions;
  * @property Release $release
  * @property User $user
  */
-#[ScopedBy([RestrictBlockedUserScope::class])]
+#[ScopedBy([
+    RestrictBlockedUserScope::class,
+    HideReportedModels::class
+])]
 class Project extends Model
 {
     use Fileable;

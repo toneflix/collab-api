@@ -3,12 +3,15 @@
 namespace App\Models;
 
 use App\Helpers\Freq;
+use App\Models\Scopes\HideReportedModels;
+use App\Models\Scopes\RestrictBlockedUserScope;
 use App\Traits\Metricable;
 use App\Traits\ModelCanExtend;
 use BeyondCode\Comments\Traits\HasComments;
 use Coderflex\Laravisit\Concerns\CanVisit;
 use Coderflex\Laravisit\Concerns\HasVisits;
 use Coderflex\Laravisit\Models\Visit;
+use Illuminate\Database\Eloquent\Attributes\ScopedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -18,6 +21,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use ToneflixCode\LaravelFileable\Traits\Fileable;
 use ToneflixCode\SocialInteractions\Traits\HasSocialInteractions;
 
+#[ScopedBy([
+    RestrictBlockedUserScope::class,
+    HideReportedModels::class
+])]
 class Release extends Model implements CanVisit
 {
     use Fileable;

@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Comment;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -19,11 +20,12 @@ class CommentResource extends JsonResource
         return [
             'id' => $this->id,
             'cid' => $this->commentable_id,
-            'comment' => $this->comment,
-            'isApproved' => $this->is_approved,
-            'userId' => $this->user_id,
+            'type' => $this->commentable instanceof Comment ? 'reply' : 'comment',
             'user' => $this->when($with->contains('user'), fn () => new UserResource($this->commentator)),
+            'userId' => $this->user_id,
+            'comment' => $this->comment,
             'createdAt' => $this->created_at,
+            'isApproved' => $this->is_approved,
             'repliesCount' => $this->comments()->count(),
         ];
     }
