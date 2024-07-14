@@ -206,10 +206,11 @@ class ReleaseController extends Controller
             'tracks.*.image' => ['nullable', 'image', 'mimes:png,jpg'],
             'tracks.*.audio' => ['nullable', 'prohibited_unless:project_track_id,null'],
             'tracks.*.privacy' => ['nullable', 'string', 'in:public,private'],
+            'tracks.*.duration' => ['nullable', 'numeric'],
             'tracks.*.genre_id' => ['required', 'string', 'exists:genres,id'],
             'tracks.*.artist_id' => ['required', 'string', 'exists:artists,id'],
-            'tracks.*.project_track_id' => ['nullable', 'exists:project_tracks,id'],
             'tracks.*.description' => ['nullable', 'string'],
+            'tracks.*.project_track_id' => ['nullable', 'exists:project_tracks,id'],
         ], [
             // 'tracks.*.id' => 'Invalid track.'
         ], [
@@ -218,6 +219,7 @@ class ReleaseController extends Controller
             'tracks.*.image' => 'image',
             'tracks.*.audio' => 'audio',
             'tracks.*.privacy' => 'privacy',
+            'tracks.*.duration' => 'duration',
             'tracks.*.genre_id' => 'genre',
             'tracks.*.artist_id' => 'artist',
             'tracks.*.project_track_id' => 'project track',

@@ -48,6 +48,7 @@ class TrackController extends Controller
             'image' => ['nullable', 'image', 'mimes:png,jpg'],
             'audio' => ['nullable', 'file', $allowedAudio],
             'privacy' => ['nullable', 'string', 'in:public,private'],
+            'duration' => ['nullable', 'numeric'],
             'genre_id' => ['required', 'string', 'exists:genres,id'],
             'artist_id' => ['required', 'string', 'exists:artists,id'],
             'description' => ['nullable', 'string'],
@@ -66,6 +67,7 @@ class TrackController extends Controller
         $track->title = $request->input('title');
         $track->genre_id = $request->input('genre_id');
         $track->privacy = $request->input('privacy', 'public');
+        $track->duration = $request->input('duration', 0);
         $track->description = $request->input('description', '');
         $track->save();
 
@@ -97,6 +99,7 @@ class TrackController extends Controller
             'image' => ['nullable', 'image', 'mimes:png,jpg'],
             'audio' => ['nullable', 'file', $allowedAudio],
             'privacy' => ['nullable', 'string', 'in:public,private'],
+            'duration' => ['nullable', 'numeric'],
             'genre_id' => ['required', 'string', 'exists:genres,id'],
             'artist_id' => ['required', 'string', 'exists:artists,id'],
             'description' => ['nullable', 'string'],
@@ -115,6 +118,7 @@ class TrackController extends Controller
         $track->title = $request->input('title', $track->title);
         $track->genre_id = $request->input('genre_id', $track->genre_id);
         $track->privacy = $request->input('privacy', 'public');
+        $track->duration = $request->input('duration', $track->duration);
         $track->description = $request->input('description', '');
         $track->save();
 
@@ -136,7 +140,9 @@ class TrackController extends Controller
      */
     public function save(Request $request)
     {
-        $request->merge(['release.release_date', $request->input('release.release_date', $request->release['releaseDate'] ?? now())]);
+        $request->merge([
+            'release.release_date' => $request->input('release.release_date', $request->release['releaseDate'] ?? now())
+        ]);
 
         $filled = $this->validate($request, [
             'release' => ['required', 'array'],
