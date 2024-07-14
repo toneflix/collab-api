@@ -54,7 +54,7 @@ class ProjectTrackAssetController extends Controller
             'message' => 'Track asset uploaded successfully.',
             'status' => 'success',
             'status_code' => HttpStatus::CREATED,
-        ]);
+        ])->response()->setStatusCode(HttpStatus::CREATED->value);
     }
 
     /**
@@ -86,7 +86,7 @@ class ProjectTrackAssetController extends Controller
             'description' => ['nullable', 'string'],
         ]);
 
-        if (! collect(Providers::config('allow_file_updates', false))) {
+        if (!collect(Providers::config('allow_file_updates', false))) {
             unset($valid['file']);
         }
 
@@ -96,7 +96,7 @@ class ProjectTrackAssetController extends Controller
             'message' => 'Track asset updated successfully.',
             'status' => 'success',
             'status_code' => HttpStatus::ACCEPTED,
-        ]);
+        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 
     /**
@@ -110,6 +110,6 @@ class ProjectTrackAssetController extends Controller
             'message' => 'Track asset deleted successfully.',
             'status' => 'success',
             'status_code' => HttpStatus::ACCEPTED,
-        ]);
+        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 }

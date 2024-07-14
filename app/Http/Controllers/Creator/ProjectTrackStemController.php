@@ -59,7 +59,7 @@ class ProjectTrackStemController extends Controller
             'message' => 'Track stem created successfully.',
             'status' => 'success',
             'status_code' => HttpStatus::CREATED,
-        ]);
+        ])->response()->setStatusCode(HttpStatus::CREATED->value);
     }
 
     /**
@@ -99,7 +99,7 @@ class ProjectTrackStemController extends Controller
             'message' => 'Track stem updated successfully.',
             'status' => 'success',
             'status_code' => HttpStatus::ACCEPTED,
-        ]);
+        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 
     /**
@@ -113,6 +113,6 @@ class ProjectTrackStemController extends Controller
             'message' => 'Track stem deleted successfully.',
             'status' => 'success',
             'status_code' => HttpStatus::ACCEPTED,
-        ]);
+        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 }

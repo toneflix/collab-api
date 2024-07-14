@@ -99,7 +99,7 @@ class ReleaseController extends Controller
             'message' => 'New release created successfully.',
             'status' => 'success',
             'status_code' => HttpStatus::CREATED,
-        ]);
+        ])->response()->setStatusCode(HttpStatus::CREATED->value);
     }
 
     /**
@@ -191,7 +191,7 @@ class ReleaseController extends Controller
             'message' => __('Release :0 successfully.', [$request->publish ? 'published' : 'updated']),
             'status' => 'success',
             'status_code' => HttpStatus::ACCEPTED,
-        ]);
+        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 
     public function saveTracks(Request $request, Release $release): void
@@ -289,6 +289,6 @@ class ReleaseController extends Controller
             'message' => 'Release deleted successfully.',
             'status' => 'success',
             'status_code' => HttpStatus::ACCEPTED,
-        ]);
+        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 }

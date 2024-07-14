@@ -60,7 +60,7 @@ class ProjectTrackController extends Controller
             'message' => 'Project track created successfully',
             'status' => 'success',
             'status_code' => HttpStatus::CREATED,
-        ]);
+        ])->response()->setStatusCode(HttpStatus::CREATED->value);
     }
 
     /**
@@ -107,7 +107,7 @@ class ProjectTrackController extends Controller
             'message' => 'Project track updated successfully',
             'status' => 'success',
             'status_code' => HttpStatus::ACCEPTED,
-        ]);
+        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 
     protected function saveStems(Request $request, ProjectTrack $track): void
@@ -160,6 +160,6 @@ class ProjectTrackController extends Controller
             'message' => 'Project track deleted successfully',
             'status' => 'success',
             'status_code' => HttpStatus::ACCEPTED,
-        ]);
+        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 }

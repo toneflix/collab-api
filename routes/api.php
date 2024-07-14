@@ -7,6 +7,7 @@ use App\Http\Controllers\ExploreController;
 use App\Http\Controllers\FollowController;
 use App\Http\Controllers\GenreController;
 use App\Http\Controllers\PlaylistController;
+use App\Http\Controllers\ProjectCollaboratorController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ReleaseController;
 use App\Http\Controllers\SocialInteractionController;
@@ -50,10 +51,21 @@ Route::apiResource('projects', ProjectController::class)->only(['index', 'show']
 Route::apiResource('playlist', PlaylistController::class)->only(['index']);
 
 Route::middleware(['auth:sanctum'])->group(function () {
+    Route::apiResource(
+        'projects/{project}/collaborators',
+        ProjectCollaboratorController::class
+    )->only(['store', 'index', 'destroy']);
+
     foreach (['releases', 'projects', 'tracks'] as $path) {
         $param = str($path)->singular()->toString();
-        Route::apiResource("$path/{{$param}}/comments", CommentController::class);
-        Route::apiResource("$path/{{$param}}/interactions", SocialInteractionController::class)->only(['store', 'index']);
+        Route::apiResource(
+            "$path/{{$param}}/comments",
+            CommentController::class
+        );
+        Route::apiResource(
+            "$path/{{$param}}/interactions",
+            SocialInteractionController::class
+        )->only(['store', 'index']);
     }
 
     foreach (['users', 'artists'] as $path) {

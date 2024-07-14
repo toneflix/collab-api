@@ -79,7 +79,7 @@ class TrackController extends Controller
             'message' => 'New track created successfully.',
             'status' => 'success',
             'status_code' => HttpStatus::CREATED,
-        ]);
+        ])->response()->setStatusCode(HttpStatus::CREATED->value);
     }
 
     /**
@@ -128,7 +128,7 @@ class TrackController extends Controller
             'message' => 'Track updated successfully.',
             'status' => 'success',
             'status_code' => HttpStatus::ACCEPTED,
-        ]);
+        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 
     /**
@@ -195,6 +195,6 @@ class TrackController extends Controller
             'message' => 'Track deleted successfully.',
             'status' => 'success',
             'status_code' => HttpStatus::ACCEPTED,
-        ]);
+        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 }

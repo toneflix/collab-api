@@ -9,6 +9,11 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
+use ToneflixCode\ApprovableNotifications\Models\Notification;
 
 #[ScopedBy([RestrictBlockedUserScope::class])]
 class ProjectCollaborator extends Model
@@ -63,6 +68,21 @@ class ProjectCollaborator extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Get the Collab requests
+     */
+    public function request(): HasOne
+    {
+        return $this->hasOne(
+            Notification::class,
+            'notifier_id',
+            'user_id'
+        )
+            ->where('notifier_type', User::class)
+            ->where('actionable_id', $this->id)
+            ->where('actionable_type', $this->getMorphClass());
     }
 
     public function role(): Attribute

@@ -29,7 +29,7 @@ class ArtistController extends Controller
             'message' => 'New artist created successfully.',
             'status' => 'success',
             'status_code' => HttpStatus::CREATED,
-        ]);
+        ])->response()->setStatusCode(HttpStatus::CREATED->value);
     }
 
     /**
@@ -45,6 +45,6 @@ class ArtistController extends Controller
             'message' => 'Artist updated successfully.',
             'status' => 'success',
             'status_code' => HttpStatus::ACCEPTED,
-        ]);
+        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 }

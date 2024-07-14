@@ -71,7 +71,7 @@ class ProjectCollaboratorController extends Controller
             'message' => __('An invitation has been sent to :0 to join this project.', [$collaborator->user->fullname]),
             'status' => 'success',
             'status_code' => HttpStatus::CREATED,
-        ]);
+        ])->response()->setStatusCode(HttpStatus::CREATED->value);
     }
 
     /**
@@ -105,8 +105,8 @@ class ProjectCollaboratorController extends Controller
         return (new ProjectCollaboratorResource($collaborator))->additional([
             'message' => __('Collaber updated'),
             'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+            'status_code' => HttpStatus::ACCEPTED,
+        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 
     /**
@@ -119,7 +119,7 @@ class ProjectCollaboratorController extends Controller
         return (new ProjectCollaboratorResource($collaborator))->additional([
             'message' => __(':0 has been removed from the project', [$collaborator->user->fullname]),
             'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+            'status_code' => HttpStatus::ACCEPTED,
+        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 }

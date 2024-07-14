@@ -64,7 +64,7 @@ class ProjectController extends Controller
             'message' => HttpStatus::message(HttpStatus::CREATED),
             'status' => 'success',
             'status_code' => HttpStatus::CREATED,
-        ]);
+        ])->response()->setStatusCode(HttpStatus::CREATED->value);
     }
 
     /**
@@ -110,7 +110,7 @@ class ProjectController extends Controller
             'message' => 'Project updated successfully.',
             'status' => 'success',
             'status_code' => HttpStatus::ACCEPTED,
-        ]);
+        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 
     /**
@@ -136,6 +136,6 @@ class ProjectController extends Controller
             'message' => 'Project deleted successfully.',
             'status' => 'success',
             'status_code' => HttpStatus::ACCEPTED,
-        ]);
+        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 }

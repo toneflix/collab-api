@@ -73,6 +73,7 @@ class ApprovableNotificationListener implements ShouldQueue
                     // Reject the user's request
                     $collaborator->deleteQuietly();
                 }
+                $event->notification->deleteQuietly();
             }
         }
     }

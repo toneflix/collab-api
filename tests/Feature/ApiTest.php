@@ -9,7 +9,7 @@ use Tests\TestCase;
 
 class ApiTest extends TestCase
 {
-    use RefreshDatabase;
+    // use RefreshDatabase;
 
     /**
      * A basic feature test example.
@@ -21,7 +21,7 @@ class ApiTest extends TestCase
             ['*']
         );
 
-        $response = $this->get('/api/user');
+        $response = $this->get('/api/users');
         $response->assertOk();
     }
 

@@ -18,7 +18,7 @@ interface ResponseInterface
 
     public function error(
         array|Collection|AbstractPaginator|LengthAwarePaginator|JsonResource $data,
-        int|HttpStatus $code = 200,
+        int|HttpStatus $code = 400,
         ?array $extra = []
     ): \Illuminate\Http\Response;
 
