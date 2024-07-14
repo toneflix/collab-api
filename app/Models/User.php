@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 
+use App\Models\Scopes\RestrictBlockedUserScope;
 use App\Notifications\SendCode;
 use App\Traits\ModelCanExtend;
 use BeyondCode\Comments\Contracts\Commentator;
@@ -11,6 +12,7 @@ use Coderflex\Laravisit\Models\Visit;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
@@ -26,7 +28,9 @@ use ToneflixCode\LaravelFileable\Traits\Fileable;
 use ToneflixCode\SocialInteractions\Models\SocialInteraction;
 use ToneflixCode\SocialInteractions\Traits\CanSocialInteract;
 use Valorin\Random\Random;
+use Illuminate\Database\Eloquent\Attributes\ScopedBy;
 
+#[ScopedBy([RestrictBlockedUserScope::class])]
 class User extends Authenticatable implements Commentator
 {
     use ApprovableNotifiable;
@@ -158,9 +162,7 @@ class User extends Authenticatable implements Commentator
         });
 
         static::addGlobalScopes([
-            fn (Builder $query) => $query
-                ->withCount('projects')
-                ->withCount('collabProjects'),
+            fn (Builder $query) => $query->withCount(['projects', 'collabProjects'])
         ]);
     }
 
@@ -175,6 +177,16 @@ class User extends Authenticatable implements Commentator
         return $this->where('id', $value)
             ->orWhere('username', $value)
             ->firstOrFail();
+    }
+
+    /**
+     * Get the user's blocklist.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
+    public function blocklist(): HasMany
+    {
+        return $this->hasMany(Block::class);
     }
 
     /**
@@ -266,22 +278,28 @@ class User extends Authenticatable implements Commentator
         return $this->hasMany(Artist::class);
     }
 
-    public function projectCollaborations(): HasMany
+    public function collaborators()
     {
-        return $this->hasMany(ProjectCollaborator::class);
+        return $this->hasManyThrough(
+            User::class,
+            ProjectCollaborator::class,
+            'project_id',
+            'id',
+            'id',
+            'user_id'
+        )
+            ->where('user_id', '!=', $this->id);
     }
 
     /**
      * Get all of the collabProjects the User is associated with
      */
-    public function collabProjects(): HasManyThrough
+    public function collabProjects(): BelongsToMany
     {
-        return $this->hasManyThrough(
+        return $this->belongsToMany(
             Project::class,
-            ProjectCollaborator::class,
+            'project_collaborators',
             'user_id',
-            'id',
-            'id',
             'project_id'
         );
     }
@@ -368,10 +386,11 @@ class User extends Authenticatable implements Commentator
     {
         $id = is_string($user) ? $user : $user->id;
 
-        $query->whereHas(
-            'collabProjects',
-            fn (Builder $q) => $q->where('users.id', $id)
-        );
+        $query->whereHas('projects', function ($query) use ($id) {
+            $query->whereHas('users', function ($query) use ($id) {
+                $query->where('user_id', $id);
+            });
+        })->where('users.id', '!=', $id);
     }
 
     public function scopeForProject(Builder $query, Project|string $project): void

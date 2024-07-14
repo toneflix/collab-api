@@ -6,6 +6,7 @@ use App\Http\Controllers\CommentController;
 use App\Http\Controllers\ExploreController;
 use App\Http\Controllers\FollowController;
 use App\Http\Controllers\GenreController;
+use App\Http\Controllers\PlaylistController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ReleaseController;
 use App\Http\Controllers\SocialInteractionController;
@@ -46,6 +47,7 @@ Route::apiResource('releases', ReleaseController::class)->only(['index', 'show']
 Route::apiResource('releases/{release}/tracks', TrackController::class)->only(['index', 'show']);
 
 Route::apiResource('projects', ProjectController::class)->only(['index', 'show']);
+Route::apiResource('playlist', PlaylistController::class)->only(['index']);
 
 Route::middleware(['auth:sanctum'])->group(function () {
     foreach (['releases', 'projects', 'tracks'] as $path) {

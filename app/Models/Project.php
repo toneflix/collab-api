@@ -2,9 +2,11 @@
 
 namespace App\Models;
 
+use App\Models\Scopes\RestrictBlockedUserScope;
 use App\Traits\ModelCanExtend;
 use BeyondCode\Comments\Traits\HasComments;
 use Coderflex\Laravisit\Concerns\HasVisits;
+use Illuminate\Database\Eloquent\Attributes\ScopedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Collection;
@@ -18,7 +20,10 @@ use ToneflixCode\SocialInteractions\Traits\HasSocialInteractions;
 
 /**
  * @property Collection $collaborators
+ * @property Release $release
+ * @property User $user
  */
+#[ScopedBy([RestrictBlockedUserScope::class])]
 class Project extends Model
 {
     use Fileable;
@@ -223,5 +228,15 @@ class Project extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function users()
+    {
+        return $this->belongsToMany(
+            User::class,
+            'project_collaborators',
+            'project_id',
+            'user_id'
+        );
     }
 }

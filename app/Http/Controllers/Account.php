@@ -77,7 +77,7 @@ class Account extends Controller
      */
     public function update(Request $request, $identifier = null)
     {
-        /** @var \App\Models\v1\User */
+        /** @var \App\Models\User */
         $user = $request->user();
 
         $filled = collect($request->all());
@@ -90,7 +90,7 @@ class Account extends Controller
                 $field = current(explode(':image', $field));
             }
 
-            $vals = ! in_array($field, ['city', 'state']) ? ['required'] : ['nullable'];
+            $vals = !in_array($field, ['city', 'state']) ? ['required'] : ['nullable'];
 
             $vals[] = $field == 'image' ? 'mimes:png,jpg' : (
                 is_array($filled[$field])
@@ -129,7 +129,7 @@ class Account extends Controller
             }
 
             if (is_array($filled[$field])) {
-                return [$field.'.*' => ['required']];
+                return [$field . '.*' => ['required']];
             }
 
             return [$field => $vals];
@@ -171,16 +171,16 @@ class Account extends Controller
         })->all());
 
         $fields = $fields->filter(function ($k) {
-            return ! str($k)->contains('_confirmation');
+            return !str($k)->contains('_confirmation');
         });
 
-        if (! $request->hasFile('image')) {
+        if (!$request->hasFile('image')) {
             foreach ($fields as $_field) {
                 if (str($_field)->contains(':image')) {
                     $_field = current(explode(':image', (string) $_field));
                 }
 
-                if (! in_array($_field, [
+                if (!in_array($_field, [
                     'otp',
                     'password',
                     'new_password',
@@ -230,7 +230,7 @@ class Account extends Controller
         }
 
         $fields = collect($request->keys())->filter(
-            fn ($k) => ! in_array($k, [
+            fn ($k) => !in_array($k, [
                 'otp',
                 '_method',
                 'new_password_confirmation',
@@ -297,7 +297,7 @@ class Account extends Controller
     {
         $user = Auth::user();
 
-        if (! Hash::check($request->current_password, $user->password)) {
+        if (!Hash::check($request->current_password, $user->password)) {
             return Providers::response()->error([
                 'message' => 'Your input has a few errors',
                 'status' => 'error',

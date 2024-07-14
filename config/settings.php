@@ -8,14 +8,14 @@ return [
     'delete_reputation_cost' =>   40,  // If reputation is earned from deleting, this is how much it will cost to allow earning
 
     'reputation' => [
-        'track_likes' =>               0.3,    // [x]
-        'track_views' =>               0.3,    // [x]
-        'track_saves' =>               0.5,    // [x]
-        'track_streams' =>             1.2,    // [x]
+        'track_likes' =>                0.3,   // [x]
+        'track_views' =>                0.3,   // [x]
+        'track_saves' =>                0.5,   // [x]
+        'track_streams' =>              1.2,   // [x]
 
-        'release_likes' =>             0.3,    // [x]
-        'release_views' =>             0.3,    // [x]
-        'profile_follows' =>           5,      // [x]
+        'release_likes' =>              0.3,   // [x]
+        'release_views' =>              0.3,   // [x]
+        'profile_follows' =>            5,     // [x]
 
         'first_project' =>              100,   // [x]
         'project_props' =>              5,     // [x]

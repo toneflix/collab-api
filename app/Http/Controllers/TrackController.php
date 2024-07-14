@@ -41,7 +41,7 @@ class TrackController extends Controller
                 $filters->contains('trending'),
                 fn (Builder $q) => $q->popular('top', $request->period)
             )->when(
-                $request->has('artist_id') && ! $filters->contains('features'),
+                $request->has('artist_id') && !$filters->contains('features'),
                 fn (Builder $q) => $q->forArtist($request->artist_id)
             )->when(
                 $filters->contains('features') && $request->has('artist_id'),
@@ -68,9 +68,9 @@ class TrackController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Release $release, Track $track)
+    public function show(Request $request, Release $release, Track $track)
     {
-        $track->stream(0, request()->user('sanctum'));
+        $track->stream(0, $request->user('sanctum'));
 
         return (new TrackResource($track))->additional([
             'message' => HttpStatus::message(HttpStatus::OK),
@@ -82,9 +82,19 @@ class TrackController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Track $track)
+    public function update(Request $request, Release $release, Track $track)
     {
-        //
+        $this->validate($request, [
+            'duration' => 'nullable|numeric|min:0'
+        ]);
+
+        $track->stream($request->integer('duration'), $request->user('sanctum'));
+
+        return (new TrackResource($track))->additional([
+            'message' => HttpStatus::message(HttpStatus::OK),
+            'status' => 'success',
+            'status_code' => HttpStatus::OK,
+        ]);
     }
 
     /**

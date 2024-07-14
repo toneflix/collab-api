@@ -14,16 +14,12 @@ class TrackResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $user = $request->user('sanctum');
         $with = str($request->input('with'))->remove(' ')->explode(',');
-        $streamUrl = $this->getFiles['audio']['dynamicLink'];
-        $interaction = $this->socialInteractionData($request->user('sanctum'));
-
-        if ($streamUrl === '' && isset($this->projectTrack)) {
-            $streamUrl = $this->projectTrack->getFiles['preview']['dynamicLink'];
-        }
+        $interaction = $this->socialInteractionData($user);
 
         $imageUrl = $this->files['image'];
-        if (! $this->image && isset($this->projectTrack->project)) {
+        if (!$this->image && isset($this->projectTrack->project)) {
             $imageUrl = $this->projectTrack->project->files['image'];
         }
 
@@ -33,7 +29,7 @@ class TrackResource extends JsonResource
             'title' => $this->title,
             'genre' => $this->when($with->contains('genre'), fn () => new GenreResource($this->genre)),
             'release' => $this->when(
-                $with->contains('release') && ! $with->contains('tracks'),
+                $with->contains('release') && !$with->contains('tracks'),
                 fn () => new ReleaseResource($this->release)
             ),
             'artist' => $this->when($with->contains('artist') && $this->artist, fn () => [
@@ -57,10 +53,19 @@ class TrackResource extends JsonResource
             'duration' => $this->duration,
             'imageUrl' => $imageUrl,
             'artist_id' => $this->artist?->id,
-            'streamUrl' => $streamUrl,
+            'streamUrl' => $this->when(
+                $with->contains('streamUrl') || $user?->id === $this->user_id,
+                function () {
+                    $streamUrl = $this->getFiles['audio']['dynamicLink'];
+                    if ($streamUrl === '' && isset($this->projectTrack)) {
+                        $streamUrl = $this->projectTrack->getFiles['preview']['dynamicLink'];
+                    }
+                    return $streamUrl;
+                }
+            ),
             'explicit' => $this->explicit,
             'description' => $this->description,
-            'defaultStream' => ! $this->audio,
+            'defaultStream' => !$this->audio,
             'commentsCount' => $this->when($with->contains('comments_count'), fn () => $this->comments()->count()),
             'project_track_id' => $this->projectTrack?->id,
             'updatedAt' => $this->updated_at,

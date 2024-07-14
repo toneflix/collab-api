@@ -3,6 +3,7 @@
 namespace App\Traits;
 
 use App\Helpers\Freq;
+use App\Models\Recommendation;
 use App\Models\Release;
 use App\Models\Track;
 use App\Models\User;
@@ -104,14 +105,24 @@ trait Metricable
 
     /**
      * Scope a query to only include recommended items.
-     *
-     * @param  int  $limit
-     * @return \Illuminate\Database\Eloquent\Builder
      */
-    public function scopeRecommended(Builder $query, $limit = 10)
+    public function scopeRecommended(Builder $query, User $user): void
     {
-        // TODO: Implement scopeRecommended() method.
-        return $query->inRandomOrder()->limit($limit);
+        $query
+            ->whereHas(
+                'recommendations',
+                fn (Builder $q) => $q->where('recommendations.user_id', $user->id)
+            )
+            ->orWhereHas('visits', fn (Builder $q) => $q->where('data->user', $user->id))
+            ->when(
+                $this instanceof Track,
+                fn (Builder $q) => $q->orWhereHas(
+                    'socialInteractions',
+                    fn (Builder $q) => $q
+                        ->where('interactor_id', $user->id)
+                        ->where('interactor_type', $user->getMorphClass())
+                )
+            );
     }
 
     /**

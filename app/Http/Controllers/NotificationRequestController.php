@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\HttpStatus;
+use App\Helpers\Providers;
 use App\Http\Resources\NotificationRequestCollection;
 use App\Http\Resources\NotificationRequestResource;
 use Illuminate\Http\Request;
@@ -93,9 +94,8 @@ class NotificationRequestController extends Controller
 
         $user->approvableNotifications()->whereId($id)->delete();
 
-        return $this->buildResponse([
+        return Providers::response()->success([
             'message' => 'Notifcation deleted successfully.',
-            'status' => 'success',
             'pending_count' => $user->approvableNotifications()->pending()->count(),
             'status_code' => HttpStatus::ACCEPTED,
         ]);
