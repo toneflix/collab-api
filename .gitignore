@@ -5,6 +5,7 @@
 /public/storage
 /storage/*.key
 /vendor
+/ffmpeg-build
 .env
 .env.backup
 .env.production

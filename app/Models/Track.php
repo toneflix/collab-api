@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Jobs\ProcessAudio;
 use App\Traits\Metricable;
 use App\Traits\ModelCanExtend;
 use BeyondCode\Comments\Traits\HasComments;
@@ -22,6 +23,15 @@ class Track extends Model
     use HasSocialInteractions;
     use Metricable;
     use ModelCanExtend;
+
+    /**
+     * The attributes that should be hidden for serialization.
+     *
+     * @var array<int, string>
+     */
+    protected $hidden = [
+        'meta',
+    ];
 
     /**
      * The attributes that are mass assignable.
@@ -46,7 +56,25 @@ class Track extends Model
      */
     protected $attributes = [
         'privacy' => 'public',
+        'meta' => '{
+            "processed": false
+        }'
     ];
+
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'duration' => 'float',
+            'explicit' => 'boolean',
+            'explicit' => 'boolean',
+            'meta' => \Illuminate\Database\Eloquent\Casts\AsCollection::class,
+        ];
+    }
 
     /**
      * Dynamically retrieve attributes on the model.
@@ -93,11 +121,24 @@ class Track extends Model
     public static function registerEvents()
     {
         static::creating(function (self $model) {
-            $model->slug ??= $model->generateUsername($model->title, 'slug', '-');
+            $model->slug = $model->generateUsername(
+                $model->title,
+                'slug',
+                '-',
+                $model->slug,
+                // fn ($q) => $q->whereHas('artist', fn ($q) => $q->where('artist', ))
+            );
         });
 
         static::deleting(function (self $model) {
             $model->artists()->detach();
+        });
+
+        static::saved(function (self $model) {
+            ProcessAudio::dispatchIf(
+                config('settings.encoding.enabled', false) & !($this->meta['processed'] ?? false),
+                $model
+            );
         });
 
         static::addGlobalScopes([

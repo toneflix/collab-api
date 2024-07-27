@@ -97,7 +97,7 @@ class Release extends Model implements CanVisit
     public static function registerEvents()
     {
         static::saving(function (self $model) {
-            $model->slug ??= $model->generateUsername($model->title, 'slug', '-');
+            $model->slug = $model->generateUsername($model->title, 'slug', '-', $model->slug);
         });
 
         static::deleting(function (self $model) {

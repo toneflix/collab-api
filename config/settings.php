@@ -3,10 +3,49 @@
 use App\Enums\PeriodDays;
 
 return [
-    'recommendation_expiry' =>    PeriodDays::DAYS_3,
-    'max_daily_recommendation' => 5,
-    'delete_reputation_cost' =>   40,  // If reputation is earned from deleting, this is how much it will cost to allow earning
+    /*
+    |--------------------------------------------------------------------------
+    | Recommendation Expiry
+    |--------------------------------------------------------------------------
+    |
+    | Users will not get anymore recommendation after their last recommendation
+    | Until this expiry elapses
+    |
+    */
+    'recommendation_expiry' =>         PeriodDays::DAYS_3,
 
+    /*
+    |--------------------------------------------------------------------------
+    | Maximum Daily Recommendation
+    |--------------------------------------------------------------------------
+    |
+    | For each category of recommendable content, this will be the maximum
+    | number of recommendations that a user can get in a day.
+    |
+    */
+    'max_daily_recommendation' =>      5,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Deleting Reputation Cost
+    |--------------------------------------------------------------------------
+    |
+    | Deleting own project allows users to earn reputation, but this comes at a
+    | cost, this will be how much props a project needs to have earned before
+    | the user can gain reoutation from deleting it.
+    |
+    */
+    'delete_reputation_cost' =>         40,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Reputation
+    |--------------------------------------------------------------------------
+    |
+    | Users earn reputation when certain actions happen on thier account or
+    | or with content they created
+    |
+    */
     'reputation' => [
         'track_likes' =>                0.3,   // [x]
         'track_views' =>                0.3,   // [x]
@@ -28,13 +67,71 @@ return [
         'collab_invitation_accepted' => 20,    // [x]
         'create_project_track_stem' =>  10,    // [x]
     ],
-    'lossless_formats' => [
-        'mp3',
-        'wav',
-        'flac',
-        'aiff',
-        'alac',
-    ],
-    'lossless_output' =>         'aac',
-    'lossless_output_bitrate' => '256', //kbps
+
+    /*
+    |--------------------------------------------------------------------------
+    | Audio Encoding
+    |--------------------------------------------------------------------------
+    |
+    | These will control how audio will be encoded after they are uploaded
+    |
+    */
+    'encoding' => [
+        /*
+        |--------------------------------------------------------------------------
+        | Enable Audio Encoding
+        |--------------------------------------------------------------------------
+        |
+        | If disabled audio will not be encoded after upload
+        |
+        */
+        'enabled' =>             true,
+
+        /*
+        |--------------------------------------------------------------------------
+        | Lossless Formats
+        |--------------------------------------------------------------------------
+        |
+        | Only audio of these formats will be encoded, others will be ignored
+        |
+        */
+        'formats' => [
+            'mp3',
+            'wav',
+            'flac',
+            'aiff',
+            'alac',
+        ],
+
+        /*
+        |--------------------------------------------------------------------------
+        | Lossless Output
+        |--------------------------------------------------------------------------
+        |
+        | Audio will be encoded to this format
+        |
+        */
+        'output' =>                'aac',
+
+        /*
+        |--------------------------------------------------------------------------
+        | Output Bitrate
+        |--------------------------------------------------------------------------
+        |
+        | Bitrate of encoded files
+        |
+        */
+        'output_bitrate' =>        '256', //kbps
+
+        /*
+        |--------------------------------------------------------------------------
+        | Progress Logs
+        |--------------------------------------------------------------------------
+        |
+        | If enabled, as audio is being encoded, we will log the progress to the db
+        | to allow users follow up.
+        |
+        */
+        'enable_progress_logs' =>  true
+    ]
 ];

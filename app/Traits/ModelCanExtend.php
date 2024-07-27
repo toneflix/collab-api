@@ -6,6 +6,10 @@ use Valorin\Random\Random;
 
 trait ModelCanExtend
 {
+    protected static function userNameQuery()
+    {
+    }
+
     /**
      * Generate a Username for the user.
      *
@@ -17,11 +21,11 @@ trait ModelCanExtend
         string $field = 'username',
         string $separator = '_',
         string $current = null,
-        \Illuminate\Database\Eloquent\Model $model = null
+        callable $scope = null,
     ) {
         $username = str($current ?: $string)->slug($separator);
 
-        if (static::where($field, $username)->exists()) {
+        if (static::where($field, $username)->when($scope, $scope)->exists()) {
             $username = $username->append($separator)->append(Random::number(1111, 9999));
         }
 
