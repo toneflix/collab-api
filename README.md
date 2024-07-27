@@ -1,6 +1,6 @@
-# Toneflix Collab
+# Toneflix Collab API
 
-A music streaming and colaboration platform
+A streaming platform that brings together creatives in the music industry to make awesome sounds through collaboration.
 
 ### Running Queues
 
