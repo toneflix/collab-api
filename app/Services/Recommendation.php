@@ -122,9 +122,9 @@ class Recommendation
                             fn (Builder $q) => $q->when(
                                 $model->followable_type === User::class,
                                 fn (Builder $q) => $q
-                                    ->whereRaw('country IS NOT NULL AND country like?', "%{$this->user->country}%")
-                                    ->orWhereRaw('state IS NOT NULL AND state like?', "%{$this->user->state}%")
-                                    ->orWhereRaw('city IS NOT NULL AND city like?', "%{$this->user->city}%")
+                                    ->whereRaw('country IS NOT NULL AND country like ?', "%{$this->user->country}%")
+                                    ->orWhereRaw('state IS NOT NULL AND state like ?', "%{$this->user->state}%")
+                                    ->orWhereRaw('city IS NOT NULL AND city like ?', "%{$this->user->city}%")
                             )
                         );
                     }

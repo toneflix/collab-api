@@ -22,6 +22,7 @@ return new class extends Migration
             $table->string('privacy')->nullable()->default('public')->comment('[private, public]');
             $table->integer('duration')->nullable()->default(0);
             $table->text('description')->nullable();
+            $table->json('meta')->nullable();
             $table->timestamps();
         });
     }
