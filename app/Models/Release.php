@@ -117,9 +117,13 @@ class Release extends Model implements CanVisit
      */
     public function resolveRouteBinding($value, $field = null)
     {
-        return $this->where('id', $value)
-            ->orWhere('slug', $value)
-            ->firstOrFail();
+        $query = $this->where('slug', $value);
+
+        if (is_numeric($value)) {
+            $query->orWhere('id', $value);
+        }
+
+        return $query->firstOrFail();
     }
 
     /**
@@ -191,7 +195,7 @@ class Release extends Model implements CanVisit
     {
         $id = is_string($artist) ? $artist : $artist->id;
         $query->whereHas('artist', function (Builder $q) use ($id) {
-            $q->where('id', $id)->orWhere('username', $id);
+            $q->where('username', $id)->when(is_numeric($id), fn ($q) => $q->orWhere('id', $id));
         });
     }
 

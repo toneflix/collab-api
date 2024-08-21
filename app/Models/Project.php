@@ -101,9 +101,13 @@ class Project extends Model
      */
     public function resolveRouteBinding($value, $field = null)
     {
-        return $this->where('id', $value)
-            ->orWhere('slug', $value)
-            ->firstOrFail();
+        $query = $this->where('slug', $value);
+
+        if (is_numeric($value)) {
+            $query->orWhere('id', $value);
+        }
+
+        return $query->firstOrFail();
     }
 
     /**
@@ -198,7 +202,7 @@ class Project extends Model
         $query->whereHas('collaborators', function (Builder $q) use ($id) {
             $q->accepted();
             $q->whereHas('user', function (Builder $qx) use ($id) {
-                $qx->where('users.id', $id)->orWhere('users.username', $id);
+                $qx->where('users.username', $id)->when(is_numeric($id), fn ($q) => $q->orWhere('users.id', $id));
             });
         });
         $query->orWhere('projects.user_id', $id);

@@ -18,8 +18,7 @@ class TrackController extends Controller
     {
         /** @var \App\Models\Release $release */
         $release = $this->user->releases()
-            ->whereId($release_id)
-            ->orWhere('slug', $release_id)
+            ->where('slug', $release_id)->when(is_numeric($release_id), fn ($q) => $q->orWhere('releases.id', $release_id))
             ->firstOrFail();
 
         $query = $release->tracks()->getQuery();
@@ -56,8 +55,7 @@ class TrackController extends Controller
 
         /** @var \App\Models\Release $release */
         $release = $this->user->releases()
-            ->whereId($release_id)
-            ->orWhere('slug', $release_id)
+            ->where('slug', $release_id)->when(is_numeric($release_id), fn ($q) => $q->orWhere('releases.id', $release_id))
             ->firstOrFail();
 
         /** @var \App\Models\Track $track */
@@ -108,11 +106,13 @@ class TrackController extends Controller
         /** @var \App\Models\Release $release */
         $release = $this->user->releases()
             ->whereId($release_id)
-            ->orWhere('slug', $release_id)
+            ->where('slug', $release_id)->when(is_numeric($release_id), fn ($q) => $q->orWhere('releases.id', $release_id))
             ->firstOrFail();
 
         /** @var \App\Models\Track $track */
-        $track = $release->tracks()->whereId($id)->orWhere('slug', $id)->firstOrFail();
+        $track = $release->tracks()
+            ->where('slug', $id)->when(is_numeric($id), fn ($q) => $q->orWhere('tracks.id', $id))
+            ->firstOrFail();
 
         $track->slug = $request->input('slug', $track->slug);
         $track->title = $request->input('title', $track->title);
@@ -191,11 +191,12 @@ class TrackController extends Controller
     {
         /** @var \App\Models\Release $release */
         $release = $this->user->releases()
-            ->whereId($release_id)
-            ->orWhere('slug', $release_id)
+            ->where('slug', $release_id)->when(is_numeric($release_id), fn ($q) => $q->orWhere('releases.id', $release_id))
             ->firstOrFail();
 
-        $release->tracks()->whereId($id)->orWhere('slug', $id)->delete();
+        $release->tracks()
+            ->where('slug', $id)->when(is_numeric($id), fn ($q) => $q->orWhere('tracks.id', $id))
+            ->delete();
 
         return (new TrackCollection([]))->additional([
             'message' => 'Track deleted successfully.',

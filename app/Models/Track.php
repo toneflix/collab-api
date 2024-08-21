@@ -105,9 +105,13 @@ class Track extends Model
      */
     public function resolveRouteBinding($value, $field = null)
     {
-        return $this->where('id', $value)
-            ->orWhere('slug', $value)
-            ->firstOrFail();
+        $query = $this->where('slug', $value);
+
+        if (is_numeric($value)) {
+            $query->orWhere('id', $value);
+        }
+
+        return $query->firstOrFail();
     }
 
     public function registerFileable()
@@ -227,7 +231,7 @@ class Track extends Model
     {
         $id = is_string($artist) ? $artist : $artist->id;
         $query->whereHas('artists', function (Builder $q) use ($id) {
-            $q->where('artists.id', $id)->orWhere('artists.username', $id);
+            $q->where('artists.username', $id)->when(is_numeric($id), fn ($q) => $q->orWhere('artists.id', $id));
         });
     }
 

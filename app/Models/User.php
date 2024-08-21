@@ -174,9 +174,13 @@ class User extends Authenticatable implements Commentator
      */
     public function resolveRouteBinding($value, $field = null)
     {
-        return $this->where('id', $value)
-            ->orWhere('username', $value)
-            ->firstOrFail();
+        $query = $this->where('username', $value);
+
+        if (is_numeric($value)) {
+            $query->orWhere('id', $value);
+        }
+
+        return $query->firstOrFail();
     }
 
     /**

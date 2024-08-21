@@ -78,9 +78,13 @@ class Artist extends Model
      */
     public function resolveRouteBinding($value, $field = null)
     {
-        return $this->where('id', $value)
-            ->orWhere('username', $value)
-            ->firstOrFail();
+        $query = $this->where('username', $value);
+
+        if (is_numeric($value)) {
+            $query->orWhere('id', $value);
+        }
+
+        return $query->firstOrFail();
     }
 
     /**
@@ -131,11 +135,11 @@ class Artist extends Model
     {
         $query->whereHas('releases', function (Builder $q) use ($genre) {
             $q->whereHas('genre', function (Builder $q) use ($genre) {
-                $q->where('id', $genre)->orWhere('slug', $genre);
+                $q->where('slug', $genre)->when(is_numeric($genre), fn ($q) => $q->orWhere('id', $genre));
             });
             $q->orWhereHas('tracks', function (Builder $qx) use ($genre) {
                 $qx->whereHas('genre', function (Builder $q) use ($genre) {
-                    $q->where('id', $genre)->orWhere('slug', $genre);
+                    $q->where('slug', $genre)->when(is_numeric($genre), fn ($q) => $q->orWhere('id', $genre));
                 });
             });
         });

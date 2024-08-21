@@ -41,11 +41,11 @@ class TrackResource extends JsonResource
             ]),
             $this->mergeWhen($with->contains('interaction'), fn () => [
                 'interaction' => $interaction,
-                'liked' => $interaction['liked'],
-                'likes' => $interaction['likes'],
+                'liked' => $interaction['liked'] ?? false,
+                'likes' => $interaction['likes'] ?? 0,
             ], [
-                'liked' => $interaction['liked'],
-                'likes' => $interaction['likes'],
+                'liked' => $interaction['liked'] ?? false,
+                'likes' => $interaction['likes'] ?? 0,
             ]),
             'format' => $this->meta['format'] ?? 'mp3',
             'privacy' => $this->privacy,

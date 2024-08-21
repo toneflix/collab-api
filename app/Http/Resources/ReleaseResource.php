@@ -19,7 +19,7 @@ class ReleaseResource extends JsonResource
         $interaction = $this->socialInteractionData($request->user('sanctum'));
 
         $imageUrl = $this->files['artwork'];
-        if (! $this->image && isset($this->project)) {
+        if (!$this->image && isset($this->project)) {
             $imageUrl = $this->project->files['image'];
         }
 
@@ -49,11 +49,11 @@ class ReleaseResource extends JsonResource
             'description' => $this->description,
             $this->mergeWhen($with->contains('interaction'), fn () => [
                 'interaction' => $interaction,
-                'liked' => $interaction['liked'],
-                'likes' => $interaction['likes'],
+                'liked' => $interaction['liked'] ?? false,
+                'likes' => $interaction['likes'] ?? 0,
             ], [
-                'liked' => $interaction['liked'],
-                'likes' => $interaction['likes'],
+                'liked' => $interaction['liked'] ?? false,
+                'likes' => $interaction['likes'] ?? 0,
             ]),
             'tracksCount' => $this->tracks_count,
             'commentsCount' => $this->when($with->contains('comments_count'), fn () => $this->comments()->count()),

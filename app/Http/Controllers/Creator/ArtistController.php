@@ -38,7 +38,7 @@ class ArtistController extends Controller
     public function update(Request $request, string $id)
     {
         $artist = $this->user->artists()
-            ->whereId($id)->orWhere('username', $id)
+            ->whereUsername($id)->when(is_numeric($id), fn ($q) => $q->orWhere('id', $id))
             ->firstOrFail();
 
         return (new ArtistResource($artist))->additional([

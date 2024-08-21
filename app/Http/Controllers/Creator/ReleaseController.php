@@ -117,8 +117,7 @@ class ReleaseController extends Controller
     {
         /** @var \App\Models\Release $release */
         $release = $this->user->releases()
-            ->whereId($id)
-            ->orWhere('slug', $id)
+            ->where('slug', $id)->when(is_numeric($id), fn ($q) => $q->orWhere('releases.id', $id))
             ->firstOrFail();
 
         $request->merge(['release_date', $request->input('releaseDate', now())]);
@@ -277,12 +276,11 @@ class ReleaseController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Request $request, string $release_id)
+    public function destroy(Request $request, string $id)
     {
         /** @var \App\Models\Release $release */
         $release = $this->user->releases()
-            ->whereId($release_id)
-            ->orWhere('slug', $release_id)
+            ->where('slug', $id)->when(is_numeric($id), fn ($q) => $q->orWhere('releases.id', $id))
             ->firstOrFail();
 
         $release->delete();

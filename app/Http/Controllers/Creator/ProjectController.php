@@ -120,8 +120,7 @@ class ProjectController extends Controller
     {
         /** @var \App\Models\Project $project */
         $project = $this->user->projects()
-            ->where('projects.id', [$id])
-            ->orWhere('slug', $id)
+            ->where('slug', $id)->when(is_numeric($id), fn ($q) => $q->orWhere('projects.id', $id))
             ->first();
 
         if (!$project) {

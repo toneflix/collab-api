@@ -8,6 +8,7 @@ use App\Http\Resources\ReleaseResource;
 use App\Models\Release;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ReleaseController extends Controller
 {
@@ -20,10 +21,7 @@ class ReleaseController extends Controller
 
         $filters = str($request->filters)->remove(' ')->explode(',');
 
-        $query
-            ->when($filters->contains('album'), function (Builder $q) {
-                $q->having('tracks_count', '>', 1);
-            })
+        $base = fn ($query) => $query
             ->when(
                 $filters->contains('recently_played'),
                 fn (Builder $q) => $q->recentlyPlayed($request->user('sanctum'), $request->period ?? 'week')
@@ -41,6 +39,12 @@ class ReleaseController extends Controller
             ->when($filters->contains('latest'), fn (Builder $q) => $q->latestInPeriod('weeks_2'))
             ->when($filters->contains('random'), fn (Builder $q) => $q->inRandomOrder())
             ->when($filters->contains('top'), fn (Builder $q) => $q->popular('top', $request->period));
+
+        $query->where($base)
+            ->when($filters->contains('album'), function (Builder $q) {
+                // TODO: Make this to check if the realease has more than 1 track
+                $q->whereHas('tracks', null, '>=', 1);
+            });
 
         $releases = $query->paginate($request->input('limit', 15));
 
