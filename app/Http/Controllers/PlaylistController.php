@@ -19,10 +19,16 @@ class PlaylistController extends Controller
 
         $user = $request->user('sanctum');
 
+        // Use the listener's recommendations and history when they have some,
+        // otherwise fall back to the most played published tracks.
+        $personal = $user && Track::recommended($user)->exists();
+
         $query
-            ->when($user, function (Builder $query) use ($user) {
-                $query->recommended($user);
-            })
+            ->when($personal, fn (Builder $query) => $query->recommended($user))
+            ->when(! $personal, fn (Builder $query) => $query
+                ->whereHas('release', fn (Builder $q) => $q->where('draft', false))
+                ->withCount(['visits as plays' => fn (Builder $q) => $q->where('data->duration', '>', 0)])
+                ->orderByDesc('plays'))
             ->when($request->boolean('randomize'), fn (Builder $q) => $q->inRandomOrder());
 
         $tracks = $query->paginate($request->input('limit', 15));

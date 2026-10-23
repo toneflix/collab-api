@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\Traits\ModelCanExtend;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Toneflix\LaravelFileable\Traits\Fileable;
 
 class Genre extends Model
 {
-    use Fileable, HasFactory;
+    use Fileable, HasFactory, ModelCanExtend;
 
     /**
      * The attributes that are mass assignable.

@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Enums\PeriodDays;
 use App\Models\Artist;
 use App\Models\Track;
 use App\Models\User;
@@ -32,38 +33,32 @@ class Recommend extends Command
      */
     public function handle()
     {
-        /** @var \App\Enums\PeriodDays $days */
+        /** @var PeriodDays $days */
         $days = config('settings.recommendation_expiry');
-        $scope = fn (Builder $q) => $q->whereBetween('created_at', [now()->subDays($days->value), now()]);
-        $streamScope = fn (Builder $q) => $q->where('data->duration', '>', 0)->where($scope);
+        $fresh = fn (Builder $q) => $q->where('created_at', '>=', now()->subDays($days->value));
 
-        if (count($this->argument('user_ids'))) {
-            /** @var \Illuminate\Support\LazyCollection<TKey,User> $users */
-            $users = User::whereIn('id', $this->argument('user_ids'))
-                ->whereDoesntHave('recommendations', $scope)
-                ->where(function ($q) use ($streamScope, $scope) {
-                    $q->whereHas('socialInteracts', $scope);
-                    $q->orWhereHas('viewingHistory', $streamScope);
-                    $q->orWhereHas('followings', $streamScope);
-                })
-                ->cursor();
-        } else {
-            $query = User::inRandomOrder()
-                ->whereDoesntHave('recommendations', $scope)
-                ->where(function ($q) use ($streamScope, $scope) {
-                    $q->whereHas('followings', $scope);
-                    $q->orWhereHas('socialInteracts', $scope);
-                    $q->orWhereHas('viewingHistory', $streamScope);
-                })
-                ->limit(1000);
+        // Only users with some activity to learn from, whose recommendations have expired.
+        $users = User::query()
+            ->when(
+                count($this->argument('user_ids')),
+                fn (Builder $q) => $q->whereIn('id', $this->argument('user_ids')),
+                fn (Builder $q) => $q->whereDoesntHave('recommendations', $fresh)->limit(1000)
+            )
+            ->where(function (Builder $q) {
+                $q->has('followings')
+                    ->orHas('socialInteracts')
+                    ->orHas('viewingHistory');
+            })
+            ->cursor();
 
-            /** @var \Illuminate\Support\LazyCollection<TKey,User> $users */
-            $users = $query->cursor();
-        }
+        $count = 0;
 
         foreach ($users as $user) {
-            $user->recommendations()->delete();
-            new Recommendation($user, [Artist::class, User::class, Track::class]);
+            $made = (new Recommendation($user, [Artist::class, User::class, Track::class]))->generate();
+            $this->line("User {$user->id}: {$made} recommendations", verbosity: 'v');
+            $count++;
         }
+
+        $this->info("Refreshed recommendations for {$count} user(s).");
     }
 }

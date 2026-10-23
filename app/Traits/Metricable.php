@@ -26,7 +26,7 @@ trait Metricable
      * Scope a query to only include latest items.
      *
      *
-     * @return \Illuminate\Database\Eloquent\Builder
+     * @return Builder
      */
     public function scopeLatestInPeriod(Builder $query, ?string $period = 'years_2'): void
     {
@@ -40,7 +40,7 @@ trait Metricable
      * Scope a query to only include popular items.
      *
      *
-     * @return \Illuminate\Database\Eloquent\Builder
+     * @return Builder
      */
     public function scopePopular(Builder $query, ?string $filter = 'top', ?string $period = 'years_2')
     {
@@ -59,13 +59,13 @@ trait Metricable
      * Scope a query to only include favorite items.
      *
      * @param  int  $limit
-     * @return \Illuminate\Database\Eloquent\Builder
+     * @return Builder
      */
     public function scopeFavorite(Builder $query, $limit = 10)
     {
         $user = auth()->user('sanctum');
 
-        if (!$user) {
+        if (! $user) {
             return $query->whereNull('id');
         }
 
@@ -78,59 +78,48 @@ trait Metricable
      * Scope a query to only include featured items.
      *
      * @param  int  $limit
-     * @return \Illuminate\Database\Eloquent\Builder
+     * @return Builder
      */
-    public function scopeFeatured(Builder $query, $limit = 10, $filter = 'featured')
-    {
-    }
+    public function scopeFeatured(Builder $query, $limit = 10, $filter = 'featured') {}
 
     /**
      * Scope a query to only include related items.
      *
-     * @return \Illuminate\Database\Eloquent\Builder
+     * @return Builder
      */
-    public function scopeIsRelated(Builder $query, $search = null)
-    {
-    }
+    public function scopeIsRelated(Builder $query, $search = null) {}
 
     /**
      * Scope a query to only include recently_seen items.
      *
      * @param  int  $limit
-     * @return \Illuminate\Database\Eloquent\Builder
+     * @return Builder
      */
-    public function scopeRecentlySeen(Builder $query, $limit = 10)
-    {
-    }
+    public function scopeRecentlySeen(Builder $query, $limit = 10) {}
 
     /**
      * Scope a query to only include recommended items.
      */
     public function scopeRecommended(Builder $query, User $user): void
     {
-        $query
-            ->whereHas(
-                'recommendations',
-                fn (Builder $q) => $q->where('recommendations.user_id', $user->id)
-            )
-            ->orWhereHas('visits', fn (Builder $q) => $q->where('data->user', $user->id))
-            ->when(
-                $this instanceof Track,
-                fn (Builder $q) => $q->orWhereHas(
-                    'socialInteractions',
-                    fn (Builder $q) => $q
-                        ->where('interactor_id', $user->id)
-                        ->where('interactor_type', $user->getMorphClass())
+        // Recommendations come from App\Services\Recommendation (run by `php artisan app:recommend`).
+        $query->where(function (Builder $query) use ($user) {
+            $query
+                ->whereHas(
+                    'recommendations',
+                    fn (Builder $q) => $q->where('recommendations.user_id', $user->id)
                 )
-            );
-    }
-
-    /**
-     * Let's try to recommend items based on the user's visit history.
-     */
-    protected function recommendationEngine()
-    {
-        // TODO: Implement recommendationEngine() method.
+                ->orWhereHas('visits', fn (Builder $q) => $q->where('data->user', $user->id))
+                ->when(
+                    $this instanceof Track,
+                    fn (Builder $q) => $q->orWhereHas(
+                        'socialInteractions',
+                        fn (Builder $q) => $q
+                            ->where('interactor_id', $user->id)
+                            ->where('interactor_type', $user->getMorphClass())
+                    )
+                );
+        });
     }
 
     /**
@@ -138,7 +127,7 @@ trait Metricable
      */
     public function stream($duration = 0, ?User $user = null): void
     {
-        if (!$user) {
+        if (! $user) {
             return;
         }
 
