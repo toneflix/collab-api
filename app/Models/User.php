@@ -24,9 +24,9 @@ use Overtrue\LaravelFollow\Traits\Follower;
 use Spatie\Permission\Traits\HasRoles;
 use Staudenmeir\EloquentJsonRelations\HasJsonRelationships;
 use ToneflixCode\ApprovableNotifications\Traits\ApprovableNotifiable;
-use ToneflixCode\LaravelFileable\Traits\Fileable;
-use ToneflixCode\SocialInteractions\Models\SocialInteraction;
-use ToneflixCode\SocialInteractions\Traits\CanSocialInteract;
+use Toneflix\LaravelFileable\Traits\Fileable;
+use Toneflix\SocialInteractions\Models\SocialInteraction;
+use Toneflix\SocialInteractions\Traits\CanSocialInteract;
 use Valorin\Random\Random;
 use Illuminate\Database\Eloquent\Attributes\ScopedBy;
 

@@ -12,7 +12,7 @@ class SocialInteractionController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request, string $pid, string $interaction_id = null)
+    public function index(Request $request, string $pid, ?string $interaction_id = null)
     {
         [$interactable] = $this->resolver($request, $pid, $interaction_id);
 
@@ -78,11 +78,11 @@ class SocialInteractionController extends Controller
      *
      * @return array{
      *  0:\App\Models\Project|\App\Models\Track|\App\Models\Release,
-     *  1:\ToneflixCode\SocialInteractions\Models\SocialInteraction|null,
+     *  1:\Toneflix\SocialInteractions\Models\SocialInteraction|null,
      *  2:string
      * }
      */
-    public function resolver(Request $request, string $interactable_id, string $interaction_id = null)
+    public function resolver(Request $request, string $interactable_id, ?string $interaction_id = null)
     {
         // Guess class name
         $name = str($request->route()->getAction('prefix'))

@@ -18,8 +18,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use ToneflixCode\LaravelFileable\Traits\Fileable;
-use ToneflixCode\SocialInteractions\Traits\HasSocialInteractions;
+use Toneflix\LaravelFileable\Traits\Fileable;
+use Toneflix\SocialInteractions\Traits\HasSocialInteractions;
 
 #[ScopedBy([
     RestrictBlockedUserScope::class,

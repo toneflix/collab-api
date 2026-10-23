@@ -10,7 +10,7 @@ use App\Models\Release;
 use App\Services\Reputation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
-use ToneflixCode\LaravelFileable\Media;
+use Toneflix\LaravelFileable\Media;
 
 class ReleaseController extends Controller
 {

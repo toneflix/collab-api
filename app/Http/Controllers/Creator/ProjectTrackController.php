@@ -11,7 +11,7 @@ use App\Models\Project;
 use App\Models\ProjectTrack;
 use App\Services\Reputation;
 use Illuminate\Http\Request;
-use ToneflixCode\LaravelFileable\Media;
+use Toneflix\LaravelFileable\Media;
 
 class ProjectTrackController extends Controller
 {

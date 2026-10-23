@@ -15,7 +15,7 @@ class TrackController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request, Release $release = null)
+    public function index(Request $request, ?Release $release = null)
     {
         $query = $release
             ? $release->tracks()->getQuery()

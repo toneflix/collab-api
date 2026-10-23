@@ -16,8 +16,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
-use ToneflixCode\LaravelFileable\Traits\Fileable;
-use ToneflixCode\SocialInteractions\Traits\HasSocialInteractions;
+use Toneflix\LaravelFileable\Traits\Fileable;
+use Toneflix\SocialInteractions\Traits\HasSocialInteractions;
 
 /**
  * @property Collection $collaborators
@@ -195,7 +195,7 @@ class Project extends Model
         }
     }
 
-    public function scopeCollaber(Builder $query, User|string $user, int $days = null): void
+    public function scopeCollaber(Builder $query, User|string $user, ?int $days = null): void
     {
         $id = is_string($user) ? $user : $user->id;
 

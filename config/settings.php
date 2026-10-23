@@ -115,6 +115,18 @@ return [
 
         /*
         |--------------------------------------------------------------------------
+        | Output Codec
+        |--------------------------------------------------------------------------
+        |
+        | Optional FFmpeg codec for the output format. Leave empty to use the
+        | format's default (libfdk_aac for aac). Set to "aac" to use FFmpeg's
+        | native AAC encoder when libfdk_aac is not installed.
+        |
+        */
+        'output_codec' =>          env('AUDIO_ENCODING_CODEC'),
+
+        /*
+        |--------------------------------------------------------------------------
         | Output Bitrate
         |--------------------------------------------------------------------------
         |

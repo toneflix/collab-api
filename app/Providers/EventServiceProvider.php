@@ -10,7 +10,7 @@ use Overtrue\LaravelFollow\Events\Followed;
 use Overtrue\LaravelFollow\Events\Unfollowed;
 use ToneflixCode\ApprovableNotifications\Events\ApprovableNotificationCreated;
 use ToneflixCode\ApprovableNotifications\Events\ApprovableNotificationUpdated;
-use ToneflixCode\SocialInteractions\Events\SocialInteractionDone;
+use Toneflix\SocialInteractions\Events\SocialInteractionDone;
 
 class EventServiceProvider extends ServiceProvider
 {

@@ -136,7 +136,7 @@ trait Metricable
     /**
      * Record a new stream for the model.
      */
-    public function stream($duration = 0, User $user = null): void
+    public function stream($duration = 0, ?User $user = null): void
     {
         if (!$user) {
             return;

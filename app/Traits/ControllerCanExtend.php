@@ -39,13 +39,13 @@ trait ControllerCanExtend
         Request $request,
         User|TempUser $user,
         int|float $amount,
-        Model $transactable = null
+        ?Model $transactable = null
     ): \Illuminate\Support\Collection {
         $fees = 0;
 
         if ($this->paymentProcessor === 'paystack') {
             $paymentIntent = (new PaystackProcessor($request, $user))->intent($amount);
-        } elseif ($this->paymentProcessor === 'paystack') {
+        } elseif ($this->paymentProcessor === 'stripe') {
             $paymentIntent = (new StripeProcessor($request, $user))->intent($amount);
         } else {
             throw ValidationException::withMessages([
@@ -64,7 +64,7 @@ trait ControllerCanExtend
             'reference' => $paymentIntent['reference'] ?? $paymentIntent['id'],
             'discount' => 0,
             'status' => 'pending',
-            'method' => 'paystack',
+            'method' => $this->paymentProcessor,
             'amount' => $amount,
             'fees' => $fees,
             'due' => $amount + $fees,
@@ -73,8 +73,9 @@ trait ControllerCanExtend
         if ($transactable) {
             $transaction->transactable_type = $transactable->getMorphClass();
             $transaction->transactable_id = $transactable->id;
-            $transaction->save();
         }
+
+        $transaction->save();
 
         return collect($paymentIntent->toArray());
     }
@@ -92,7 +93,7 @@ trait ControllerCanExtend
 
         if ($this->paymentProcessor === 'paystack') {
             $paymentIntent = (new PaystackProcessor($request, $user))->verify($reference);
-        } elseif ($this->paymentProcessor === 'paystack') {
+        } elseif ($this->paymentProcessor === 'stripe') {
             $paymentIntent = (new StripeProcessor($request, $user))->verify($reference);
         } else {
             throw ValidationException::withMessages([
