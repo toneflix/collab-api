@@ -2,10 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Broadcasting\Channels;
 use App\Enums\HttpStatus;
 use App\Helpers\Providers;
 use App\Http\Resources\CommentCollection;
 use App\Http\Resources\CommentResource;
+use App\Models\Comment;
+use App\Models\Project;
+use App\Models\Release;
+use App\Models\Track;
+use App\Services\Realtime\Realtime;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 
 class CommentController extends Controller
@@ -18,10 +25,10 @@ class CommentController extends Controller
         [$commentable, $comment] = $this->resolver($request, $pid, $comment_id);
 
         if ($comment) {
-            /** @var \Illuminate\Database\Eloquent\Builder $query */
+            /** @var Builder $query */
             $query = $comment->comments();
         } else {
-            /** @var \Illuminate\Database\Eloquent\Builder $query */
+            /** @var Builder $query */
             $query = $commentable->comments();
         }
 
@@ -46,6 +53,8 @@ class CommentController extends Controller
         [$commentable] = $this->resolver($request, $pid);
 
         $comment = $commentable->comment($request->comment);
+
+        $this->broadcast($comment, 'comment.posted');
 
         return (new CommentResource($comment))->additional([
             'message' => 'Comment posted.',
@@ -75,6 +84,8 @@ class CommentController extends Controller
 
         $comment = $comment->comment($request->comment);
 
+        $this->broadcast($comment, 'comment.posted');
+
         return (new CommentResource($comment))->additional([
             'message' => 'Reply sent.',
             'status' => 'success',
@@ -89,6 +100,8 @@ class CommentController extends Controller
     {
         [$commentable, $comment] = $this->resolver($request, $pid, $comment_id);
 
+        $this->broadcast($comment, 'comment.deleted');
+
         $comment->delete();
 
         return Providers::response()->success([
@@ -98,11 +111,33 @@ class CommentController extends Controller
     }
 
     /**
+     * Tell everyone viewing the conversation about a new or deleted comment.
+     */
+    protected function broadcast(Comment $comment, string $event): void
+    {
+        $comment->loadMissing(['commentable', 'commentator']);
+
+        $data = (new CommentResource($comment))->resolve(request());
+        $user = $comment->commentator;
+
+        $data['user'] = $user ? [
+            'id' => $user->id,
+            'type' => 'user',
+            'name' => $user->fullname,
+            'fullname' => $user->fullname,
+            'username' => $user->username,
+            'imageUrl' => $user->images['image'] ?? null,
+        ] : null;
+
+        Realtime::send(Channels::conversation($comment->commentable), $event, ['comment' => $data]);
+    }
+
+    /**
      * Resolve the comment interface
      *
      * @return array{
-     *  0:\App\Models\Project|\App\Models\Track|\App\Models\Release,
-     *  1:\App\Models\Comment|null
+     *  0:Project|Track|Release,
+     *  1:Comment|null
      * }
      */
     public function resolver(Request $request, string $commentable_id, ?string $comment_id = null)
@@ -115,11 +150,11 @@ class CommentController extends Controller
             ->prepend('\\App\\Models\\')
             ->toString();
 
-        /** @var \App\Models\Project|\App\Models\Track|\App\Models\Release $commentable */
-        $commentable = (new $className())->resolveRouteBinding($commentable_id);
+        /** @var Project|Track|Release $commentable */
+        $commentable = (new $className)->resolveRouteBinding($commentable_id);
 
         if ($request->has('track_id') && method_exists($commentable, 'tracks')) {
-            /** @var \App\Models\Track $commentable */
+            /** @var Track $commentable */
             $commentable = $commentable->tracks()->findOrFail($request->track_id);
         }
 
@@ -127,7 +162,7 @@ class CommentController extends Controller
 
         if ($commentable) {
             if ($comment_id) {
-                /** @var \App\Models\Comment $comment */
+                /** @var Comment $comment */
                 $comment = $commentable->comments()->findOrFail($comment_id);
             }
         }

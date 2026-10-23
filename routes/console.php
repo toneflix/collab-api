@@ -10,3 +10,6 @@ Artisan::command('inspire', function () {
 
 // Refresh expired recommendations (up to 1000 users per run).
 Schedule::command('app:recommend')->hourly()->withoutOverlapping();
+
+// Firebase keeps every realtime event until it's deleted.
+Schedule::command('realtime:prune')->hourly()->withoutOverlapping();
