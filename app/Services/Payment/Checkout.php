@@ -29,7 +29,7 @@ class Checkout
     /**
      * Create a pending transaction and start the payment with the gateway.
      *
-     * @param  array{id?: string|int|null, plan?: ?string, amount?: float|int|string|null, message?: ?string}  $input
+     * @param  array{id?: string|int|null, plan?: ?string, cycles?: int|string|null, amount?: float|int|string|null, message?: ?string}  $input
      * @return array{transaction: Transaction, access_code: ?string, authorization_url: ?string}
      */
     public function start(User $payer, string $purpose, array $input): array
@@ -38,7 +38,7 @@ class Checkout
             'release' => $this->forRelease($payer, $input['id'] ?? null),
             'stems' => $this->forStems($payer, $input['id'] ?? null),
             'tip' => $this->forTip($payer, $input['id'] ?? null, $input['amount'] ?? null, $input['message'] ?? null),
-            'premium' => $this->forPremium($payer, $input['plan'] ?? null),
+            'premium' => $this->forPremium($payer, $input['plan'] ?? null, $input['cycles'] ?? null),
             default => throw ValidationException::withMessages(['purpose' => 'Unknown payment type.']),
         };
 
@@ -153,7 +153,7 @@ class Checkout
             'plan_id' => $plan?->id,
             'amount' => $transaction->amount,
             'starts_at' => $starts,
-            'ends_at' => $starts->copy()->add($plan?->period() ?? '1 month'),
+            'ends_at' => $starts->copy()->add($plan?->period((int) ($transaction->meta['cycles'] ?? 1)) ?? '1 month'),
             'transaction_id' => $transaction->id,
         ]);
     }
@@ -229,7 +229,7 @@ class Checkout
     /**
      * @return array{0: float, 1: Model, 2: ?User, 3: array<string, mixed>}
      */
-    protected function forPremium(User $payer, string|int|null $plan): array
+    protected function forPremium(User $payer, string|int|null $plan, int|string|null $cycles = null): array
     {
         /** @var Plan|null $model */
         $model = Plan::active()
@@ -245,6 +245,18 @@ class Checkout
             throw ValidationException::withMessages(['plan' => 'This plan is free.']);
         }
 
-        return [$model->price, $payer, null, ['plan' => $model->slug, 'plan_id' => $model->id, 'title' => $model->name]];
+        $option = $model->billingOption((int) ($cycles ?: 1));
+
+        if (! $option) {
+            throw ValidationException::withMessages(['cycles' => 'This plan can\'t be paid for that many '.str($model->interval)->plural().' at once.']);
+        }
+
+        return [$option['price'], $payer, null, [
+            'plan' => $model->slug,
+            'plan_id' => $model->id,
+            'cycles' => $option['cycles'],
+            'discount' => $option['discount'],
+            'title' => $option['cycles'] > 1 ? "{$model->name} ({$model->period($option['cycles'])}s)" : $model->name,
+        ]];
     }
 }

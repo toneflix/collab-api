@@ -21,6 +21,7 @@ class PlanResource extends JsonResource
             'price' => $this->price,
             'interval' => $this->interval,
             'intervalCount' => $this->interval_count,
+            'billingOptions' => $this->billingOptions(),
             'features' => $this->allFeatures(),
             'isDefault' => $this->is_default,
             'active' => $this->active,

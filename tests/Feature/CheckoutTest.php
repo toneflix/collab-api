@@ -65,8 +65,12 @@ class CheckoutTest extends TestCase
         $this->gateway = new FakeGateway;
         $this->app->instance(PaymentGateway::class, $this->gateway);
 
-        Plan::where('slug', 'monthly')->update(['price' => 2000, 'active' => true]);
-        Plan::where('slug', 'yearly')->update(['price' => 20000, 'active' => true]);
+        Plan::where('slug', 'premium')->update([
+            'price' => 2000,
+            'interval' => 'month',
+            'active' => true,
+            'billing_options' => json_encode([['cycles' => 6, 'discount' => 10], ['cycles' => 12, 'discount' => 20]]),
+        ]);
         $this->setting('creator_share', 80);
         $this->setting('min_tip_amount', 100);
     }
@@ -303,13 +307,18 @@ class CheckoutTest extends TestCase
 
         $this->getJson("/api/tracks/{$track->id}/download")->assertForbidden();
 
-        $this->pay($listener, ['purpose' => 'premium', 'plan' => 'monthly']);
-        $this->pay($listener, ['purpose' => 'premium', 'plan' => 'yearly']);
+        $month = $this->pay($listener, ['purpose' => 'premium', 'plan' => 'premium']);
+        $year = $this->pay($listener, ['purpose' => 'premium', 'plan' => 'premium', 'cycles' => 12]);
+
+        // A year at once is 12 months less the 20% discount.
+        $this->assertEquals(2000, $month->amount);
+        $this->assertEquals(19200, $year->amount);
+        $this->assertSame('Premium (12 months)', $year->meta['title']);
 
         $listener = $this->actingAsFresh($listener);
         $this->assertTrue($listener->is_premium);
 
-        // The yearly plan starts when the month runs out.
+        // The year starts when the month runs out.
         $this->assertTrue(
             $listener->subscriptions()->first()->ends_at->isSameDay(now()->addMonth()->addYear())
         );
@@ -317,7 +326,7 @@ class CheckoutTest extends TestCase
         $this->getJson('/api/account/subscription')
             ->assertOk()
             ->assertJsonPath('data.premium', true)
-            ->assertJsonPath('data.plan.slug', 'monthly')
+            ->assertJsonPath('data.plan.slug', 'premium')
             ->assertJsonPath('data.features.downloads', true);
 
         $this->getJson("/api/tracks/{$track->id}/download")
@@ -334,18 +343,24 @@ class CheckoutTest extends TestCase
         // The default plan is what everyone already has.
         $this->postJson('/api/payments', ['purpose' => 'premium', 'plan' => 'free'])->assertUnprocessable();
 
-        // A free or inactive plan can't be bought.
-        Plan::where('slug', 'monthly')->update(['price' => 0]);
-        $this->postJson('/api/payments', ['purpose' => 'premium', 'plan' => 'monthly'])->assertUnprocessable();
+        // Only the billing options the plan offers can be bought.
+        $this->postJson('/api/payments', ['purpose' => 'premium', 'plan' => 'premium', 'cycles' => 3])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('cycles');
+        $this->postJson('/api/payments', ['purpose' => 'premium', 'plan' => 'premium', 'cycles' => 6])->assertCreated();
 
-        Plan::where('slug', 'yearly')->update(['active' => false]);
-        $this->postJson('/api/payments', ['purpose' => 'premium', 'plan' => 'yearly'])->assertUnprocessable();
+        // A free or inactive plan can't be bought.
+        Plan::where('slug', 'premium')->update(['active' => false]);
+        $this->postJson('/api/payments', ['purpose' => 'premium', 'plan' => 'premium'])->assertUnprocessable();
+
+        Plan::where('slug', 'premium')->update(['price' => 0, 'active' => true]);
+        $this->postJson('/api/payments', ['purpose' => 'premium', 'plan' => 'premium'])->assertUnprocessable();
     }
 
     public function test_settling_twice_only_counts_once(): void
     {
         $listener = User::factory()->create();
-        $transaction = $this->pay($listener, ['purpose' => 'premium', 'plan' => 'monthly']);
+        $transaction = $this->pay($listener, ['purpose' => 'premium', 'plan' => 'premium']);
 
         app(Checkout::class)->settle($transaction, true, 2000);
         $this->postJson("/api/payments/{$transaction->reference}/verify")->assertOk();
@@ -358,7 +373,7 @@ class CheckoutTest extends TestCase
         $listener = User::factory()->create();
         Sanctum::actingAs($listener);
 
-        $reference = $this->postJson('/api/payments', ['purpose' => 'premium', 'plan' => 'monthly'])->json('data.reference');
+        $reference = $this->postJson('/api/payments', ['purpose' => 'premium', 'plan' => 'premium'])->json('data.reference');
 
         $payload = json_encode(['event' => 'charge.success', 'data' => ['reference' => $reference]]);
 
@@ -396,7 +411,7 @@ class CheckoutTest extends TestCase
     public function test_free_accounts_hit_the_project_limit_and_premium_lifts_it(): void
     {
         $this->planFeatures('free', ['max_projects' => 1]);
-        $monthly = $this->planFeatures('monthly', ['max_projects' => 0]);
+        $premium = $this->planFeatures('premium', ['max_projects' => 0]);
 
         $creator = User::factory()->create();
         Sanctum::actingAs($creator);
@@ -407,8 +422,8 @@ class CheckoutTest extends TestCase
             ->assertJsonValidationErrors('title');
 
         $creator->subscriptions()->create([
-            'plan' => 'monthly',
-            'plan_id' => $monthly->id,
+            'plan' => 'premium',
+            'plan_id' => $premium->id,
             'amount' => 2000,
             'starts_at' => now()->subDay(),
             'ends_at' => now()->addMonth(),

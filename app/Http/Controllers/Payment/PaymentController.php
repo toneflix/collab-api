@@ -23,6 +23,7 @@ class PaymentController extends Controller
             'purpose' => ['required', Rule::in(Checkout::PURPOSES)],
             'id' => ['required_unless:purpose,premium', 'nullable'],
             'plan' => ['required_if:purpose,premium', 'nullable'],
+            'cycles' => ['nullable', 'integer', 'min:1', 'max:120'],
             'amount' => ['required_if:purpose,tip', 'nullable', 'numeric'],
             'message' => ['nullable', 'string', 'max:280'],
         ]);

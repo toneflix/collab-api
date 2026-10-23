@@ -111,6 +111,37 @@ class PlanTest extends TestCase
             ->assertJsonValidationErrors(['price', 'interval']);
     }
 
+    public function test_admins_set_bulk_billing_options_with_discounts(): void
+    {
+        $this->admin();
+
+        $plan = Plan::where('slug', 'premium')->firstOrFail();
+        $plan->update(['price' => 1000, 'interval' => 'month']);
+
+        $this->putJson("/api/admin/plans/{$plan->id}", [
+            'billing_options' => [['cycles' => 12, 'discount' => 25], ['cycles' => 6, 'discount' => 10]],
+        ])->assertAccepted()
+            // Paying for one month at full price is always offered, then the options in order.
+            ->assertJsonCount(3, 'data.billingOptions')
+            ->assertJsonPath('data.billingOptions.0.cycles', 1)
+            ->assertJsonPath('data.billingOptions.0.price', 1000)
+            ->assertJsonPath('data.billingOptions.1.cycles', 6)
+            ->assertJsonPath('data.billingOptions.1.price', 5400)
+            ->assertJsonPath('data.billingOptions.2.cycles', 12)
+            ->assertJsonPath('data.billingOptions.2.price', 9000)
+            ->assertJsonPath('data.billingOptions.2.perCycle', 750)
+            ->assertJsonPath('data.billingOptions.2.saved', 3000);
+
+        $this->putJson("/api/admin/plans/{$plan->id}", [
+            'billing_options' => [['cycles' => 1, 'discount' => 5], ['cycles' => 6, 'discount' => 120], ['cycles' => 6, 'discount' => 10]],
+        ])->assertJsonValidationErrors(['billing_options.0.cycles', 'billing_options.1.discount', 'billing_options.2.cycles']);
+
+        // Removing every option leaves monthly payments only.
+        $this->putJson("/api/admin/plans/{$plan->id}", ['billing_options' => []])
+            ->assertAccepted()
+            ->assertJsonCount(1, 'data.billingOptions');
+    }
+
     public function test_there_is_always_one_free_default_plan(): void
     {
         $this->admin();

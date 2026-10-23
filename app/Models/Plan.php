@@ -32,6 +32,7 @@ class Plan extends Model
         'price',
         'interval',
         'interval_count',
+        'billing_options',
         'features',
         'is_default',
         'active',
@@ -43,6 +44,7 @@ class Plan extends Model
         return [
             'price' => 'float',
             'interval_count' => 'integer',
+            'billing_options' => 'array',
             'features' => 'array',
             'is_default' => 'boolean',
             'active' => 'boolean',
@@ -105,11 +107,51 @@ class Plan extends Model
     }
 
     /**
-     * How long one payment lasts, e.g. "1 month".
+     * How long a payment lasts, e.g. "1 month", or "6 month" when paying for 6 cycles at once.
      */
-    public function period(): string
+    public function period(int $cycles = 1): string
     {
-        return max(1, $this->interval_count ?: 1).' '.($this->interval ?: 'month');
+        return max(1, $this->interval_count ?: 1) * max(1, $cycles).' '.($this->interval ?: 'month');
+    }
+
+    /**
+     * The ways this plan can be paid for: one cycle at full price, then any bulk
+     * options, e.g. 6 or 12 cycles at a discount.
+     *
+     * @return list<array{cycles: int, discount: float, price: float, perCycle: float, saved: float}>
+     */
+    public function billingOptions(): array
+    {
+        return collect([['cycles' => 1, 'discount' => 0], ...($this->billing_options ?? [])])
+            ->map(fn ($option) => [
+                'cycles' => max(1, (int) ($option['cycles'] ?? 1)),
+                'discount' => min(100, max(0, round((float) ($option['discount'] ?? 0), 2))),
+            ])
+            ->unique('cycles')
+            ->sortBy('cycles')
+            ->map(function ($option) {
+                $full = $this->price * $option['cycles'];
+                $price = round($full * (1 - $option['discount'] / 100), 2);
+
+                return [
+                    ...$option,
+                    'price' => $price,
+                    'perCycle' => round($price / $option['cycles'], 2),
+                    'saved' => round($full - $price, 2),
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * The billing option for a number of cycles, or null when the plan doesn't offer it.
+     *
+     * @return array{cycles: int, discount: float, price: float, perCycle: float, saved: float}|null
+     */
+    public function billingOption(int $cycles): ?array
+    {
+        return collect($this->billingOptions())->firstWhere('cycles', $cycles);
     }
 
     public function isFree(): bool

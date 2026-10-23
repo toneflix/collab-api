@@ -124,6 +124,9 @@ class PlanController extends Controller
             'price' => [$required, 'numeric', 'min:0', 'max:99999999'],
             'interval' => [$required, Rule::in(Plan::INTERVALS)],
             'interval_count' => ['nullable', 'integer', 'min:1', 'max:120'],
+            'billing_options' => ['nullable', 'array', 'max:10'],
+            'billing_options.*.cycles' => ['required', 'integer', 'min:2', 'max:120', 'distinct'],
+            'billing_options.*.discount' => ['required', 'numeric', 'min:0', 'max:100'],
             'features' => ['nullable', 'array'],
             'is_default' => ['nullable', 'boolean'],
             'active' => ['nullable', 'boolean'],
@@ -136,7 +139,12 @@ class PlanController extends Controller
                 : ['sometimes', 'integer', 'min:0'];
         }
 
-        $data = $this->validate($request, $rules, [], ['interval_count' => 'interval count', 'is_default' => 'default']);
+        $data = $this->validate($request, $rules, [], [
+            'interval_count' => 'interval count',
+            'is_default' => 'default',
+            'billing_options.*.cycles' => 'number of periods',
+            'billing_options.*.discount' => 'discount',
+        ]);
 
         $isDefault = $request->has('is_default') ? $request->boolean('is_default') : (bool) $plan->is_default;
         $price = (float) ($data['price'] ?? $plan->price);
@@ -162,7 +170,13 @@ class PlanController extends Controller
         }
 
         return DB::transaction(function () use ($plan, $data, $features, $isDefault, $request, $creating) {
-            $plan->fill(collect($data)->except(['features', 'is_default', 'slug'])->reject(fn ($value) => $value === null)->all());
+            if (array_key_exists('billing_options', $data)) {
+                $data['billing_options'] = collect($data['billing_options'] ?? [])
+                    ->map(fn ($option) => ['cycles' => (int) $option['cycles'], 'discount' => round((float) $option['discount'], 2)])
+                    ->sortBy('cycles')->values()->all();
+                $plan->billing_options = $data['billing_options'];
+            }
+            $plan->fill(collect($data)->except(['features', 'is_default', 'slug', 'billing_options'])->reject(fn ($value) => $value === null)->all());
             if (array_key_exists('description', $data)) {
                 $plan->description = $data['description'];
             }
