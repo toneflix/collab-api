@@ -224,7 +224,9 @@ class CheckoutTest extends TestCase
 
         Sanctum::actingAs(User::factory()->create());
 
-        $ids = collect($this->getJson('/api/playlist?limit=500')->assertOk()->json('data'))->pluck('id');
+        // Ask for every track, so the free ones are on the page however many tracks the database holds.
+        $limit = Track::count() + 1;
+        $ids = collect($this->getJson("/api/playlist?limit={$limit}")->assertOk()->json('data'))->pluck('id');
 
         $this->assertTrue($ids->intersect($free->tracks->pluck('id'))->isNotEmpty());
         $this->assertTrue($ids->intersect($paid->tracks->pluck('id'))->isEmpty());

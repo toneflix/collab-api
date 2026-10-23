@@ -135,11 +135,67 @@ class Plan extends Model
 
                 return [
                     ...$option,
+                    'period' => $this->periodKey($option['cycles']),
                     'price' => $price,
                     'perCycle' => round($price / $option['cycles'], 2),
                     'saved' => round($full - $price, 2),
                 ];
             })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * How long paying for some cycles lasts, as a whole unit and count, e.g.
+     * ['year', 1] for 12 months, so plans billed either way share a period.
+     *
+     * @return array{0: string, 1: int}
+     */
+    public function periodLength(int $cycles = 1): array
+    {
+        $unit = $this->interval ?: 'month';
+        $count = max(1, $this->interval_count ?: 1) * max(1, $cycles);
+
+        if ($unit === 'month' && $count % 12 === 0) {
+            return ['year', intdiv($count, 12)];
+        }
+
+        return [$unit, $count];
+    }
+
+    /**
+     * A key that names a period, e.g. "1-month", "6-month" or "1-year".
+     */
+    public function periodKey(int $cycles = 1): string
+    {
+        [$unit, $count] = $this->periodLength($cycles);
+
+        return "{$count}-{$unit}";
+    }
+
+    /**
+     * Every period the given plans can be paid for, shortest first, e.g.
+     * Monthly, 6 months and Annual.
+     *
+     * @param  iterable<Plan>  $plans
+     * @return list<array{key: string, interval: string, count: int, label: string}>
+     */
+    public static function periods(iterable $plans): array
+    {
+        $days = ['day' => 1, 'week' => 7, 'month' => 30, 'year' => 365];
+        $names = ['day' => 'Daily', 'week' => 'Weekly', 'month' => 'Monthly', 'year' => 'Annual'];
+
+        return collect($plans)
+            ->reject(fn (Plan $plan) => $plan->isFree())
+            ->flatMap(fn (Plan $plan) => collect($plan->billingOptions())->map(fn ($option) => $plan->periodLength($option['cycles'])))
+            ->unique(fn ($length) => "{$length[1]}-{$length[0]}")
+            ->sortBy(fn ($length) => $length[1] * ($days[$length[0]] ?? 30))
+            ->map(fn ($length) => [
+                'key' => "{$length[1]}-{$length[0]}",
+                'interval' => $length[0],
+                'count' => $length[1],
+                'label' => $length[1] === 1 ? $names[$length[0]] ?? ucfirst($length[0]) : "{$length[1]} {$length[0]}s",
+            ])
             ->values()
             ->all();
     }

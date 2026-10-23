@@ -58,13 +58,16 @@ class PlanTest extends TestCase
     {
         $this->getJson('/api/plans')
             ->assertOk()
-            ->assertJsonPath('data.current', null)
-            ->assertJsonCount(count(Feature::cases()), 'data.features')
-            ->assertJsonStructure(['data' => ['plans' => [['id', 'slug', 'name', 'price', 'interval', 'features', 'isDefault']]]]);
+            ->assertJsonPath('current', null)
+            ->assertJsonCount(count(Feature::cases()), 'features')
+            ->assertJsonStructure([
+                'data' => [['id', 'slug', 'name', 'price', 'interval', 'billingOptions', 'features', 'isDefault']],
+                'periods' => [['key', 'interval', 'count', 'label']],
+            ]);
 
         $this->actingAsFresh(User::factory()->create());
 
-        $this->getJson('/api/plans')->assertOk()->assertJsonPath('data.current.slug', Plan::default()->slug);
+        $this->getJson('/api/plans')->assertOk()->assertJsonPath('current.slug', Plan::default()->slug);
     }
 
     public function test_only_plan_managers_can_manage_plans(): void
@@ -142,6 +145,25 @@ class PlanTest extends TestCase
             ->assertJsonCount(1, 'data.billingOptions');
     }
 
+    public function test_plans_list_every_billing_period_on_offer(): void
+    {
+        Plan::where('slug', 'premium')->update([
+            'price' => 1000, 'interval' => 'month', 'active' => true,
+            'billing_options' => json_encode([['cycles' => 6, 'discount' => 10], ['cycles' => 12, 'discount' => 20]]),
+        ]);
+        // A yearly plan shares the Annual period with Premium's 12 months.
+        Plan::create(['slug' => 'label', 'name' => 'Label', 'price' => 90000, 'interval' => 'year', 'features' => []]);
+        Plan::create(['slug' => 'weekly', 'name' => 'Weekly', 'price' => 300, 'interval' => 'week', 'features' => []]);
+
+        $response = $this->getJson('/api/plans')->assertOk();
+
+        $this->assertSame(['1-week', '1-month', '6-month', '1-year'], array_column($response->json('periods'), 'key'));
+        $this->assertSame(['Weekly', 'Monthly', '6 months', 'Annual'], array_column($response->json('periods'), 'label'));
+
+        $premium = collect($response->json('data'))->firstWhere('slug', 'premium');
+        $this->assertSame(['1-month', '6-month', '1-year'], array_column($premium['billingOptions'], 'period'));
+    }
+
     public function test_there_is_always_one_free_default_plan(): void
     {
         $this->admin();
@@ -182,7 +204,7 @@ class PlanTest extends TestCase
         $this->assertFalse($used->fresh()->active);
 
         // Inactive plans are hidden from the public list.
-        $this->assertNotContains('used', collect($this->getJson('/api/plans')->json('data.plans'))->pluck('slug'));
+        $this->assertNotContains('used', collect($this->getJson('/api/plans')->json('data'))->pluck('slug'));
     }
 
     public function test_a_subscriber_gets_the_features_of_their_plan(): void

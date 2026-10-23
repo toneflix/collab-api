@@ -17,14 +17,15 @@ class PlanController extends Controller
     {
         $plans = Plan::active()->ordered()->get();
 
-        return Providers::response()->success([
-            'data' => [
-                'plans' => PlanResource::collection($plans),
-                'features' => Feature::catalogue(),
-                'current' => $this->user ? new PlanResource($this->user->current_plan) : null,
-                'currency' => Providers::config('app_currency', 'NGN'),
-            ],
+        return PlanResource::collection($plans)->additional([
+            // The billing periods on offer, for filtering plans, e.g. Monthly or Annual
+            'periods' => Plan::periods($plans),
+            'features' => Feature::catalogue(),
+            'current' => $this->user ? new PlanResource($this->user->current_plan) : null,
+            'currency' => Providers::config('app_currency', 'NGN'),
             'message' => HttpStatus::message(HttpStatus::OK),
+            'status' => 'success',
+            'status_code' => HttpStatus::OK,
         ]);
     }
 }
