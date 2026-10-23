@@ -28,7 +28,7 @@ class TrackController extends Controller
             ->when($filters->contains('latest'), fn (Builder $q) => $q->latestInPeriod($request->period))
             ->when(
                 $filters->contains('liked') && $request->user('sanctum'),
-                fn (Builder $q) => $q->isLiked($request->user('sanctum'))
+                fn (Builder $q) => $q->likedBy($request->user('sanctum'))
             )
             ->when(
                 $filters->contains('own_collabs') && $request->user('sanctum'),

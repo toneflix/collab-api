@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Jobs\ProcessAudio;
+use App\Traits\HasLikedScope;
 use App\Traits\Metricable;
 use App\Traits\ModelCanExtend;
 use BeyondCode\Comments\Traits\HasComments;
@@ -20,6 +21,7 @@ class Track extends Model
     use Fileable;
     use HasComments;
     use HasFactory;
+    use HasLikedScope;
     use HasSocialInteractions;
     use Metricable;
     use ModelCanExtend;
@@ -222,7 +224,7 @@ class Track extends Model
         $query->whereHas('artists', function (Builder $q) use ($id) {
             $q->whereNot('track_artist.type', 'primary');
             $q->where(function (Builder $qx) use ($id) {
-                $qx->where('artists.id', $id)->orWhere('artists.username', $id);
+                $qx->where('artists.username', $id)->when(is_numeric($id), fn ($q) => $q->orWhere('artists.id', $id));
             });
         });
     }
@@ -238,7 +240,7 @@ class Track extends Model
     public function scopeGenre(Builder $query, string $genre): void
     {
         $query->whereHas('genre', function (Builder $q) use ($genre) {
-            $q->where('id', $genre)->orWhere('slug', $genre);
+            $q->where('slug', $genre)->when(is_numeric($genre), fn ($q) => $q->orWhere('id', $genre));
         });
     }
 

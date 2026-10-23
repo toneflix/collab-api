@@ -18,7 +18,7 @@ class TrackController extends Controller
     {
         /** @var \App\Models\Release $release */
         $release = $this->user->releases()
-            ->where('slug', $release_id)->when(is_numeric($release_id), fn ($q) => $q->orWhere('releases.id', $release_id))
+            ->where(fn ($q) => $q->where('slug', $release_id)->when(is_numeric($release_id), fn ($q) => $q->orWhere('releases.id', $release_id)))
             ->firstOrFail();
 
         $query = $release->tracks()->getQuery();
@@ -55,7 +55,7 @@ class TrackController extends Controller
 
         /** @var \App\Models\Release $release */
         $release = $this->user->releases()
-            ->where('slug', $release_id)->when(is_numeric($release_id), fn ($q) => $q->orWhere('releases.id', $release_id))
+            ->where(fn ($q) => $q->where('slug', $release_id)->when(is_numeric($release_id), fn ($q) => $q->orWhere('releases.id', $release_id)))
             ->firstOrFail();
 
         /** @var \App\Models\Track $track */
@@ -106,12 +106,12 @@ class TrackController extends Controller
         /** @var \App\Models\Release $release */
         $release = $this->user->releases()
             ->whereId($release_id)
-            ->where('slug', $release_id)->when(is_numeric($release_id), fn ($q) => $q->orWhere('releases.id', $release_id))
+            ->where(fn ($q) => $q->where('slug', $release_id)->when(is_numeric($release_id), fn ($q) => $q->orWhere('releases.id', $release_id)))
             ->firstOrFail();
 
         /** @var \App\Models\Track $track */
         $track = $release->tracks()
-            ->where('slug', $id)->when(is_numeric($id), fn ($q) => $q->orWhere('tracks.id', $id))
+            ->where(fn ($q) => $q->where('slug', $id)->when(is_numeric($id), fn ($q) => $q->orWhere('tracks.id', $id)))
             ->firstOrFail();
 
         $track->slug = $request->input('slug', $track->slug);
@@ -191,11 +191,11 @@ class TrackController extends Controller
     {
         /** @var \App\Models\Release $release */
         $release = $this->user->releases()
-            ->where('slug', $release_id)->when(is_numeric($release_id), fn ($q) => $q->orWhere('releases.id', $release_id))
+            ->where(fn ($q) => $q->where('slug', $release_id)->when(is_numeric($release_id), fn ($q) => $q->orWhere('releases.id', $release_id)))
             ->firstOrFail();
 
         $release->tracks()
-            ->where('slug', $id)->when(is_numeric($id), fn ($q) => $q->orWhere('tracks.id', $id))
+            ->where(fn ($q) => $q->where('slug', $id)->when(is_numeric($id), fn ($q) => $q->orWhere('tracks.id', $id)))
             ->delete();
 
         return (new TrackCollection([]))->additional([

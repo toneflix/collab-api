@@ -117,7 +117,7 @@ class ReleaseController extends Controller
     {
         /** @var \App\Models\Release $release */
         $release = $this->user->releases()
-            ->where('slug', $id)->when(is_numeric($id), fn ($q) => $q->orWhere('releases.id', $id))
+            ->where(fn ($q) => $q->where('slug', $id)->when(is_numeric($id), fn ($q) => $q->orWhere('releases.id', $id)))
             ->firstOrFail();
 
         $request->merge(['release_date', $request->input('releaseDate', now())]);
@@ -280,7 +280,7 @@ class ReleaseController extends Controller
     {
         /** @var \App\Models\Release $release */
         $release = $this->user->releases()
-            ->where('slug', $id)->when(is_numeric($id), fn ($q) => $q->orWhere('releases.id', $id))
+            ->where(fn ($q) => $q->where('slug', $id)->when(is_numeric($id), fn ($q) => $q->orWhere('releases.id', $id)))
             ->firstOrFail();
 
         $release->delete();

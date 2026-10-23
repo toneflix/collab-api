@@ -402,23 +402,31 @@ class User extends Authenticatable implements Commentator
     {
         $id = is_string($project) ? $project : $project->id;
 
+        // Only compare against the numeric id when the value is numeric (Postgres rejects slugs there)
         $scope = function (Builder $q) use ($id) {
-            $q->where('projects.id', $id)->orWhere('projects.slug', $id);
+            $q->where(function (Builder $q) use ($id) {
+                $q->where('projects.slug', $id);
+                if (is_numeric($id)) {
+                    $q->orWhere('projects.id', $id);
+                }
+            });
         };
 
-        $query->whereHas('projects', $scope);
-        $query->orWhereHas('collabProjects', $scope);
+        // Group the two conditions so they don't bypass the other filters on the query
+        $query->where(function (Builder $q) use ($scope) {
+            $q->whereHas('projects', $scope)->orWhereHas('collabProjects', $scope);
+        });
     }
 
     public function scopeGenre(Builder $query, string $genre): void
     {
         $query->whereHas('releases', function (Builder $q) use ($genre) {
             $q->whereHas('genre', function (Builder $q) use ($genre) {
-                $q->where('id', $genre)->orWhere('slug', $genre);
+                $q->where('slug', $genre)->when(is_numeric($genre), fn ($q) => $q->orWhere('id', $genre));
             });
             $q->orWhereHas('tracks', function (Builder $qx) use ($genre) {
                 $qx->whereHas('genre', function (Builder $q) use ($genre) {
-                    $q->where('id', $genre)->orWhere('slug', $genre);
+                    $q->where('slug', $genre)->when(is_numeric($genre), fn ($q) => $q->orWhere('id', $genre));
                 });
             });
         });
