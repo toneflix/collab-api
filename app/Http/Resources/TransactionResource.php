@@ -29,6 +29,7 @@ class TransactionResource extends JsonResource
             'earned' => $this->when($viewer && (int) $viewer->id === (int) $this->recipient_id, $this->recipient_share),
             'message' => $this->meta['message'] ?? null,
             'plan' => $this->meta['plan'] ?? null,
+            'planName' => $this->meta['title'] ?? null,
             'item' => match (true) {
                 $item instanceof Release => [
                     'type' => 'release',
