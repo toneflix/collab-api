@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers\Creator;
 
+use App\Enums\Feature;
 use App\Enums\HttpStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ReleaseCollection;
 use App\Http\Resources\ReleaseResource;
 use App\Models\Release;
 use App\Models\Track;
+use App\Services\Limits;
 use App\Services\Reputation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -68,6 +70,8 @@ class ReleaseController extends Controller
             'record_label' => 'record label',
             'contains_music' => 'contains music',
         ]);
+
+        Limits::for($this->user)->ensureCanCharge(Feature::SELL_RELEASES, $request->input('price'), 0, 'price');
 
         if ($request->has('project_id')) {
             /** @var Release $release */
@@ -158,6 +162,8 @@ class ReleaseController extends Controller
             'contains_music' => 'contains music',
         ]);
 
+        Limits::for($this->user)->ensureCanCharge(Feature::SELL_RELEASES, $request->input('price'), (float) $release->price, 'price');
+
         $this->saveTracks($request, $release);
 
         if ($release->slug) {
@@ -231,6 +237,11 @@ class ReleaseController extends Controller
             'tracks.*.description' => 'description',
             'tracks.*.stems_price' => 'stems price',
         ]);
+
+        foreach ($tracks as $i => $form) {
+            $current = isset($form['id']) ? (float) $release->tracks()->whereKey($form['id'])->value('stems_price') : 0;
+            Limits::for($this->user)->ensureCanCharge(Feature::SELL_STEMS, $form['stems_price'] ?? null, $current, "tracks.{$i}.stems_price");
+        }
 
         collect($tracks)->each(function ($form, $i) use ($release, $request) {
             if (isset($form['project_track_id']) && ! isset($form['id'])) {

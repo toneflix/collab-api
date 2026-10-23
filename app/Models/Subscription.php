@@ -8,21 +8,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * A paid Premium period. Paying again before it ends extends it.
+ * A paid period on a plan. Paying again before it ends extends it.
  */
 class Subscription extends Model
 {
     use HasFactory;
-
-    /**
-     * How long each plan lasts.
-     *
-     * @var array<string, string>
-     */
-    public const PLANS = [
-        'monthly' => '1 month',
-        'yearly' => '1 year',
-    ];
 
     protected $fillable = [
         'plan',
@@ -30,6 +20,7 @@ class Subscription extends Model
         'starts_at',
         'ends_at',
         'transaction_id',
+        'plan_id',
     ];
 
     protected function casts(): array
@@ -44,6 +35,14 @@ class Subscription extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * The plan this period is on. Named planModel because `plan` is the slug column.
+     */
+    public function planModel(): BelongsTo
+    {
+        return $this->belongsTo(Plan::class, 'plan_id');
     }
 
     public function transaction(): BelongsTo

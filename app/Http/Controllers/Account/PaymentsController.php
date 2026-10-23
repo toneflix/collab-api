@@ -5,9 +5,9 @@ namespace App\Http\Controllers\Account;
 use App\Enums\HttpStatus;
 use App\Helpers\Providers;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\PlanResource;
 use App\Http\Resources\SubscriptionResource;
 use App\Http\Resources\TransactionCollection;
-use App\Services\Limits;
 use Illuminate\Http\Request;
 
 class PaymentsController extends Controller
@@ -67,12 +67,13 @@ class PaymentsController extends Controller
     }
 
     /**
-     * The user's Premium status and the plans on offer.
+     * The user's plan, what it includes, and when the paid time runs out.
      */
     public function subscription()
     {
         $current = $this->user->subscriptions()->active()->first();
         $latest = $this->user->subscriptions()->first();
+        $plan = $this->user->current_plan;
 
         return Providers::response()->success([
             'data' => [
@@ -80,16 +81,10 @@ class PaymentsController extends Controller
                 // When the paid time runs out, including periods paid in advance
                 'endsAt' => $current ? $latest?->ends_at : null,
                 'current' => $current ? new SubscriptionResource($current) : null,
-                'plans' => [
-                    'monthly' => (float) Providers::config('premium_monthly_price', 0),
-                    'yearly' => (float) Providers::config('premium_yearly_price', 0),
-                ],
-                'currency' => Providers::config('app_currency', 'NGN'),
+                'plan' => new PlanResource($plan),
                 // 0 means no limit
-                'limits' => [
-                    'free' => Limits::forTier('free'),
-                    'premium' => Limits::forTier('premium'),
-                ],
+                'features' => $plan->allFeatures(),
+                'currency' => Providers::config('app_currency', 'NGN'),
             ],
             'message' => HttpStatus::message(HttpStatus::OK),
         ]);

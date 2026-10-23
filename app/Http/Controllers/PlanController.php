@@ -1,0 +1,30 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Enums\Feature;
+use App\Enums\HttpStatus;
+use App\Helpers\Providers;
+use App\Http\Resources\PlanResource;
+use App\Models\Plan;
+
+class PlanController extends Controller
+{
+    /**
+     * The plans on offer, what each one includes, and the plan the viewer is on.
+     */
+    public function index()
+    {
+        $plans = Plan::active()->ordered()->get();
+
+        return Providers::response()->success([
+            'data' => [
+                'plans' => PlanResource::collection($plans),
+                'features' => Feature::catalogue(),
+                'current' => $this->user ? new PlanResource($this->user->current_plan) : null,
+                'currency' => Providers::config('app_currency', 'NGN'),
+            ],
+            'message' => HttpStatus::message(HttpStatus::OK),
+        ]);
+    }
+}

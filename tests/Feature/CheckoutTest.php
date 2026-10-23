@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Artist;
 use App\Models\Configuration;
 use App\Models\Genre;
+use App\Models\Plan;
 use App\Models\Project;
 use App\Models\ProjectTrack;
 use App\Models\ProjectTrackStem;
@@ -64,8 +65,8 @@ class CheckoutTest extends TestCase
         $this->gateway = new FakeGateway;
         $this->app->instance(PaymentGateway::class, $this->gateway);
 
-        $this->setting('premium_monthly_price', 2000);
-        $this->setting('premium_yearly_price', 20000);
+        Plan::where('slug', 'monthly')->update(['price' => 2000, 'active' => true]);
+        Plan::where('slug', 'yearly')->update(['price' => 20000, 'active' => true]);
         $this->setting('creator_share', 80);
         $this->setting('min_tip_amount', 100);
     }
@@ -74,6 +75,20 @@ class CheckoutTest extends TestCase
     {
         Configuration::where('key', $key)->update(['value' => $value]);
         Cache::forget('configuration::build');
+    }
+
+    /**
+     * Change some features on a plan.
+     *
+     * @param  array<string, bool|int>  $features
+     */
+    protected function planFeatures(string $slug, array $features): Plan
+    {
+        $plan = Plan::where('slug', $slug)->firstOrFail();
+        $plan->features = [...($plan->features ?? []), ...$features];
+        $plan->save();
+
+        return $plan;
     }
 
     protected function paidRelease(float $price = 1500, ?User $owner = null): Release
@@ -302,7 +317,8 @@ class CheckoutTest extends TestCase
         $this->getJson('/api/account/subscription')
             ->assertOk()
             ->assertJsonPath('data.premium', true)
-            ->assertJsonPath('data.plans.monthly', 2000);
+            ->assertJsonPath('data.plan.slug', 'monthly')
+            ->assertJsonPath('data.features.downloads', true);
 
         $this->getJson("/api/tracks/{$track->id}/download")
             ->assertOk()
@@ -315,8 +331,15 @@ class CheckoutTest extends TestCase
 
         $this->postJson('/api/payments', ['purpose' => 'premium', 'plan' => 'weekly'])->assertUnprocessable();
 
-        $this->setting('premium_monthly_price', 0);
+        // The default plan is what everyone already has.
+        $this->postJson('/api/payments', ['purpose' => 'premium', 'plan' => 'free'])->assertUnprocessable();
+
+        // A free or inactive plan can't be bought.
+        Plan::where('slug', 'monthly')->update(['price' => 0]);
         $this->postJson('/api/payments', ['purpose' => 'premium', 'plan' => 'monthly'])->assertUnprocessable();
+
+        Plan::where('slug', 'yearly')->update(['active' => false]);
+        $this->postJson('/api/payments', ['purpose' => 'premium', 'plan' => 'yearly'])->assertUnprocessable();
     }
 
     public function test_settling_twice_only_counts_once(): void
@@ -372,8 +395,8 @@ class CheckoutTest extends TestCase
 
     public function test_free_accounts_hit_the_project_limit_and_premium_lifts_it(): void
     {
-        $this->setting('free_max_projects', 1);
-        $this->setting('premium_max_projects', 0);
+        $this->planFeatures('free', ['max_projects' => 1]);
+        $monthly = $this->planFeatures('monthly', ['max_projects' => 0]);
 
         $creator = User::factory()->create();
         Sanctum::actingAs($creator);
@@ -385,6 +408,7 @@ class CheckoutTest extends TestCase
 
         $creator->subscriptions()->create([
             'plan' => 'monthly',
+            'plan_id' => $monthly->id,
             'amount' => 2000,
             'starts_at' => now()->subDay(),
             'ends_at' => now()->addMonth(),
@@ -397,7 +421,7 @@ class CheckoutTest extends TestCase
 
     public function test_free_projects_have_a_collaborator_limit(): void
     {
-        $this->setting('free_max_collaborators', 1);
+        $this->planFeatures('free', ['max_collaborators' => 1]);
 
         $owner = User::factory()->create();
         $project = Project::factory()->create(['user_id' => $owner->id]);

@@ -2,7 +2,9 @@
 
 namespace App\Services\Payment;
 
+use App\Enums\Feature;
 use App\Helpers\Providers;
+use App\Models\Plan;
 use App\Models\Release;
 use App\Models\Subscription;
 use App\Models\Track;
@@ -16,7 +18,7 @@ use Valorin\Random\Random;
 
 /**
  * Turns "I want to pay for X" into a pending transaction, and a confirmed
- * payment into what was paid for (an unlocked release or stems, a tip, Premium).
+ * payment into what was paid for (an unlocked release or stems, a tip, a plan).
  */
 class Checkout
 {
@@ -139,16 +141,19 @@ class Checkout
     {
         /** @var User $user */
         $user = $transaction->user;
-        $plan = $transaction->meta['plan'] ?? 'monthly';
+
+        $plan = Plan::find($transaction->meta['plan_id'] ?? null)
+            ?? Plan::where('slug', $transaction->meta['plan'] ?? null)->first();
 
         $current = $user->subscriptions()->active()->first();
         $starts = $current?->ends_at ?? now();
 
         return $user->subscriptions()->create([
-            'plan' => $plan,
+            'plan' => $plan->slug ?? ($transaction->meta['plan'] ?? 'premium'),
+            'plan_id' => $plan?->id,
             'amount' => $transaction->amount,
             'starts_at' => $starts,
-            'ends_at' => $starts->copy()->add(Subscription::PLANS[$plan] ?? '1 month'),
+            'ends_at' => $starts->copy()->add($plan?->period() ?? '1 month'),
             'transaction_id' => $transaction->id,
         ]);
     }
@@ -204,6 +209,10 @@ class Checkout
         $creator = User::where(fn (Builder $q) => $q->where('username', (string) $id)->when(is_numeric($id), fn ($q) => $q->orWhere('id', $id)))
             ->firstOrFail();
 
+        if (! $creator->feature(Feature::RECEIVE_TIPS)) {
+            throw ValidationException::withMessages(['id' => 'This creator isn\'t accepting tips.']);
+        }
+
         if ($creator->is($payer)) {
             throw ValidationException::withMessages(['id' => 'You can\'t tip yourself.']);
         }
@@ -220,18 +229,22 @@ class Checkout
     /**
      * @return array{0: float, 1: Model, 2: ?User, 3: array<string, mixed>}
      */
-    protected function forPremium(User $payer, ?string $plan): array
+    protected function forPremium(User $payer, string|int|null $plan): array
     {
-        if (! isset(Subscription::PLANS[$plan])) {
-            throw ValidationException::withMessages(['plan' => 'Choose a monthly or yearly plan.']);
+        /** @var Plan|null $model */
+        $model = Plan::active()
+            ->where('is_default', false)
+            ->where(fn (Builder $q) => $q->where('slug', (string) $plan)->when(is_numeric($plan), fn ($q) => $q->orWhere('id', $plan)))
+            ->first();
+
+        if (! $model) {
+            throw ValidationException::withMessages(['plan' => 'Choose a plan.']);
         }
 
-        $price = (float) Providers::config("premium_{$plan}_price", 0);
-
-        if ($price <= 0) {
-            throw ValidationException::withMessages(['plan' => 'Premium is not available right now.']);
+        if ($model->isFree()) {
+            throw ValidationException::withMessages(['plan' => 'This plan is free.']);
         }
 
-        return [$price, $payer, null, ['plan' => $plan]];
+        return [$model->price, $payer, null, ['plan' => $model->slug, 'plan_id' => $model->id, 'title' => $model->name]];
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Creator;
 
+use App\Enums\Feature;
 use App\Enums\HttpStatus;
 use App\Helpers\Providers;
 use App\Http\Controllers\Controller;
@@ -9,6 +10,7 @@ use App\Http\Resources\TrackCollection;
 use App\Http\Resources\TrackResource;
 use App\Models\Release;
 use App\Models\Track;
+use App\Services\Limits;
 use Illuminate\Http\Request;
 
 class TrackController extends Controller
@@ -60,6 +62,8 @@ class TrackController extends Controller
         $release = $this->user->releases()
             ->where(fn ($q) => $q->where('slug', $release_id)->when(is_numeric($release_id), fn ($q) => $q->orWhere('releases.id', $release_id)))
             ->firstOrFail();
+
+        Limits::for($this->user)->ensureCanCharge(Feature::SELL_STEMS, $request->input('stems_price'), 0, 'stems_price');
 
         /** @var Track $track */
         $track = $release->tracks()->make();
@@ -117,6 +121,8 @@ class TrackController extends Controller
         $track = $release->tracks()
             ->where(fn ($q) => $q->where('slug', $id)->when(is_numeric($id), fn ($q) => $q->orWhere('tracks.id', $id)))
             ->firstOrFail();
+
+        Limits::for($this->user)->ensureCanCharge(Feature::SELL_STEMS, $request->input('stems_price'), (float) $track->stems_price, 'stems_price');
 
         $track->slug = $request->input('slug', $track->slug);
         $track->title = $request->input('title', $track->title);

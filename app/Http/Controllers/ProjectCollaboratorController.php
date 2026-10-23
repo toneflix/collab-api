@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\Feature;
 use App\Enums\HttpStatus;
 use App\Helpers\Providers;
 use App\Http\Resources\ProjectCollaboratorCollection;
@@ -64,7 +65,7 @@ class ProjectCollaboratorController extends Controller
 
         // The project owner's plan decides how many collaborators it can have.
         Limits::for($project->user)->ensureBelow(
-            'collaborators',
+            Feature::MAX_COLLABORATORS,
             // Only people already on the project count; requests don't take a spot until accepted.
             $project->collaborators()->accepted()->count(),
             'role',
