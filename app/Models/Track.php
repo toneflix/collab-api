@@ -6,8 +6,10 @@ use App\Jobs\ProcessAudio;
 use App\Traits\HasLikedScope;
 use App\Traits\Metricable;
 use App\Traits\ModelCanExtend;
+use App\Traits\Purchasable;
 use BeyondCode\Comments\Traits\HasComments;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\AsCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -25,6 +27,7 @@ class Track extends Model
     use HasSocialInteractions;
     use Metricable;
     use ModelCanExtend;
+    use Purchasable;
 
     /**
      * The attributes that should be hidden for serialization.
@@ -49,6 +52,7 @@ class Track extends Model
         'genre_id',
         'description',
         'project_track_id',
+        'stems_price',
     ];
 
     /**
@@ -58,9 +62,10 @@ class Track extends Model
      */
     protected $attributes = [
         'privacy' => 'public',
+        'stems_price' => 0,
         'meta' => '{
             "processed": false
-        }'
+        }',
     ];
 
     /**
@@ -73,8 +78,8 @@ class Track extends Model
         return [
             'duration' => 'float',
             'explicit' => 'boolean',
-            'explicit' => 'boolean',
-            'meta' => \Illuminate\Database\Eloquent\Casts\AsCollection::class,
+            'stems_price' => 'float',
+            'meta' => AsCollection::class,
         ];
     }
 
@@ -103,7 +108,7 @@ class Track extends Model
      * Retrieve the model for a bound value.
      *
      * @param  string|null  $field
-     * @return \Illuminate\Database\Eloquent\Model|null
+     * @return Model|null
      */
     public function resolveRouteBinding($value, $field = null)
     {
@@ -211,11 +216,63 @@ class Track extends Model
     /**
      * Get the user that owns the Track
      *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     * @return BelongsTo
      */
     public function user(): HasOneThrough
     {
         return $this->hasOneThrough(User::class, Release::class)->withDefault(fn () => User::firstWhere('curator', true));
+    }
+
+    /**
+     * Whether the user can stream this track: true unless its release is paid and locked.
+     */
+    public function isUnlockedFor(?User $user): bool
+    {
+        return ! $this->release || $this->release->isUnlockedFor($user);
+    }
+
+    /**
+     * Whether this track has stems that could be downloaded.
+     */
+    public function hasStems(): bool
+    {
+        return (bool) $this->projectTrack?->stems()->whereNotNull('src')->exists();
+    }
+
+    /**
+     * Stems are for sale when the creator set a price and the track has stems.
+     */
+    public function stemsForSale(): bool
+    {
+        return $this->stems_price > 0 && $this->hasStems();
+    }
+
+    /**
+     * Whether the user can download this track's stems.
+     */
+    public function stemsUnlockedFor(?User $user): bool
+    {
+        return (bool) $this->release?->isOwnedBy($user) || $this->isPurchasedBy($user, 'stems');
+    }
+
+    /**
+     * Only tracks the user may stream: free ones, their own, and ones they bought.
+     */
+    public function scopePlayableBy(Builder $query, ?User $user): void
+    {
+        $query->whereHas('release', function (Builder $q) use ($user) {
+            $q->where(function (Builder $q) use ($user) {
+                $q->where('price', '<=', 0);
+
+                if ($user) {
+                    $q->orWhere('releases.user_id', $user->id)
+                        ->orWhereHas('transactions', fn (Builder $t) => $t
+                            ->where('user_id', $user->id)
+                            ->where('purpose', 'release')
+                            ->where('status', 'complete'));
+                }
+            });
+        });
     }
 
     public function scopeForFeaturedArtist(Builder $query, Artist|string $artist): void

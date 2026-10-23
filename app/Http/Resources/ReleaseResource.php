@@ -16,10 +16,11 @@ class ReleaseResource extends JsonResource
     {
         $with = str($request->input('with'))->remove(' ')->explode(',');
 
-        $interaction = $this->socialInteractionData($request->user('sanctum'));
+        $user = $request->user('sanctum');
+        $interaction = $this->socialInteractionData($user);
 
         $imageUrl = $this->files['artwork'];
-        if (!$this->image && isset($this->project)) {
+        if (! $this->image && isset($this->project)) {
             $imageUrl = $this->project->files['image'];
         }
 
@@ -42,6 +43,9 @@ class ReleaseResource extends JsonResource
                 fn () => new ProjectResource($this->project),
             ),
             'privacy' => $this->privacy,
+            'price' => $this->price,
+            'locked' => ! $this->isUnlockedFor($user),
+            'purchased' => $this->price > 0 && $this->isPurchasedBy($user, 'release'),
             'streams' => $this->streams,
             'imageUrl' => $imageUrl,
             'genre_id' => $this->genre_id,

@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\ProjectCollection;
 use App\Http\Resources\ProjectResource;
 use App\Models\Project;
+use App\Services\Limits;
 use App\Services\Reputation;
 use Illuminate\Http\Request;
 
@@ -48,6 +49,13 @@ class ProjectController extends Controller
             'privacy' => ['nullable', 'string', 'in:private,public,public_preview'],
             'description' => ['nullable', 'string'],
         ]);
+
+        Limits::for($this->user)->ensureBelow(
+            'projects',
+            $this->user->projects()->count(),
+            'title',
+            'Your account can have up to :limit projects.'
+        );
 
         $project = $this->user->projects()->create([
             'title' => $request->input('title'),
@@ -118,12 +126,12 @@ class ProjectController extends Controller
      */
     public function destroy(Request $request, string $id)
     {
-        /** @var \App\Models\Project $project */
+        /** @var Project $project */
         $project = $this->user->projects()
             ->where(fn ($q) => $q->where('slug', $id)->when(is_numeric($id), fn ($q) => $q->orWhere('projects.id', $id)))
             ->first();
 
-        if (!$project) {
+        if (! $project) {
             abort(HttpStatus::FORBIDDEN->value, 'You are not autorized to perform this action');
         }
 
