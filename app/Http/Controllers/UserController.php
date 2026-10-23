@@ -9,6 +9,7 @@ use App\Http\Resources\UserResource;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class UserController extends Controller
 {
@@ -30,9 +31,10 @@ class UserController extends Controller
                 );
             } else {
                 $query->where(function (Builder $query) use ($request) {
-                    $query->whereRaw("CONCAT(firstname, ' ', lastname) LIKE ?", ["%{$request->search}%"])
-                        ->orWhere('firstname', 'like', "%$request->search%")
-                        ->orWhere('lastname', 'like', "%$request->search%")
+                    // whereLike ignores case on every database (ILIKE on PostgreSQL)
+                    $query->whereLike(DB::raw("concat(firstname, ' ', lastname)"), "%{$request->search}%")
+                        ->orWhereLike('firstname', "%{$request->search}%")
+                        ->orWhereLike('lastname', "%{$request->search}%")
                         ->orWhere('country', $request->search)
                         ->orWhere('state', $request->search)
                         ->orWhere('city', $request->search);

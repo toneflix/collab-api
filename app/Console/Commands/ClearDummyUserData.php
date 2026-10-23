@@ -70,10 +70,13 @@ class ClearDummyUserData extends Command
         ), fn ($s) => $s->plural(2))->toString();
 
         $max = DB::table($table)->max('id') + 1;
-        if (config('database.default') === 'mysql' || config('database.default') === 'mariadb') {
-            DB::statement("ALTER TABLE $table AUTO_INCREMENT =  $max");
-        } elseif (config('database.default') === 'pgsql') {
-            DB::statement("ALTER TABLE $table AUTO_INCREMENT =  $max");
-        }
+
+        match (DB::getDriverName()) {
+            'mysql', 'mariadb' => DB::statement("ALTER TABLE $table AUTO_INCREMENT = $max"),
+            // The next id comes from the table's sequence
+            'pgsql' => DB::statement("SELECT setval(pg_get_serial_sequence('$table', 'id'), $max, false)"),
+            'sqlite' => DB::statement('UPDATE sqlite_sequence SET seq = ? WHERE name = ?', [$max - 1, $table]),
+            default => null,
+        };
     }
 }

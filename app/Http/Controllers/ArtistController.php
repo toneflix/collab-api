@@ -33,7 +33,7 @@ class ArtistController extends Controller
                     );
                 } else {
                     $query->where(function ($query) use ($request) {
-                        $query->where('name', 'like', "%$request->search%")
+                        $query->whereLike('name', "%{$request->search}%")
                             // ->orWhere('country', $request->search)
                             // ->orWhere('city', $request->search)
                             ->orWhereFullText('about', $request->search);
