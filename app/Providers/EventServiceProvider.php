@@ -8,8 +8,8 @@ use App\Listeners\SocialInteractionRecieved;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 use Overtrue\LaravelFollow\Events\Followed;
 use Overtrue\LaravelFollow\Events\Unfollowed;
-use ToneflixCode\ApprovableNotifications\Events\ApprovableNotificationCreated;
-use ToneflixCode\ApprovableNotifications\Events\ApprovableNotificationUpdated;
+use Toneflix\ApprovableNotifications\Events\ApprovableNotificationCreated;
+use Toneflix\ApprovableNotifications\Events\ApprovableNotificationUpdated;
 use Toneflix\SocialInteractions\Events\SocialInteractionDone;
 
 class EventServiceProvider extends ServiceProvider

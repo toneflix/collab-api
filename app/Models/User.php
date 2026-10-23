@@ -23,7 +23,7 @@ use Overtrue\LaravelFollow\Traits\Followable;
 use Overtrue\LaravelFollow\Traits\Follower;
 use Spatie\Permission\Traits\HasRoles;
 use Staudenmeir\EloquentJsonRelations\HasJsonRelationships;
-use ToneflixCode\ApprovableNotifications\Traits\ApprovableNotifiable;
+use Toneflix\ApprovableNotifications\Traits\ApprovableNotifiable;
 use Toneflix\LaravelFileable\Traits\Fileable;
 use Toneflix\SocialInteractions\Models\SocialInteraction;
 use Toneflix\SocialInteractions\Traits\CanSocialInteract;

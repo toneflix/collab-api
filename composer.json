@@ -27,7 +27,7 @@
         "spatie/laravel-permission": "^8.3",
         "staudenmeir/eloquent-json-relations": "^1.15",
         "stripe/stripe-php": "^22.0",
-        "toneflix-code/approvable-notifications": "^2.0",
+        "toneflix/approvable-notifications": "^2.0",
         "toneflix/kudisms-notification": "^2.0",
         "toneflix/laravel-fileable": "^3.0",
         "toneflix/social-interactions": "^2.0",

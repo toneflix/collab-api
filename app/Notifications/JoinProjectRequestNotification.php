@@ -6,7 +6,7 @@ use App\Helpers\Providers;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
-use ToneflixCode\ApprovableNotifications\Models\Notification as ModelsNotification;
+use Toneflix\ApprovableNotifications\Models\Notification as ModelsNotification;
 
 class JoinProjectRequestNotification extends Notification
 {
