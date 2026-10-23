@@ -8,7 +8,6 @@ use App\Http\Resources\ReleaseResource;
 use App\Models\Release;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class ReleaseController extends Controller
 {
@@ -28,7 +27,7 @@ class ReleaseController extends Controller
             )
             ->when(
                 $filters->contains('liked') && $request->user('sanctum'),
-                fn (Builder $q) => $q->isLiked($request->user('sanctum'))
+                fn (Builder $q) => $q->likedBy($request->user('sanctum'))
             )
             ->when(
                 $filters->contains('own_collabs') && $request->user('sanctum'),
@@ -42,8 +41,11 @@ class ReleaseController extends Controller
 
         $query->where($base)
             ->when($filters->contains('album'), function (Builder $q) {
-                // TODO: Make this to check if the realease has more than 1 track
-                $q->whereHas('tracks', null, '>=', 1);
+                // An album is a release with more than one track; single-track releases are singles.
+                $q->whereIn('releases.id', fn ($sub) => $sub->select('release_id')
+                    ->from('tracks')
+                    ->groupBy('release_id')
+                    ->havingRaw('count(*) > 1'));
             });
 
         $releases = $query->paginate($request->input('limit', 15));
@@ -58,9 +60,7 @@ class ReleaseController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
-    {
-    }
+    public function store(Request $request) {}
 
     /**
      * Display the specified resource.
@@ -79,9 +79,7 @@ class ReleaseController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, string $id)
-    {
-    }
+    public function update(Request $request, string $id) {}
 
     /**
      * Remove the specified resource from storage.

@@ -36,7 +36,7 @@ class ClearDummyUserData extends Command
         //   Transaction
         //   Coderflex\Laravisit\Models\Visit
         //   Overtrue\LaravelFollow\Followable
-        //   ToneflixCode\ApprovableNotifications\Models\Notification
+        //   Toneflix\ApprovableNotifications\Models\Notification
         //   Project
         //        ProjectTrack
         //        ProjectCollaborator

@@ -13,7 +13,7 @@ class CommentController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request, string $pid, string $comment_id = null)
+    public function index(Request $request, string $pid, ?string $comment_id = null)
     {
         [$commentable, $comment] = $this->resolver($request, $pid, $comment_id);
 
@@ -105,7 +105,7 @@ class CommentController extends Controller
      *  1:\App\Models\Comment|null
      * }
      */
-    public function resolver(Request $request, string $commentable_id, string $comment_id = null)
+    public function resolver(Request $request, string $commentable_id, ?string $comment_id = null)
     {
         // Guess class name
         $className = str($request->route()->getAction('prefix'))

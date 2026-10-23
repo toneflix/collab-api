@@ -20,8 +20,8 @@ trait ModelCanExtend
         string|\Illuminate\Support\Stringable $string,
         string $field = 'username',
         string $separator = '_',
-        string $current = null,
-        callable $scope = null,
+        ?string $current = null,
+        ?callable $scope = null,
     ) {
         $username = str($current ?: $string)->slug($separator);
 

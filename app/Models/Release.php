@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Helpers\Freq;
 use App\Models\Scopes\HideReportedModels;
 use App\Models\Scopes\RestrictBlockedUserScope;
+use App\Traits\HasLikedScope;
 use App\Traits\Metricable;
 use App\Traits\ModelCanExtend;
 use BeyondCode\Comments\Traits\HasComments;
@@ -18,8 +19,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use ToneflixCode\LaravelFileable\Traits\Fileable;
-use ToneflixCode\SocialInteractions\Traits\HasSocialInteractions;
+use Toneflix\LaravelFileable\Traits\Fileable;
+use Toneflix\SocialInteractions\Traits\HasSocialInteractions;
 
 #[ScopedBy([
     RestrictBlockedUserScope::class,
@@ -30,6 +31,7 @@ class Release extends Model implements CanVisit
     use Fileable;
     use HasComments;
     use HasFactory;
+    use HasLikedScope;
     use HasSocialInteractions;
     use HasVisits;
     use Metricable;
@@ -202,7 +204,7 @@ class Release extends Model implements CanVisit
     public function scopeGenre(Builder $query, string $genre): void
     {
         $query->whereHas('genre', function (Builder $q) use ($genre) {
-            $q->where('id', $genre)->orWhere('slug', $genre);
+            $q->where('slug', $genre)->when(is_numeric($genre), fn ($q) => $q->orWhere('id', $genre));
         });
     }
 

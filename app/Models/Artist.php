@@ -14,7 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Overtrue\LaravelFollow\Traits\Followable;
-use ToneflixCode\LaravelFileable\Traits\Fileable;
+use Toneflix\LaravelFileable\Traits\Fileable;
 
 class Artist extends Model
 {

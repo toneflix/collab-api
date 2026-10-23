@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use ToneflixCode\LaravelFileable\Traits\Fileable;
+use Toneflix\LaravelFileable\Traits\Fileable;
 
 class ProjectTrackStem extends Model
 {

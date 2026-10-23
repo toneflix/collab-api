@@ -7,7 +7,7 @@ use Illuminate\Contracts\Database\Eloquent\CastsAttributes;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Validation\ValidationException;
-use ToneflixCode\LaravelFileable\Media;
+use Toneflix\LaravelFileable\Media;
 
 class ConfigValue implements CastsAttributes
 {

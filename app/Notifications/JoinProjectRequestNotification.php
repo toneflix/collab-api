@@ -6,7 +6,7 @@ use App\Helpers\Providers;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
-use ToneflixCode\ApprovableNotifications\Models\Notification as ModelsNotification;
+use Toneflix\ApprovableNotifications\Models\Notification as ModelsNotification;
 
 class JoinProjectRequestNotification extends Notification
 {
@@ -79,7 +79,7 @@ class JoinProjectRequestNotification extends Notification
         return $this->toSms($n);
     }
 
-    public function toKudiSms($n): \ToneflixCode\KudiSmsNotification\KudiSmsMessage
+    public function toKudiSms($n): \Toneflix\KudiSmsNotification\KudiSmsMessage
     {
         return $this->toSms($n);
     }

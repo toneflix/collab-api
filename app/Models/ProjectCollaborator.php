@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
-use ToneflixCode\ApprovableNotifications\Models\Notification;
+use Toneflix\ApprovableNotifications\Models\Notification;
 
 #[ScopedBy([RestrictBlockedUserScope::class])]
 class ProjectCollaborator extends Model

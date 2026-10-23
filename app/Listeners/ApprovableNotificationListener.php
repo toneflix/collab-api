@@ -7,9 +7,9 @@ use App\Notifications\JoinProjectRequestNotification;
 use App\Services\Reputation;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Queue\InteractsWithQueue;
-use ToneflixCode\ApprovableNotifications\Events\ApprovableNotificationCreated;
-use ToneflixCode\ApprovableNotifications\Events\ApprovableNotificationUpdated;
-use ToneflixCode\ApprovableNotifications\Models\Notification;
+use Toneflix\ApprovableNotifications\Events\ApprovableNotificationCreated;
+use Toneflix\ApprovableNotifications\Events\ApprovableNotificationUpdated;
+use Toneflix\ApprovableNotifications\Models\Notification;
 
 class ApprovableNotificationListener implements ShouldQueue
 {

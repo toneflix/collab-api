@@ -8,7 +8,7 @@ use App\Models\Track;
 use App\Services\Reputation;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Queue\InteractsWithQueue;
-use ToneflixCode\SocialInteractions\Events\SocialInteractionDone;
+use Toneflix\SocialInteractions\Events\SocialInteractionDone;
 
 class SocialInteractionRecieved
 {

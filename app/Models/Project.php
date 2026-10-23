@@ -16,8 +16,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
-use ToneflixCode\LaravelFileable\Traits\Fileable;
-use ToneflixCode\SocialInteractions\Traits\HasSocialInteractions;
+use Toneflix\LaravelFileable\Traits\Fileable;
+use Toneflix\SocialInteractions\Traits\HasSocialInteractions;
 
 /**
  * @property Collection $collaborators
@@ -160,11 +160,11 @@ class Project extends Model
     {
         $query->whereHas('release', function (Builder $q) use ($genre) {
             $q->whereHas('genre', function (Builder $q) use ($genre) {
-                $q->where('id', $genre)->orWhere('slug', $genre);
+                $q->where('slug', $genre)->when(is_numeric($genre), fn ($q) => $q->orWhere('id', $genre));
             });
             $q->orWhereHas('tracks', function (Builder $qx) use ($genre) {
                 $qx->whereHas('genre', function (Builder $q) use ($genre) {
-                    $q->where('id', $genre)->orWhere('slug', $genre);
+                    $q->where('slug', $genre)->when(is_numeric($genre), fn ($q) => $q->orWhere('id', $genre));
                 });
             });
         });
@@ -195,17 +195,25 @@ class Project extends Model
         }
     }
 
-    public function scopeCollaber(Builder $query, User|string $user, int $days = null): void
+    public function scopeCollaber(Builder $query, User|string $user, ?int $days = null): void
     {
         $id = is_string($user) ? $user : $user->id;
 
-        $query->whereHas('collaborators', function (Builder $q) use ($id) {
-            $q->accepted();
-            $q->whereHas('user', function (Builder $qx) use ($id) {
-                $qx->where('users.username', $id)->when(is_numeric($id), fn ($q) => $q->orWhere('users.id', $id));
+        // Grouped so the "or" does not bypass the other conditions on the query
+        $query->where(function (Builder $query) use ($id) {
+            $query->whereHas('collaborators', function (Builder $q) use ($id) {
+                $q->accepted();
+                $q->whereHas('user', function (Builder $qx) use ($id) {
+                    $qx->where('users.username', $id)->when(is_numeric($id), fn ($q) => $q->orWhere('users.id', $id));
+                });
             });
+
+            if (is_numeric($id)) {
+                $query->orWhere('projects.user_id', $id);
+            } else {
+                $query->orWhereHas('user', fn (Builder $q) => $q->where('users.username', $id));
+            }
         });
-        $query->orWhere('projects.user_id', $id);
 
         if ($days) {
             $query->whereBetween('updated_at', [now()->subDays($days), now()]);

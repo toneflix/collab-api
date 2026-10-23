@@ -42,7 +42,7 @@ class NotificationRequestController extends Controller
         /** @var \App\Models\User $user */
         $user = $request->user();
 
-        /** @var \ToneflixCode\ApprovableNotifications\Models\Notification $notification */
+        /** @var \Toneflix\ApprovableNotifications\Models\Notification $notification */
         $notification = $user->approvableNotifications()->findOrFail($id);
         $notification->markAsRead();
 
@@ -62,7 +62,7 @@ class NotificationRequestController extends Controller
         /** @var \App\Models\User $user */
         $user = $request->user();
 
-        /** @var \ToneflixCode\ApprovableNotifications\Models\Notification $notification */
+        /** @var \Toneflix\ApprovableNotifications\Models\Notification $notification */
         $notification = $user->approvableNotifications()->findOrFail($id);
         $notification->markAsRead();
 

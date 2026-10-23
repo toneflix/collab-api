@@ -5,13 +5,15 @@ namespace App\Models;
 use App\Traits\ModelCanExtend;
 use BeyondCode\Comments\Traits\HasComments;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\AsCollection;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
-use ToneflixCode\LaravelFileable\Traits\Fileable;
+use Toneflix\LaravelFileable\Traits\Fileable;
 
 class ProjectTrack extends Model
 {
@@ -52,8 +54,24 @@ class ProjectTrack extends Model
     protected function casts(): array
     {
         return [
-            'meta' => \Illuminate\Database\Eloquent\Casts\AsCollection::class,
+            'meta' => AsCollection::class,
         ];
+    }
+
+    /**
+     * The length of the mixed track in seconds: where the last stem ends.
+     */
+    protected function duration(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => (int) round($this->stems->map(function (ProjectTrackStem $stem) {
+                $meta = json_decode($stem->getRawOriginal('meta') ?? '', true) ?: [];
+                $start = (float) ($meta['start'] ?? 0);
+                $end = (float) ($meta['end'] ?? 0);
+
+                return max($end, $start + (float) ($meta['duration'] ?? 0));
+            })->max() ?? 0),
+        );
     }
 
     public function registerFileable()

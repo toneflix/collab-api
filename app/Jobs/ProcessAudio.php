@@ -11,14 +11,14 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Storage;
 use ProtoneMedia\LaravelFFMpeg\Exporters\EncodingException;
 use ProtoneMedia\LaravelFFMpeg\Support\FFMpeg;
-use ToneflixCode\LaravelFileable\Media;
+use Toneflix\LaravelFileable\Media;
 
 class ProcessAudio implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected static $outputMap = [
-        'aac' => \FFMpeg\Format\Audio\Aac::class,
+        'aac' => \App\Services\Audio\Aac::class,
         'flac' => \FFMpeg\Format\Audio\Flac::class,
         'mp3' => \FFMpeg\Format\Audio\Mp3::class,
         'wav' => \FFMpeg\Format\Audio\Wav::class,
@@ -51,6 +51,11 @@ class ProcessAudio implements ShouldQueue
 
             /** @var \FFMpeg\Format\Audio\Aac|\FFMpeg\Format\Audio\Flac|\FFMpeg\Format\Audio\Mp3|\FFMpeg\Format\Audio\Wav|\FFMpeg\Format\Audio\Vorbis */
             $outputFormat = (new $format());
+
+            // Use a custom codec when one is configured
+            if ($codec = config('settings.encoding.output_codec')) {
+                $outputFormat->setAudioCodec($codec);
+            }
 
             // Set the output channels
             $outputFormat->setAudioChannels(2);

@@ -22,6 +22,9 @@ class ProcessAudioTest extends TestCase
     public function testAudioGetsProcessedSuccessfully(): void
     {
         Storage::fake('default');
+
+        // libfdk_aac is not always installed, so use FFmpeg's native AAC encoder here
+        config(['settings.encoding.output' => 'aac', 'settings.encoding.output_codec' => 'aac']);
         Sanctum::actingAs(
             $user = User::inRandomOrder()->whereHas('releases')->first(),
             ['*']
@@ -29,8 +32,12 @@ class ProcessAudioTest extends TestCase
 
         $image = UploadedFile::fake()->image('image.jpg', 640, 640);
 
+        // Work on a copy so the upload does not move the fixture away
+        $path = tempnam(sys_get_temp_dir(), 'audio').'.mp3';
+        copy(base_path('tests/fixtures/audio.mp3'), $path);
+
         $audio = new UploadedFile(
-            storage_path('app/public/media/music/tracks/1956696705_558104677.mp3'),
+            $path,
             'audio.mp3',
             'audio/mp3',
             null,

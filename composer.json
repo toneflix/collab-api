@@ -14,35 +14,34 @@
     ],
     "license": "MIT",
     "require": {
-        "php": "^8.2",
-        "beyondcode/laravel-comments": "dev-master",
-        "cartalyst/stripe-laravel": "^16.0",
-        "coderflexx/laravisit": "^2.0",
-        "cyrildewit/eloquent-viewable": "^7.0",
-        "laravel-notification-channels/twilio": "^3.4",
-        "laravel/framework": "^11.0",
-        "laravel/sanctum": "^4.0",
-        "laravel/tinker": "^2.9",
-        "matomo/device-detector": "^6.3",
-        "overtrue/laravel-follow": "^5.2",
-        "pbmedia/laravel-ffmpeg": "^8.5",
-        "spatie/laravel-permission": "^6.4",
-        "staudenmeir/eloquent-json-relations": "^1.1",
-        "toneflix-code/approvable-notifications": "^1.0",
-        "toneflix-code/kudisms-notification": "^1.0",
-        "toneflix-code/laravel-fileable": "^2.0",
-        "toneflix-code/social-interactions": "^1.0",
-        "valorin/random": "^0.5.0",
+        "php": "^8.3",
+        "beyondcode/laravel-comments": "^1.9",
+        "coderflexx/laravisit": "^2.2",
+        "laravel-notification-channels/twilio": "^4.2",
+        "laravel/framework": "^13.0",
+        "laravel/sanctum": "^4.3",
+        "laravel/tinker": "^3.0",
+        "matomo/device-detector": "^6.5",
+        "overtrue/laravel-follow": "^6.0",
+        "pbmedia/laravel-ffmpeg": "^8.9",
+        "spatie/laravel-permission": "^8.3",
+        "staudenmeir/eloquent-json-relations": "^1.15",
+        "stripe/stripe-php": "^22.0",
+        "toneflix/approvable-notifications": "^2.0",
+        "toneflix/kudisms-notification": "^2.0",
+        "toneflix/laravel-fileable": "^3.0",
+        "toneflix/social-interactions": "^2.0",
+        "valorin/random": "^1.0",
         "yabacon/paystack-php": "^2.2"
     },
     "require-dev": {
-        "fakerphp/faker": "^1.23",
-        "laravel/pint": "^1.13",
-        "laravel/sail": "^1.26",
+        "fakerphp/faker": "^1.24",
+        "laravel/pint": "^1.32",
+        "laravel/sail": "^1.69",
         "mockery/mockery": "^1.6",
-        "nunomaduro/collision": "^8.0",
-        "phpunit/phpunit": "^11.0",
-        "spatie/laravel-ignition": "^2.4",
+        "nunomaduro/collision": "^8.9",
+        "phpunit/phpunit": "^12.5",
+        "spatie/laravel-ignition": "^2.12",
         "toneflix-code/fakerphp-lorem-toneflix": "^1.0"
     },
     "autoload": {
@@ -90,12 +89,6 @@
             "php-http/discovery": true
         }
     },
-    "repositories": [
-        {
-            "type": "vcs",
-            "url": "https://github.com/toneflix-forks/laravel-comments.git"
-        }
-    ],
     "minimum-stability": "stable",
     "prefer-stable": true
 }

@@ -7,10 +7,11 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\ReleaseCollection;
 use App\Http\Resources\ReleaseResource;
 use App\Models\Release;
+use App\Models\Track;
 use App\Services\Reputation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
-use ToneflixCode\LaravelFileable\Media;
+use Toneflix\LaravelFileable\Media;
 
 class ReleaseController extends Controller
 {
@@ -68,7 +69,7 @@ class ReleaseController extends Controller
         ]);
 
         if ($request->has('project_id')) {
-            /** @var \App\Models\Release $release */
+            /** @var Release $release */
             $release = $this->user->releases()->whereProjectId($request->project_id)->first();
         }
 
@@ -115,9 +116,9 @@ class ReleaseController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        /** @var \App\Models\Release $release */
+        /** @var Release $release */
         $release = $this->user->releases()
-            ->where('slug', $id)->when(is_numeric($id), fn ($q) => $q->orWhere('releases.id', $id))
+            ->where(fn ($q) => $q->where('slug', $id)->when(is_numeric($id), fn ($q) => $q->orWhere('releases.id', $id)))
             ->firstOrFail();
 
         $request->merge(['release_date', $request->input('releaseDate', now())]);
@@ -181,7 +182,7 @@ class ReleaseController extends Controller
         $release->save();
 
         // Add reputation for the owner
-        if ($draft && !$release->draft && $release->project) {
+        if ($draft && ! $release->draft && $release->project) {
             $repType = $this->user->projects()->released()->count() > 1 ? 'publish_project' : 'publish_first_project';
             (new Reputation($this->user, $repType))->add();
         }
@@ -195,7 +196,7 @@ class ReleaseController extends Controller
 
     public function saveTracks(Request $request, Release $release): void
     {
-        if (!$request->has('tracks')) {
+        if (! $request->has('tracks')) {
             return;
         }
 
@@ -226,23 +227,26 @@ class ReleaseController extends Controller
         ]);
 
         collect($tracks)->each(function ($form, $i) use ($release, $request) {
-            if (isset($form['project_track_id']) && !isset($form['id'])) {
-                /** @var \App\Models\Track $track */
+            if (isset($form['project_track_id']) && ! isset($form['id'])) {
+                /** @var Track $track */
                 $track = $release->tracks()->firstOrNew(['project_track_id' => $form['project_track_id']], $form);
                 $track->slug = $track->gusm($track->title, '-');
+                if (empty($track->duration) && $track->projectTrack) {
+                    $track->duration = $track->projectTrack->duration;
+                }
                 $track->saveQuietly();
             } else {
-                /** @var \App\Models\Track $track */
+                /** @var Track $track */
                 $track = $release->tracks()->find($form['id']);
             }
 
             if ($track) {
                 if (isset(Arr::dot($request->allFiles())["tracks.$i.image"])) {
-                    $form['image'] = (new Media())->save('artwork', 'tracks.*.image', $track->image, $i);
+                    $form['image'] = (new Media)->save('artwork', 'tracks.*.image', $track->image, $i);
                 }
 
-                if (isset(Arr::dot($request->allFiles())["tracks.$i.audio"]) && (!$track->exists || !$track->audio)) {
-                    $form['audio'] = (new Media())->save('music_tracks', 'tracks.*.audio', $track->audio, $i);
+                if (isset(Arr::dot($request->allFiles())["tracks.$i.audio"]) && (! $track->exists || ! $track->audio)) {
+                    $form['audio'] = (new Media)->save('music_tracks', 'tracks.*.audio', $track->audio, $i);
                 } else {
                     unset($form['audio']);
                 }
@@ -278,9 +282,9 @@ class ReleaseController extends Controller
      */
     public function destroy(Request $request, string $id)
     {
-        /** @var \App\Models\Release $release */
+        /** @var Release $release */
         $release = $this->user->releases()
-            ->where('slug', $id)->when(is_numeric($id), fn ($q) => $q->orWhere('releases.id', $id))
+            ->where(fn ($q) => $q->where('slug', $id)->when(is_numeric($id), fn ($q) => $q->orWhere('releases.id', $id)))
             ->firstOrFail();
 
         $release->delete();

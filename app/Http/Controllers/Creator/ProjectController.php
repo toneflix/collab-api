@@ -75,7 +75,7 @@ class ProjectController extends Controller
         $query = Project::query();
         $query->collaber($this->user);
 
-        $project = $query->whereSlug($id)->orWhere('id', $id)->firstOrFail();
+        $project = $query->where(fn ($q) => $q->where('slug', $id)->when(is_numeric($id), fn ($q) => $q->orWhere('projects.id', $id)))->firstOrFail();
 
         return (new ProjectResource($project))->additional([
             'message' => HttpStatus::message(HttpStatus::OK),
@@ -91,7 +91,7 @@ class ProjectController extends Controller
     {
         $query = Project::query();
         $query->collaber($this->user);
-        $project = $query->whereSlug($id)->orWhere('id', $id)->firstOrFail();
+        $project = $query->where(fn ($q) => $q->where('slug', $id)->when(is_numeric($id), fn ($q) => $q->orWhere('projects.id', $id)))->firstOrFail();
 
         $this->validate($request, [
             'image' => ['nullable', 'image', 'mimes:png,jpg'],
@@ -120,7 +120,7 @@ class ProjectController extends Controller
     {
         /** @var \App\Models\Project $project */
         $project = $this->user->projects()
-            ->where('slug', $id)->when(is_numeric($id), fn ($q) => $q->orWhere('projects.id', $id))
+            ->where(fn ($q) => $q->where('slug', $id)->when(is_numeric($id), fn ($q) => $q->orWhere('projects.id', $id)))
             ->first();
 
         if (!$project) {

@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Genre;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 class GenreSeeder extends Seeder
@@ -146,5 +147,10 @@ class GenreSeeder extends Seeder
                 'created_at' => now(),
             ],
         ]);
+
+        // Inserting explicit ids doesn't move PostgreSQL's id sequence, so move it past them.
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement("SELECT setval(pg_get_serial_sequence('genres', 'id'), (SELECT MAX(id) FROM genres))");
+        }
     }
 }

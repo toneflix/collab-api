@@ -12,7 +12,7 @@ class FollowController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request, string $pid, string $follow_id = null)
+    public function index(Request $request, string $pid, ?string $follow_id = null)
     {
         [$followable] = $this->resolver($request, $pid, $follow_id);
 
@@ -62,7 +62,7 @@ class FollowController extends Controller
      *  2:string
      * }
      */
-    public function resolver(Request $request, string $followable_id, string $follow_id = null)
+    public function resolver(Request $request, string $followable_id, ?string $follow_id = null)
     {
         // Guess class name
         $name = str($request->route()->getAction('prefix'))
