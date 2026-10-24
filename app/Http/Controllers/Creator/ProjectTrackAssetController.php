@@ -19,6 +19,8 @@ class ProjectTrackAssetController extends Controller
      */
     public function index(Request $request, Project $project, ProjectTrack $track)
     {
+        $this->authorize('view', $track);
+
         $query = $track->assets()->getQuery();
 
         $assets = $query->get();
@@ -63,6 +65,8 @@ class ProjectTrackAssetController extends Controller
      */
     public function show(Project $project, ProjectTrack $track, File $asset)
     {
+        $this->authorize('view', $track);
+
         return (new FileResource($asset))->additional([
             'message' => HttpStatus::message(HttpStatus::OK),
             'status' => 'success',

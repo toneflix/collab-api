@@ -24,7 +24,9 @@ class ProjectTrackController extends Controller
      */
     public function index(Request $request, Project $project)
     {
-        $query = $project->tracks()->getQuery();
+        $this->authorize('view', $project);
+
+        $query = $project->tracks()->visibleTo($request->user())->getQuery();
 
         $tracks = $query->paginate($request->input('limit', 45));
 
@@ -74,6 +76,8 @@ class ProjectTrackController extends Controller
      */
     public function show(Project $project, ProjectTrack $track)
     {
+        $this->authorize('view', $track);
+
         return (new ProjectTrackResource($track))->additional([
             'message' => HttpStatus::message(HttpStatus::OK),
             'status' => 'success',

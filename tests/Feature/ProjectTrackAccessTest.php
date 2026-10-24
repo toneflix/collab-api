@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Broadcasting\Channels;
 use App\Models\Artist;
 use App\Models\Genre;
 use App\Models\Project;
@@ -154,5 +155,53 @@ class ProjectTrackAccessTest extends TestCase
         $this->assertFalse($this->stem->verifyAccess($this->pending));
         $this->assertFalse($this->stem->verifyAccess($this->stranger));
         $this->assertFalse($this->stem->verifyAccess(null));
+    }
+
+    public function test_private_projects_are_hidden_from_outsiders(): void
+    {
+        $this->app['auth']->forgetGuards();
+        $this->getJson("/api/projects/{$this->project->id}")->assertNotFound();
+
+        foreach ([$this->stranger, $this->pending] as $user) {
+            Sanctum::actingAs($user);
+
+            $this->getJson("/api/projects/{$this->project->id}")->assertNotFound();
+            $this->getJson("/api/creator/projects/{$this->project->id}/tracks")->assertNotFound();
+            $this->getJson($this->url())->assertNotFound();
+            $this->getJson($this->url('/stems'))->assertNotFound();
+            $this->getJson($this->url("/stems/{$this->stem->id}"))->assertNotFound();
+            $this->getJson($this->url('/assets'))->assertNotFound();
+            $this->assertFalse(Channels::canView($user, $this->track));
+        }
+
+        Sanctum::actingAs($this->collaborator);
+
+        $this->getJson("/api/projects/{$this->project->id}")->assertOk();
+        $this->getJson("/api/creator/projects/{$this->project->id}/tracks")->assertOk()->assertJsonCount(1, 'data');
+        $this->getJson($this->url('/stems'))->assertOk()->assertJsonCount(1, 'data');
+        $this->assertTrue(Channels::canView($this->collaborator, $this->track));
+    }
+
+    public function test_outsiders_only_see_public_tracks_of_public_projects(): void
+    {
+        $this->project->update(['privacy' => 'public']);
+        $this->track->update(['privacy' => 'public']);
+        $hidden = $this->project->tracks()->forceCreate(['title' => 'Unfinished', 'privacy' => 'private']);
+
+        Sanctum::actingAs($this->stranger);
+
+        $this->getJson("/api/creator/projects/{$this->project->id}/tracks")
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $this->track->id);
+        $this->getJson("/api/projects/{$this->project->id}?with=tracks")
+            ->assertOk()
+            ->assertJsonCount(1, 'data.tracks');
+        $this->getJson($this->url('/stems'))->assertOk();
+        $this->getJson($this->url('', $hidden))->assertNotFound();
+
+        Sanctum::actingAs($this->owner);
+
+        $this->getJson("/api/creator/projects/{$this->project->id}/tracks")->assertOk()->assertJsonCount(2, 'data');
     }
 }
