@@ -9,6 +9,7 @@ use App\Http\Resources\PayoutResource;
 use App\Models\Payout;
 use App\Models\PayoutAccount;
 use App\Models\User;
+use App\Notifications\PayoutNotification;
 use App\Services\Realtime\Realtime;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -345,12 +346,17 @@ class Payouts
     }
 
     /**
-     * Tell the creator's open tabs that a payout changed.
+     * Tell the creator that a payout changed: their open tabs always, and by
+     * notification once it is paid, failed or rejected.
      */
     protected function announce(Payout $payout): void
     {
         Realtime::send(Channels::user($payout->user_id), 'payout.updated', [
             'payout' => (new PayoutResource($payout))->resolve(),
         ]);
+
+        if (PayoutNotification::covers($payout->status)) {
+            $payout->user?->notify(new PayoutNotification($payout));
+        }
     }
 }

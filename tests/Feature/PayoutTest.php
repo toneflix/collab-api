@@ -7,10 +7,12 @@ use App\Models\Configuration;
 use App\Models\Payout;
 use App\Models\Transaction;
 use App\Models\User;
+use App\Notifications\PayoutNotification;
 use App\Services\Payment\PaymentGateway;
 use App\Services\Payment\PayoutGateway;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\Sanctum;
 use Spatie\Permission\Models\Permission;
@@ -383,6 +385,29 @@ class PayoutTest extends TestCase
         $this->artisan('payouts:sync')->assertSuccessful();
 
         $this->assertSame(PayoutStatus::PAID, Payout::where('reference', $reference)->first()->status);
+    }
+
+    public function test_the_creator_is_notified_when_a_withdrawal_is_paid_or_rejected(): void
+    {
+        Notification::fake();
+
+        $creator = $this->creatorWithAccount(5000);
+        $first = $this->postJson('/api/account/payouts', ['amount' => 2000])->json('data.id');
+        $second = $this->postJson('/api/account/payouts', ['amount' => 2000])->json('data.id');
+
+        Notification::assertNothingSentTo($creator);
+
+        $this->admin();
+        $this->gateway->transferStatus = 'paid';
+        $this->postJson("/api/admin/payouts/{$first}/approve")->assertOk();
+        $this->postJson("/api/admin/payouts/{$second}/reject", ['reason' => 'Duplicate request'])->assertOk();
+
+        Notification::assertSentTo($creator, PayoutNotification::class, 2);
+        Notification::assertSentTo(
+            $creator,
+            PayoutNotification::class,
+            fn (PayoutNotification $n) => str_contains($n->content($creator)['body'], 'Duplicate request')
+        );
     }
 
     /**
