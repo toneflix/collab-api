@@ -7,6 +7,8 @@ use App\Helpers\Providers;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\TrackCollection;
 use App\Http\Resources\TrackResource;
+use App\Models\Release;
+use App\Models\Track;
 use Illuminate\Http\Request;
 
 class TrackController extends Controller
@@ -16,7 +18,7 @@ class TrackController extends Controller
      */
     public function index(Request $request, string $release_id)
     {
-        /** @var \App\Models\Release $release */
+        /** @var Release $release */
         $release = $this->user->releases()
             ->where(fn ($q) => $q->where('slug', $release_id)->when(is_numeric($release_id), fn ($q) => $q->orWhere('releases.id', $release_id)))
             ->firstOrFail();
@@ -51,14 +53,15 @@ class TrackController extends Controller
             'genre_id' => ['required', 'string', 'exists:genres,id'],
             'artist_id' => ['required', 'string', 'exists:artists,id'],
             'description' => ['nullable', 'string'],
+            'stems_price' => ['nullable', 'numeric', 'min:0', 'max:9999999'],
         ]);
 
-        /** @var \App\Models\Release $release */
+        /** @var Release $release */
         $release = $this->user->releases()
             ->where(fn ($q) => $q->where('slug', $release_id)->when(is_numeric($release_id), fn ($q) => $q->orWhere('releases.id', $release_id)))
             ->firstOrFail();
 
-        /** @var \App\Models\Track $track */
+        /** @var Track $track */
         $track = $release->tracks()->make();
 
         $track->slug = $request->input('slug');
@@ -67,6 +70,7 @@ class TrackController extends Controller
         $track->privacy = $request->input('privacy', 'public');
         $track->duration = $request->input('duration', 0);
         $track->description = $request->input('description', '');
+        $track->stems_price = $request->input('stems_price', $track->stems_price ?? 0) ?? 0;
         $track->save();
 
         $artists = [];
@@ -101,15 +105,15 @@ class TrackController extends Controller
             'genre_id' => ['required', 'string', 'exists:genres,id'],
             'artist_id' => ['required', 'string', 'exists:artists,id'],
             'description' => ['nullable', 'string'],
+            'stems_price' => ['nullable', 'numeric', 'min:0', 'max:9999999'],
         ]);
 
-        /** @var \App\Models\Release $release */
+        /** @var Release $release */
         $release = $this->user->releases()
-            ->whereId($release_id)
             ->where(fn ($q) => $q->where('slug', $release_id)->when(is_numeric($release_id), fn ($q) => $q->orWhere('releases.id', $release_id)))
             ->firstOrFail();
 
-        /** @var \App\Models\Track $track */
+        /** @var Track $track */
         $track = $release->tracks()
             ->where(fn ($q) => $q->where('slug', $id)->when(is_numeric($id), fn ($q) => $q->orWhere('tracks.id', $id)))
             ->firstOrFail();
@@ -120,6 +124,7 @@ class TrackController extends Controller
         $track->privacy = $request->input('privacy', 'public');
         $track->duration = $request->input('duration', $track->duration);
         $track->description = $request->input('description', '');
+        $track->stems_price = $request->input('stems_price', $track->stems_price ?? 0) ?? 0;
         $track->save();
 
         $artists = [];
@@ -141,7 +146,7 @@ class TrackController extends Controller
     public function save(Request $request)
     {
         $request->merge([
-            'release.release_date' => $request->input('release.release_date', $request->release['releaseDate'] ?? now())
+            'release.release_date' => $request->input('release.release_date', $request->release['releaseDate'] ?? now()),
         ]);
 
         $filled = $this->validate($request, [
@@ -162,6 +167,7 @@ class TrackController extends Controller
             'release.publisher' => ['nullable', 'string'],
             'release.contains_music' => ['nullable', 'boolean'],
             'release.release_date' => ['nullable', 'string'],
+            'release.price' => ['nullable', 'numeric', 'min:0', 'max:9999999'],
         ], [], [
             'release.title' => 'title',
             'release.artwork' => 'artwork',
@@ -189,7 +195,7 @@ class TrackController extends Controller
      */
     public function destroy(Request $request, string $release_id, string $id)
     {
-        /** @var \App\Models\Release $release */
+        /** @var Release $release */
         $release = $this->user->releases()
             ->where(fn ($q) => $q->where('slug', $release_id)->when(is_numeric($release_id), fn ($q) => $q->orWhere('releases.id', $release_id)))
             ->firstOrFail();

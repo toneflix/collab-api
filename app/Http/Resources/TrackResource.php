@@ -17,9 +17,10 @@ class TrackResource extends JsonResource
         $user = $request->user('sanctum');
         $with = str($request->input('with'))->remove(' ')->explode(',');
         $interaction = $this->socialInteractionData($user);
+        $locked = ! $this->isUnlockedFor($user);
 
         $imageUrl = $this->files['image'];
-        if (!$this->image && isset($this->projectTrack->project)) {
+        if (! $this->image && isset($this->projectTrack->project)) {
             $imageUrl = $this->projectTrack->project->files['image'];
         }
 
@@ -29,7 +30,7 @@ class TrackResource extends JsonResource
             'title' => $this->title,
             'genre' => $this->when($with->contains('genre'), fn () => new GenreResource($this->genre)),
             'release' => $this->when(
-                $with->contains('release') && !$with->contains('tracks'),
+                $with->contains('release') && ! $with->contains('tracks'),
                 fn () => new ReleaseResource($this->release)
             ),
             'artist' => $this->when($with->contains('artist') && $this->artist, fn () => [
@@ -54,19 +55,26 @@ class TrackResource extends JsonResource
             'duration' => $this->duration,
             'imageUrl' => $imageUrl,
             'artist_id' => $this->artist?->id,
+            'price' => (float) ($this->release?->price ?? 0),
+            'locked' => $locked,
+            'stemsPrice' => $this->stems_price,
+            'stemsForSale' => $this->when($with->contains('stems'), fn () => $this->stemsForSale()),
+            'stemsUnlocked' => $this->when($with->contains('stems'), fn () => $this->stemsUnlockedFor($user)),
+            // Paid tracks only stream for their owner and people who bought the release.
             'streamUrl' => $this->when(
-                $with->contains('streamUrl') || $user?->id === $this->user_id,
+                ! $locked && ($with->contains('streamUrl') || $this->release?->isOwnedBy($user)),
                 function () {
                     $streamUrl = $this->getFiles['audio']['dynamicLink'];
                     if ($streamUrl === '' && isset($this->projectTrack)) {
                         $streamUrl = $this->projectTrack->getFiles['preview']['dynamicLink'];
                     }
+
                     return $streamUrl;
                 }
             ),
             'explicit' => $this->explicit,
             'description' => $this->description,
-            'audioMissing' => !$this->audio,
+            'audioMissing' => ! $this->audio,
             'commentsCount' => $this->when($with->contains('comments_count'), fn () => $this->comments()->count()),
             'project_track_id' => $this->projectTrack?->id,
             'updatedAt' => $this->updated_at,

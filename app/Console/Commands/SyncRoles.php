@@ -2,8 +2,10 @@
 
 namespace App\Console\Commands;
 
+use App\Models\User;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
@@ -60,7 +62,7 @@ class SyncRoles extends Command
         $supes = $this->option('supes');
         $permissions = $this->option('permissions');
 
-        /** @var \Illuminate\Database\Eloquent\Collection<TKey,\App\Models\User> */
+        /** @var Collection<TKey,User> */
         $users = app(config('permission-defs.user-model', []))->findMany($users);
 
         $conf = str_ireplace(
@@ -135,7 +137,7 @@ class SyncRoles extends Command
         $supes = $this->option('supes');
         $permissions = $this->option('permissions');
 
-        /** @var \Illuminate\Database\Eloquent\Collection<TKey,\App\Models\User> */
+        /** @var Collection<TKey,User> */
         $users = app(config('permission-defs.user-model', []))->findMany($users);
 
         $conf = str_ireplace(
@@ -201,13 +203,11 @@ class SyncRoles extends Command
     public function truncate(): void
     {
         if (app()->runningInConsole() && $this->confirm('Are you sure you want to reset all permissions and roles?')) {
-            DB::statement('SET FOREIGN_KEY_CHECKS=0;');
-            Role::query()->delete();
-            Permission::query()->delete();
-
-            Permission::truncate();
-            Role::truncate();
-            DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+            // Works on PostgreSQL, MySQL/MariaDB and SQLite
+            Schema::withoutForeignKeyConstraints(function () {
+                Role::query()->delete();
+                Permission::query()->delete();
+            });
         }
     }
 

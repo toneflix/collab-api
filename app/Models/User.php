@@ -9,9 +9,12 @@ use App\Notifications\SendCode;
 use App\Traits\ModelCanExtend;
 use BeyondCode\Comments\Contracts\Commentator;
 use Coderflex\Laravisit\Models\Visit;
+use Illuminate\Database\Eloquent\Attributes\ScopedBy;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\AsCollection;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
@@ -28,7 +31,6 @@ use Toneflix\LaravelFileable\Traits\Fileable;
 use Toneflix\SocialInteractions\Models\SocialInteraction;
 use Toneflix\SocialInteractions\Traits\CanSocialInteract;
 use Valorin\Random\Random;
-use Illuminate\Database\Eloquent\Attributes\ScopedBy;
 
 #[ScopedBy([RestrictBlockedUserScope::class])]
 class User extends Authenticatable implements Commentator
@@ -122,8 +124,8 @@ class User extends Authenticatable implements Commentator
             'reputation' => 'integer',
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
-            'data' => \Illuminate\Database\Eloquent\Casts\AsCollection::class,
-            'access_data' => \Illuminate\Database\Eloquent\Casts\AsCollection::class,
+            'data' => AsCollection::class,
+            'access_data' => AsCollection::class,
             'last_attempt' => 'datetime',
             'email_verified_at' => 'datetime',
             'phone_verified_at' => 'datetime',
@@ -162,7 +164,7 @@ class User extends Authenticatable implements Commentator
         });
 
         static::addGlobalScopes([
-            fn (Builder $query) => $query->withCount(['projects', 'collabProjects'])
+            fn (Builder $query) => $query->withCount(['projects', 'collabProjects']),
         ]);
     }
 
@@ -170,7 +172,7 @@ class User extends Authenticatable implements Commentator
      * Retrieve the model for a bound value.
      *
      * @param  string|null  $field
-     * @return \Illuminate\Database\Eloquent\Model|null
+     * @return Model|null
      */
     public function resolveRouteBinding($value, $field = null)
     {
@@ -185,8 +187,6 @@ class User extends Authenticatable implements Commentator
 
     /**
      * Get the user's blocklist.
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
      */
     public function blocklist(): HasMany
     {
@@ -460,6 +460,32 @@ class User extends Authenticatable implements Commentator
     public function tracks(): HasManyThrough
     {
         return $this->hasManyThrough(Track::class, Release::class);
+    }
+
+    /**
+     * Get the user's Premium periods
+     */
+    public function subscriptions(): HasMany
+    {
+        return $this->hasMany(Subscription::class)->latest('ends_at');
+    }
+
+    /**
+     * Whether the user has an active Premium subscription.
+     */
+    public function isPremium(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->subscriptions()->active()->exists(),
+        )->shouldCache();
+    }
+
+    /**
+     * Payments other people made that this creator earns from.
+     */
+    public function earnings(): HasMany
+    {
+        return $this->hasMany(Transaction::class, 'recipient_id')->where('status', 'complete');
     }
 
     /**

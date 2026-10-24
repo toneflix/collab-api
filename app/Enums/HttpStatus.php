@@ -13,6 +13,7 @@ enum HttpStatus: int
     case NO_CONTENT = 204;           // No Content
     case BAD_REQUEST = 400;          // Bad Request
     case UNAUTHORIZED = 401;         // Unauthenticated
+    case PAYMENT_REQUIRED = 402;     // Payment Required
     case FORBIDDEN = 403;            // Access Denied
     case NOT_FOUND = 404;            // Not Found
     case METHOD_NOT_ALLOWED = 405;   // Method Not Allowed
@@ -33,6 +34,7 @@ enum HttpStatus: int
             HttpStatus::CREATED => 'Created.',
             HttpStatus::ACCEPTED => 'Accepted.',
             HttpStatus::CONFLICT => 'Conflict.',
+            HttpStatus::PAYMENT_REQUIRED => 'Payment is required to access this.',
             HttpStatus::FORBIDDEN => 'We are sorry, but you do not have permission to perform this action.',
             HttpStatus::NOT_FOUND => 'The requested resource was not found.',
             HttpStatus::NO_CONTENT => 'No Content.',

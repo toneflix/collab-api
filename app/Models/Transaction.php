@@ -20,6 +20,11 @@ class Transaction extends Model
     protected $fillable = [
         'reference',
         'discount',
+        'purpose',
+        'recipient_id',
+        'recipient_share',
+        'meta',
+        'paid_at',
         'user_id',
         'status',
         'method',
@@ -50,6 +55,9 @@ class Transaction extends Model
             'fees' => 'float',
             'amount' => 'float',
             'webhook' => 'collection',
+            'meta' => 'collection',
+            'paid_at' => 'datetime',
+            'recipient_share' => 'float',
             'discount' => 'float',
         ];
     }
@@ -82,6 +90,14 @@ class Transaction extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Get the creator who earns from this transaction
+     */
+    public function recipient(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'recipient_id');
     }
 
     /**

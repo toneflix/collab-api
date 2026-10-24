@@ -3,10 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Enums\HttpStatus;
+use App\Helpers\Providers;
 use App\Http\Resources\TrackCollection;
 use App\Http\Resources\TrackResource;
+use App\Models\ProjectTrackStem;
 use App\Models\Release;
 use App\Models\Track;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 
@@ -41,7 +44,7 @@ class TrackController extends Controller
                 $filters->contains('trending'),
                 fn (Builder $q) => $q->popular('top', $request->period)
             )->when(
-                $request->has('artist_id') && !$filters->contains('features'),
+                $request->has('artist_id') && ! $filters->contains('features'),
                 fn (Builder $q) => $q->forArtist($request->artist_id)
             )->when(
                 $filters->contains('features') && $request->has('artist_id'),
@@ -85,7 +88,7 @@ class TrackController extends Controller
     public function update(Request $request, Release $release, Track $track)
     {
         $this->validate($request, [
-            'duration' => 'nullable|numeric|min:0'
+            'duration' => 'nullable|numeric|min:0',
         ]);
 
         $track->stream($request->integer('duration'), $request->user('sanctum'));
@@ -94,6 +97,62 @@ class TrackController extends Controller
             'message' => HttpStatus::message(HttpStatus::OK),
             'status' => 'success',
             'status_code' => HttpStatus::OK,
+        ]);
+    }
+
+    /**
+     * Download links for a track's stems, for its owner and people who bought them.
+     */
+    public function stems(Request $request, Track $track)
+    {
+        abort_unless($track->stemsUnlockedFor($request->user()), HttpStatus::PAYMENT_REQUIRED->value, 'Buy the stems to download them.');
+
+        $stems = $track->projectTrack?->stems()->whereNotNull('src')->get() ?? collect();
+
+        return Providers::response()->success([
+            'data' => $stems->map(fn (ProjectTrackStem $stem) => [
+                'id' => $stem->id,
+                'title' => $stem->title ?: $stem->meta['name'] ?? 'Stem',
+                'size' => $stem->mediaFileInfo['src']['size'] ?? null,
+                'url' => $stem->mediaFileInfo['src']['dynamicLink'] ?? null,
+            ])->values(),
+            'message' => HttpStatus::message(HttpStatus::OK),
+        ]);
+    }
+
+    /**
+     * A download link for offline listening. Premium listeners get any track they can
+     * stream; owners and buyers of a paid release get its tracks too.
+     */
+    public function download(Request $request, Track $track)
+    {
+        /** @var User $user */
+        $user = $request->user();
+
+        abort_unless($track->isUnlockedFor($user), HttpStatus::PAYMENT_REQUIRED->value, 'Buy this release to download it.');
+
+        $paidFor = $track->release && $track->release->price > 0;
+
+        abort_unless(
+            $user->is_premium || $paidFor,
+            HttpStatus::FORBIDDEN->value,
+            'Downloads are a Premium feature.'
+        );
+
+        $url = $track->getFiles['audio']['dynamicLink'] ?? '';
+
+        if ($url === '' && $track->projectTrack) {
+            $url = $track->projectTrack->getFiles['preview']['dynamicLink'] ?? '';
+        }
+
+        abort_if($url === '', HttpStatus::NOT_FOUND->value, 'This track has no audio yet.');
+
+        return Providers::response()->success([
+            'data' => [
+                'url' => $url,
+                'filename' => str($track->title)->slug()->append('.', $track->meta['format'] ?? 'mp3')->toString(),
+            ],
+            'message' => HttpStatus::message(HttpStatus::OK),
         ]);
     }
 

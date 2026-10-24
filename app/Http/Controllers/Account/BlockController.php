@@ -12,6 +12,7 @@ use App\Models\Project;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class BlockController extends Controller
@@ -21,7 +22,7 @@ class BlockController extends Controller
      */
     public function index(Request $request)
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
 
         $list = $user->blocklist()->getQuery()
@@ -31,13 +32,13 @@ class BlockController extends Controller
                     [User::class, Project::class],
                     function (Builder $query, string $type) use ($request) {
                         $query->where(function (Builder $q) use ($request, $type) {
-                            $nameColumn = $type === User::class ? "firstname" : 'title';
-                            $nameColumn2 = $type === User::class ? "CONCAT(firstname, ' ', lastname)" : 'title';
+                            $nameColumn = $type === User::class ? 'firstname' : 'title';
+                            $nameColumn2 = $type === User::class ? DB::raw("concat(firstname, ' ', lastname)") : 'title';
                             $unameColumn = $type === User::class ? 'username' : 'slug';
 
-                            $q->where($nameColumn, 'like', "%{$request->search}%");
-                            $q->orWhereRaw("$nameColumn2 LIKE ?", ["%{$request->search}%"]);
-                            $q->orWhere($unameColumn, 'like', "%{$request->search}%");
+                            $q->whereLike($nameColumn, "%{$request->search}%");
+                            $q->orWhereLike($nameColumn2, "%{$request->search}%");
+                            $q->orWhereLike($unameColumn, "%{$request->search}%");
                         });
                     }
                 );
@@ -62,10 +63,10 @@ class BlockController extends Controller
             'id' => [Rule::exists(str($request->type)->plural()->toString(), 'id')],
         ]);
 
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
 
-        /** @var \App\Models\User|\App\Models\Project $model */
+        /** @var User|Project $model */
         $model = app(str($request->type)->ucfirst()->prepend('\\App\\Models\\')->toString())->find($request->id);
 
         if ($model) {
@@ -96,7 +97,7 @@ class BlockController extends Controller
      */
     public function destroy(Request $request, string $id)
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
 
         if ($request->type) {

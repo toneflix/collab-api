@@ -29,6 +29,8 @@ class PlaylistController extends Controller
                 ->whereHas('release', fn (Builder $q) => $q->where('draft', false))
                 ->withCount(['visits as plays' => fn (Builder $q) => $q->where('data->duration', '>', 0)])
                 ->orderByDesc('plays'))
+            // Paid tracks the listener hasn't bought can't play, so leave them out.
+            ->playableBy($user)
             ->when($request->boolean('randomize'), fn (Builder $q) => $q->inRandomOrder());
 
         $tracks = $query->paginate($request->input('limit', 15));

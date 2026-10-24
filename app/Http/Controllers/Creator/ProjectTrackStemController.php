@@ -11,6 +11,7 @@ use App\Http\Resources\ProjectTrackStemResource;
 use App\Models\Project;
 use App\Models\ProjectTrack;
 use App\Models\ProjectTrackStem;
+use App\Services\Limits;
 use App\Services\Realtime\Realtime;
 use App\Services\Reputation;
 use Illuminate\Http\Request;
@@ -44,7 +45,7 @@ class ProjectTrackStemController extends Controller
             ->toString();
 
         $valid = $this->validate($request, [
-            'src' => ['nullable', 'file', $allowedAudio],
+            'src' => array_filter(['nullable', 'file', $allowedAudio, Limits::for($this->user)->stemSizeRule()]),
             'meta' => ['nullable', 'array'],
             'title' => ['nullable', 'string'],
             'stem_id' => ['nullable', 'string', 'exists:project_track_stems,id'],
@@ -93,7 +94,7 @@ class ProjectTrackStemController extends Controller
             ->toString();
 
         $valid = $this->validate($request, [
-            'src' => ['nullable', 'file', $allowedAudio],
+            'src' => array_filter(['nullable', 'file', $allowedAudio, Limits::for($this->user)->stemSizeRule()]),
             'meta' => ['required', 'array'],
             'title' => ['nullable', 'string'],
             'stem_id' => ['nullable', 'string', 'exists:project_track_stems,id'],
