@@ -10,6 +10,7 @@ use App\Models\Subscription;
 use App\Models\Track;
 use App\Models\Transaction;
 use App\Models\User;
+use App\Notifications\SaleNotification;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
@@ -128,6 +129,10 @@ class Checkout
 
             if ($locked->purpose === 'premium') {
                 $this->extendPremium($locked);
+            }
+
+            if ($locked->recipient_id) {
+                User::query()->find($locked->recipient_id)?->notify(new SaleNotification($locked));
             }
 
             return $locked;

@@ -15,6 +15,7 @@ use App\Http\Controllers\ReleaseController;
 use App\Http\Controllers\SocialInteractionController;
 use App\Http\Controllers\TrackController;
 use App\Http\Controllers\UserController;
+use App\Services\Notifications\WebPush;
 use App\Services\Realtime\Realtime;
 use App\Services\Sounds\SoundSettings;
 use Illuminate\Support\Facades\File;
@@ -41,6 +42,7 @@ Route::get('/initialize', function () {
             'configuration' => Providers::config(),
             'realtime' => Realtime::clientConfig(),
             'sounds' => SoundSettings::clientConfig(),
+            'push' => WebPush::clientConfig(),
         ],
     ];
 });

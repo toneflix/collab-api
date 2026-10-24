@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Helpers\Providers;
+use App\Notifications\Channels\PushChannel;
+use App\Services\Notifications\WebPush;
 use App\Services\Payment\PaymentGateway;
 use App\Services\Payment\PaystackGateway;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -10,6 +12,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
+use Minishlink\WebPush\WebPush as WebPushClient;
+use NotificationChannels\WebPush\ReportHandler;
+use NotificationChannels\WebPush\ReportHandlerInterface;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -22,6 +27,9 @@ class AppServiceProvider extends ServiceProvider
             PaymentGateway::class,
             PaystackGateway::class
         );
+
+        $this->app->when(PushChannel::class)->needs(WebPushClient::class)->give(fn () => WebPush::client());
+        $this->app->when(PushChannel::class)->needs(ReportHandlerInterface::class)->give(ReportHandler::class);
     }
 
     /**
