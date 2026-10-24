@@ -14,6 +14,7 @@ use App\Http\Controllers\ReleaseController;
 use App\Http\Controllers\SocialInteractionController;
 use App\Http\Controllers\TrackController;
 use App\Http\Controllers\UserController;
+use App\Services\Realtime\Realtime;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Route;
 use Symfony\Component\Finder\SplFileInfo;
@@ -36,6 +37,7 @@ Route::get('/initialize', function () {
     return [
         'data' => [
             'configuration' => Providers::config(),
+            'realtime' => Realtime::clientConfig(),
         ],
     ];
 });

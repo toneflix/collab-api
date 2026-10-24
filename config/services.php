@@ -31,4 +31,18 @@ return [
         ],
     ],
 
+    'realtime' => [
+        // none, reverb, pusher, ably or firebase. Admins can change it.
+        'driver' => env('REALTIME_DRIVER', 'none'),
+    ],
+
+    'firebase' => [
+        // The service account JSON, or a path to it.
+        'credentials' => env('FIREBASE_CREDENTIALS'),
+        'database_url' => env('FIREBASE_DATABASE_URL'),
+        'api_key' => env('FIREBASE_API_KEY'),
+        'project_id' => env('FIREBASE_PROJECT_ID'),
+        'app_id' => env('FIREBASE_APP_ID'),
+    ],
+
 ];

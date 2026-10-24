@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Creator;
 
+use App\Broadcasting\Channels;
 use App\Enums\HttpStatus;
 use App\Helpers\Providers;
 use App\Http\Controllers\Controller;
@@ -11,6 +12,7 @@ use App\Models\Project;
 use App\Models\ProjectTrack;
 use App\Models\ProjectTrackStem;
 use App\Services\Limits;
+use App\Services\Realtime\Realtime;
 use App\Services\Reputation;
 use Illuminate\Http\Request;
 
@@ -56,6 +58,12 @@ class ProjectTrackStemController extends Controller
         // Add reputation for the owner
         (new Reputation($this->user, 'create_project_track_stem'))->add();
 
+        // Others fetch the stem themselves, since its audio link is per user.
+        Realtime::send(Channels::projectTrack($track), 'stem.added', [
+            'track_id' => $track->id,
+            'stem_id' => $stem->id,
+        ]);
+
         return (new ProjectTrackStemResource($stem))->additional([
             'message' => 'Track stem created successfully.',
             'status' => 'success',
@@ -96,6 +104,13 @@ class ProjectTrackStemController extends Controller
 
         $stem->update($valid);
 
+        Realtime::send(Channels::projectTrack($track), 'stem.updated', [
+            'track_id' => $track->id,
+            'stem_id' => $stem->id,
+            'title' => $stem->title,
+            'meta' => collect($stem->meta)->except('src')->all(),
+        ]);
+
         return (new ProjectTrackStemResource($stem))->additional([
             'message' => 'Track stem updated successfully.',
             'status' => 'success',
@@ -109,6 +124,11 @@ class ProjectTrackStemController extends Controller
     public function destroy(Request $request, Project $project, ProjectTrack $track, ProjectTrackStem $stem)
     {
         $stem->delete();
+
+        Realtime::send(Channels::projectTrack($track), 'stem.removed', [
+            'track_id' => $track->id,
+            'stem_id' => $stem->id,
+        ]);
 
         return (new ProjectTrackStemCollection([]))->additional([
             'message' => 'Track stem deleted successfully.',

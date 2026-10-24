@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Creator;
 
+use App\Broadcasting\Channels;
 use App\Enums\HttpStatus;
 use App\Helpers\Providers;
 use App\Http\Controllers\Controller;
@@ -9,6 +10,7 @@ use App\Http\Resources\ProjectTrackCollection;
 use App\Http\Resources\ProjectTrackResource;
 use App\Models\Project;
 use App\Models\ProjectTrack;
+use App\Services\Realtime\Realtime;
 use App\Services\Reputation;
 use Illuminate\Http\Request;
 use Toneflix\LaravelFileable\Media;
@@ -103,6 +105,18 @@ class ProjectTrackController extends Controller
         $this->saveStems($request, $track);
         $track->update($valid);
 
+        // Everyone else on the track now has this as the saved state. A
+        // message too big for the driver carries no stems; clients reload.
+        $stems = $track->stems()->get()->mapWithKeys(fn ($stem) => [
+            $stem->id => collect($stem->meta)->except('src')->all(),
+        ]);
+
+        Realtime::send(Channels::projectTrack($track), 'track.saved', [
+            'track_id' => $track->id,
+            'title' => $track->title,
+            'stems' => strlen((string) json_encode($stems)) > 8000 ? null : $stems->all(),
+        ]);
+
         return (new ProjectTrackResource($track))->additional([
             'message' => 'Project track updated successfully',
             'status' => 'success',
@@ -112,7 +126,7 @@ class ProjectTrackController extends Controller
 
     protected function saveStems(Request $request, ProjectTrack $track): void
     {
-        if (!$request->has('stems')) {
+        if (! $request->has('stems')) {
             return;
         }
 
@@ -136,14 +150,14 @@ class ProjectTrackController extends Controller
         ]);
 
         collect($stems)->each(function ($form, $i) use ($track) {
-            /** @var \App\Models\ProjectTrack $stem */
+            /** @var ProjectTrack $stem */
             $stem = $track->stems()->find($form['id']);
 
             // Add reputation for the owner
             (new Reputation($this->user, 'create_project_track_stem'))->add();
 
             if ($stem) {
-                $form['src'] = (new Media())->save('stem_files', 'stems.*.src', $stem->src, $i);
+                $form['src'] = (new Media)->save('stem_files', 'stems.*.src', $stem->src, $i);
                 $stem->updateQuietly($form);
             }
         });
