@@ -36,8 +36,8 @@ PostgreSQL is the one we test on. MySQL/MariaDB and SQLite also work.
 | Key | Default | What it does |
 | --- | --- | --- |
 | `QUEUE_CONNECTION` | `database` | `database` or `redis`. Never `sync` in production; AI jobs and the sound sync would run inside web requests. |
-| `DB_QUEUE_RETRY_AFTER` | `90` | Seconds before a job that is still running is handed to another worker. Set it above the longest job (`3700`). See [Production deploy](../guide/production#processes-that-must-run). |
-| `REDIS_QUEUE_RETRY_AFTER` | `90` | The same, for the Redis queue. |
+| `DB_QUEUE_RETRY_AFTER` | `3700` | Seconds before a job that is still running is handed to another worker. Keep it above the longest job. See [Production deploy](../guide/production#processes-that-must-run). |
+| `REDIS_QUEUE_RETRY_AFTER` | `3700` | The same, for the Redis queue. |
 | `CACHE_STORE` | `database` | |
 | `SESSION_DRIVER` | `database` | |
 | `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` | | Only when Redis is used. |

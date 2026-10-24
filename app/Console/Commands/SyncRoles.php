@@ -89,11 +89,11 @@ class SyncRoles extends Command
                 return;
             }
         } elseif (! empty($roles)) {
-            $roles = Role::whereIn('name', $roles)->orWhereIn('id', $roles)->pluck('name');
+            $roles = $this->names(Role::class, $roles);
         }
 
         if (! empty($permissions)) {
-            $permissions = Permission::whereIn('name', $permissions)->orWhereIn('id', $permissions)->pluck('name');
+            $permissions = $this->names(Permission::class, $permissions);
         } else {
             $permissions = collect();
         }
@@ -164,11 +164,11 @@ class SyncRoles extends Command
                 return;
             }
         } elseif (! empty($roles)) {
-            $roles = Role::whereIn('name', $roles)->orWhereIn('id', $roles)->pluck('name');
+            $roles = $this->names(Role::class, $roles);
         }
 
         if (! empty($permissions)) {
-            $permissions = Permission::whereIn('name', $permissions)->orWhereIn('id', $permissions)->pluck('name');
+            $permissions = $this->names(Permission::class, $permissions);
         }
 
         $users->each(function ($user) use ($roles, $permissions) {
@@ -212,6 +212,23 @@ class SyncRoles extends Command
     }
 
     /**
+     * Names of the roles or permissions given by name or id.
+     *
+     * @param  class-string<Role|Permission>  $model
+     * @param  array<int, string>  $values
+     * @return \Illuminate\Support\Collection<int, string>
+     */
+    protected function names(string $model, array $values)
+    {
+        // Ids and names are matched separately, so PostgreSQL never compares a name with the bigint id.
+        [$ids, $names] = collect($values)->partition(fn ($value) => ctype_digit((string) $value));
+
+        return $model::query()
+            ->where(fn ($query) => $query->whereIn('name', $names->all())->orWhereIn('id', $ids->all()))
+            ->pluck('name');
+    }
+
+    /**
      * Run the database seeds.
      */
     public function make()
@@ -222,19 +239,15 @@ class SyncRoles extends Command
         $rolesArray->each(fn ($role) => Role::findOrCreate($role));
         $permissionsArray->each(fn ($role) => Permission::findOrCreate($role));
 
+        $exclusions = (array) config('permission-defs.exclusions', []);
+
+        // Every role gets every permission except the ones excluded for it.
+        Role::query()->whereIn('name', $rolesArray)->get()->each(
+            fn (Role $role) => $role->syncPermissions($permissionsArray->diff($exclusions[$role->name] ?? [])->values())
+        );
+
         $roles = Role::withCount('permissions')->get();
         $permissions = Permission::get();
-
-        $roles->each(function ($role) use ($permissionsArray) {
-            if (is_array($exclusions = config('permission-defs.exclusions', []))) {
-                /** @var array<int, string/> $exclude */
-                foreach ($exclusions as $name => $exclude) {
-                    if ($role->name === $name) {
-                        $role->syncPermissions($permissionsArray->except($exclude));
-                    }
-                }
-            }
-        });
 
         $this->info('Roles');
         $this->table(

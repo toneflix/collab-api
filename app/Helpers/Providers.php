@@ -32,7 +32,7 @@ class Providers
         $key = null,
         $default = null,
         $loadSecret = false
-    ): Collection|string|int|float|array|null {
+    ): Collection|string|int|float|bool|array|null {
         $config = Configuration::build($loadSecret);
 
         if (is_null($key)) {

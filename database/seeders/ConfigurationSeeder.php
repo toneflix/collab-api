@@ -45,7 +45,7 @@ class ConfigurationSeeder extends Seeder
             [
                 'key' => 'app_currency',
                 'title' => 'App Currency',
-                'value' => 'USD',
+                'value' => 'NGN',
                 'type' => 'string',
                 'count' => null,
                 'max' => null,

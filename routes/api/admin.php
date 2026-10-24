@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AiSettingsController;
+use App\Http\Controllers\Admin\ConfigurationController;
 use App\Http\Controllers\Admin\GenreController;
 use App\Http\Controllers\Admin\ModerationController;
 use App\Http\Controllers\Admin\PayoutController;
@@ -12,6 +13,10 @@ use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth:sanctum'])->prefix('admin')->name('admin.')->group(function () {
     Route::apiResource('genres', GenreController::class)->except(['index']);
+
+    // General app settings
+    Route::get('configuration', [ConfigurationController::class, 'show'])->name('configuration.show');
+    Route::put('configuration', [ConfigurationController::class, 'update'])->name('configuration.update');
 
     // Realtime driver and keys
     Route::get('realtime', [RealtimeSettingsController::class, 'show'])->name('realtime.show');
