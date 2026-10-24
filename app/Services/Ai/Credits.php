@@ -145,6 +145,29 @@ class Credits
     }
 
     /**
+     * Take away bought or granted credits. Plan credits aren't touched, and
+     * taking more than the user has is refused.
+     */
+    public function deduct(int $credits, string $description, string $field = 'credits'): AiCreditEntry
+    {
+        $credits = max(1, $credits);
+
+        return DB::transaction(function () use ($credits, $description, $field) {
+            $wallet = $this->lockedWallet();
+
+            if ($wallet->purchased < $credits) {
+                throw ValidationException::withMessages([
+                    $field => __('Only :have bought or granted credits can be taken away.', ['have' => $wallet->purchased]),
+                ]);
+            }
+
+            $wallet->decrement('purchased', $credits);
+
+            return $this->record(AiCreditEntry::DEDUCT, -$credits, $description, null, 0, $credits);
+        });
+    }
+
+    /**
      * The calendar month plan credits are counted in.
      */
     public function period(): Carbon

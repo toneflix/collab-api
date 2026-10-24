@@ -18,6 +18,8 @@ class TransactionResource extends JsonResource
     {
         $viewer = $request->user('sanctum');
         $item = $this->transactable;
+        $seesEarnings = ($viewer && (int) $viewer->id === (int) $this->recipient_id)
+            || ($request->routeIs('admin.users.transactions') && $request->input('side') === 'earnings');
 
         return [
             'id' => $this->id,
@@ -25,8 +27,8 @@ class TransactionResource extends JsonResource
             'purpose' => $this->purpose,
             'status' => $this->status,
             'amount' => $this->amount,
-            // Only the creator sees what they earned from it
-            'earned' => $this->when($viewer && (int) $viewer->id === (int) $this->recipient_id, $this->recipient_share),
+            // Only the creator and admins see what the creator earned from it
+            'earned' => $this->when($seesEarnings, $this->recipient_share),
             'message' => $this->meta['message'] ?? null,
             'plan' => $this->meta['plan'] ?? null,
             'planName' => $this->meta['title'] ?? null,
@@ -57,7 +59,7 @@ class TransactionResource extends JsonResource
                 default => null,
             },
             'payer' => $this->when(
-                $viewer && (int) $viewer->id === (int) $this->recipient_id && $this->user,
+                $seesEarnings && $this->user,
                 fn () => [
                     'id' => $this->user->id,
                     'username' => $this->user->username,

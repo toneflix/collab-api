@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 /**
- * One change to a user's AI credits: a purchase, a spend, a refund or a grant.
+ * One change to a user's AI credits: a purchase, a spend, a refund, a grant or an admin's deduction.
  */
 class AiCreditEntry extends Model
 {
@@ -19,6 +19,8 @@ class AiCreditEntry extends Model
     public const REFUND = 'refund';
 
     public const GRANT = 'grant';
+
+    public const DEDUCT = 'deduct';
 
     protected $fillable = [
         'user_id',
