@@ -121,7 +121,7 @@ class Project extends Model
     public function isCollaber(User $user): bool
     {
         if ($this->relationLoaded('collaborators')) {
-            return $this->collaborators->where('accepted', true)->contains($user);
+            return $this->collaborators->where('accepted', true)->contains('user_id', $user->id);
         }
 
         return $this->collaborators()->accepted()->forUser($user)->exists();

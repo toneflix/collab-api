@@ -20,7 +20,7 @@ class ProjectTrackVersionController extends Controller
      */
     public function index(Request $request, Project $project, ProjectTrack $track)
     {
-        $this->ensureCanEdit($request, $project, $track);
+        $this->authorize('viewHistory', $track);
 
         $limit = min(50, max(1, (int) $request->input('limit', 20)));
 
@@ -42,9 +42,8 @@ class ProjectTrackVersionController extends Controller
      */
     public function restore(Request $request, Project $project, ProjectTrack $track, ProjectTrackVersion $version)
     {
-        $this->ensureCanEdit($request, $project, $track);
+        $this->authorize('update', $track);
 
-        abort_unless((int) $version->track_id === (int) $track->id, HttpStatus::NOT_FOUND->value, 'That version isn\'t part of this track.');
         abort_if($project->released, HttpStatus::FORBIDDEN->value, 'Released tracks can\'t be changed.');
 
         $result = TrackHistory::for($track)->restore($version, $request->user());
@@ -64,14 +63,5 @@ class ProjectTrackVersionController extends Controller
             'status' => 'success',
             'status_code' => HttpStatus::ACCEPTED,
         ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
-    }
-
-    protected function ensureCanEdit(Request $request, Project $project, ProjectTrack $track): void
-    {
-        abort_unless(
-            (int) $track->project_id === (int) $project->id && $project->canEdit($request->user()),
-            HttpStatus::FORBIDDEN->value,
-            'Only the owner and collaborators can see this track\'s history.'
-        );
     }
 }

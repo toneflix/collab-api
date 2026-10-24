@@ -10,7 +10,6 @@ use App\Http\Resources\FileResource;
 use App\Models\File;
 use App\Models\Project;
 use App\Models\ProjectTrack;
-use App\Models\ProjectTrackStem;
 use Illuminate\Http\Request;
 
 class ProjectTrackAssetController extends Controller
@@ -36,6 +35,8 @@ class ProjectTrackAssetController extends Controller
      */
     public function store(Request $request, Project $project, ProjectTrack $track)
     {
+        $this->authorize('update', $track);
+
         $allowedMimes = str(collect(Providers::config('allowed_assets_exts'))->join(','))
             ->remove('.')
             ->prepend('mimes:')
@@ -60,7 +61,7 @@ class ProjectTrackAssetController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Project $project, ProjectTrack $track, ProjectTrackStem $stem, File $asset)
+    public function show(Project $project, ProjectTrack $track, File $asset)
     {
         return (new FileResource($asset))->additional([
             'message' => HttpStatus::message(HttpStatus::OK),
@@ -72,8 +73,10 @@ class ProjectTrackAssetController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Project $project, ProjectTrack $track, ProjectTrackStem $stem, File $asset)
+    public function update(Request $request, Project $project, ProjectTrack $track, File $asset)
     {
+        $this->authorize('update', $track);
+
         $allowedMimes = str(collect(Providers::config('allowed_assets_exts'))->join(','))
             ->remove('.')
             ->prepend('mimes:')
@@ -102,8 +105,10 @@ class ProjectTrackAssetController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Request $request, Project $project, ProjectTrack $track, ProjectTrackStem $stem, File $asset)
+    public function destroy(Request $request, Project $project, ProjectTrack $track, File $asset)
     {
+        $this->authorize('update', $track);
+
         $asset->delete();
 
         return (new FileCollection([]))->additional([
