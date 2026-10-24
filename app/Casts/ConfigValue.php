@@ -34,7 +34,7 @@ class ConfigValue implements CastsAttributes
         return match (true) {
             $canBeSaved => $this->doUpload($value, $model),
             is_array($value) => json_encode($value, JSON_FORCE_OBJECT),
-            is_bool($value) => $value ? 0 : 1,
+            is_bool($value) => $value ? '1' : '0',
             in_array(mb_strtolower($type), ['number', 'integer', 'int']) => (int) $value,
             default => (string) $value,
         };
