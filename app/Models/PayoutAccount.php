@@ -11,6 +11,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class PayoutAccount extends Model
 {
     protected $fillable = [
+        'provider',
+        'country',
+        'method',
+        'status',
         'bank_code',
         'bank_name',
         'account_number',
@@ -29,9 +33,21 @@ class PayoutAccount extends Model
     /**
      * The account number with all but the last four digits hidden.
      */
-    public function maskedNumber(): string
+    public function maskedNumber(): ?string
     {
+        if (! $this->account_number) {
+            return null;
+        }
+
         return str($this->account_number)->mask('*', 0, -4)->toString();
+    }
+
+    /**
+     * Whether payouts can be sent to it. A provider-hosted account is pending until onboarding is done.
+     */
+    public function isActive(): bool
+    {
+        return $this->status === 'active' && (bool) $this->recipient_code;
     }
 
     /**
@@ -42,6 +58,9 @@ class PayoutAccount extends Model
     public function snapshot(): array
     {
         return [
+            'provider' => $this->provider,
+            'country' => $this->country,
+            'method' => $this->method,
             'bank_code' => $this->bank_code,
             'bank_name' => $this->bank_name,
             'account_number' => $this->maskedNumber(),

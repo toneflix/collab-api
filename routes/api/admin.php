@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\GenreController;
 use App\Http\Controllers\Admin\ModerationController;
 use App\Http\Controllers\Admin\PayoutController;
+use App\Http\Controllers\Admin\PayoutSettingsController;
 use App\Http\Controllers\Admin\PlanController;
 use App\Http\Controllers\Admin\RealtimeSettingsController;
 use App\Http\Controllers\Admin\SoundSettingsController;
@@ -32,6 +33,8 @@ Route::middleware(['auth:sanctum'])->prefix('admin')->name('admin.')->group(func
 
     // Creators' withdrawal requests
     Route::get('payouts', [PayoutController::class, 'index'])->name('payouts.index');
+    Route::get('payouts/settings', [PayoutSettingsController::class, 'show'])->name('payouts.settings.show');
+    Route::put('payouts/settings', [PayoutSettingsController::class, 'update'])->name('payouts.settings.update');
     Route::post('payouts/{payout}/approve', [PayoutController::class, 'approve'])->name('payouts.approve');
     Route::post('payouts/{payout}/reject', [PayoutController::class, 'reject'])->name('payouts.reject');
     Route::post('payouts/{payout}/sync', [PayoutController::class, 'sync'])->name('payouts.sync');

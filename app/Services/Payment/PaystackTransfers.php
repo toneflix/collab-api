@@ -5,7 +5,7 @@ namespace App\Services\Payment;
 use Yabacon\Paystack\Contracts\RouteInterface;
 
 /**
- * The Paystack endpoints payouts use: banks, account lookup, recipients and transfers.
+ * The Paystack endpoints payouts use: banks, account checks, recipients and transfers.
  */
 class PaystackTransfers implements RouteInterface
 {
@@ -19,7 +19,7 @@ class PaystackTransfers implements RouteInterface
         return [
             RouteInterface::METHOD_KEY => RouteInterface::GET_METHOD,
             RouteInterface::ENDPOINT_KEY => '/bank',
-            RouteInterface::PARAMS_KEY => ['currency', 'perPage', 'use_cursor', 'next'],
+            RouteInterface::PARAMS_KEY => ['currency', 'type', 'enabled_for_verification', 'perPage', 'use_cursor', 'next'],
         ];
     }
 
@@ -29,6 +29,15 @@ class PaystackTransfers implements RouteInterface
             RouteInterface::METHOD_KEY => RouteInterface::GET_METHOD,
             RouteInterface::ENDPOINT_KEY => '/bank/resolve',
             RouteInterface::PARAMS_KEY => ['account_number', 'bank_code'],
+        ];
+    }
+
+    public static function validateAccount()
+    {
+        return [
+            RouteInterface::METHOD_KEY => RouteInterface::POST_METHOD,
+            RouteInterface::ENDPOINT_KEY => '/bank/validate',
+            RouteInterface::PARAMS_KEY => ['account_name', 'account_number', 'account_type', 'bank_code', 'country_code', 'document_type', 'document_number'],
         ];
     }
 

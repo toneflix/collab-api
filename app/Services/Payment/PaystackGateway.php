@@ -7,7 +7,7 @@ use Illuminate\Validation\ValidationException;
 use Yabacon\Paystack;
 use Yabacon\Paystack\Exception\ApiException;
 
-class PaystackGateway implements PaymentGateway, PayoutGateway
+class PaystackGateway implements CollectsBankDetails, PaymentGateway, PayoutGateway
 {
     protected function secret(): string
     {
@@ -106,12 +106,69 @@ class PaystackGateway implements PaymentGateway, PayoutGateway
         }
     }
 
-    public function banks(string $currency): array
+    /**
+     * Paystack only pays accounts in the country of the business, in its currency.
+     */
+    protected const COUNTRIES = ['NGN' => 'NG', 'GHS' => 'GH', 'KES' => 'KE', 'ZAR' => 'ZA'];
+
+    public function key(): string
     {
-        $response = $this->call('bank_code', fn ($api) => $api->banks(['currency' => $currency, 'perPage' => 100, 'use_cursor' => 'false']));
+        return 'paystack';
+    }
+
+    public function countries(): array
+    {
+        $currency = (string) Providers::config('app_currency', 'NGN');
+        $country = self::COUNTRIES[$currency] ?? null;
+
+        return $country ? [$country => $currency] : [];
+    }
+
+    public function currencyFor(string $country): string
+    {
+        return (string) (array_search($country, self::COUNTRIES, true) ?: '');
+    }
+
+    public function methods(string $country): array
+    {
+        $bank = fn (string $type, string $lookup, string $pattern = '^\d{6,20}$') => new PayoutMethod('bank', 'Bank account', $type, $lookup, numberPattern: $pattern);
+        $mobile = fn (string $label) => new PayoutMethod('mobile_money', $label, 'mobile_money', PayoutMethod::LOOKUP_NONE, 'Phone number', '^\+?\d{9,15}$', 'Network');
+
+        return match ($country) {
+            'NG' => [$bank('nuban', PayoutMethod::LOOKUP_RESOLVE, '^\d{10}$')],
+            'GH' => [$bank('ghipss', PayoutMethod::LOOKUP_RESOLVE), $mobile('Mobile money')],
+            'KE' => [$bank('kepss', PayoutMethod::LOOKUP_NONE), $mobile('M-Pesa')],
+            'ZA' => [$bank('basa', PayoutMethod::LOOKUP_VALIDATE)],
+            default => [],
+        };
+    }
+
+    public function rate(string $from, string $to): float
+    {
+        if (strtoupper($from) !== strtoupper($to)) {
+            throw ValidationException::withMessages(['payout' => 'Paystack can only pay out in '.$from.'.']);
+        }
+
+        return 1.0;
+    }
+
+    public function banks(string $country, PayoutMethod $method): array
+    {
+        $currency = array_search($country, self::COUNTRIES, true) ?: 'NGN';
+        $query = array_filter([
+            'currency' => $currency,
+            'type' => $method->key === 'mobile_money' ? 'mobile_money' : null,
+            'enabled_for_verification' => $method->lookup === PayoutMethod::LOOKUP_VALIDATE ? 'true' : null,
+            'perPage' => 100,
+            'use_cursor' => 'false',
+        ]);
+
+        $response = $this->call('bank_code', fn ($api) => $api->banks($query));
 
         return collect($response->data ?? [])
             ->filter(fn ($bank) => ($bank->active ?? true) && ! ($bank->is_deleted ?? false))
+            // Paystack can't pay into the central bank of Ghana
+            ->reject(fn ($bank) => $country === 'GH' && str_contains(strtolower((string) $bank->name), 'bank of ghana'))
             ->map(fn ($bank) => ['name' => (string) $bank->name, 'code' => (string) $bank->code])
             ->unique('code')
             ->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)
@@ -119,39 +176,61 @@ class PaystackGateway implements PaymentGateway, PayoutGateway
             ->all();
     }
 
-    public function resolveAccount(string $accountNumber, string $bankCode): string
+    public function lookup(string $country, PayoutMethod $method, string $bankCode, string $accountNumber, array $details = []): string
     {
-        $response = $this->call('account_number', fn ($api) => $api->resolveAccount([
-            'account_number' => $accountNumber,
-            'bank_code' => $bankCode,
-        ]));
+        if ($method->lookup === PayoutMethod::LOOKUP_RESOLVE) {
+            $response = $this->call('account_number', fn ($api) => $api->resolveAccount([
+                'account_number' => $accountNumber,
+                'bank_code' => $bankCode,
+            ]));
 
-        return (string) ($response->data->account_name ?? '');
+            return (string) ($response->data->account_name ?? '');
+        }
+
+        if ($method->lookup === PayoutMethod::LOOKUP_VALIDATE) {
+            $response = $this->call('account_number', fn ($api) => $api->validateAccount([
+                'account_name' => $details['account_name'] ?? '',
+                'account_number' => $accountNumber,
+                'account_type' => $details['account_type'] ?? 'personal',
+                'bank_code' => $bankCode,
+                'country_code' => $country,
+                'document_type' => $details['document_type'] ?? 'identityNumber',
+                'document_number' => $details['document_number'] ?? '',
+            ]));
+
+            if (! ($response->data->verified ?? false)) {
+                throw ValidationException::withMessages([
+                    'account_number' => (string) ($response->data->verificationMessage ?? 'The bank couldn\'t confirm these details.'),
+                ]);
+            }
+        }
+
+        return (string) ($details['account_name'] ?? '');
     }
 
-    public function createRecipient(string $name, string $accountNumber, string $bankCode, string $currency): string
+    public function createRecipient(string $country, PayoutMethod $method, string $name, string $bankCode, string $accountNumber): string
     {
         $response = $this->call('account_number', fn ($api) => $api->createRecipient([
-            'type' => 'nuban',
+            'type' => $method->recipientType,
             'name' => $name,
             'account_number' => $accountNumber,
             'bank_code' => $bankCode,
-            'currency' => $currency,
+            'currency' => array_search($country, self::COUNTRIES, true) ?: 'NGN',
         ]));
 
         return (string) $response->data->recipient_code;
     }
 
-    public function transfer(float $amount, string $currency, string $recipientCode, string $reference, string $reason): array
+    public function transfer(PayoutTransfer $transfer): array
     {
         try {
             $response = $this->transfers()->payouts->initiate([
                 'source' => 'balance',
-                'amount' => (int) round($amount * 100), // kobo
-                'currency' => $currency,
-                'recipient' => $recipientCode,
-                'reference' => $reference,
-                'reason' => $reason,
+                'amount' => (int) round($transfer->amount * 100), // kobo
+                'currency' => $transfer->currency,
+                'recipient' => $transfer->recipient,
+                'reference' => $transfer->reference,
+                'reason' => $transfer->reason,
             ]);
         } catch (ApiException $e) {
             throw ValidationException::withMessages(['payout' => $e->getMessage()]);
@@ -167,7 +246,7 @@ class PaystackGateway implements PaymentGateway, PayoutGateway
         return $this->transferResult($response->data ?? null);
     }
 
-    public function verifyTransfer(string $reference): array
+    public function verifyTransfer(string $reference, ?string $transferCode = null): array
     {
         try {
             $response = $this->transfers()->payouts->verify(['reference' => $reference]);

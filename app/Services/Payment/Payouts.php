@@ -17,12 +17,12 @@ use Illuminate\Validation\ValidationException;
 use Valorin\Random\Random;
 
 /**
- * Creators' withdrawable balance, the bank account they withdraw to, and the
- * life of each withdrawal from request to the money landing in their bank.
+ * Creators' withdrawable balance, the account they withdraw to, and the life
+ * of each withdrawal from request to the money landing in their account.
  */
 class Payouts
 {
-    public function __construct(protected PayoutGateway $gateway) {}
+    public function __construct(protected PayoutProviders $providers) {}
 
     public function currency(): string
     {
@@ -79,20 +79,36 @@ class Payouts
     }
 
     /**
-     * Banks creators can withdraw to.
+     * Countries creators can be paid in, with how.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function countries(): array
+    {
+        return $this->providers->countries();
+    }
+
+    /**
+     * Banks or mobile money networks for a way of getting paid in a country.
      *
      * @return array<int, array{name: string, code: string}>
      */
-    public function banks(): array
+    public function banks(string $country, string $method): array
     {
-        $currency = $this->currency();
-        $key = "payouts:banks:{$currency}";
+        $gateway = $this->providers->forCountry($country);
+        $payoutMethod = $this->providers->method($country, $method);
+
+        if (! $gateway instanceof CollectsBankDetails) {
+            return [];
+        }
+
+        $key = "payouts:banks:{$gateway->key()}:{$country}:{$method}";
 
         if ($banks = Cache::get($key)) {
             return $banks;
         }
 
-        $banks = $this->gateway->banks($currency);
+        $banks = $gateway->banks($country, $payoutMethod);
 
         if ($banks) {
             Cache::put($key, $banks, now()->addDay());
@@ -102,20 +118,38 @@ class Payouts
     }
 
     /**
-     * Look up the name on an account so the creator can confirm it before saving.
+     * Check an account so the creator can confirm the name before saving.
      *
+     * @param  array<string, string|null>  $details  account_name, and for some countries ID details
      * @return array{account_name: string, account_number: string, bank_code: string, bank_name: string}
      */
-    public function resolve(string $bankCode, string $accountNumber): array
+    public function resolve(string $country, string $method, string $bankCode, string $accountNumber, array $details = []): array
     {
-        $bank = collect($this->banks())->firstWhere('code', $bankCode);
+        $gateway = $this->providers->forCountry($country);
+        $payoutMethod = $this->providers->method($country, $method);
 
-        if (! $bank) {
-            throw ValidationException::withMessages(['bank_code' => 'Choose a bank from the list.']);
+        if (! $gateway instanceof CollectsBankDetails) {
+            throw ValidationException::withMessages(['method' => 'Set this account up with the provider instead.']);
         }
 
+        if (! $payoutMethod->validNumber($accountNumber)) {
+            throw ValidationException::withMessages(['account_number' => "Check the {$payoutMethod->numberLabel}."]);
+        }
+
+        if ($payoutMethod->lookup !== PayoutMethod::LOOKUP_RESOLVE && blank($details['account_name'] ?? null)) {
+            throw ValidationException::withMessages(['account_name' => 'Enter the name on the account.']);
+        }
+
+        $bank = collect($this->banks($country, $method))->firstWhere('code', $bankCode);
+
+        if (! $bank) {
+            throw ValidationException::withMessages(['bank_code' => 'Choose from the list.']);
+        }
+
+        $name = $gateway->lookup($country, $payoutMethod, $bankCode, $accountNumber, $details);
+
         return [
-            'account_name' => $this->gateway->resolveAccount($accountNumber, $bankCode),
+            'account_name' => $name ?: (string) ($details['account_name'] ?? ''),
             'account_number' => $accountNumber,
             'bank_code' => $bankCode,
             'bank_name' => $bank['name'],
@@ -123,27 +157,94 @@ class Payouts
     }
 
     /**
-     * Save the account the creator gets paid into, registered with the provider.
+     * Save the bank or mobile money account the creator gets paid into, registered with the provider.
+     *
+     * @param  array<string, string|null>  $details
      */
-    public function saveAccount(User $user, string $bankCode, string $accountNumber): PayoutAccount
+    public function saveAccount(User $user, string $country, string $method, string $bankCode, string $accountNumber, array $details = []): PayoutAccount
     {
-        $details = $this->resolve($bankCode, $accountNumber);
+        $gateway = $this->providers->forCountry($country);
+        $resolved = $this->resolve($country, $method, $bankCode, $accountNumber, $details);
         $current = $user->payoutAccount()->first();
 
         $unchanged = $current
             && $current->recipient_code
+            && $current->provider === $gateway->key()
+            && $current->method === $method
             && $current->bank_code === $bankCode
-            && $current->account_number === $accountNumber;
+            && $current->account_number === $accountNumber
+            && $current->account_name === $resolved['account_name'];
 
+        /** @var CollectsBankDetails $gateway */
         $recipient = $unchanged
             ? $current->recipient_code
-            : $this->gateway->createRecipient($details['account_name'], $accountNumber, $bankCode, $this->currency());
+            : $gateway->createRecipient($country, $this->providers->method($country, $method), $resolved['account_name'], $bankCode, $accountNumber);
 
         return $user->payoutAccount()->updateOrCreate([], [
-            ...$details,
-            'currency' => $this->currency(),
+            ...$resolved,
+            'provider' => $gateway->key(),
+            'country' => $country,
+            'method' => $method,
+            'currency' => $gateway->currencyFor($country),
             'recipient_code' => $recipient,
+            'status' => 'active',
         ]);
+    }
+
+    /**
+     * Start or continue the provider's own onboarding for the creator, and return its link.
+     */
+    public function connect(User $user, string $country, string $returnUrl): string
+    {
+        $gateway = $this->providers->forCountry($country);
+
+        if (! $gateway instanceof HostsPayoutAccounts) {
+            throw ValidationException::withMessages(['country' => 'Add your account details here instead.']);
+        }
+
+        $current = $user->payoutAccount()->first();
+        $existing = $current?->provider === $gateway->key() && $current->country === $country ? $current->recipient_code : null;
+
+        $link = $gateway->onboard($user, $country, $existing, $returnUrl);
+
+        $user->payoutAccount()->updateOrCreate([], [
+            'provider' => $gateway->key(),
+            'country' => $country,
+            'method' => 'hosted',
+            'currency' => $gateway->currencyFor($country),
+            'recipient_code' => $link['account_id'],
+            'status' => $existing && $current->status === 'active' ? 'active' : 'pending',
+            'bank_code' => null,
+            'bank_name' => null,
+            'account_number' => null,
+            'account_name' => $user->fullname ?: $user->username,
+        ]);
+
+        return $link['url'];
+    }
+
+    /**
+     * The creator's account, with a hosted account's onboarding checked again while it is pending.
+     */
+    public function account(User $user): ?PayoutAccount
+    {
+        $account = $user->payoutAccount()->first();
+
+        if ($account?->status !== 'pending' || ! $account->recipient_code) {
+            return $account;
+        }
+
+        $gateway = $this->providers->get($account->provider);
+
+        try {
+            if ($gateway instanceof HostsPayoutAccounts && $gateway->ready($account->recipient_code)) {
+                $account->update(['status' => 'active']);
+            }
+        } catch (ValidationException) {
+            // The provider can't be reached; it stays pending until the next look.
+        }
+
+        return $account;
     }
 
     /**
@@ -160,7 +261,11 @@ class Payouts
             $account = $user->payoutAccount()->first();
 
             if (! $account?->recipient_code) {
-                throw ValidationException::withMessages(['account' => 'Add the bank account to pay into first.']);
+                throw ValidationException::withMessages(['account' => 'Add the account to pay into first.']);
+            }
+
+            if ($account->status !== 'active') {
+                throw ValidationException::withMessages(['account' => 'Finish setting up your payout account first.']);
             }
 
             if ($amount < $this->minimum()) {
@@ -176,6 +281,7 @@ class Payouts
                 'amount' => $amount,
                 'currency' => $this->currency(),
                 'status' => PayoutStatus::PENDING,
+                'provider' => $account->provider,
                 'destination' => $account->snapshot(),
             ]);
         });
@@ -231,7 +337,7 @@ class Payouts
             return $payout;
         }
 
-        $result = $this->gateway->verifyTransfer($payout->reference);
+        $result = $this->providers->get($payout->provider)->verifyTransfer($payout->reference, $payout->transfer_code);
 
         // The first attempt never reached the provider. The reference stays the same, so this can't pay twice.
         if ($result['status'] === 'missing') {
@@ -275,18 +381,47 @@ class Payouts
     protected function transfer(Payout $payout): Payout
     {
         try {
-            $result = $this->gateway->transfer(
-                $payout->amount,
-                $payout->currency,
-                (string) $payout->destination->get('recipient_code'),
-                $payout->reference,
-                'Toneflix earnings withdrawal',
-            );
+            $gateway = $this->providers->get($payout->provider);
+            $payout = $this->convert($payout, $gateway);
+
+            $result = $gateway->transfer(new PayoutTransfer(
+                amount: (float) $payout->payout_amount,
+                currency: (string) $payout->payout_currency,
+                sourceCurrency: $payout->currency,
+                recipient: (string) $payout->destination->get('recipient_code'),
+                reference: $payout->reference,
+                reason: config('app.name').' earnings withdrawal',
+                country: (string) $payout->destination->get('country'),
+                method: (string) $payout->destination->get('method', 'bank'),
+                destination: $payout->destination->all(),
+            ));
         } catch (ValidationException $e) {
             $result = ['status' => 'failed', 'transfer_code' => null, 'reason' => $e->getMessage(), 'raw' => []];
         }
 
         return $this->settle($payout, $result);
+    }
+
+    /**
+     * Work out what the creator receives in the currency they are paid in. The rate
+     * is fixed the first time, so a retry sends the same amount.
+     */
+    protected function convert(Payout $payout, PayoutGateway $gateway): Payout
+    {
+        if ($payout->payout_amount !== null) {
+            return $payout;
+        }
+
+        $to = $gateway->currencyFor((string) $payout->destination->get('country')) ?: $payout->currency;
+        $rate = $gateway->rate($payout->currency, $to);
+
+        $payout->forceFill([
+            'payout_currency' => $to,
+            'exchange_rate' => $rate,
+            'payout_amount' => round($payout->amount * $rate, 2),
+        ])->save();
+
+        return $payout;
     }
 
     /**

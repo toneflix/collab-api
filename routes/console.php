@@ -17,7 +17,7 @@ Schedule::command('realtime:prune')->hourly()->withoutOverlapping();
 // Top up the shared sound library from Freesound (CC0 only).
 Schedule::command('sounds:sync')->dailyAt('03:30')->withoutOverlapping()->runInBackground();
 
-// Settle payouts whose Paystack webhook never arrived.
+// Settle payouts whose provider webhook never arrived.
 Schedule::command('payouts:sync')->everyThirtyMinutes()->withoutOverlapping();
 
 // Drop track versions older than each owner's plan keeps.

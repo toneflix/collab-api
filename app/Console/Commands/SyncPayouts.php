@@ -8,7 +8,7 @@ use App\Services\Payment\Payouts;
 use Illuminate\Console\Command;
 
 /**
- * Checks with Paystack on payouts whose webhook hasn't arrived.
+ * Checks with the provider on payouts whose webhook hasn't arrived.
  */
 class SyncPayouts extends Command
 {

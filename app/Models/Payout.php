@@ -23,6 +23,10 @@ class Payout extends Model
         'reference',
         'amount',
         'currency',
+        'provider',
+        'payout_amount',
+        'payout_currency',
+        'exchange_rate',
         'status',
         'destination',
         'transfer_code',
@@ -37,6 +41,8 @@ class Payout extends Model
     {
         return [
             'amount' => 'float',
+            'payout_amount' => 'float',
+            'exchange_rate' => 'float',
             'status' => PayoutStatus::class,
             'destination' => 'collection',
             'gateway_response' => 'array',
