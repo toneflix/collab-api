@@ -5,7 +5,8 @@ namespace App\Enums;
 /**
  * Everything a subscription plan can grant or limit.
  *
- * Toggles are on or off. Limits are numbers, where 0 means no limit.
+ * Toggles are on or off. Limits are numbers, where 0 means no limit. Credits
+ * are an amount given each month, where 0 means none.
  * To gate something new, add a case here, give it defaults, and check it with
  * $user->feature(Feature::X) or Limits::for($user).
  */
@@ -21,6 +22,8 @@ enum Feature: string
     case MAX_STEM_SIZE = 'max_stem_size';
     case MAX_STORAGE = 'max_storage';
     case HISTORY_DAYS = 'history_days';
+    case AI_TOOLS = 'ai_tools';
+    case AI_CREDITS = 'ai_credits';
 
     public function title(): string
     {
@@ -35,6 +38,8 @@ enum Feature: string
             self::MAX_STEM_SIZE => 'Largest stem upload',
             self::MAX_STORAGE => 'Sound storage',
             self::HISTORY_DAYS => 'Version history',
+            self::AI_TOOLS => 'AI studio tools',
+            self::AI_CREDITS => 'AI credits',
         };
     }
 
@@ -51,16 +56,20 @@ enum Feature: string
             self::MAX_STEM_SIZE => 'The largest stem file you can upload.',
             self::MAX_STORAGE => 'Space for your own sounds, uploaded or imported from Freesound.',
             self::HISTORY_DAYS => 'How long earlier versions of your project tracks are kept.',
+            self::AI_TOOLS => 'Generate music and split tracks into stems with AI.',
+            self::AI_CREDITS => 'Credits for AI tools each month. Bought credits come on top and never expire.',
         };
     }
 
     /**
-     * toggle (on or off) or limit (a number, 0 means no limit).
+     * toggle (on or off), limit (a number, 0 means no limit) or credits
+     * (an amount each month, 0 means none).
      */
     public function type(): string
     {
         return match ($this) {
             self::MAX_PROJECTS, self::MAX_COLLABORATORS, self::MAX_STEM_SIZE, self::MAX_STORAGE, self::HISTORY_DAYS => 'limit',
+            self::AI_CREDITS => 'credits',
             default => 'toggle',
         };
     }
@@ -70,6 +79,7 @@ enum Feature: string
         return match ($this) {
             self::MAX_STEM_SIZE, self::MAX_STORAGE => 'MB',
             self::HISTORY_DAYS => 'days',
+            self::AI_CREDITS => 'credits',
             default => null,
         };
     }
@@ -80,13 +90,14 @@ enum Feature: string
     public function fallback(): bool|int
     {
         return match ($this) {
-            self::DOWNLOADS, self::BADGE => false,
+            self::DOWNLOADS, self::BADGE, self::AI_TOOLS => false,
             self::SELL_RELEASES, self::SELL_STEMS, self::RECEIVE_TIPS => true,
             self::MAX_PROJECTS => 10,
             self::MAX_COLLABORATORS => 5,
             self::MAX_STEM_SIZE => 50,
             self::MAX_STORAGE => 200,
             self::HISTORY_DAYS => 30,
+            self::AI_CREDITS => 0,
         };
     }
 
