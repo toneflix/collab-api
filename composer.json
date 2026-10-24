@@ -36,9 +36,9 @@
         "toneflix/approvable-notifications": "^2.0",
         "toneflix/kudisms-notification": "^2.0",
         "toneflix/laravel-fileable": "^3.0",
+        "toneflix/paystack-php": "^1.0",
         "toneflix/social-interactions": "^2.0",
-        "valorin/random": "^1.0",
-        "yabacon/paystack-php": "^2.2"
+        "valorin/random": "^1.0"
     },
     "require-dev": {
         "fakerphp/faker": "^1.24",

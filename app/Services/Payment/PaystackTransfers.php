@@ -2,69 +2,58 @@
 
 namespace App\Services\Payment;
 
-use Yabacon\Paystack\Contracts\RouteInterface;
+use Toneflix\Paystack\Resources\AbstractResource;
 
 /**
  * The Paystack endpoints payouts use: banks, account checks, recipients and transfers.
  */
-class PaystackTransfers implements RouteInterface
+class PaystackTransfers extends AbstractResource
 {
-    public static function root()
+    /**
+     * @param  array<string, mixed>  $query
+     */
+    public function banks(array $query): object
     {
-        return '';
+        return $this->client->request('GET', '/bank', $query);
     }
 
-    public static function banks()
+    /**
+     * @param  array{account_number: string, bank_code: string}  $query
+     */
+    public function resolveAccount(array $query): object
     {
-        return [
-            RouteInterface::METHOD_KEY => RouteInterface::GET_METHOD,
-            RouteInterface::ENDPOINT_KEY => '/bank',
-            RouteInterface::PARAMS_KEY => ['currency', 'type', 'enabled_for_verification', 'perPage', 'use_cursor', 'next'],
-        ];
+        return $this->client->request('GET', '/bank/resolve', $query);
     }
 
-    public static function resolveAccount()
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function validateAccount(array $payload): object
     {
-        return [
-            RouteInterface::METHOD_KEY => RouteInterface::GET_METHOD,
-            RouteInterface::ENDPOINT_KEY => '/bank/resolve',
-            RouteInterface::PARAMS_KEY => ['account_number', 'bank_code'],
-        ];
+        return $this->client->request('POST', '/bank/validate', $payload);
     }
 
-    public static function validateAccount()
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function createRecipient(array $payload): object
     {
-        return [
-            RouteInterface::METHOD_KEY => RouteInterface::POST_METHOD,
-            RouteInterface::ENDPOINT_KEY => '/bank/validate',
-            RouteInterface::PARAMS_KEY => ['account_name', 'account_number', 'account_type', 'bank_code', 'country_code', 'document_type', 'document_number'],
-        ];
+        return $this->client->transferrecipient->create($payload);
     }
 
-    public static function createRecipient()
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function initiate(array $payload): object
     {
-        return [
-            RouteInterface::METHOD_KEY => RouteInterface::POST_METHOD,
-            RouteInterface::ENDPOINT_KEY => '/transferrecipient',
-            RouteInterface::PARAMS_KEY => ['type', 'name', 'account_number', 'bank_code', 'currency'],
-        ];
+        return $this->client->transfer->initiate($payload);
     }
 
-    public static function initiate()
+    /**
+     * @param  array{reference: string}  $payload
+     */
+    public function verify(array $payload): object
     {
-        return [
-            RouteInterface::METHOD_KEY => RouteInterface::POST_METHOD,
-            RouteInterface::ENDPOINT_KEY => '/transfer',
-            RouteInterface::PARAMS_KEY => ['source', 'amount', 'currency', 'recipient', 'reference', 'reason'],
-        ];
-    }
-
-    public static function verify()
-    {
-        return [
-            RouteInterface::METHOD_KEY => RouteInterface::GET_METHOD,
-            RouteInterface::ENDPOINT_KEY => '/transfer/verify/{reference}',
-            RouteInterface::ARGS_KEY => ['reference'],
-        ];
+        return $this->client->request('GET', '/transfer/verify/'.rawurlencode($payload['reference']));
     }
 }

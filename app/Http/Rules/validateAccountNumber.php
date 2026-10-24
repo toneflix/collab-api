@@ -3,11 +3,13 @@
 namespace App\Http\Rules;
 
 use App\Helpers\Providers;
+use App\Services\Payment\PaystackTransfers;
 use Closure;
 use Illuminate\Contracts\Validation\DataAwareRule;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Support\Arr;
-use Yabacon\Paystack;
+use Toneflix\Paystack\Exception\ApiException;
+use Toneflix\Paystack\Paystack;
 
 class validateAccountNumber implements DataAwareRule, ValidationRule
 {
@@ -36,13 +38,13 @@ class validateAccountNumber implements DataAwareRule, ValidationRule
         $key = str($attribute)->beforeLast('.')->append('.bank_code')->toString();
 
         try {
-            $paystack->bank->resolve([
+            (new PaystackTransfers($paystack))->resolveAccount([
                 'account_number' => $value,
                 'bank_code' => $this->data['bank_code'] ??
                     $this->data['user_data']['bank']['bank_code'] ??
                     Arr::dot($this->data)[$key] ?? '',
             ]);
-        } catch (\Yabacon\Paystack\Exception\PaystackException $th) {
+        } catch (ApiException) {
             $fail('We could not find your account number.');
         }
     }
