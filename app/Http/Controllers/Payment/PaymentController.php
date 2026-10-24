@@ -6,9 +6,11 @@ use App\Enums\HttpStatus;
 use App\Helpers\Providers;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\TransactionResource;
+use App\Models\Payout;
 use App\Models\Transaction;
 use App\Services\Payment\Checkout;
 use App\Services\Payment\PaymentGateway;
+use App\Services\Payment\Payouts;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -61,9 +63,10 @@ class PaymentController extends Controller
     }
 
     /**
-     * Paystack calls this when a charge succeeds, even if the customer closed the page.
+     * Paystack calls this when a charge succeeds, even if the customer closed the page,
+     * and when a payout transfer succeeds, fails or is reversed.
      */
-    public function webhook(Request $request, Checkout $checkout, PaymentGateway $gateway)
+    public function webhook(Request $request, Checkout $checkout, PaymentGateway $gateway, Payouts $payouts)
     {
         if (! $gateway->validWebhook($request->getContent(), $request->header('x-paystack-signature'))) {
             abort(HttpStatus::UNAUTHORIZED->value, 'Invalid signature.');
@@ -75,6 +78,14 @@ class PaymentController extends Controller
             // Ask Paystack directly rather than trusting the webhook body.
             if ($transaction) {
                 $checkout->verify($transaction);
+            }
+        }
+
+        if (str_starts_with((string) $request->input('event'), 'transfer.')) {
+            $payout = Payout::where('reference', $request->input('data.reference'))->first();
+
+            if ($payout) {
+                $payouts->sync($payout);
             }
         }
 

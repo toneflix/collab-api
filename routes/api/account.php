@@ -4,6 +4,8 @@ use App\Helpers\Providers;
 use App\Http\Controllers\Account;
 use App\Http\Controllers\Account\BlockController;
 use App\Http\Controllers\Account\NotificationController;
+use App\Http\Controllers\Account\PayoutAccountController;
+use App\Http\Controllers\Account\PayoutController;
 use App\Http\Controllers\Account\PaymentsController;
 use App\Http\Controllers\NotificationRequestController;
 use App\Http\Controllers\SafetyController;
@@ -19,6 +21,15 @@ Route::middleware(['auth:sanctum'])
         Route::get('purchases', [PaymentsController::class, 'purchases'])->name('purchases');
         Route::get('earnings', [PaymentsController::class, 'earnings'])->name('earnings');
         Route::get('subscription', [PaymentsController::class, 'subscription'])->name('subscription');
+
+        // Withdrawing earnings
+        Route::get('payouts/banks', [PayoutAccountController::class, 'banks'])->name('payouts.banks');
+        Route::get('payouts/account', [PayoutAccountController::class, 'show'])->name('payouts.account.show');
+        Route::post('payouts/account/resolve', [PayoutAccountController::class, 'resolve'])->middleware('throttle:20,1')->name('payouts.account.resolve');
+        Route::put('payouts/account', [PayoutAccountController::class, 'update'])->middleware('throttle:10,1')->name('payouts.account.update');
+        Route::delete('payouts/account', [PayoutAccountController::class, 'destroy'])->name('payouts.account.destroy');
+        Route::apiResource('payouts', PayoutController::class)->only(['index', 'store', 'destroy']);
+
         Route::apiResource('notifications', NotificationController::class)->only(['index', 'destroy']);
         Route::apiResource('/notification-requests', NotificationRequestController::class)->except(['store']);
         Route::middleware(['throttle:code-requests'])->post('request/otp', function (Request $request) {

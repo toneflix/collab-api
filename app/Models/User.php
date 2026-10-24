@@ -518,6 +518,22 @@ class User extends Authenticatable implements Commentator
     }
 
     /**
+     * The bank account the creator withdraws earnings to.
+     */
+    public function payoutAccount(): HasOne
+    {
+        return $this->hasOne(PayoutAccount::class);
+    }
+
+    /**
+     * The creator's withdrawals.
+     */
+    public function payouts(): HasMany
+    {
+        return $this->hasMany(Payout::class);
+    }
+
+    /**
      * Payments other people made that this creator earns from.
      */
     public function earnings(): HasMany
