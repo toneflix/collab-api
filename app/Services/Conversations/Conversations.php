@@ -13,6 +13,7 @@ use App\Services\Realtime\Realtime;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Toneflix\LaravelFileable\Media;
 
 /**
  * Conversations are the comments on a project, project track, track or
@@ -96,9 +97,13 @@ class Conversations
             'userId' => $comment->user_id,
             'parent' => $parent ? [
                 'id' => $parent->id,
-                'body' => str($parent->comment)->limit(140)->toString(),
+                'body' => static::preview($parent, 140),
                 'user' => static::person($parent->commentator),
+                'region' => static::region($parent),
+                'hasVoice' => ! empty($parent->meta['voice']),
             ] : null,
+            'voice' => static::voice($comment),
+            'region' => static::region($comment),
             'conversation' => $comment->root_type ? [
                 'type' => static::typeOf($comment->root_type),
                 'id' => $comment->root_id,
@@ -110,6 +115,63 @@ class Conversations
                 ->count(),
             'createdAt' => $comment->created_at,
         ];
+    }
+
+    /**
+     * A voice note attached to a message, with a link to play it.
+     *
+     * @return array{url: string, duration: float, waveform: array<int, float>, mime: string|null}|null
+     */
+    public static function voice(Comment $comment): ?array
+    {
+        $voice = $comment->meta['voice'] ?? null;
+        if (! $voice || empty($voice['file'])) {
+            return null;
+        }
+
+        return [
+            'url' => (new Media)->mediaInfo('voice_notes', $voice['file'])['dynamicLink'],
+            'duration' => (float) ($voice['duration'] ?? 0),
+            'waveform' => $voice['waveform'] ?? [],
+            'mime' => $voice['mime'] ?? null,
+        ];
+    }
+
+    /**
+     * The part of a project track a message is about.
+     *
+     * @return array<string, mixed>|null
+     */
+    public static function region(Comment $comment): ?array
+    {
+        return $comment->meta['region'] ?? null;
+    }
+
+    /**
+     * A short text version of a message, for previews and quotes.
+     */
+    public static function preview(Comment $comment, int $limit = 120): string
+    {
+        $text = trim((string) $comment->comment);
+        $voice = $comment->meta['voice'] ?? null;
+
+        if ($text === '' && $voice) {
+            $seconds = (int) round($voice['duration'] ?? 0);
+            $text = sprintf('Voice note (%d:%02d)', intdiv($seconds, 60), $seconds % 60);
+        }
+
+        return str($text)->limit($limit)->toString();
+    }
+
+    /**
+     * Remove a message's voice note file.
+     */
+    public static function forgetVoice(Comment $comment): void
+    {
+        $file = $comment->meta['voice']['file'] ?? null;
+        if ($file) {
+            (new Media)->delete('voice_notes', $file);
+        }
     }
 
     /**
@@ -205,7 +267,7 @@ class Conversations
             return static::subject($root) + [
                 'lastMessage' => $message ? [
                     'id' => $message->id,
-                    'body' => str($message->comment)->limit(120)->toString(),
+                    'body' => static::preview($message, 120),
                     'user' => static::person($message->commentator),
                     'createdAt' => $message->created_at,
                 ] : null,
