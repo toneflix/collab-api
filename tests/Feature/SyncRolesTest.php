@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\User;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
@@ -21,5 +22,18 @@ class SyncRolesTest extends TestCase
         $this->assertSame($all->diff(['manage-admins'])->values()->all(), $permissions('admin'));
         $this->assertSame($all->diff(['manage-plans', 'manage-payouts'])->values()->all(), $permissions('support'));
         $this->assertNotContains('manage-content', $permissions('user'));
+    }
+
+    public function test_roles_are_given_by_name_or_id(): void
+    {
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        $this->artisan('app:sync-roles')->assertSuccessful();
+
+        $user = User::factory()->create();
+        $support = Role::findByName('support', 'web');
+
+        $this->artisan('app:sync-roles', ['users' => [$user->id], '--roles' => ['admin', (string) $support->id]])->assertSuccessful();
+
+        $this->assertEqualsCanonicalizing(['admin', 'support'], $user->fresh()->getRoleNames()->all());
     }
 }
