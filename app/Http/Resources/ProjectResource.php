@@ -27,12 +27,10 @@ class ProjectResource extends JsonResource
             'props' => $this->props,
             'group' => $this->group,
             'tracks' => $this->when(
-                $with->contains('tracks') && !$with->contains('ready'),
-                fn () => new ProjectTrackCollection($this->tracks)
-            ),
-            'tracks' => $this->when(
-                $with->contains('tracks') && $with->contains('ready'),
-                fn () => new ProjectTrackCollection($this->tracksReady)
+                $with->contains('tracks'),
+                fn () => new ProjectTrackCollection(
+                    $this->tracks()->visibleTo($user)->when($with->contains('ready'), fn ($q) => $q->ready())->get()
+                )
             ),
             'isCollaber' => $this->when($user, fn () => $this->isCollaber($user), false),
             'isOwner' => $this->when($user, fn () => $user->id === $this->user_id, false),

@@ -168,6 +168,23 @@ class ProjectTrack extends Model
         return $this->hasMany(ProjectTrackVersion::class, 'track_id');
     }
 
+    /**
+     * Every track for the project's owner and collaborators, public ones for
+     * everyone else.
+     */
+    public function scopeVisibleTo(Builder $query, ?User $user): void
+    {
+        $query->where(function (Builder $query) use ($user) {
+            $query->where('project_tracks.privacy', 'public');
+
+            if ($user) {
+                $query->orWhereHas('project', fn (Builder $q) => $q->where(fn (Builder $q) => $q
+                    ->where('projects.user_id', $user->id)
+                    ->orWhereHas('collaborators', fn (Builder $c) => $c->where('user_id', $user->id)->where('accepted', true))));
+            }
+        });
+    }
+
     public function scopeReady(Builder $query): void
     {
         $query->whereHas('stems', fn (Builder $q) => $q->whereNotNull('src'));

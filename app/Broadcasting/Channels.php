@@ -11,6 +11,7 @@ use App\Models\User;
 use Illuminate\Broadcasting\Broadcasters\Broadcaster;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Gate;
 
 /**
  * The realtime channels and who may listen on them. Every channel is
@@ -60,16 +61,8 @@ class Channels
      */
     public static function canView(User $user, Model $model): bool
     {
-        $project = match (true) {
-            $model instanceof Project => $model,
-            $model instanceof ProjectTrack => $model->project,
-            default => null,
-        };
-
-        if ($project) {
-            return $model->privacy === 'public'
-                || (int) $project->user_id === (int) $user->id
-                || $project->isCollaber($user);
+        if ($model instanceof Project || $model instanceof ProjectTrack) {
+            return Gate::forUser($user)->allows('view', $model);
         }
 
         if ($model->privacy === 'public') {

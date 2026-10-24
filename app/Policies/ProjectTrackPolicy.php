@@ -12,6 +12,24 @@ use Illuminate\Auth\Access\Response;
  */
 class ProjectTrackPolicy
 {
+    /**
+     * Public tracks of a project the user can see, or any track they work on.
+     */
+    public function view(?User $user, ProjectTrack $track): Response
+    {
+        if ($user && $track->project?->canEdit($user)) {
+            return Response::allow();
+        }
+
+        $open = $track->privacy === 'public'
+            && $track->project
+            && (new ProjectPolicy)->view($user, $track->project)->allowed();
+
+        return $open
+            ? Response::allow()
+            : Response::denyAsNotFound('This track is private.');
+    }
+
     public function update(User $user, ProjectTrack $track): Response
     {
         return $this->editable($user, $track);

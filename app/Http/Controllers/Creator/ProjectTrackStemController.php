@@ -25,6 +25,8 @@ class ProjectTrackStemController extends Controller
      */
     public function index(Request $request, Project $project, ProjectTrack $track)
     {
+        $this->authorize('view', $track);
+
         $query = $track->stems()->getQuery();
 
         $stems = $query->get();
@@ -85,6 +87,8 @@ class ProjectTrackStemController extends Controller
      */
     public function show(Project $project, ProjectTrack $track, ProjectTrackStem $stem)
     {
+        $this->authorize('view', $track);
+
         return (new ProjectTrackStemResource($stem))->additional([
             'message' => HttpStatus::message(HttpStatus::OK),
             'status' => 'success',

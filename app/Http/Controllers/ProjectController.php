@@ -58,6 +58,8 @@ class ProjectController extends Controller
      */
     public function show(Project $project)
     {
+        $this->authorize('view', $project);
+
         return (new ProjectResource($project))->additional([
             'message' => HttpStatus::message(HttpStatus::OK),
             'status' => 'success',
