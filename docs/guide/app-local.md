@@ -24,7 +24,7 @@ The committed `.env` already targets a local API at `http://127.0.0.1:8001`:
 ```dotenv
 VITE_APP_ENVIRONMENT = "development"
 VITE_API_ENVIRONMENT = "development"
-VITE_DEV_BASE_URL = "http://127.0.0.1:8001"
+VITE_DEV_API_BASE_URL = "http://127.0.0.1:8001"
 ```
 
 Base URLs are the API's root. The app adds `/api/` itself. To keep personal changes out of git, put them in `.env.local`, which is read after `.env`. All variables are listed in [App .env](../reference/app-env).
@@ -34,7 +34,10 @@ Base URLs are the API's root. The app adds `/api/` itself. To keep personal chan
 ```bash
 yarn dev              # SPA at http://localhost:9001
 yarn quasar dev -m ssr  # SSR at http://localhost:9101
+yarn worker:dev       # SSR on the Workers runtime at http://localhost:8787
 ```
+
+`yarn worker:dev` builds the production SSR app and serves it with wrangler, so it does not reload on changes. See [Production deploy](./production#as-a-cloudflare-worker).
 
 Sign in with `admin@toneflix.ng` / `password` after seeding the API. The admin pages are under `/admin`.
 
@@ -46,7 +49,7 @@ yarn typecheck
 yarn build
 ```
 
-CI runs all three on every pull request (`.github/workflows/checks.yml`).
+CI runs all three on every pull request (`.github/workflows/checks.yml`), and also builds the Cloudflare Worker.
 
 ## Things to know
 
