@@ -183,6 +183,7 @@ class AiMusicTest extends TestCase
         $job = AiJob::findOrFail($id);
         $this->assertSame(AiJob::FAILED, $job->status);
         $this->assertStringContainsString('refunded', $job->error);
+        $this->assertSame('RuntimeException: Model is down', $job->failure);
         $this->assertSame(100, Credits::for($this->owner)->total());
         $this->assertSame(['refund', 'spend'], AiCreditEntry::where('user_id', $this->owner->id)->orderBy('type')->pluck('type')->all());
         $this->assertSame(0, $this->track->stems()->count());

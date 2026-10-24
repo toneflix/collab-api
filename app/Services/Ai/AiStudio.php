@@ -97,13 +97,12 @@ class AiStudio
      */
     public function fail(AiJob $job, Throwable|string $error): AiJob
     {
-        if ($error instanceof Throwable) {
-            Log::warning('AI job failed', ['job' => $job->id, 'kind' => $job->kind, 'error' => $error->getMessage()]);
-        }
+        $this->log($job, $error);
 
         $job->forceFill([
             'status' => AiJob::FAILED,
             'error' => 'Something went wrong while making this. Your credits were refunded.',
+            'failure' => $this->reason($error),
             'finished_at' => now(),
         ])->save();
 
@@ -116,6 +115,43 @@ class AiStudio
         $this->announce($job);
 
         return $job;
+    }
+
+    /**
+     * Note an optional step of a running job that failed, giving back the
+     * credits it cost while the rest of the job carries on.
+     */
+    public function failStep(AiJob $job, Throwable $error, string $step, int $credits): void
+    {
+        $this->log($job, $error, $step);
+
+        $job->forceFill(['failure' => "{$step}: ".$this->reason($error)])->save();
+
+        $spend = $job->creditEntries()->where('type', AiCreditEntry::SPEND)->first();
+
+        if ($spend && $credits > 0) {
+            Credits::for($job->user)->refund($spend, "Refund: {$step}", $credits);
+        }
+    }
+
+    protected function log(AiJob $job, Throwable|string $error, ?string $step = null): void
+    {
+        Log::error('AI job failed', array_filter([
+            'job' => $job->id,
+            'kind' => $job->kind,
+            'step' => $step,
+            'error' => $error instanceof Throwable ? $error->getMessage() : $error,
+            'exception' => $error instanceof Throwable ? $error : null,
+        ]));
+    }
+
+    protected function reason(Throwable|string $error): string
+    {
+        $reason = $error instanceof Throwable
+            ? class_basename($error).': '.$error->getMessage()
+            : $error;
+
+        return str($reason)->limit(2000)->toString();
     }
 
     /**

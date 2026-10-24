@@ -45,6 +45,7 @@ class AiJob extends Model
         'output',
         'credits',
         'error',
+        'failure',
         'started_at',
         'finished_at',
     ];
