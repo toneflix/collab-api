@@ -22,3 +22,6 @@ Schedule::command('payouts:sync')->everyThirtyMinutes()->withoutOverlapping();
 
 // Drop track versions older than each owner's plan keeps.
 Schedule::command('studio:prune-history')->dailyAt('04:00')->withoutOverlapping();
+
+// Refund AI jobs that stopped without finishing.
+Schedule::command('ai:sweep')->everyTenMinutes()->withoutOverlapping();

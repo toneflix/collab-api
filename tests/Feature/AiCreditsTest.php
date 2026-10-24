@@ -49,6 +49,8 @@ class AiCreditsTest extends TestCase
             }
         });
 
+        config(['ai.providers.replicate.key' => 'r8_test']);
+
         AiSettings::update([
             'ai_enabled' => true,
             'ai_credit_price' => 0.02,

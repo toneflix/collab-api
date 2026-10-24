@@ -7,7 +7,7 @@ use App\Services\Settings\SettingsStore;
 
 /**
  * Admin settings for the AI tools: whether they're on, what credits cost and
- * how many credits each tool uses.
+ * how many credits each tool uses. The Replicate token comes from `.env`.
  */
 class AiSettings extends SettingsStore
 {
@@ -36,12 +36,18 @@ class AiSettings extends SettingsStore
         'ai_music_max_seconds' => ['Longest Generated Track (seconds)', '300', 'The longest track people can generate at once.'],
     ];
 
+    public const KEYS = [
+        'replicate' => [
+            'REPLICATE_API_TOKEN' => ['Replicate API Token', 'ai.providers.replicate.key'],
+        ],
+    ];
+
     /**
-     * Whether admins turned the AI tools on.
+     * Whether admins turned the AI tools on and the Replicate token is set.
      */
     public static function enabled(): bool
     {
-        return filter_var(self::get('ai_enabled'), FILTER_VALIDATE_BOOL);
+        return filter_var(self::get('ai_enabled'), FILTER_VALIDATE_BOOL) && self::configured('replicate');
     }
 
     public static function creditPrice(): float

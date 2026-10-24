@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Helpers\Providers;
 use App\Notifications\Channels\PushChannel;
+use App\Services\Ai\Replicate\ReplicateProvider;
 use App\Services\Notifications\WebPush;
 use App\Services\Payment\FlutterwaveGateway;
 use App\Services\Payment\PaymentGateway;
@@ -15,6 +16,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Ai\Ai;
 use Minishlink\WebPush\WebPush as WebPushClient;
 use NotificationChannels\WebPush\ReportHandler;
 use NotificationChannels\WebPush\ReportHandlerInterface;
@@ -58,5 +60,7 @@ class AppServiceProvider extends ServiceProvider
         });
 
         Providers::rateLimitCodeRequests();
+
+        Ai::extend('replicate', fn ($app, array $config) => new ReplicateProvider($config, $app['events']));
     }
 }

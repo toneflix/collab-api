@@ -49,7 +49,11 @@ class AiSettingsController extends Controller
 
         AiSettings::update($valid);
 
-        return $this->settings('AI settings saved.', HttpStatus::ACCEPTED);
+        $message = filter_var($valid['ai_enabled'] ?? false, FILTER_VALIDATE_BOOL) && ! AiSettings::configured('replicate')
+            ? 'Saved, but the AI tools stay off until REPLICATE_API_TOKEN is set in .env.'
+            : 'AI settings saved.';
+
+        return $this->settings($message, HttpStatus::ACCEPTED);
     }
 
     protected function settings(string $message = 'OK', HttpStatus $status = HttpStatus::OK)
