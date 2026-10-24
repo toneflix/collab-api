@@ -4,9 +4,11 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 
+use App\Contracts\Reportable;
 use App\Enums\Feature;
 use App\Models\Scopes\RestrictBlockedUserScope;
 use App\Notifications\SendCode;
+use App\Traits\HasReports;
 use App\Traits\ModelCanExtend;
 use BeyondCode\Comments\Contracts\Commentator;
 use Coderflex\Laravisit\Models\Visit;
@@ -35,7 +37,7 @@ use Toneflix\SocialInteractions\Traits\CanSocialInteract;
 use Valorin\Random\Random;
 
 #[ScopedBy([RestrictBlockedUserScope::class])]
-class User extends Authenticatable implements Commentator
+class User extends Authenticatable implements Commentator, Reportable
 {
     use ApprovableNotifiable;
     use CanSocialInteract;
@@ -45,6 +47,7 @@ class User extends Authenticatable implements Commentator
     use HasApiTokens;
     use HasFactory;
     use HasJsonRelationships;
+    use HasReports;
     use HasRoles;
     use ModelCanExtend;
     use Notifiable;
@@ -551,5 +554,20 @@ class User extends Authenticatable implements Commentator
     public function viewingHistory()
     {
         return $this->hasMany(Visit::class, 'data->user');
+    }
+
+    public function moderationOwnerId(): ?int
+    {
+        return (int) $this->id;
+    }
+
+    public function moderationSummary(): array
+    {
+        return [
+            'title' => (string) $this->fullname,
+            'subtitle' => $this->username ? '@'.$this->username : null,
+            'image' => $this->images['image'] ?? null,
+            'link' => $this->username ? "/creator/{$this->username}" : null,
+        ];
     }
 }

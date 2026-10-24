@@ -5,6 +5,7 @@ namespace App\Services\Sounds;
 use App\Models\FreesoundConnection;
 use App\Models\ProjectTrack;
 use App\Models\ProjectTrackStem;
+use App\Models\Scopes\HideTakenDown;
 use App\Models\Sound;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
@@ -147,7 +148,7 @@ class SoundLibrary
                         break;
                     }
 
-                    $exists = Sound::query()->library()
+                    $exists = Sound::query()->withoutGlobalScope(HideTakenDown::class)->library()
                         ->where('source', 'freesound')
                         ->where('source_id', $item['id'])
                         ->exists();
@@ -276,6 +277,7 @@ class SoundLibrary
             'waveform' => $sound->waveform ?? [],
             'url' => $info['dynamicLink'],
             'isActive' => $sound->is_active,
+            'takenDown' => $sound->taken_down_at !== null,
             'mine' => $sound->user_id !== null,
             'createdAt' => $sound->created_at,
         ];

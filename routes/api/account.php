@@ -5,6 +5,7 @@ use App\Http\Controllers\Account;
 use App\Http\Controllers\Account\BlockController;
 use App\Http\Controllers\Account\NotificationController;
 use App\Http\Controllers\Account\PaymentsController;
+use App\Http\Controllers\Account\TakedownController;
 use App\Http\Controllers\NotificationRequestController;
 use App\Http\Controllers\SafetyController;
 use Illuminate\Http\Request;
@@ -19,6 +20,8 @@ Route::middleware(['auth:sanctum'])
         Route::get('purchases', [PaymentsController::class, 'purchases'])->name('purchases');
         Route::get('earnings', [PaymentsController::class, 'earnings'])->name('earnings');
         Route::get('subscription', [PaymentsController::class, 'subscription'])->name('subscription');
+        Route::get('takedowns', [TakedownController::class, 'index'])->name('takedowns.index');
+        Route::post('takedowns/{takedown}/appeal', [TakedownController::class, 'appeal'])->middleware('throttle:5,1')->name('takedowns.appeal');
         Route::apiResource('notifications', NotificationController::class)->only(['index', 'destroy']);
         Route::apiResource('/notification-requests', NotificationRequestController::class)->except(['store']);
         Route::middleware(['throttle:code-requests'])->post('request/otp', function (Request $request) {
@@ -34,6 +37,6 @@ Route::middleware(['auth:sanctum'])
     ->name('safety.')
     ->prefix('safety')
     ->group(function () {
-        Route::post('reports', [SafetyController::class, 'report'])->name('safety.report');
+        Route::post('reports', [SafetyController::class, 'report'])->middleware('throttle:10,1')->name('safety.report');
         Route::apiResource('blocklist', BlockController::class)->except(['show', 'delete']);
     });

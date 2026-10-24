@@ -50,6 +50,7 @@ class TrackResource extends JsonResource
             ]),
             'format' => $this->meta['format'] ?? 'mp3',
             'privacy' => $this->privacy,
+            'takenDown' => $this->taken_down_at !== null,
             'streams' => $this->streams,
             'genre_id' => $this->genre_id,
             'duration' => $this->duration,

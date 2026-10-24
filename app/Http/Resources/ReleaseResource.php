@@ -43,6 +43,7 @@ class ReleaseResource extends JsonResource
                 fn () => new ProjectResource($this->project),
             ),
             'privacy' => $this->privacy,
+            'takenDown' => $this->taken_down_at !== null,
             'price' => $this->price,
             'locked' => ! $this->isUnlockedFor($user),
             'purchased' => $this->price > 0 && $this->isPurchasedBy($user, 'release'),
