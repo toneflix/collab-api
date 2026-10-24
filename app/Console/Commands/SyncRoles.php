@@ -222,19 +222,15 @@ class SyncRoles extends Command
         $rolesArray->each(fn ($role) => Role::findOrCreate($role));
         $permissionsArray->each(fn ($role) => Permission::findOrCreate($role));
 
+        $exclusions = (array) config('permission-defs.exclusions', []);
+
+        // Every role gets every permission except the ones excluded for it.
+        Role::query()->whereIn('name', $rolesArray)->get()->each(
+            fn (Role $role) => $role->syncPermissions($permissionsArray->diff($exclusions[$role->name] ?? [])->values())
+        );
+
         $roles = Role::withCount('permissions')->get();
         $permissions = Permission::get();
-
-        $roles->each(function ($role) use ($permissionsArray) {
-            if (is_array($exclusions = config('permission-defs.exclusions', []))) {
-                /** @var array<int, string/> $exclude */
-                foreach ($exclusions as $name => $exclude) {
-                    if ($role->name === $name) {
-                        $role->syncPermissions($permissionsArray->except($exclude));
-                    }
-                }
-            }
-        });
 
         $this->info('Roles');
         $this->table(

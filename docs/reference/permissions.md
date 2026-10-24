@@ -21,7 +21,7 @@ New features that add a permission need `php artisan app:sync-roles` after deplo
 
 ## Giving someone access
 
-`app:sync-roles` gives the `admin` role every permission, so use it for full admin access.
+`app:sync-roles` gives each role every permission except the ones listed for it under `exclusions` in `config/permission-defs.php`. `super-admin` gets all of them, and `admin` gets all but `manage-admins`.
 
 ```bash
 php artisan app:sync-roles 5 --roles=admin
