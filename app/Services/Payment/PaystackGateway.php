@@ -4,8 +4,8 @@ namespace App\Services\Payment;
 
 use App\Helpers\Providers;
 use Illuminate\Validation\ValidationException;
-use Yabacon\Paystack;
-use Yabacon\Paystack\Exception\ApiException;
+use Toneflix\Paystack\Exception\ApiException;
+use Toneflix\Paystack\Paystack;
 
 class PaystackGateway implements CollectsBankDetails, PaymentGateway, PayoutGateway
 {
@@ -81,12 +81,9 @@ class PaystackGateway implements CollectsBankDetails, PaymentGateway, PayoutGate
     /**
      * The client with the payout endpoints.
      */
-    protected function transfers(): Paystack
+    protected function transfers(): PaystackTransfers
     {
-        $client = $this->client();
-        $client->useRoutes(['payouts' => PaystackTransfers::class]);
-
-        return $client;
+        return new PaystackTransfers($this->client());
     }
 
     /**
@@ -95,7 +92,7 @@ class PaystackGateway implements CollectsBankDetails, PaymentGateway, PayoutGate
     protected function call(string $field, callable $request): object
     {
         try {
-            return $request($this->transfers()->payouts);
+            return $request($this->transfers());
         } catch (ApiException $e) {
             throw ValidationException::withMessages([$field => $e->getMessage()]);
         } catch (ValidationException $e) {
@@ -224,7 +221,7 @@ class PaystackGateway implements CollectsBankDetails, PaymentGateway, PayoutGate
     public function transfer(PayoutTransfer $transfer): array
     {
         try {
-            $response = $this->transfers()->payouts->initiate([
+            $response = $this->transfers()->initiate([
                 'source' => 'balance',
                 'amount' => (int) round($transfer->amount * 100), // kobo
                 'currency' => $transfer->currency,
@@ -249,7 +246,7 @@ class PaystackGateway implements CollectsBankDetails, PaymentGateway, PayoutGate
     public function verifyTransfer(string $reference, ?string $transferCode = null): array
     {
         try {
-            $response = $this->transfers()->payouts->verify(['reference' => $reference]);
+            $response = $this->transfers()->verify(['reference' => $reference]);
         } catch (ApiException $e) {
             $missing = str_contains(strtolower($e->getMessage()), 'not found');
 
