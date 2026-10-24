@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Contracts\CanBeTakenDown;
+use App\Jobs\FingerprintTrack;
 use App\Jobs\ProcessAudio;
 use App\Traits\HasLikedScope;
 use App\Traits\Metricable;
@@ -153,6 +154,10 @@ class Track extends Model implements CanBeTakenDown
                 config('settings.encoding.enabled', false) && ! ($model->meta['processed'] ?? false),
                 $model
             );
+
+            if ($model->audio && ($model->wasRecentlyCreated || $model->wasChanged('audio'))) {
+                FingerprintTrack::dispatch($model);
+            }
         });
 
         static::addGlobalScopes([

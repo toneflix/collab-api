@@ -5,6 +5,7 @@ namespace App\Services\Moderation;
 use App\Contracts\CanBeTakenDown;
 use App\Contracts\Reportable;
 use App\Enums\HttpStatus;
+use App\Models\AudioFingerprint;
 use App\Models\Release;
 use App\Models\Safety;
 use App\Models\Takedown;
@@ -58,6 +59,65 @@ class Moderation
         ])->save();
 
         return $report;
+    }
+
+    /**
+     * Flag a track that sounds like another creator's earlier track. Matches
+     * from the same owner or project are left alone.
+     *
+     * @param  Collection<int, array{fingerprint: AudioFingerprint, score: float, kind: string}>  $matches
+     */
+    public function flagMatches(Track $track, Collection $matches): int
+    {
+        $owner = $track->moderationOwnerId();
+        $project = $track->projectTrack()->withoutGlobalScopes()->value('project_id');
+        $flagged = 0;
+
+        foreach ($matches as $match) {
+            $original = Track::query()->withoutGlobalScopes()->find($match['fingerprint']->model_id);
+
+            if (
+                ! $original ||
+                $original->moderationOwnerId() === $owner ||
+                ($project && $original->projectTrack()->withoutGlobalScopes()->value('project_id') === $project)
+            ) {
+                continue;
+            }
+
+            $summary = $original->moderationSummary();
+            $percent = (int) round($match['score'] * 100);
+
+            $known = Safety::query()
+                ->forItem($track)
+                ->where('type', Safety::TYPE_MATCH)
+                ->where('data->match_id', $original->id)
+                ->exists();
+
+            if ($known) {
+                continue;
+            }
+
+            Safety::query()->create([
+                'model_type' => $track->getMorphClass(),
+                'model_id' => $track->id,
+                'type' => Safety::TYPE_MATCH,
+                'reason' => 'copyright',
+                'details' => "Sounds like “{$summary['title']}” by {$summary['subtitle']} ({$percent}% match).",
+                'data' => [
+                    'match_type' => 'track',
+                    'match_id' => $original->id,
+                    'match_title' => $summary['title'],
+                    'match_artist' => $summary['subtitle'],
+                    'match_link' => $summary['link'],
+                    'score' => $match['score'],
+                    'kind' => $match['kind'],
+                ],
+            ]);
+
+            $flagged++;
+        }
+
+        return $flagged;
     }
 
     /**
