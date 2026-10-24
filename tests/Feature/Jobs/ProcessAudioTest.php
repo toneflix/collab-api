@@ -4,8 +4,9 @@ namespace Tests\Feature\Jobs;
 
 use App\Models\Artist;
 use App\Models\Genre;
+use App\Models\Release;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Foundation\Testing\WithFaker;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -14,6 +15,7 @@ use Tests\TestCase;
 
 class ProcessAudioTest extends TestCase
 {
+    use DatabaseTransactions;
     use WithFaker;
 
     /**
@@ -25,10 +27,12 @@ class ProcessAudioTest extends TestCase
 
         // libfdk_aac is not always installed, so use FFmpeg's native AAC encoder here
         config(['settings.encoding.output' => 'aac', 'settings.encoding.output_codec' => 'aac']);
-        Sanctum::actingAs(
-            $user = User::inRandomOrder()->whereHas('releases')->first(),
-            ['*']
-        );
+        $genre = Genre::factory()->create();
+        $artist = Artist::factory()->create();
+        $user = User::factory()->create();
+        Release::factory()->create(['user_id' => $user->id, 'genre_id' => $genre->id, 'artist_id' => $artist->id]);
+
+        Sanctum::actingAs($user, ['*']);
 
         $image = UploadedFile::fake()->image('image.jpg', 640, 640);
 
@@ -50,8 +54,8 @@ class ProcessAudioTest extends TestCase
             'title' => $this->faker->words(4, true),
             'description' => $this->faker->sentence(6, true),
             'privacy' => 'public',
-            'genre_id' => (string)Genre::inRandomOrder()->first()->id,
-            'artist_id' => (string)Artist::inRandomOrder()->first()->id,
+            'genre_id' => (string) $genre->id,
+            'artist_id' => (string) $artist->id,
         ]);
 
         $id = $response->json('data.id');

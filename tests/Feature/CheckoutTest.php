@@ -236,7 +236,11 @@ class CheckoutTest extends TestCase
     {
         $owner = User::factory()->create();
         $project = Project::factory()->create(['user_id' => $owner->id]);
-        $projectTrack = ProjectTrack::factory()->create(['project_id' => $project->id]);
+        $projectTrack = ProjectTrack::factory()->create([
+            'project_id' => $project->id,
+            'genre_id' => Genre::factory()->create()->id,
+            'artist_id' => Artist::factory()->create()->id,
+        ]);
         ProjectTrackStem::factory()->create(['track_id' => $projectTrack->id, 'user_id' => $owner->id, 'src' => 'drums.mp3']);
 
         $release = $this->paidRelease(0, $owner);
