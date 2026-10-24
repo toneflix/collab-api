@@ -181,15 +181,17 @@ class UserManager
     }
 
     /**
+     * Replace the user's roles. A null admin means the change came from the console.
+     *
      * @param  array<int, string>  $roles
      */
-    public function syncRoles(User $admin, User $user, array $roles): User
+    public function syncRoles(?User $admin, User $user, array $roles): User
     {
         $super = self::superAdminRole();
         $before = $user->getRoleNames()->sort()->values()->all();
         $after = collect($roles)->unique()->sort()->values()->all();
 
-        if (in_array($super, array_merge(array_diff($after, $before), array_diff($before, $after))) && ! $admin->hasRole($super)) {
+        if ($admin && in_array($super, array_merge(array_diff($after, $before), array_diff($before, $after))) && ! $admin->hasRole($super)) {
             throw ValidationException::withMessages(['roles' => 'Only super admins can give or take the super admin role.']);
         }
 
@@ -200,6 +202,29 @@ class UserManager
         return DB::transaction(function () use ($admin, $user, $before, $after) {
             $user->syncRoles($after);
             $this->record($admin, $user, 'roles.changed', null, ['from' => $before, 'to' => $after]);
+
+            return $user;
+        });
+    }
+
+    /**
+     * Replace the permissions given to the user directly, apart from their roles.
+     * A null admin means the change came from the console.
+     *
+     * @param  array<int, string>  $permissions
+     */
+    public function syncPermissions(?User $admin, User $user, array $permissions): User
+    {
+        $before = $user->getDirectPermissions()->pluck('name')->sort()->values()->all();
+        $after = collect($permissions)->unique()->sort()->values()->all();
+
+        if ($before === $after) {
+            return $user;
+        }
+
+        return DB::transaction(function () use ($admin, $user, $before, $after) {
+            $user->syncPermissions($after);
+            $this->record($admin, $user, 'permissions.changed', null, ['from' => $before, 'to' => $after]);
 
             return $user;
         });
@@ -284,10 +309,14 @@ class UserManager
     /**
      * @param  array<string, mixed>  $details
      */
-    protected function record(User $admin, User $user, string $action, ?string $reason = null, array $details = []): AdminAction
+    protected function record(?User $admin, User $user, string $action, ?string $reason = null, array $details = []): AdminAction
     {
+        if (! $admin) {
+            $details['via'] = 'console';
+        }
+
         return AdminAction::query()->create([
-            'admin_id' => $admin->id,
+            'admin_id' => $admin?->id,
             'user_id' => $user->id,
             'action' => $action,
             'reason' => $reason,
