@@ -1,17 +1,20 @@
 <?php
 
-//
+// Placeholders shipped in public/defaults. The app serves them itself,
+// so they work whichever disk (local or S3) holds the uploads.
+$defaults = rtrim((string) env('ASSET_URL', env('APP_URL', 'http://localhost')), '/').'/defaults/';
+
 return [
     'collections' => [
         'avatar' => [
             'size' => [400, 400],
             'path' => 'avatars/',
-            'default' => 'default.png',
+            'default' => $defaults.'avatar.svg',
         ],
         'artwork' => [
             'size' => [520, 520],
             'path' => 'artwork/',
-            'default' => 'default.png',
+            'default' => $defaults.'artwork.svg',
         ],
         'music_tracks' => [
             'path' => 'media/music/tracks/',
@@ -24,16 +27,16 @@ return [
         'banner' => [
             'size' => [1200, 600],
             'path' => 'media/banners/',
-            'default' => 'default.png',
+            'default' => $defaults.'banner.svg',
         ],
         'default' => [
             'path' => 'media/default/',
-            'default' => 'default.png',
+            'default' => $defaults.'image.svg',
         ],
         'logo' => [
             'size' => [200, 200],
             'path' => 'media/logos/',
-            'default' => 'default.png',
+            'default' => $defaults.'image.svg',
         ],
         'private' => [
             'files' => [
@@ -42,7 +45,7 @@ return [
             ],
             'images' => [
                 'path' => 'files/images/',
-                'default' => 'default.png',
+                'default' => $defaults.'image.svg',
                 'secure' => true,
             ],
             'videos' => [
