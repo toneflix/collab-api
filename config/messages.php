@@ -210,4 +210,26 @@ return [
             'action' => 'See earnings',
         ],
     ],
+    'activity::payouts' => [
+        'paid' => [
+            'subject' => 'Your :amount withdrawal was paid',
+            'body' => ':amount has been sent to your :bank account.',
+            'action' => 'See withdrawals',
+        ],
+        'failed' => [
+            'subject' => 'Your :amount withdrawal didn\'t go through',
+            'body' => 'Your :amount withdrawal to :bank failed: :reason The amount is back in your balance.',
+            'action' => 'See withdrawals',
+        ],
+        'rejected' => [
+            'subject' => 'Your :amount withdrawal was declined',
+            'body' => 'Your :amount withdrawal was declined. The amount is back in your balance.',
+            'action' => 'See withdrawals',
+        ],
+        'rejected_reason' => [
+            'subject' => 'Your :amount withdrawal was declined',
+            'body' => 'Your :amount withdrawal was declined: ":reason" The amount is back in your balance.',
+            'action' => 'See withdrawals',
+        ],
+    ],
 ];

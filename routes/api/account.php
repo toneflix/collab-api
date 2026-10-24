@@ -6,6 +6,8 @@ use App\Http\Controllers\Account\BlockController;
 use App\Http\Controllers\Account\NotificationController;
 use App\Http\Controllers\Account\NotificationSettingsController;
 use App\Http\Controllers\Account\PaymentsController;
+use App\Http\Controllers\Account\PayoutAccountController;
+use App\Http\Controllers\Account\PayoutController;
 use App\Http\Controllers\Account\TakedownController;
 use App\Http\Controllers\NotificationRequestController;
 use App\Http\Controllers\NotificationUnsubscribeController;
@@ -27,6 +29,15 @@ Route::middleware(['auth:sanctum'])
         Route::get('subscription', [PaymentsController::class, 'subscription'])->name('subscription');
         Route::get('takedowns', [TakedownController::class, 'index'])->name('takedowns.index');
         Route::post('takedowns/{takedown}/appeal', [TakedownController::class, 'appeal'])->middleware('throttle:5,1')->name('takedowns.appeal');
+
+        // Withdrawing earnings
+        Route::get('payouts/banks', [PayoutAccountController::class, 'banks'])->name('payouts.banks');
+        Route::get('payouts/account', [PayoutAccountController::class, 'show'])->name('payouts.account.show');
+        Route::post('payouts/account/resolve', [PayoutAccountController::class, 'resolve'])->middleware('throttle:20,1')->name('payouts.account.resolve');
+        Route::put('payouts/account', [PayoutAccountController::class, 'update'])->middleware('throttle:10,1')->name('payouts.account.update');
+        Route::delete('payouts/account', [PayoutAccountController::class, 'destroy'])->name('payouts.account.destroy');
+        Route::apiResource('payouts', PayoutController::class)->only(['index', 'store', 'destroy']);
+
         Route::post('notifications/read', [NotificationController::class, 'readAll'])->name('notifications.read');
         Route::apiResource('notifications', NotificationController::class)->only(['index', 'update', 'destroy']);
         Route::post('push-subscriptions', [NotificationSettingsController::class, 'subscribe'])->name('push-subscriptions.store');
