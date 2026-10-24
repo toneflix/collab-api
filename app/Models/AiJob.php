@@ -104,6 +104,7 @@ class AiJob extends Model
             'credits' => $this->credits,
             'stems' => $this->output['stems'] ?? [],
             'error' => $this->error,
+            'notice' => $this->output['notice'] ?? null,
             'createdAt' => $this->created_at,
             'finishedAt' => $this->finished_at,
         ];

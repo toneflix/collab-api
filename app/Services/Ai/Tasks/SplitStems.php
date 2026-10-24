@@ -62,34 +62,32 @@ class SplitStems implements AiTask
 
         $prediction = $client->run($this->model(), [
             'audio' => $client->upload($path, mime_content_type($path) ?: 'audio/mpeg'),
-            'format' => 'mp3',
+            'output_format' => 'mp3',
         ]);
 
         $output = (array) $prediction['output'];
-        $stems = [];
+        $files = [];
 
-        foreach (self::PARTS as $part) {
-            if (empty($output[$part]) || ! is_string($output[$part])) {
-                continue;
+        try {
+            foreach (self::PARTS as $part) {
+                if (ReplicateClient::isFile($output[$part] ?? null)) {
+                    $files[$part] = $client->download($output[$part]);
+                }
             }
 
-            $file = $client->download($output[$part]);
+            if (! $files) {
+                throw new ReplicateException('Stem separation returned no stems.');
+            }
 
-            try {
-                $stems[] = $this->files->addStem($track, $user, $file, trim("{$title} ".ucfirst($part)), [
+            return array_values(array_map(fn (string $part, string $file) => $this->files->addStem(
+                $track, $user, $file, trim("{$title} ".ucfirst($part)), [
                     ...$meta,
                     'ai' => [...($meta['ai'] ?? []), 'part' => $part, 'model' => $this->model()],
-                ]);
-            } finally {
-                @unlink($file);
-            }
+                ]
+            ), array_keys($files), $files));
+        } finally {
+            array_map(fn (string $file) => @unlink($file), $files);
         }
-
-        if (! $stems) {
-            throw new ReplicateException('Stem separation returned no stems.');
-        }
-
-        return $stems;
     }
 
     protected function model(): string

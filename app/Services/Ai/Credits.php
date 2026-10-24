@@ -102,12 +102,13 @@ class Credits
     }
 
     /**
-     * Put back the credits of a spend whose work failed. Plan credits only come
-     * back within the same month. Safe to call twice.
+     * Put back the credits of a spend whose work failed, or only some of them
+     * when part of the work failed. Bought credits come back first, and plan
+     * credits only within the same month. Safe to call twice.
      */
-    public function refund(AiCreditEntry $spend, string $description = 'Refund'): ?AiCreditEntry
+    public function refund(AiCreditEntry $spend, string $description = 'Refund', ?int $credits = null): ?AiCreditEntry
     {
-        return DB::transaction(function () use ($spend, $description) {
+        return DB::transaction(function () use ($spend, $description, $credits) {
             $wallet = $this->lockedWallet();
 
             /** @var AiCreditEntry $locked */
@@ -117,9 +118,10 @@ class Credits
                 return null;
             }
 
+            $credits = min($credits ?? PHP_INT_MAX, $locked->plan_credits + $locked->purchased_credits);
             $samePeriod = $locked->created_at && $locked->created_at->gte($this->period());
-            $toPlan = $samePeriod ? min($locked->plan_credits, $this->planUsed($wallet)) : 0;
-            $toPurchased = $locked->purchased_credits;
+            $toPurchased = min($locked->purchased_credits, $credits);
+            $toPlan = $samePeriod ? min($credits - $toPurchased, $this->planUsed($wallet)) : 0;
 
             $wallet->forceFill([
                 'period' => $this->period(),

@@ -6,6 +6,7 @@ use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Sleep;
+use Illuminate\Support\Str;
 
 /**
  * Runs models on Replicate: starts a prediction, waits for it and fetches
@@ -120,15 +121,38 @@ class ReplicateClient
     }
 
     /**
-     * Fetch an output file to a local temporary path.
+     * Fetch an output file to a local temporary path. Outputs are public URLs
+     * or data URIs; only files on the API itself need the token.
      */
     public function download(string $url): string
     {
         $path = tempnam(sys_get_temp_dir(), 'ai-');
 
-        file_put_contents($path, $this->http()->timeout(300)->get($url)->throw()->body());
+        if (str_starts_with($url, 'data:')) {
+            $content = base64_decode(Str::after($url, 'base64,'), true);
+
+            if ($content === false || ! str_contains($url, ';base64,')) {
+                throw new ReplicateException('Replicate returned an unreadable file.');
+            }
+        } else {
+            $request = parse_url($url, PHP_URL_HOST) === parse_url($this->baseUrl(), PHP_URL_HOST)
+                ? $this->http()
+                : Http::timeout(60);
+
+            $content = $request->timeout(300)->get($url)->throw()->body();
+        }
+
+        file_put_contents($path, $content);
 
         return $path;
+    }
+
+    /**
+     * Whether a model output value is a file we can fetch.
+     */
+    public static function isFile(mixed $value): bool
+    {
+        return is_string($value) && (str_starts_with($value, 'https://') || str_starts_with($value, 'http://') || str_starts_with($value, 'data:'));
     }
 
     /**
@@ -139,13 +163,18 @@ class ReplicateClient
         return Cache::remember("replicate::version::{$model}", 3600, fn () => $this->http()->get("models/{$model}")->json('latest_version.id'));
     }
 
+    protected function baseUrl(): string
+    {
+        return rtrim((string) ($this->config['url'] ?? 'https://api.replicate.com/v1'), '/').'/';
+    }
+
     protected function http(): PendingRequest
     {
         if (blank($this->config['key'] ?? null)) {
             throw new ReplicateException('Set REPLICATE_API_TOKEN in .env to use the AI tools.');
         }
 
-        return Http::baseUrl(rtrim((string) ($this->config['url'] ?? 'https://api.replicate.com/v1'), '/').'/')
+        return Http::baseUrl($this->baseUrl())
             ->withToken((string) $this->config['key'])
             ->acceptJson()
             ->timeout(60);
