@@ -2,6 +2,10 @@
 
 A streaming platform that brings together creatives in the music industry to make awesome sounds through collaboration.
 
+## Documentation
+
+Setup guides, the `.env` reference and feature overviews for both the API and the app are in [`docs/`](docs/), a VitePress site. Run it with `cd docs && yarn install && yarn dev`.
+
 ### Database
 
 PostgreSQL is the preferred database. MySQL/MariaDB and SQLite also work.
