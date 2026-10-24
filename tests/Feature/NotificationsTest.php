@@ -18,6 +18,7 @@ use App\Services\Notifications\NotificationPreferences;
 use App\Services\Payment\Checkout;
 use App\Services\Payment\PaymentGateway;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\URL;
@@ -260,6 +261,20 @@ class NotificationsTest extends TestCase
         (new NotifyUnreadMessages($this->owner->id, ProjectTrack::class, $track->id))->handle();
 
         Notification::assertSentToTimes($this->owner, NewMessagesNotification::class, 1);
+    }
+
+    public function test_a_new_summary_replaces_the_unread_one_for_the_same_conversation(): void
+    {
+        $this->project->collaborators()->forceCreate(['user_id' => $this->collaborator->id, 'role' => 'vocals', 'accepted' => true]);
+        $track = $this->project->tracks()->forceCreate(['title' => 'Hook', 'privacy' => 'private']);
+
+        $track->commentAsUser($this->collaborator, 'One');
+        (new NotifyUnreadMessages($this->owner->id, ProjectTrack::class, $track->id))->handle();
+        Cache::flush();
+        $track->commentAsUser($this->collaborator, 'Two');
+        (new NotifyUnreadMessages($this->owner->id, ProjectTrack::class, $track->id))->handle();
+
+        $this->assertSame(['2 new messages in Hook'], $this->owner->notifications()->pluck('data')->pluck('title')->all());
     }
 
     public function test_people_who_cant_see_a_conversation_are_not_notified(): void

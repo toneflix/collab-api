@@ -82,6 +82,12 @@ class NotifyUnreadMessages implements ShouldBeUnique, ShouldQueue
 
         $subject = Conversations::subject($root);
 
+        // The new summary covers the older unread one for this conversation.
+        $user->unreadNotifications()
+            ->where('type', NewMessagesNotification::class)
+            ->where('data->path', "/messages/{$subject['type']}/{$subject['id']}")
+            ->delete();
+
         $user->notify(new NewMessagesNotification(
             $subject['type'],
             $subject['id'],
