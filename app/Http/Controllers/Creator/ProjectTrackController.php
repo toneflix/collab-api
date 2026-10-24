@@ -96,7 +96,19 @@ class ProjectTrackController extends Controller
             'description' => ['nullable', 'string'],
             'meta' => ['nullable', 'array'],
             'stems' => ['nullable', 'array'],
+            'bpm' => ['nullable', 'numeric', 'between:20,300'],
+            'time_signature' => ['nullable', 'string', 'in:'.implode(',', ProjectTrack::TIME_SIGNATURES)],
         ]);
+
+        // Tempo and meter live in the track's meta, next to whatever else is there.
+        $meta = collect($track->meta ?? [])->merge($valid['meta'] ?? []);
+        foreach (['bpm' => 'bpm', 'time_signature' => 'timeSignature'] as $field => $key) {
+            if ($request->filled($field)) {
+                $meta[$key] = $field === 'bpm' ? round((float) $valid[$field], 2) : $valid[$field];
+            }
+        }
+        $valid['meta'] = $meta->all();
+        unset($valid['bpm'], $valid['time_signature']);
 
         if (isset($valid['preview'])) {
             unset($valid['preview']);

@@ -27,6 +27,9 @@ class ProjectTrack extends Model
      *
      * @var array<int, string>
      */
+    /** Meters the studio's beat grid supports */
+    public const TIME_SIGNATURES = ['2/4', '3/4', '4/4', '5/4', '6/8', '7/8', '12/8'];
+
     protected $fillable = [
         'meta',
         'title',

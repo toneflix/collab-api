@@ -31,6 +31,13 @@ return [
         ],
     ],
 
+    'freesound' => [
+        // Changeable for testing against a stand-in API.
+        'base_url' => env('FREESOUND_BASE_URL', 'https://freesound.org/apiv2'),
+        // Seconds to wait between downloads, to stay under Freesound's limits.
+        'download_delay' => (float) env('FREESOUND_DOWNLOAD_DELAY', 2),
+    ],
+
     'realtime' => [
         // none, reverb, pusher, ably or firebase. Admins can change it.
         'driver' => env('REALTIME_DRIVER', 'none'),

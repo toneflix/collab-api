@@ -21,6 +21,7 @@ enum HttpStatus: int
     case UNPROCESSABLE_ENTITY = 422; // Unprocessable Entity
     case TOO_MANY_REQUESTS = 429;    // Too Many Requests
     case SERVER_ERROR = 500;         // Internal Server Error
+    case BAD_GATEWAY = 502;          // Bad Gateway
 
     /**
      * Get the message for the provided code
@@ -44,6 +45,7 @@ enum HttpStatus: int
             HttpStatus::TOO_MANY_REQUESTS => 'You have made too many requests. Please try again later.',
             HttpStatus::METHOD_NOT_ALLOWED => 'The requested method is not allowed.',
             HttpStatus::UNPROCESSABLE_ENTITY => 'The given data was invalid.',
+            HttpStatus::BAD_GATEWAY => 'A service we rely on didn\'t respond. Please try again later.',
             default => 'Not found.',
         };
     }

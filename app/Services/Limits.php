@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Helpers\Providers;
+use App\Models\Sound;
 use App\Models\User;
 use Illuminate\Validation\ValidationException;
 
@@ -12,7 +13,7 @@ use Illuminate\Validation\ValidationException;
  */
 class Limits
 {
-    public const KEYS = ['projects', 'collaborators', 'stem_size'];
+    public const KEYS = ['projects', 'collaborators', 'stem_size', 'storage'];
 
     public function __construct(public ?User $user) {}
 
@@ -68,5 +69,51 @@ class Limits
         $mb = $this->get('stem_size');
 
         return $mb > 0 ? 'max:'.($mb * 1024) : null;
+    }
+
+    /**
+     * Bytes this account's own sounds take up.
+     */
+    public function storageUsed(): int
+    {
+        return $this->user ? (int) Sound::query()->where('user_id', $this->user->id)->sum('size') : 0;
+    }
+
+    /**
+     * Storage use and limit, in bytes. A limit of 0 means no limit.
+     *
+     * @return array{used: int, limit: int}
+     */
+    public function storage(): array
+    {
+        return ['used' => $this->storageUsed(), 'limit' => $this->get('storage') * 1024 * 1024];
+    }
+
+    /**
+     * Stop when a new file of this many bytes wouldn't fit in the account's storage.
+     */
+    public function ensureRoomFor(int $bytes, string $field = 'file'): void
+    {
+        ['used' => $used, 'limit' => $limit] = $this->storage();
+
+        if ($limit > 0 && $used + $bytes > $limit) {
+            $free = max(0, $limit - $used);
+            throw ValidationException::withMessages([
+                $field => __('This needs :need, but only :free of your :limit is free.', [
+                    'need' => self::readable($bytes),
+                    'free' => self::readable($free),
+                    'limit' => self::readable($limit),
+                ]).($this->tier() === 'free' ? ' Upgrade to Premium for more.' : ' Remove some sounds to make room.'),
+            ]);
+        }
+    }
+
+    public static function readable(int $bytes): string
+    {
+        return match (true) {
+            $bytes >= 1024 ** 3 => round($bytes / 1024 ** 3, 1).' GB',
+            $bytes >= 1024 ** 2 => round($bytes / 1024 ** 2, 1).' MB',
+            default => max(1, (int) round($bytes / 1024)).' KB',
+        };
     }
 }

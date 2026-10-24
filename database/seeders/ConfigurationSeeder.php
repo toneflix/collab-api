@@ -357,6 +357,30 @@ class ConfigurationSeeder extends Seeder
                 'hint' => 'The largest stem file a Premium account can upload, in MB. 0 means no limit.',
                 'secret' => false,
             ],
+            [
+                'key' => 'free_max_storage',
+                'title' => 'Free: Sound Storage (MB)',
+                'value' => 200,
+                'type' => 'number',
+                'count' => null,
+                'max' => null,
+                'col' => 6,
+                'autogrow' => false,
+                'hint' => 'How much space a free account has for its own sounds, in MB. 0 means no limit.',
+                'secret' => false,
+            ],
+            [
+                'key' => 'premium_max_storage',
+                'title' => 'Premium: Sound Storage (MB)',
+                'value' => 5000,
+                'type' => 'number',
+                'count' => null,
+                'max' => null,
+                'col' => 6,
+                'autogrow' => false,
+                'hint' => 'How much space a Premium account has for its own sounds, in MB. 0 means no limit.',
+                'secret' => false,
+            ],
         ]);
     }
 }

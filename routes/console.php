@@ -13,3 +13,6 @@ Schedule::command('app:recommend')->hourly()->withoutOverlapping();
 
 // Firebase keeps every realtime event until it's deleted.
 Schedule::command('realtime:prune')->hourly()->withoutOverlapping();
+
+// Top up the shared sound library from Freesound (CC0 only).
+Schedule::command('sounds:sync')->dailyAt('03:30')->withoutOverlapping()->runInBackground();

@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -337,6 +338,22 @@ class User extends Authenticatable implements Commentator
     public function projects(): HasMany
     {
         return $this->hasMany(Project::class);
+    }
+
+    /**
+     * The user's own sounds, for adding to tracks.
+     */
+    public function sounds(): HasMany
+    {
+        return $this->hasMany(Sound::class);
+    }
+
+    /**
+     * The Freesound account the user connected, if any.
+     */
+    public function freesound(): HasOne
+    {
+        return $this->hasOne(FreesoundConnection::class);
     }
 
     /**
