@@ -8,6 +8,7 @@ use App\Models\Scopes\RestrictBlockedUserScope;
 use App\Traits\HasLikedScope;
 use App\Traits\Metricable;
 use App\Traits\ModelCanExtend;
+use App\Traits\Purchasable;
 use BeyondCode\Comments\Traits\HasComments;
 use Coderflex\Laravisit\Concerns\CanVisit;
 use Coderflex\Laravisit\Concerns\HasVisits;
@@ -24,7 +25,7 @@ use Toneflix\SocialInteractions\Traits\HasSocialInteractions;
 
 #[ScopedBy([
     RestrictBlockedUserScope::class,
-    HideReportedModels::class
+    HideReportedModels::class,
 ])]
 class Release extends Model implements CanVisit
 {
@@ -36,6 +37,7 @@ class Release extends Model implements CanVisit
     use HasVisits;
     use Metricable;
     use ModelCanExtend;
+    use Purchasable;
 
     /**
      * The attributes that are mass assignable.
@@ -60,6 +62,7 @@ class Release extends Model implements CanVisit
         'record_label',
         'release_date',
         'contains_music',
+        'price',
     ];
 
     /**
@@ -72,6 +75,7 @@ class Release extends Model implements CanVisit
         'privacy' => 'public',
         'explicit' => false,
         'contains_music' => false,
+        'price' => 0,
     ];
 
     /**
@@ -83,6 +87,7 @@ class Release extends Model implements CanVisit
     {
         return [
             'draft' => 'boolean',
+            'price' => 'float',
             'explicit' => 'boolean',
             'release_date' => 'date:Y/m/d',
             'contains_music' => 'boolean',
@@ -115,7 +120,7 @@ class Release extends Model implements CanVisit
      * Retrieve the model for a bound value.
      *
      * @param  string|null  $field
-     * @return \Illuminate\Database\Eloquent\Model|null
+     * @return Model|null
      */
     public function resolveRouteBinding($value, $field = null)
     {
@@ -191,6 +196,22 @@ class Release extends Model implements CanVisit
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class)->withDefault(fn () => User::firstWhere('curator', true));
+    }
+
+    /**
+     * Whether the user owns this release.
+     */
+    public function isOwnedBy(?User $user): bool
+    {
+        return $user && (int) $this->user_id === (int) $user->id;
+    }
+
+    /**
+     * Free releases are open to everyone; paid ones to their owner and buyers.
+     */
+    public function isUnlockedFor(?User $user): bool
+    {
+        return $this->price <= 0 || $this->isOwnedBy($user) || $this->isPurchasedBy($user, 'release');
     }
 
     public function scopeForArtist(Builder $query, Artist|string $artist): void

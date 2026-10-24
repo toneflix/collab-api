@@ -57,6 +57,7 @@ class ReleaseController extends Controller
             'release_date' => ['nullable', 'string'],
             'record_label' => ['nullable', 'string'],
             'contains_music' => ['nullable', 'boolean'],
+            'price' => ['nullable', 'numeric', 'min:0', 'max:9999999'],
         ], [
             'artist_id' => 'Artist not found.',
             'project_id' => 'Project not found.',
@@ -92,6 +93,7 @@ class ReleaseController extends Controller
         $release->record_label = $request->input('record_label', '');
         $release->release_date = $request->input('release_date');
         $release->contains_music = $request->boolean('contains_music', true);
+        $release->price = $request->input('price', 0) ?? 0;
         $release->save();
 
         $this->saveTracks($request, $release);
@@ -144,6 +146,7 @@ class ReleaseController extends Controller
             'record_label' => ['nullable', 'string'],
             'release_date' => ['nullable', 'string'],
             'contains_music' => ['nullable', 'boolean'],
+            'price' => ['nullable', 'numeric', 'min:0', 'max:9999999'],
         ], [
             'artist_id' => 'Artist not found.',
             'project_id' => 'Project not found.',
@@ -179,6 +182,7 @@ class ReleaseController extends Controller
         $release->record_label = $request->input('record_label', '');
         $release->release_date = $request->input('release_date', now());
         $release->contains_music ??= $request->boolean('contains_music', true);
+        $release->price = $request->input('price', $release->price) ?? 0;
         $release->save();
 
         // Add reputation for the owner
@@ -211,6 +215,7 @@ class ReleaseController extends Controller
             'tracks.*.artist_id' => ['required', 'string', 'exists:artists,id'],
             'tracks.*.description' => ['nullable', 'string'],
             'tracks.*.project_track_id' => ['nullable', 'exists:project_tracks,id'],
+            'tracks.*.stems_price' => ['nullable', 'numeric', 'min:0', 'max:9999999'],
         ], [
             // 'tracks.*.id' => 'Invalid track.'
         ], [
@@ -224,6 +229,7 @@ class ReleaseController extends Controller
             'tracks.*.artist_id' => 'artist',
             'tracks.*.project_track_id' => 'project track',
             'tracks.*.description' => 'description',
+            'tracks.*.stems_price' => 'stems price',
         ]);
 
         collect($tracks)->each(function ($form, $i) use ($release, $request) {

@@ -2,6 +2,9 @@
 
 namespace App\Providers;
 
+use App\Helpers\Providers;
+use App\Services\Payment\PaymentGateway;
+use App\Services\Payment\PaystackGateway;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -15,7 +18,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->bind(
+            PaymentGateway::class,
+            PaystackGateway::class
+        );
     }
 
     /**
@@ -23,7 +29,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        \App\Helpers\Providers::buildResponseMacros();
+        Providers::buildResponseMacros();
 
         // Force https
         if (config('app.env') === 'production' || config('app.force_https')) {
@@ -34,6 +40,6 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
         });
 
-        \App\Helpers\Providers::rateLimitCodeRequests();
+        Providers::rateLimitCodeRequests();
     }
 }

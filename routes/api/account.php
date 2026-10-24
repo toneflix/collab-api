@@ -4,6 +4,7 @@ use App\Helpers\Providers;
 use App\Http\Controllers\Account;
 use App\Http\Controllers\Account\BlockController;
 use App\Http\Controllers\Account\NotificationController;
+use App\Http\Controllers\Account\PaymentsController;
 use App\Http\Controllers\NotificationRequestController;
 use App\Http\Controllers\SafetyController;
 use Illuminate\Http\Request;
@@ -15,6 +16,9 @@ Route::middleware(['auth:sanctum'])
     ->group(function () {
         Route::post('update/profile/picture', [Account::class, 'updateProfilePicture'])->name('update.profile.picture');
         Route::apiResource('/', Account::class)->parameter('', 'field')->only(['index', 'update']);
+        Route::get('purchases', [PaymentsController::class, 'purchases'])->name('purchases');
+        Route::get('earnings', [PaymentsController::class, 'earnings'])->name('earnings');
+        Route::get('subscription', [PaymentsController::class, 'subscription'])->name('subscription');
         Route::apiResource('notifications', NotificationController::class)->only(['index', 'destroy']);
         Route::apiResource('/notification-requests', NotificationRequestController::class)->except(['store']);
         Route::middleware(['throttle:code-requests'])->post('request/otp', function (Request $request) {
