@@ -16,3 +16,6 @@ Schedule::command('realtime:prune')->hourly()->withoutOverlapping();
 
 // Top up the shared sound library from Freesound (CC0 only).
 Schedule::command('sounds:sync')->dailyAt('03:30')->withoutOverlapping()->runInBackground();
+
+// Drop track versions older than each owner's plan keeps.
+Schedule::command('studio:prune-history')->dailyAt('04:00')->withoutOverlapping();

@@ -89,7 +89,7 @@ class ProjectTrack extends Model
         });
 
         static::deleting(function (self $model) {
-            $model->stems()->delete();
+            $model->stems()->withTrashed()->forceDelete();
             $model->assets()->delete();
             $model->releasedTrack()->delete();
         });
@@ -158,6 +158,14 @@ class ProjectTrack extends Model
     public function stems(): HasMany
     {
         return $this->hasMany(ProjectTrackStem::class, 'track_id');
+    }
+
+    /**
+     * Get the saved versions of the Track, newest last
+     */
+    public function versions(): HasMany
+    {
+        return $this->hasMany(ProjectTrackVersion::class, 'track_id');
     }
 
     public function scopeReady(Builder $query): void

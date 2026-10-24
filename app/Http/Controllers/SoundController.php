@@ -8,11 +8,13 @@ use App\Helpers\Providers;
 use App\Http\Resources\ProjectTrackStemResource;
 use App\Models\Project;
 use App\Models\ProjectTrack;
+use App\Models\ProjectTrackVersion;
 use App\Models\Sound;
 use App\Services\Limits;
 use App\Services\Realtime\Realtime;
 use App\Services\Sounds\SoundLibrary;
 use App\Services\Sounds\SoundSettings;
+use App\Services\Studio\TrackHistory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 
@@ -150,7 +152,12 @@ class SoundController extends Controller
 
         abort_unless($sound, HttpStatus::NOT_FOUND->value, 'That sound isn\'t available.');
 
+        $history = TrackHistory::for($track);
+        $history->baseline();
+
         $stem = SoundLibrary::addToTrack($sound, $track, $user, (float) ($valid['start'] ?? 0));
+
+        $history->record($user, ProjectTrackVersion::ADDED);
 
         Realtime::send(Channels::projectTrack($track), 'stem.added', [
             'track_id' => $track->id,
