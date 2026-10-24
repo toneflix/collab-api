@@ -75,4 +75,11 @@ DB_DATABASE=toneflix_collab_tests php artisan migrate --seed
 php artisan test
 ```
 
-CI runs the same steps on every pull request (`.github/workflows/tests.yml`).
+The S3 storage tests run against any S3 API. They are skipped unless `S3_TEST_ENDPOINT` is set, for example with [moto](https://github.com/getmoto/moto):
+
+```bash
+docker run -d -p 9090:5000 motoserver/moto:5.2.4
+S3_TEST_ENDPOINT=http://127.0.0.1:9090 php artisan test --filter S3StorageTest
+```
+
+CI runs the same steps, S3 tests included, on every pull request (`.github/workflows/tests.yml`).

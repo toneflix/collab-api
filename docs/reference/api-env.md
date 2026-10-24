@@ -56,6 +56,8 @@ PostgreSQL is the one we test on. MySQL/MariaDB and SQLite also work.
 | `FILEABLE_TEMPORARY_URLS` | `true` | Sign file links, for private buckets. `false` gives plain bucket URLs. |
 | `FILEABLE_TEMPORARY_URL_TTL` | `60` | Minutes a signed link lasts. |
 
+The bucket needs a CORS rule so the studio can load stems. See [File storage](../guide/production#file-storage).
+
 ## Audio
 
 | Key | Default | What it does |

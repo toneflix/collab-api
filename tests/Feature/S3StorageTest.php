@@ -3,12 +3,17 @@
 namespace Tests\Feature;
 
 use App\Models\Artist;
+use App\Models\AudioFingerprint;
+use App\Models\Comment;
 use App\Models\Genre;
 use App\Models\Project;
 use App\Models\ProjectTrack;
 use App\Models\Release;
+use App\Models\Sound;
 use App\Models\Track;
 use App\Models\User;
+use App\Services\Sounds\SoundSettings;
+use App\Services\Studio\StemFiles;
 use Aws\S3\S3Client;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\UploadedFile;
@@ -16,6 +21,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
+use Toneflix\LaravelFileable\Media;
 
 /**
  * Runs uploads, links and audio processing against a real S3 API.
@@ -114,9 +120,7 @@ class S3StorageTest extends TestCase
 
     public function test_stems_upload_to_s3_and_get_working_links(): void
     {
-        $owner = $this->actingAsFresh(User::factory()->create());
-        $project = Project::factory()->create(['user_id' => $owner->id]);
-        $projectTrack = ProjectTrack::factory()->create(['project_id' => $project->id]);
+        [$project, $projectTrack] = $this->projectTrack($this->actingAsFresh(User::factory()->create()));
 
         $this->post("/api/creator/projects/{$project->id}/tracks/{$projectTrack->id}/stems", [
             'title' => 'Vocals',
@@ -126,13 +130,83 @@ class S3StorageTest extends TestCase
         $stem = $projectTrack->stems()->latest('id')->firstOrFail();
         $this->assertTrue(Storage::disk('s3')->exists('media/music/stem/'.$stem->src));
 
-        $links = [['url' => $stem->getFiles['src']['dynamicLink']]];
+        $this->assertRedirectsToS3($stem->getFiles['src']['dynamicLink']);
+    }
 
-        // The link goes through the API, which sends the browser to a short-lived S3 link.
-        $response = $this->get($links[0]['url']);
-        $response->assertRedirect();
-        $this->assertStringContainsString('X-Amz-Signature', $response->headers->get('Location'));
-        $this->assertSame(200, $this->http($response->headers->get('Location')));
+    public function test_track_previews_upload_to_s3(): void
+    {
+        [$project, $projectTrack] = $this->projectTrack($this->actingAsFresh(User::factory()->create()));
+
+        $this->post("/api/creator/projects/{$project->id}/tracks/{$projectTrack->id}", [
+            '_method' => 'PUT',
+            'title' => 'Mixed down',
+            'genre_id' => (string) $projectTrack->genre_id,
+            'artist_id' => (string) $projectTrack->artist_id,
+            'preview' => UploadedFile::fake()->create('mix.mp3', 120, 'audio/mpeg'),
+        ], ['Accept' => 'application/json'])->assertSuccessful();
+
+        $projectTrack->refresh();
+        $this->assertTrue(Storage::disk('s3')->exists('media/music/tracks/'.$projectTrack->preview));
+        $this->assertRedirectsToS3($projectTrack->getFiles['preview']['dynamicLink']);
+    }
+
+    public function test_stems_made_by_tools_are_written_to_and_read_from_s3(): void
+    {
+        $owner = User::factory()->create();
+        [, $projectTrack] = $this->projectTrack($owner);
+        $files = app(StemFiles::class);
+
+        $stem = $files->addStem($projectTrack, $owner, base_path('tests/fixtures/audio.mp3'), 'Split vocals');
+        $this->assertTrue(Storage::disk('s3')->exists('media/music/stem/'.$stem->src));
+
+        $local = $files->local($stem);
+        $this->assertFileEquals(base_path('tests/fixtures/audio.mp3'), $local);
+        unlink($local);
+    }
+
+    public function test_voice_notes_are_stored_on_s3(): void
+    {
+        $owner = $this->actingAsFresh(User::factory()->create());
+        [, $projectTrack] = $this->projectTrack($owner);
+        $url = "/api/conversations/project-track/{$projectTrack->id}/messages";
+
+        $id = $this->post($url, [
+            'voice' => UploadedFile::fake()->create('note.webm', 40, 'audio/webm'),
+            'duration' => 4,
+        ], ['Accept' => 'application/json'])->assertCreated()->json('data.id');
+
+        $path = (new Media)->mediaInfo('voice_notes', Comment::find($id)->meta['voice']['file'])['path'];
+        $this->assertTrue(Storage::disk('s3')->exists($path));
+        $this->assertRedirectsToS3($this->getJson($url)->json('data.0.voice.url'));
+
+        $this->deleteJson("{$url}/{$id}")->assertStatus(202);
+        $this->assertFalse(Storage::disk('s3')->exists($path));
+    }
+
+    public function test_sounds_are_stored_on_s3_and_copied_into_tracks(): void
+    {
+        SoundSettings::flush();
+        $owner = $this->actingAsFresh(User::factory()->create());
+        [$project, $projectTrack] = $this->projectTrack($owner);
+
+        $sound = $this->post('/api/sounds/mine', [
+            'file' => UploadedFile::fake()->create('loop.mp3', 30, 'audio/mpeg'),
+            'duration' => 2,
+        ], ['Accept' => 'application/json'])->assertCreated()->json('data');
+
+        $file = Sound::findOrFail($sound['id'])->file;
+        $this->assertTrue(Storage::disk('s3')->exists('media/sounds/'.$file));
+        $this->assertRedirectsToS3($sound['url']);
+
+        $stemId = $this->postJson("/api/creator/projects/{$project->id}/tracks/{$projectTrack->id}/sounds", ['sound_id' => $sound['id']])
+            ->assertCreated()
+            ->json('data.id');
+
+        $stem = $projectTrack->stems()->findOrFail($stemId);
+        $this->assertSame(
+            Storage::disk('s3')->get('media/sounds/'.$file),
+            Storage::disk('s3')->get('media/music/stem/'.$stem->src)
+        );
     }
 
     public function test_uploaded_audio_is_processed_on_s3(): void
@@ -163,6 +237,41 @@ class S3StorageTest extends TestCase
         $this->assertStringEndsWith('.aac', $track->audio);
         $this->assertTrue(Storage::disk('s3')->exists('media/music/tracks/'.$track->audio));
         $this->assertTrue(Storage::disk('s3')->exists('artwork/'.$track->image));
+
+        // The copy check reads the processed file back from the bucket.
+        $fingerprint = AudioFingerprint::query()->where('model_type', $track->getMorphClass())->where('model_id', $track->id)->firstOrFail();
+        $this->assertSame(hash('sha256', Storage::disk('s3')->get('media/music/tracks/'.$track->audio)), $fingerprint->hash);
+    }
+
+    /**
+     * A project with one track, owned by the given user.
+     *
+     * @return array{0: Project, 1: ProjectTrack}
+     */
+    protected function projectTrack(User $owner): array
+    {
+        Artist::factory()->create();
+        Genre::factory()->create();
+
+        $project = Project::factory()->create(['user_id' => $owner->id]);
+        $projectTrack = ProjectTrack::factory()->create(['project_id' => $project->id]);
+
+        return [$project, $projectTrack];
+    }
+
+    /**
+     * Dynamic links go through the API, which sends the browser on to a
+     * short-lived S3 link that other origins can load.
+     */
+    protected function assertRedirectsToS3(string $url): void
+    {
+        $response = $this->get($url);
+        $response->assertRedirect();
+        $response->assertHeader('Access-Control-Allow-Origin', '*');
+
+        $location = $response->headers->get('Location');
+        $this->assertStringContainsString('X-Amz-Signature', $location);
+        $this->assertSame(200, $this->http($location));
     }
 
     /**

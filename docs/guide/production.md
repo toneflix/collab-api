@@ -143,6 +143,33 @@ REVERB_SERVER_HOST=127.0.0.1         # where reverb:start listens
 REVERB_SERVER_PORT=8080
 ```
 
+### File storage
+
+Uploads (avatars, artwork, tracks, stems, previews, voice notes and sounds) stay on the server by default. To keep them in Amazon S3 or an S3-compatible store (R2, MinIO, Spaces), set `FILESYSTEM_DISK=s3` and the `AWS_*` keys in [API .env](../reference/api-env#storage).
+
+Keep the bucket private. File links are signed and last `FILEABLE_TEMPORARY_URL_TTL` minutes, and audio links go through the API, which sends the browser on to a signed bucket link.
+
+The studio loads stems with `fetch`, so the bucket needs a CORS rule. The browser reaches the bucket through a redirect from the API, which makes its `Origin` header `null`, so allow every origin. The signed links are what keep files private.
+
+```json
+[
+  {
+    "AllowedOrigins": ["*"],
+    "AllowedMethods": ["GET", "HEAD"],
+    "AllowedHeaders": ["*"],
+    "ExposeHeaders": ["Content-Length", "Content-Range", "Accept-Ranges"]
+  }
+]
+```
+
+FFmpeg and Chromaprint work on a local copy of each file, so `FFMPEG_TEMPORARY_FILES_ROOT` (or the system temp folder) needs room for the largest upload.
+
+To move existing uploads, copy `storage/app/public/` to the root of the bucket, so `storage/app/public/media/` becomes `media/`:
+
+```bash
+aws s3 sync storage/app/public/ s3://<bucket>/ --exclude ".gitignore"
+```
+
 ### Webhooks
 
 Register these with each provider you turn on. Details are in [Payment providers](./payments).
@@ -201,6 +228,7 @@ It listens on port 3000 (`PORT` changes it). Keep it running with Supervisor or 
 - [ ] `APP_DEBUG=false`, real mail settings, seeded admin password changed
 - [ ] Queue worker, cron and (if used) Reverb running
 - [ ] FFmpeg shows `chromaprint` in `ffmpeg -muxers`
+- [ ] Bucket CORS rule added, if `FILESYSTEM_DISK=s3`
 - [ ] `php artisan webpush:vapid` run once, `FRONTEND_URL` set
 - [ ] `app_currency`, `creator_share` and payout limits set at `/admin/configuration`
 - [ ] Paystack webhook added and transfer OTP turned off
