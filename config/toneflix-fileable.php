@@ -27,6 +27,9 @@ return [
         'voice_notes' => [
             'path' => 'media/voice-notes/',
         ],
+        'sounds' => [
+            'path' => 'media/sounds/',
+        ],
         'banner' => [
             'size' => [1200, 600],
             'path' => 'media/banners/',

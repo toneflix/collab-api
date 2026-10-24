@@ -35,6 +35,9 @@ class ProjectTrackResource extends JsonResource
             'stemsCount' => $this->stems->count(),
             'project_id' => $this->project_id,
             'description' => $this->description,
+            // The studio's tempo and meter, for the beat grid and metronome.
+            'bpm' => (float) ($this->meta['bpm'] ?? 120),
+            'timeSignature' => (string) ($this->meta['timeSignature'] ?? '4/4'),
         ];
     }
 }

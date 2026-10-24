@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 
+use App\Enums\Feature;
 use App\Models\Scopes\RestrictBlockedUserScope;
 use App\Notifications\SendCode;
 use App\Traits\ModelCanExtend;
@@ -18,6 +19,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -340,6 +342,22 @@ class User extends Authenticatable implements Commentator
     }
 
     /**
+     * The user's own sounds, for adding to tracks.
+     */
+    public function sounds(): HasMany
+    {
+        return $this->hasMany(Sound::class);
+    }
+
+    /**
+     * The Freesound account the user connected, if any.
+     */
+    public function freesound(): HasOne
+    {
+        return $this->hasOne(FreesoundConnection::class);
+    }
+
+    /**
      * Get the user's fullname.
      *
      * @return string
@@ -471,13 +489,32 @@ class User extends Authenticatable implements Commentator
     }
 
     /**
-     * Whether the user has an active Premium subscription.
+     * Whether the user has an active paid subscription.
      */
     public function isPremium(): Attribute
     {
         return Attribute::make(
             get: fn () => $this->subscriptions()->active()->exists(),
         )->shouldCache();
+    }
+
+    /**
+     * The plan the user is on: their active subscription's plan, or the default plan.
+     */
+    public function currentPlan(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->subscriptions()->active()->whereNotNull('plan_id')->with('planModel')->first()?->planModel
+                ?? Plan::default(),
+        )->shouldCache();
+    }
+
+    /**
+     * What the user's plan gives for a feature.
+     */
+    public function feature(Feature $feature): bool|int
+    {
+        return $this->current_plan->feature($feature);
     }
 
     /**
