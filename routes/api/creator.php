@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Creator\AiController;
 use App\Http\Controllers\Creator\ArtistController;
 use App\Http\Controllers\Creator\ProjectCollaboratorController;
 use App\Http\Controllers\Creator\ProjectController;
@@ -19,6 +20,13 @@ Route::middleware(['auth:sanctum'])->prefix('creator')->name('creator.')->group(
     Route::apiResource('projects', ProjectController::class);
     Route::apiResource('projects/{project}/tracks', ProjectTrackController::class);
     Route::apiResource('projects/{project}/tracks/{track}/stems', ProjectTrackStemController::class);
+
+    // AI tools
+    Route::get('projects/{project}/tracks/{track}/ai/jobs', [AiController::class, 'jobs'])->name('projects.tracks.ai.jobs');
+    Route::post('projects/{project}/tracks/{track}/ai/music', [AiController::class, 'music'])->middleware('throttle:10,1')->name('projects.tracks.ai.music');
+    Route::post('projects/{project}/tracks/{track}/stems/{stem}/split', [AiController::class, 'split'])->middleware('throttle:10,1')->name('projects.tracks.stems.split');
+    Route::get('ai/jobs/{job}', [AiController::class, 'show'])->name('ai.jobs.show');
+
     Route::get('projects/{project}/tracks/{track}/versions', [ProjectTrackVersionController::class, 'index'])
         ->name('projects.tracks.versions.index');
     Route::post('projects/{project}/tracks/{track}/versions/{version}/restore', [ProjectTrackVersionController::class, 'restore'])
