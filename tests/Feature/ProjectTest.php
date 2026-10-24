@@ -4,13 +4,18 @@ namespace Tests\Feature;
 
 use App\Models\Project;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class ProjectTest extends TestCase
 {
-    // use RefreshDatabase;
+    use DatabaseTransactions;
+
+    protected function project(): Project
+    {
+        return Project::factory()->create(['user_id' => User::factory()->create()->id]);
+    }
 
     public function testCanSendCollabRequest(): void
     {
@@ -19,7 +24,7 @@ class ProjectTest extends TestCase
             ['*']
         );
 
-        $project = Project::inRandomOrder()->first();
+        $project = $this->project();
 
         $response = $this->post("/api/projects/{$project->id}/collaborators", [
             'role' => 'vocals'
@@ -34,7 +39,7 @@ class ProjectTest extends TestCase
             ['*']
         );
 
-        $project = Project::inRandomOrder()->first();
+        $project = $this->project();
 
         $response = $this->post("/api/projects/{$project->id}/collaborators", [
             'role' => 'custom',
@@ -50,7 +55,8 @@ class ProjectTest extends TestCase
             ['*']
         );
 
-        $project = Project::whereHas('collaborators', fn ($q) => $q->whereAccepted(false))->inRandomOrder()->first();
+        $project = $this->project();
+        $project->collaborators()->create(['role' => 'vocals', 'user_id' => User::factory()->create()->id]);
 
         $response = $this->get("/api/projects/{$project->id}/collaborators", [
             'pending' => true,
@@ -67,7 +73,7 @@ class ProjectTest extends TestCase
             ['*']
         );
 
-        $project = Project::inRandomOrder()->first();
+        $project = $this->project();
 
         $response = $this->post("/api/projects/{$project->id}/collaborators", [
             'role' => 'custom',

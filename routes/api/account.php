@@ -7,6 +7,7 @@ use App\Http\Controllers\Account\NotificationController;
 use App\Http\Controllers\Account\PayoutAccountController;
 use App\Http\Controllers\Account\PayoutController;
 use App\Http\Controllers\Account\PaymentsController;
+use App\Http\Controllers\Account\TakedownController;
 use App\Http\Controllers\NotificationRequestController;
 use App\Http\Controllers\SafetyController;
 use Illuminate\Http\Request;
@@ -21,6 +22,8 @@ Route::middleware(['auth:sanctum'])
         Route::get('purchases', [PaymentsController::class, 'purchases'])->name('purchases');
         Route::get('earnings', [PaymentsController::class, 'earnings'])->name('earnings');
         Route::get('subscription', [PaymentsController::class, 'subscription'])->name('subscription');
+        Route::get('takedowns', [TakedownController::class, 'index'])->name('takedowns.index');
+        Route::post('takedowns/{takedown}/appeal', [TakedownController::class, 'appeal'])->middleware('throttle:5,1')->name('takedowns.appeal');
 
         // Withdrawing earnings
         Route::get('payouts/banks', [PayoutAccountController::class, 'banks'])->name('payouts.banks');
@@ -45,6 +48,6 @@ Route::middleware(['auth:sanctum'])
     ->name('safety.')
     ->prefix('safety')
     ->group(function () {
-        Route::post('reports', [SafetyController::class, 'report'])->name('safety.report');
+        Route::post('reports', [SafetyController::class, 'report'])->middleware('throttle:10,1')->name('safety.report');
         Route::apiResource('blocklist', BlockController::class)->except(['show', 'delete']);
     });
