@@ -11,6 +11,7 @@ use App\Models\ProjectTrack;
 use App\Models\User;
 use App\Services\Ai\AiSettings;
 use App\Services\Ai\Credits;
+use App\Services\Ai\Replicate\ReplicateClient;
 use App\Services\Studio\StemFiles;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\Client\Request;
@@ -343,5 +344,33 @@ class AiMusicTest extends TestCase
             ->assertSuccessful();
 
         $this->artisan('ai:jobs', ['--status' => 'done'])->assertExitCode(2);
+    }
+
+    public function test_throttled_predictions_are_tried_again(): void
+    {
+        $throttled = ['detail' => 'Request was throttled. Your rate limit for creating predictions is reduced to 6 requests per minute with a burst of 1 requests.', 'status' => 429, 'retry_after' => 7];
+
+        Http::fake([
+            self::API.'/models/elevenlabs/music/predictions' => Http::sequence()
+                ->push($throttled, 429)
+                ->push(self::ELEVENLABS_PREDICTION, 201),
+            self::ELEVENLABS_PREDICTION['output'] => Http::response('ID3-song', 200, ['Content-Type' => 'audio/mpeg']),
+        ]);
+
+        $audio = Audio::of('Afrobeats groove')->generate('replicate');
+
+        $this->assertSame('ID3-song', $audio->content());
+        Sleep::assertSlept(fn ($duration) => $duration->totalSeconds === 7.0, 1);
+    }
+
+    public function test_models_known_to_need_a_version_run_by_it_straight_away(): void
+    {
+        $this->fakeDemucs();
+        $client = ReplicateClient::make();
+
+        $client->create('ryan5453/demucs', ['audio' => 'https://example.test/a.mp3']);
+        $client->create('ryan5453/demucs', ['audio' => 'https://example.test/b.mp3']);
+
+        Http::assertSentCount(4);
     }
 }

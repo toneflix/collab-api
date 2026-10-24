@@ -3,6 +3,7 @@
 namespace App\Services\Ai\Replicate;
 
 use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Sleep;
@@ -17,6 +18,11 @@ use Illuminate\Support\Str;
 class ReplicateClient
 {
     protected const DONE = ['succeeded', 'failed', 'canceled'];
+
+    /**
+     * Times a throttled prediction is tried again.
+     */
+    protected const THROTTLE_RETRIES = 3;
 
     /**
      * @param  array{key?: ?string, url?: ?string, timeout?: int}  $config
@@ -70,18 +76,40 @@ class ReplicateClient
     public function create(string $model, array $input): array
     {
         [$name, $version] = array_pad(explode(':', $model, 2), 2, null);
-
-        $request = fn () => $this->http()->withHeaders(['Prefer' => 'wait=60'])->timeout(75);
+        $version ??= Cache::get($this->versionKey($name));
 
         if (! $version) {
-            $response = $request()->post("models/{$name}/predictions", ['input' => $input]);
+            $response = $this->start("models/{$name}/predictions", ['input' => $input]);
 
             if (! in_array($response->status(), [404, 422], true) || ! ($version = $this->latestVersion($name))) {
                 return $this->prediction(null, $response->throw()->json());
             }
         }
 
-        return $this->prediction(null, $request()->post('predictions', ['version' => $version, 'input' => $input])->throw()->json());
+        return $this->prediction(null, $this->start('predictions', ['version' => $version, 'input' => $input])->throw()->json());
+    }
+
+    /**
+     * Post a new prediction, waiting out Replicate's rate limit a few times
+     * before giving up.
+     *
+     * @param  array<string, mixed>  $body
+     */
+    protected function start(string $path, array $body): Response
+    {
+        $tries = 0;
+
+        while (true) {
+            $response = $this->http()->withHeaders(['Prefer' => 'wait=60'])->timeout(75)->post($path, $body);
+
+            if ($response->status() !== 429 || ++$tries > self::THROTTLE_RETRIES) {
+                return $response;
+            }
+
+            $wait = (int) ($response->json('retry_after') ?? $response->header('Retry-After') ?: 10);
+
+            Sleep::for(min(60, max(1, $wait)))->seconds();
+        }
     }
 
     /**
@@ -160,7 +188,12 @@ class ReplicateClient
      */
     protected function latestVersion(string $model): ?string
     {
-        return Cache::remember("replicate::version::{$model}", 3600, fn () => $this->http()->get("models/{$model}")->json('latest_version.id'));
+        return Cache::remember($this->versionKey($model), 3600, fn () => $this->http()->get("models/{$model}")->json('latest_version.id'));
+    }
+
+    protected function versionKey(string $model): string
+    {
+        return "replicate::version::{$model}";
     }
 
     protected function baseUrl(): string
