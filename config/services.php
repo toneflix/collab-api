@@ -32,10 +32,29 @@ return [
     ],
 
     'freesound' => [
+        'client_id' => env('FREESOUND_CLIENT_ID'),
+        'client_secret' => env('FREESOUND_CLIENT_SECRET'),
         // Changeable for testing against a stand-in API.
         'base_url' => env('FREESOUND_BASE_URL', 'https://freesound.org/apiv2'),
         // Seconds to wait between downloads, to stay under Freesound's limits.
         'download_delay' => (float) env('FREESOUND_DOWNLOAD_DELAY', 2),
+    ],
+
+    'paystack' => [
+        'public_key' => env('PAYSTACK_PUBLIC_KEY'),
+        'secret_key' => env('PAYSTACK_SECRET_KEY'),
+    ],
+
+    'flutterwave' => [
+        'secret_key' => env('FLUTTERWAVE_SECRET_KEY'),
+        'webhook_hash' => env('FLUTTERWAVE_WEBHOOK_HASH'),
+    ],
+
+    'stripe' => [
+        'secret_key' => env('STRIPE_SECRET_KEY'),
+        // Used for Connect payouts instead of the secret key when set.
+        'connect_secret_key' => env('STRIPE_CONNECT_SECRET_KEY'),
+        'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
     ],
 
     'realtime' => [
@@ -44,8 +63,7 @@ return [
     ],
 
     'firebase' => [
-        // The service account JSON, or a path to it.
-        'credentials' => env('FIREBASE_CREDENTIALS'),
+        // What browsers use to connect; the server's service account is under broadcasting.connections.firebase.
         'database_url' => env('FIREBASE_DATABASE_URL'),
         'api_key' => env('FIREBASE_API_KEY'),
         'project_id' => env('FIREBASE_PROJECT_ID'),

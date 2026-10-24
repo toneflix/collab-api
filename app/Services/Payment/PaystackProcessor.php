@@ -56,7 +56,7 @@ class PaystackProcessor implements PaymentInterface
 
         // Initialize paystack transaction
         try {
-            $paystack = new Paystack(Providers::config('paystack_secret_key', env('PAYSTACK_SECRET_KEY'), true));
+            $paystack = new Paystack((string) config('services.paystack.secret_key'));
 
             // Dont initialize paystack for inline transaction
             if ($this->request->inline) {
@@ -167,7 +167,7 @@ class PaystackProcessor implements PaymentInterface
             }
         } else {
             try {
-                $paystack = new Paystack(Providers::config('paystack_secret_key', env('PAYSTACK_SECRET_KEY'), true));
+                $paystack = new Paystack((string) config('services.paystack.secret_key'));
                 $tranx = $paystack->transaction->verify([
                     'reference' => $this->request->reference,   // unique to transactions
                 ]);
@@ -237,7 +237,7 @@ class PaystackProcessor implements PaymentInterface
             $tranx = $response;
         } else {
             try {
-                $paystack = new Paystack(Providers::config('paystack_secret_key', env('PAYSTACK_SECRET_KEY'), true));
+                $paystack = new Paystack((string) config('services.paystack.secret_key'));
                 $tranx = $paystack->customer->deactivateAuthorization($authorization_code);
             } catch (ApiException|\InvalidArgumentException|\ErrorException $e) {
                 $tranx = $e instanceof ApiException ? $e->getResponseObject() : new \stdClass;
@@ -284,7 +284,7 @@ class PaystackProcessor implements PaymentInterface
         $msg = 'Transfer Failed';
 
         $recipient = null;
-        $paystack = new Paystack(Providers::config('paystack_secret_key', env('PAYSTACK_SECRET_KEY'), true));
+        $paystack = new Paystack((string) config('services.paystack.secret_key'));
 
         try {
             $recipient_code = $user->data['bank']['recipient_code'] ?? null;

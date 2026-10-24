@@ -3,30 +3,31 @@
 namespace App\Services\Settings;
 
 use App\Models\Configuration;
-use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Schema;
 
 /**
  * A group of admin-editable settings kept in the `configurations` table.
- * Secret values are stored encrypted and never sent back to the browser.
  *
- * Subclasses list their settings in FIELDS as key => [title, secret, default, hint]
- * and name their cache key in CACHE_KEY.
+ * Subclasses list their settings in FIELDS as key => [title, default, hint],
+ * and the API keys they read from `.env` in KEYS as
+ * group => [ENV_NAME => [title, config path, required]].
  */
 abstract class SettingsStore
 {
     protected const CACHE_KEY = '';
 
     /**
-     * @var array<string, array{0: string, 1: bool, 2: string|null, 3?: string}>
+     * @var array<string, array{0: string, 1: string|null, 2?: string}>
      */
     public const FIELDS = [];
 
     /**
-     * Every setting, with secrets decrypted.
-     *
+     * @var array<string, array<string, array{0: string, 1: string, 2?: bool}>>
+     */
+    public const KEYS = [];
+
+    /**
      * @return array<string, string|null>
      */
     public static function all(): array
@@ -47,9 +48,6 @@ abstract class SettingsStore
     }
 
     /**
-     * Save settings. A secret sent as an empty value keeps its stored value,
-     * so admins don't have to re-enter secrets to change something else.
-     *
      * @param  array<string, mixed>  $values
      */
     public static function update(array $values): void
@@ -59,22 +57,16 @@ abstract class SettingsStore
                 continue;
             }
 
-            [$title, $secret] = static::FIELDS[$key];
-
-            if ($secret && blank($value)) {
-                continue;
-            }
-
             if (is_bool($value)) {
                 $value = $value ? '1' : '0';
             }
 
             Configuration::query()->firstOrNew(['key' => $key])->forceFill([
                 'key' => $key,
-                'title' => $title,
+                'title' => static::FIELDS[$key][0],
                 'type' => 'string',
-                'secret' => $secret,
-                'value' => blank($value) ? null : ($secret ? Crypt::encryptString((string) $value) : (string) $value),
+                'secret' => false,
+                'value' => blank($value) ? null : (string) $value,
             ])->save();
         }
 
@@ -82,9 +74,7 @@ abstract class SettingsStore
     }
 
     /**
-     * Settings for an admin page: secrets only say whether they are set.
-     *
-     * @return array<string, array{title: string, secret: bool, hint: string, value: string|null, isSet: bool}>
+     * @return array<string, array{title: string, hint: string, value: string|null}>
      */
     public static function forAdmin(): array
     {
@@ -92,17 +82,48 @@ abstract class SettingsStore
         $out = [];
 
         foreach (static::FIELDS as $key => $field) {
-            [$title, $secret] = $field;
             $out[$key] = [
-                'title' => $title,
-                'secret' => $secret,
-                'hint' => $field[3] ?? '',
-                'value' => $secret ? null : $all[$key],
-                'isSet' => filled($all[$key]),
+                'title' => $field[0],
+                'hint' => $field[2] ?? '',
+                'value' => $all[$key],
             ];
         }
 
         return $out;
+    }
+
+    /**
+     * The `.env` keys of each group and whether they are set. Values are never included.
+     *
+     * @return array<string, array<int, array{env: string, title: string, required: bool, isSet: bool}>>
+     */
+    public static function keys(): array
+    {
+        return collect(static::KEYS)->map(fn (array $keys) => collect($keys)->map(fn (array $key, string $env) => [
+            'env' => $env,
+            'title' => $key[0],
+            'required' => $key[2] ?? true,
+            'isSet' => filled(config($key[1])),
+        ])->values()->all())->all();
+    }
+
+    /**
+     * Titles of the required keys in a group that `.env` leaves empty.
+     *
+     * @return array<int, string>
+     */
+    public static function missing(string $group): array
+    {
+        return collect(static::keys()[$group] ?? [])
+            ->filter(fn (array $key) => $key['required'] && ! $key['isSet'])
+            ->map(fn (array $key) => "{$key['title']} ({$key['env']})")
+            ->values()
+            ->all();
+    }
+
+    public static function configured(string $group): bool
+    {
+        return isset(static::KEYS[$group]) && static::missing($group) === [];
     }
 
     public static function flush(): void
@@ -114,11 +135,11 @@ abstract class SettingsStore
     /**
      * The value used when a setting is empty.
      *
-     * @param  array{0: string, 1: bool, 2: string|null, 3?: string}  $field
+     * @param  array{0: string, 1: string|null, 2?: string}  $field
      */
     protected static function fallback(string $key, array $field): ?string
     {
-        return $field[2];
+        return $field[1];
     }
 
     /**
@@ -141,16 +162,8 @@ abstract class SettingsStore
         $out = [];
         foreach (static::FIELDS as $key => $field) {
             $value = $stored[$key] ?? null;
-
-            if ($field[1] && filled($value)) {
-                try {
-                    $value = Crypt::decryptString($value);
-                } catch (DecryptException) {
-                    $value = null;
-                }
-            }
-
             $fallback = static::fallback($key, $field);
+
             $out[$key] = filled($value) ? (string) $value : (filled($fallback) ? (string) $fallback : null);
         }
 

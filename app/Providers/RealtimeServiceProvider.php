@@ -23,9 +23,8 @@ class RealtimeServiceProvider extends ServiceProvider
             $manager->extend('firebase', fn ($app, array $config) => new FirebaseBroadcaster($config));
         });
 
-        // A Reverb server reads its app keys at start, so apply the stored
-        // settings for console commands right away; web requests apply them
-        // the first time something is broadcast.
+        // Apply the admin's driver choice: right away for console commands,
+        // and the first time something is broadcast for web requests.
         if ($this->app->runningInConsole()) {
             $this->configure();
         } else {
@@ -38,7 +37,7 @@ class RealtimeServiceProvider extends ServiceProvider
         try {
             Realtime::configure();
         } catch (\Throwable $e) {
-            // No database yet (fresh install, package discovery): keep the .env setup.
+            // No database yet (fresh install, package discovery): keep the .env driver.
         }
     }
 

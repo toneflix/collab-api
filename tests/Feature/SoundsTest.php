@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Models\Artist;
 use App\Enums\Feature;
-use App\Models\Configuration;
 use App\Models\Plan;
 use App\Models\FreesoundConnection;
 use App\Models\Genre;
@@ -86,12 +85,9 @@ class SoundsTest extends TestCase
 
     protected function configureFreesound(array $more = []): void
     {
-        SoundSettings::update([
-            'freesound_enabled' => '1',
-            'freesound_client_id' => 'client-123',
-            'freesound_client_secret' => 'secret-456',
-            ...$more,
-        ]);
+        config(['services.freesound.client_id' => 'client-123', 'services.freesound.client_secret' => 'secret-456']);
+
+        SoundSettings::update(['freesound_enabled' => '1', ...$more]);
     }
 
     protected function librarySound(array $attributes = []): Sound
@@ -238,8 +234,10 @@ class SoundsTest extends TestCase
         $this->postJson($url, ['sound_id' => $sound->id])->assertNotFound();
     }
 
-    public function test_only_admins_see_sound_settings_and_the_secret_is_never_returned(): void
+    public function test_only_admins_see_sound_settings_and_the_keys_stay_in_env(): void
     {
+        config(['services.freesound.client_id' => 'client-123', 'services.freesound.client_secret' => 'secret-456']);
+
         Sanctum::actingAs($this->owner);
         $this->getJson('/api/admin/sounds')->assertForbidden();
 
@@ -247,26 +245,23 @@ class SoundsTest extends TestCase
         $this->putJson('/api/admin/sounds', [
             'sounds_library_enabled' => true,
             'freesound_enabled' => true,
-            'freesound_client_id' => 'client-123',
-            'freesound_client_secret' => 'secret-456',
+            'freesound_client_secret' => 'ignored',
             'freesound_sync_queries' => "Drums: drum loop\nbass loop",
         ])
             ->assertAccepted()
             ->assertJsonPath('data.configured', true)
-            ->assertJsonPath('data.fields.freesound_client_secret.value', null)
-            ->assertJsonPath('data.fields.freesound_client_secret.isSet', true);
+            ->assertJsonPath('data.keys.freesound.1.env', 'FREESOUND_CLIENT_SECRET')
+            ->assertJsonPath('data.keys.freesound.1.isSet', true)
+            ->assertDontSee('secret-456');
 
-        $stored = Configuration::query()->toBase()->where('key', 'freesound_client_secret')->value('value');
-        $this->assertNotSame('secret-456', $stored);
-        $this->assertSame('secret-456', SoundSettings::get('freesound_client_secret'));
+        $this->assertDatabaseMissing('configurations', ['key' => 'freesound_client_secret']);
         $this->assertSame([
             ['category' => 'Drums', 'query' => 'drum loop'],
             ['category' => 'bass loop', 'query' => 'bass loop'],
         ], SoundSettings::syncQueries());
 
-        // Saving without the secret keeps it.
-        $this->putJson('/api/admin/sounds', ['freesound_client_id' => 'client-789'])->assertAccepted();
-        $this->assertSame('secret-456', SoundSettings::get('freesound_client_secret'));
+        config(['services.freesound.client_secret' => null]);
+        $this->getJson('/api/admin/sounds')->assertJsonPath('data.configured', false);
 
         $this->getJson('/api/initialize')->assertJsonMissing(['secret-456']);
     }

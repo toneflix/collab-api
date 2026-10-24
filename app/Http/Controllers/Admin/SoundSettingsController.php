@@ -15,8 +15,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 
 /**
- * Lets admins turn the sound library and Freesound on or off, enter the
- * Freesound keys, sync the library and manage its sounds.
+ * Lets admins turn the sound library and Freesound on or off, sync the
+ * library and manage its sounds. The Freesound keys come from `.env`.
  */
 class SoundSettingsController extends Controller
 {
@@ -45,8 +45,6 @@ class SoundSettingsController extends Controller
         $valid = $request->validate([
             'sounds_library_enabled' => ['nullable', 'boolean'],
             'freesound_enabled' => ['nullable', 'boolean'],
-            'freesound_client_id' => ['nullable', 'string', 'max:100'],
-            'freesound_client_secret' => ['nullable', 'string', 'max:200'],
             'freesound_sync_queries' => ['nullable', 'string', 'max:3000'],
             'freesound_sync_limit' => ['nullable', 'integer', 'between:1,150'],
             'freesound_sync_max_duration' => ['nullable', 'numeric', 'between:1,600'],
@@ -55,7 +53,7 @@ class SoundSettingsController extends Controller
         SoundSettings::update($valid);
 
         $message = filter_var($valid['freesound_enabled'] ?? false, FILTER_VALIDATE_BOOL) && ! SoundSettings::freesoundConfigured()
-            ? 'Saved, but Freesound stays off until both keys are filled in.'
+            ? 'Saved, but Freesound stays off until FREESOUND_CLIENT_ID and FREESOUND_CLIENT_SECRET are set in .env.'
             : 'Sound settings saved.';
 
         return $this->settings($request, $message, HttpStatus::ACCEPTED);
@@ -86,7 +84,7 @@ class SoundSettingsController extends Controller
     public function sync(Request $request)
     {
         if (! SoundSettings::freesoundConfigured()) {
-            return Providers::response()->error(['message' => 'Add the Freesound keys first.'], HttpStatus::UNPROCESSABLE_ENTITY);
+            return Providers::response()->error(['message' => 'Set the Freesound keys in .env first.'], HttpStatus::UNPROCESSABLE_ENTITY);
         }
 
         if (! SoundSettings::syncQueries()) {
@@ -198,6 +196,7 @@ class SoundSettingsController extends Controller
             'data' => [
                 'fields' => collect(SoundSettings::forAdmin())->except(['freesound_library_account', 'freesound_last_sync'])->all(),
                 'configured' => SoundSettings::freesoundConfigured(),
+                'keys' => SoundSettings::keys(),
                 'client' => SoundSettings::clientConfig(),
                 'librarySize' => Sound::query()->library()->count(),
                 'activeSize' => Sound::query()->library()->active()->count(),

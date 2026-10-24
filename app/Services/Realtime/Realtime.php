@@ -10,7 +10,7 @@ use Illuminate\Contracts\Auth\Authenticatable;
 
 /**
  * Sends realtime events and tells clients how to connect, using whichever
- * driver an admin picked in the realtime settings.
+ * driver an admin picked and that driver's keys from `.env`.
  */
 class Realtime
 {
@@ -78,54 +78,13 @@ class Realtime
     }
 
     /**
-     * Point Laravel's broadcasting (and a local Reverb server) at the stored
-     * settings.
+     * Point Laravel's broadcasting at the driver an admin picked.
      */
     public static function configure(): void
     {
-        $s = RealtimeSettings::all();
-        $driver = $s['realtime_driver'];
+        config(['broadcasting.default' => static::CONNECTIONS[RealtimeSettings::driver()] ?? 'null']);
 
-        $reverbTls = ($s['reverb_scheme'] ?: 'https') === 'https';
-
-        config([
-            'broadcasting.default' => static::CONNECTIONS[$driver] ?? 'null',
-
-            'broadcasting.connections.reverb.key' => $s['reverb_key'],
-            'broadcasting.connections.reverb.secret' => $s['reverb_secret'],
-            'broadcasting.connections.reverb.app_id' => $s['reverb_app_id'],
-            'broadcasting.connections.reverb.options.host' => $s['reverb_host'],
-            'broadcasting.connections.reverb.options.port' => (int) ($s['reverb_port'] ?: 443),
-            'broadcasting.connections.reverb.options.scheme' => $s['reverb_scheme'] ?: 'https',
-            'broadcasting.connections.reverb.options.useTLS' => $reverbTls,
-
-            'reverb.apps.apps.0.key' => $s['reverb_key'],
-            'reverb.apps.apps.0.secret' => $s['reverb_secret'],
-            'reverb.apps.apps.0.app_id' => $s['reverb_app_id'],
-            'reverb.apps.apps.0.options.host' => $s['reverb_host'],
-            'reverb.apps.apps.0.options.port' => (int) ($s['reverb_port'] ?: 443),
-            'reverb.apps.apps.0.options.scheme' => $s['reverb_scheme'] ?: 'https',
-            'reverb.apps.apps.0.options.useTLS' => $reverbTls,
-
-            'broadcasting.connections.pusher.key' => $s['pusher_key'],
-            'broadcasting.connections.pusher.secret' => $s['pusher_secret'],
-            'broadcasting.connections.pusher.app_id' => $s['pusher_app_id'],
-            'broadcasting.connections.pusher.options.cluster' => $s['pusher_cluster'] ?: 'mt1',
-            'broadcasting.connections.pusher.options.host' => 'api-'.($s['pusher_cluster'] ?: 'mt1').'.pusher.com',
-
-            'broadcasting.connections.ably.key' => $s['ably_key'],
-
-            'broadcasting.connections.firebase' => [
-                'driver' => 'firebase',
-                'credentials' => $s['firebase_credentials'],
-                'database_url' => $s['firebase_database_url'],
-                'root' => 'arkstack/channels',
-                'grants_root' => 'arkstack/grants',
-                'grant_ttl' => 3600,
-            ],
-        ]);
-
-        // Drop drivers built from the old settings.
+        // Drop drivers built for the old choice.
         if (app()->resolved(BroadcastManager::class)) {
             app(BroadcastManager::class)->forgetDrivers();
         }
@@ -139,29 +98,31 @@ class Realtime
      */
     public static function clientConfig(): array
     {
-        $s = RealtimeSettings::all();
-        $driver = $s['realtime_driver'];
+        $driver = RealtimeSettings::driver();
+        $reverb = config('broadcasting.connections.reverb');
+        $pusher = config('broadcasting.connections.pusher');
+        $firebase = config('services.firebase');
 
         $config = match ($driver) {
             'reverb' => [
                 'transport' => 'pusher',
                 'pusher' => array_filter([
-                    'key' => $s['reverb_key'],
+                    'key' => $reverb['key'] ?? null,
                     'cluster' => 'mt1',
-                    'wsHost' => $s['reverb_host'],
-                    'wsPort' => (int) ($s['reverb_port'] ?: 443),
-                    'forceTLS' => ($s['reverb_scheme'] ?: 'https') === 'https',
+                    'wsHost' => $reverb['options']['host'] ?? null,
+                    'wsPort' => (int) (($reverb['options']['port'] ?? null) ?: 443),
+                    'forceTLS' => (($reverb['options']['scheme'] ?? null) ?: 'https') === 'https',
                 ], fn ($v) => $v !== null && $v !== ''),
             ],
             'pusher' => [
                 'transport' => 'pusher',
-                'pusher' => ['key' => $s['pusher_key'], 'cluster' => $s['pusher_cluster'] ?: 'mt1'],
+                'pusher' => ['key' => $pusher['key'] ?? null, 'cluster' => ($pusher['options']['cluster'] ?? null) ?: 'mt1'],
             ],
             // Ably speaks the Pusher protocol, so the Pusher client works with it.
             'ably' => [
                 'transport' => 'pusher',
                 'pusher' => [
-                    'key' => str($s['ably_key'] ?? '')->before(':')->toString(),
+                    'key' => str((string) config('broadcasting.connections.ably.key'))->before(':')->toString(),
                     'wsHost' => 'realtime-pusher.ably.io',
                     'wsPort' => 443,
                     'forceTLS' => true,
@@ -170,11 +131,11 @@ class Realtime
             'firebase' => [
                 'transport' => 'firebase-database',
                 'firebase-database' => array_filter([
-                    'apiKey' => $s['firebase_api_key'],
-                    'projectId' => $s['firebase_project_id'],
-                    'appId' => $s['firebase_app_id'],
-                    'databaseURL' => $s['firebase_database_url'],
-                    'root' => 'arkstack/channels',
+                    'apiKey' => $firebase['api_key'] ?? null,
+                    'projectId' => $firebase['project_id'] ?? null,
+                    'appId' => $firebase['app_id'] ?? null,
+                    'databaseURL' => $firebase['database_url'] ?? null,
+                    'root' => config('broadcasting.connections.firebase.root'),
                 ]),
             ],
             default => [],

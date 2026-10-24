@@ -2,9 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\Configuration;
 use App\Services\Payment\FlutterwaveGateway;
-use App\Services\Payment\PayoutSettings;
 use App\Services\Payment\PayoutTransfer;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\Client\Request;
@@ -22,7 +20,7 @@ class FlutterwaveGatewayTest extends TestCase
     {
         parent::setUp();
 
-        PayoutSettings::update(['flutterwave_secret_key' => 'FLWSECK_TEST-1']);
+        config(['services.flutterwave.secret_key' => 'FLWSECK_TEST-1']);
         $this->gateway = new FlutterwaveGateway;
     }
 
@@ -71,9 +69,7 @@ class FlutterwaveGatewayTest extends TestCase
         $this->assertEqualsWithDelta(0.0095, $this->gateway->rate('NGN', 'GHS'), 0.00001);
         $this->assertSame(1.0, $this->gateway->rate('NGN', 'NGN'));
 
-        // An empty value keeps a stored secret, so remove it directly.
-        Configuration::where('key', 'flutterwave_secret_key')->delete();
-        PayoutSettings::flush();
+        config(['services.flutterwave.secret_key' => null]);
 
         $this->expectException(ValidationException::class);
         $this->gateway->rate('NGN', 'KES');

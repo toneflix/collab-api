@@ -8,28 +8,32 @@ use Illuminate\Support\Facades\Cache;
 
 /**
  * Settings for the sound library and Freesound, kept in the `configurations`
- * table so admins can change them. The Freesound secret is encrypted and never
- * sent back to the browser.
+ * table so admins can change them. The Freesound keys come from `.env`.
  */
 class SoundSettings extends SettingsStore
 {
     protected const CACHE_KEY = 'sounds::settings';
 
     /**
-     * Every setting: key => [title, secret, default, hint].
+     * Every setting: key => [title, default, hint].
      *
-     * @var array<string, array{0: string, 1: bool, 2: string|null, 3?: string}>
+     * @var array<string, array{0: string, 1: string|null, 2?: string}>
      */
     public const FIELDS = [
-        'sounds_library_enabled' => ['Sound Library', false, '0', 'Show the shared sound library in the studio. It stays hidden while it has no sounds.'],
-        'freesound_enabled' => ['Freesound', false, '0', 'Let people search Freesound and import CC0 sounds into My sounds.'],
-        'freesound_client_id' => ['Freesound Client ID', false, null, 'From your Freesound API app.'],
-        'freesound_client_secret' => ['Freesound Client Secret / API Key', true, null, 'From your Freesound API app. Stored encrypted.'],
-        'freesound_sync_queries' => ['Library Sync Searches', false, null, 'One search per line. Start a line with a category and a colon, like "Drums: drum loop".'],
-        'freesound_sync_limit' => ['Sounds per Search', false, '25', 'How many sounds each sync search adds, at most.'],
-        'freesound_sync_max_duration' => ['Longest Sound (seconds)', false, '30', 'Longer sounds are skipped by the sync.'],
-        'freesound_library_account' => ['Library Download Account', false, null, 'The admin whose connected Freesound account downloads original files for the library.'],
-        'freesound_last_sync' => ['Last Library Sync', false, null, ''],
+        'sounds_library_enabled' => ['Sound Library', '0', 'Show the shared sound library in the studio. It stays hidden while it has no sounds.'],
+        'freesound_enabled' => ['Freesound', '0', 'Let people search Freesound and import CC0 sounds into My sounds.'],
+        'freesound_sync_queries' => ['Library Sync Searches', null, 'One search per line. Start a line with a category and a colon, like "Drums: drum loop".'],
+        'freesound_sync_limit' => ['Sounds per Search', '25', 'How many sounds each sync search adds, at most.'],
+        'freesound_sync_max_duration' => ['Longest Sound (seconds)', '30', 'Longer sounds are skipped by the sync.'],
+        'freesound_library_account' => ['Library Download Account', null, 'The admin whose connected Freesound account downloads original files for the library.'],
+        'freesound_last_sync' => ['Last Library Sync', null, ''],
+    ];
+
+    public const KEYS = [
+        'freesound' => [
+            'FREESOUND_CLIENT_ID' => ['Freesound Client ID', 'services.freesound.client_id'],
+            'FREESOUND_CLIENT_SECRET' => ['Freesound Client Secret / API Key', 'services.freesound.client_secret'],
+        ],
     ];
 
     public static function libraryEnabled(): bool
@@ -47,7 +51,7 @@ class SoundSettings extends SettingsStore
 
     public static function freesoundConfigured(): bool
     {
-        return filled(self::get('freesound_client_id')) && filled(self::get('freesound_client_secret'));
+        return self::configured('freesound');
     }
 
     /**

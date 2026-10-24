@@ -11,7 +11,7 @@ use Closure;
 use Illuminate\Http\Request;
 
 /**
- * Lets admins choose which providers pay creators, and enter their keys.
+ * Lets admins choose which providers pay creators. Their keys come from `.env`.
  */
 class PayoutSettingsController extends Controller
 {
@@ -40,11 +40,7 @@ class PayoutSettingsController extends Controller
         $valid = $request->validate([
             'paystack_payouts_enabled' => ['nullable', 'boolean'],
             'flutterwave_payouts_enabled' => ['nullable', 'boolean'],
-            'flutterwave_secret_key' => ['nullable', 'string', 'max:200'],
-            'flutterwave_webhook_hash' => ['nullable', 'string', 'max:200'],
             'stripe_payouts_enabled' => ['nullable', 'boolean'],
-            'stripe_connect_secret_key' => ['nullable', 'string', 'max:300'],
-            'stripe_webhook_secret' => ['nullable', 'string', 'max:300'],
             'stripe_platform_country' => ['nullable', 'string', 'size:2'],
             'stripe_currency' => ['nullable', 'string', 'size:3'],
             'stripe_exchange_rate' => ['nullable', 'numeric', 'gt:0'],
@@ -66,6 +62,7 @@ class PayoutSettingsController extends Controller
         return Providers::response()->success([
             'data' => [
                 'fields' => PayoutSettings::forAdmin(),
+                'keys' => PayoutSettings::keys(),
                 'currency' => $payouts->currency(),
                 'webhooks' => [
                     'paystack' => route('payments.webhook'),

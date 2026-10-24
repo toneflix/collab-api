@@ -64,22 +64,28 @@ class RealtimeTest extends TestCase
         parent::tearDown();
     }
 
+    protected function useReverb(): void
+    {
+        config([
+            'broadcasting.connections.reverb.app_id' => 'app',
+            'broadcasting.connections.reverb.key' => 'key',
+            'broadcasting.connections.reverb.secret' => 'secret',
+            'broadcasting.connections.reverb.options.host' => 'localhost',
+            'broadcasting.connections.reverb.options.port' => 8080,
+            'broadcasting.connections.reverb.options.scheme' => 'http',
+        ]);
+
+        RealtimeSettings::update(['realtime_driver' => 'reverb']);
+        Realtime::configure();
+    }
+
     /**
      * Use Reverb with made-up keys, and record what gets broadcast instead
      * of sending it.
      */
     protected function useSpyDriver(): void
     {
-        RealtimeSettings::update([
-            'realtime_driver' => 'reverb',
-            'reverb_app_id' => 'app',
-            'reverb_key' => 'key',
-            'reverb_secret' => 'secret',
-            'reverb_host' => 'localhost',
-            'reverb_port' => '8080',
-            'reverb_scheme' => 'http',
-        ]);
-        Realtime::configure();
+        $this->useReverb();
 
         $spy = new class($this->sent) extends Broadcaster
         {
@@ -119,29 +125,27 @@ class RealtimeTest extends TestCase
             ->assertJsonPath('data.drivers', RealtimeSettings::DRIVERS);
     }
 
-    public function test_admins_save_settings_and_secrets_never_come_back(): void
+    public function test_admins_pick_the_driver_and_keys_stay_in_env(): void
     {
+        config([
+            'broadcasting.connections.pusher.app_id' => '123',
+            'broadcasting.connections.pusher.key' => 'public-key',
+            'broadcasting.connections.pusher.secret' => 'very-secret',
+            'broadcasting.connections.pusher.options.cluster' => 'eu',
+        ]);
+
         Sanctum::actingAs($this->admin());
 
-        $this->putJson('/api/admin/realtime', [
-            'realtime_driver' => 'pusher',
-            'pusher_app_id' => '123',
-            'pusher_key' => 'public-key',
-            'pusher_secret' => 'very-secret',
-            'pusher_cluster' => 'eu',
-        ])
+        $this->putJson('/api/admin/realtime', ['realtime_driver' => 'pusher', 'pusher_secret' => 'ignored'])
             ->assertStatus(202)
             ->assertJsonPath('data.driver', 'pusher')
-            ->assertJsonPath('data.fields.pusher_secret.value', null)
-            ->assertJsonPath('data.fields.pusher_secret.isSet', true)
+            ->assertJsonPath('data.keys.pusher.2.env', 'PUSHER_APP_SECRET')
+            ->assertJsonPath('data.keys.pusher.2.isSet', true)
             ->assertJsonPath('data.client.pusher.key', 'public-key')
-            ->assertJsonPath('data.missing', []);
+            ->assertJsonPath('data.missing', [])
+            ->assertDontSee('very-secret');
 
-        $this->assertStringNotContainsString('very-secret', (string) \DB::table('configurations')->where('key', 'pusher_secret')->value('value'));
-
-        // An empty secret keeps the stored one.
-        $this->putJson('/api/admin/realtime', ['realtime_driver' => 'pusher', 'pusher_secret' => ''])->assertStatus(202);
-        $this->assertSame('very-secret', RealtimeSettings::get('pusher_secret'));
+        $this->assertDatabaseMissing('configurations', ['key' => 'pusher_secret']);
         $this->assertSame('pusher', config('broadcasting.default'));
 
         $this->getJson('/api/initialize')
@@ -150,18 +154,30 @@ class RealtimeTest extends TestCase
             ->assertDontSee('very-secret');
     }
 
+    public function test_missing_env_keys_are_named(): void
+    {
+        config(['broadcasting.connections.ably.key' => null]);
+
+        Sanctum::actingAs($this->admin());
+
+        $this->putJson('/api/admin/realtime', ['realtime_driver' => 'ably'])
+            ->assertStatus(202)
+            ->assertJsonPath('data.missing', ['Ably API Key (ABLY_KEY)']);
+
+        $this->postJson('/api/admin/realtime/test')->assertUnprocessable();
+    }
+
     public function test_settings_are_validated(): void
     {
         Sanctum::actingAs($this->admin());
 
         $this->putJson('/api/admin/realtime', ['realtime_driver' => 'carrier-pigeon'])->assertUnprocessable();
-        $this->putJson('/api/admin/realtime', ['realtime_driver' => 'ably', 'ably_key' => 'no-secret'])->assertUnprocessable();
-        $this->putJson('/api/admin/realtime', ['realtime_driver' => 'firebase', 'firebase_credentials' => '{not json'])->assertUnprocessable();
     }
 
     public function test_ably_uses_the_pusher_protocol_without_leaking_the_secret(): void
     {
-        RealtimeSettings::update(['realtime_driver' => 'ably', 'ably_key' => 'app.key:shh']);
+        config(['broadcasting.connections.ably.key' => 'app.key:shh']);
+        RealtimeSettings::update(['realtime_driver' => 'ably']);
 
         $client = Realtime::clientConfig();
 
@@ -173,11 +189,7 @@ class RealtimeTest extends TestCase
 
     public function test_channel_access(): void
     {
-        RealtimeSettings::update([
-            'realtime_driver' => 'reverb', 'reverb_app_id' => 'app', 'reverb_key' => 'key',
-            'reverb_secret' => 'secret', 'reverb_host' => 'localhost',
-        ]);
-        Realtime::configure();
+        $this->useReverb();
 
         $channel = 'private-project-track.'.$this->track->id;
 

@@ -2,7 +2,6 @@
 
 namespace App\Http\Rules;
 
-use App\Helpers\Providers;
 use App\Services\Payment\PaystackTransfers;
 use Closure;
 use Illuminate\Contracts\Validation\DataAwareRule;
@@ -33,7 +32,7 @@ class validateAccountNumber implements DataAwareRule, ValidationRule
             return;
         }
 
-        $paystack = new Paystack(Providers::config('paystack_secret_key', env('PAYSTACK_SECRET_KEY'), true));
+        $paystack = new Paystack((string) config('services.paystack.secret_key'));
 
         $key = str($attribute)->beforeLast('.')->append('.bank_code')->toString();
 
