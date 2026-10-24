@@ -10,8 +10,10 @@ use App\Http\Resources\ProjectTrackCollection;
 use App\Http\Resources\ProjectTrackResource;
 use App\Models\Project;
 use App\Models\ProjectTrack;
+use App\Models\ProjectTrackVersion;
 use App\Services\Realtime\Realtime;
 use App\Services\Reputation;
+use App\Services\Studio\TrackHistory;
 use Illuminate\Http\Request;
 use Toneflix\LaravelFileable\Media;
 
@@ -114,8 +116,13 @@ class ProjectTrackController extends Controller
             unset($valid['preview']);
         }
 
+        $history = TrackHistory::for($track);
+        $history->baseline();
+
         $this->saveStems($request, $track);
         $track->update($valid);
+
+        $history->record($this->user, ProjectTrackVersion::SAVED);
 
         // Everyone else on the track now has this as the saved state. A
         // message too big for the driver carries no stems; clients reload.
