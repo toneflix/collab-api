@@ -152,23 +152,17 @@ class Checkout
      */
     protected function extendPremium(Transaction $transaction): Subscription
     {
-        /** @var User $user */
-        $user = $transaction->user;
-
         $plan = Plan::find($transaction->meta['plan_id'] ?? null)
             ?? Plan::where('slug', $transaction->meta['plan'] ?? null)->first();
 
-        $current = $user->subscriptions()->active()->first();
-        $starts = $current?->ends_at ?? now();
-
-        return $user->subscriptions()->create([
-            'plan' => $plan->slug ?? ($transaction->meta['plan'] ?? 'premium'),
-            'plan_id' => $plan?->id,
-            'amount' => $transaction->amount,
-            'starts_at' => $starts,
-            'ends_at' => $starts->copy()->add($plan?->period((int) ($transaction->meta['cycles'] ?? 1)) ?? '1 month'),
-            'transaction_id' => $transaction->id,
-        ]);
+        return app(Subscriptions::class)->extend(
+            $transaction->user,
+            $plan,
+            (int) ($transaction->meta['cycles'] ?? 1),
+            (float) $transaction->amount,
+            $transaction,
+            $transaction->meta['plan'] ?? null,
+        );
     }
 
     /**

@@ -14,16 +14,18 @@ Roles and permissions use [spatie/laravel-permission](https://spatie.be/docs/lar
 | `manage-plans` | Plans |
 | `manage-payouts` | Withdrawal requests |
 | `manage-content` | Moderation (reports, takedowns, appeals) |
+| `manage-users` | Users: the list, each user's page, editing, suspending, verifying and AI credits |
+| `manage-admins` | With `manage-users`, changing roles and suspending other staff |
 
-Any of these four opens the admin overview at `/admin`, which shows sign-ups, subscribers, releases and projects. Revenue shows with `manage-plans` or `manage-payouts`, withdrawals waiting with `manage-payouts`, and the moderation queue with `manage-content`. The numbers come from `GET /api/admin/stats`.
+Any of these five opens the admin overview at `/admin`, which shows sign-ups, subscribers, releases and projects. Revenue shows with `manage-plans` or `manage-payouts`, withdrawals waiting with `manage-payouts`, and the moderation queue with `manage-content`. The numbers come from `GET /api/admin/stats`.
 
-`manage-users` and `manage-admins` also exist, but no page checks them yet.
+On a user's page, giving a plan also needs `manage-plans` and changing their balance also needs `manage-payouts`. See [Users](/features/users).
 
 New features that add a permission need `php artisan app:sync-roles` after deploy before their admin pages open.
 
 ## Giving someone access
 
-`app:sync-roles` gives each role every permission except the ones listed for it under `exclusions` in `config/permission-defs.php`. `super-admin` gets all of them, and `admin` gets all but `manage-admins`.
+`app:sync-roles` gives each role every permission except the ones listed for it under `exclusions` in `config/permission-defs.php`. `super-admin` gets all of them, `admin` and `manager` get all but `manage-admins`, `support` gets neither `manage-admins` nor plans and payouts, and `user` gets none.
 
 ```bash
 php artisan app:sync-roles 5 --roles=admin

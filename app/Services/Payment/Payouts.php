@@ -8,6 +8,7 @@ use App\Helpers\Providers;
 use App\Http\Resources\PayoutResource;
 use App\Models\Payout;
 use App\Models\PayoutAccount;
+use App\Models\Transaction;
 use App\Models\User;
 use App\Notifications\PayoutNotification;
 use App\Services\Realtime\Realtime;
@@ -22,6 +23,9 @@ use Valorin\Random\Random;
  */
 class Payouts
 {
+    /** The purpose of an admin's change to a creator's balance. */
+    public const ADJUSTMENT = 'adjustment';
+
     public function __construct(protected PayoutProviders $providers) {}
 
     public function currency(): string
@@ -51,7 +55,7 @@ class Payouts
         $earnings = $user->earnings()
             ->toBase()
             ->selectRaw('coalesce(sum(recipient_share), 0) as earned')
-            ->selectRaw('coalesce(sum(case when paid_at <= ? then recipient_share else 0 end), 0) as cleared', [$cutoff])
+            ->selectRaw('coalesce(sum(case when paid_at <= ? or purpose = ? then recipient_share else 0 end), 0) as cleared', [$cutoff, self::ADJUSTMENT])
             ->first();
 
         $payouts = $user->payouts()
@@ -291,6 +295,44 @@ class Payouts
         }
 
         return $payout;
+    }
+
+    /**
+     * An admin adds to or takes from the creator's balance. It is available
+     * at once, and taking more than is available is refused.
+     */
+    public function adjust(User $user, float $amount, string $note, User $admin): Transaction
+    {
+        $amount = round($amount, 2);
+
+        if ($amount == 0) {
+            throw ValidationException::withMessages(['amount' => 'Enter an amount other than zero.']);
+        }
+
+        return DB::transaction(function () use ($user, $amount, $note, $admin) {
+            User::whereKey($user->id)->lockForUpdate()->first();
+
+            if ($amount < 0 && -$amount > $this->summary($user)['available']) {
+                throw ValidationException::withMessages(['amount' => 'That is more than the available balance.']);
+            }
+
+            $transaction = new Transaction([
+                'reference' => 'adj_'.Random::string(24, true, false, true, false),
+                'purpose' => self::ADJUSTMENT,
+                'method' => 'admin',
+                'status' => 'complete',
+                'amount' => 0,
+                'due' => 0,
+                'recipient_id' => $user->id,
+                'recipient_share' => $amount,
+                'meta' => ['message' => $note, 'admin_id' => $admin->id],
+                'paid_at' => now(),
+            ]);
+            $transaction->transactable()->associate($user);
+            $transaction->save();
+
+            return $transaction;
+        });
     }
 
     /**

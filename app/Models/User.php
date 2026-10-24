@@ -136,6 +136,8 @@ class User extends Authenticatable implements Commentator, Reportable
             'last_attempt' => 'datetime',
             'email_verified_at' => 'datetime',
             'phone_verified_at' => 'datetime',
+            'suspended_at' => 'datetime',
+            'suspended_until' => 'datetime',
         ];
     }
 
@@ -210,6 +212,40 @@ class User extends Authenticatable implements Commentator, Reportable
         return Attribute::make(
             get: fn () => collect([$this->firstname, $this->lastname])->join(' '),
         );
+    }
+
+    /**
+     * Whether an admin has suspended or banned the account right now.
+     */
+    public function isSuspended(): bool
+    {
+        return $this->suspended_at !== null && ($this->suspended_until === null || $this->suspended_until->isFuture());
+    }
+
+    /**
+     * What the account holder is told when they try to use a suspended account.
+     */
+    public function suspensionMessage(): string
+    {
+        return $this->suspended_until
+            ? __('This account is suspended until :date.', ['date' => $this->suspended_until->toDayDateTimeString()])
+            : __('This account has been banned.');
+    }
+
+    public function scopeSuspended(Builder $query, bool $suspended = true): void
+    {
+        $active = fn (Builder $q) => $q->whereNotNull('suspended_at')
+            ->where(fn (Builder $q) => $q->whereNull('suspended_until')->orWhere('suspended_until', '>', now()));
+
+        $suspended ? $query->where($active) : $query->whereNot($active);
+    }
+
+    /**
+     * What admins have done to this account.
+     */
+    public function adminActions(): HasMany
+    {
+        return $this->hasMany(AdminAction::class)->latest('id');
     }
 
     public function hasVerifiedPhone()

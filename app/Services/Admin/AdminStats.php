@@ -11,6 +11,7 @@ use App\Models\Subscription;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Services\Moderation\ModerationQueue;
+use App\Services\Payment\Payouts;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -21,7 +22,7 @@ use Illuminate\Support\Collection;
 class AdminStats
 {
     /** Permissions that make someone an admin. */
-    public const PERMISSIONS = ['manage-configuration', 'manage-plans', 'manage-payouts', 'manage-content'];
+    public const PERMISSIONS = ['manage-users', 'manage-configuration', 'manage-plans', 'manage-payouts', 'manage-content'];
 
     public function __construct(protected ModerationQueue $moderation, protected int $days = 30) {}
 
@@ -101,7 +102,8 @@ class AdminStats
      */
     protected function revenue(): array
     {
-        $paid = fn () => Transaction::query()->where('status', 'complete');
+        $paid = fn () => Transaction::query()->where('status', 'complete')
+            ->where(fn ($q) => $q->whereNull('purpose')->orWhere('purpose', '!=', Payouts::ADJUSTMENT));
 
         $total = $paid()->toBase()
             ->selectRaw('coalesce(sum(amount), 0) as amount, coalesce(sum(amount - recipient_share), 0) as kept')

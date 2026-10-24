@@ -10,7 +10,13 @@ use App\Http\Controllers\Admin\PlanController;
 use App\Http\Controllers\Admin\RealtimeSettingsController;
 use App\Http\Controllers\Admin\SoundSettingsController;
 use App\Http\Controllers\Admin\StatsController;
+use App\Http\Controllers\Admin\UserController;
+use App\Models\Scopes\RestrictBlockedUserScope;
+use App\Models\User;
 use Illuminate\Support\Facades\Route;
+
+// Admins see every account, including ones that blocked them
+Route::bind('managedUser', fn (string $value) => User::query()->withoutGlobalScope(RestrictBlockedUserScope::class)->findOrFail($value));
 
 Route::middleware(['auth:sanctum'])->prefix('admin')->name('admin.')->group(function () {
     // Numbers for the admin overview
@@ -62,5 +68,22 @@ Route::middleware(['auth:sanctum'])->prefix('admin')->name('admin.')->group(func
         Route::post('items/{type}/{id}/resolve', [ModerationController::class, 'resolve'])->whereNumber('id')->name('resolve');
         Route::post('takedowns/{takedown}/restore', [ModerationController::class, 'restore'])->name('restore');
         Route::post('takedowns/{takedown}/uphold', [ModerationController::class, 'uphold'])->name('uphold');
+    });
+
+    // User accounts, their numbers, and what admins do to them
+    Route::prefix('users')->name('users.')->group(function () {
+        Route::get('/', [UserController::class, 'index'])->name('index');
+        Route::get('{managedUser}', [UserController::class, 'show'])->whereNumber('managedUser')->name('show');
+        Route::put('{managedUser}', [UserController::class, 'update'])->whereNumber('managedUser')->name('update');
+        Route::get('{managedUser}/activity', [UserController::class, 'activity'])->whereNumber('managedUser')->name('activity');
+        Route::get('{managedUser}/transactions', [UserController::class, 'transactions'])->whereNumber('managedUser')->name('transactions');
+        Route::post('{managedUser}/suspend', [UserController::class, 'suspend'])->whereNumber('managedUser')->name('suspend');
+        Route::post('{managedUser}/unsuspend', [UserController::class, 'unsuspend'])->whereNumber('managedUser')->name('unsuspend');
+        Route::post('{managedUser}/verify', [UserController::class, 'verify'])->whereNumber('managedUser')->name('verify');
+        Route::put('{managedUser}/roles', [UserController::class, 'roles'])->whereNumber('managedUser')->name('roles');
+        Route::post('{managedUser}/plan', [UserController::class, 'assignPlan'])->whereNumber('managedUser')->name('plan');
+        Route::delete('{managedUser}/plan', [UserController::class, 'endPlan'])->whereNumber('managedUser')->name('plan.end');
+        Route::post('{managedUser}/funds', [UserController::class, 'funds'])->whereNumber('managedUser')->name('funds');
+        Route::post('{managedUser}/credits', [UserController::class, 'credits'])->whereNumber('managedUser')->name('credits');
     });
 });
