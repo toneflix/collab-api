@@ -1,6 +1,6 @@
 # Production deploy
 
-This page covers a single Linux server running the API, its worker, the scheduler and Reverb, plus the app built as a static SPA or an SSR server. Split them across machines as you need; the steps stay the same.
+This page covers a single Linux server running the API, its worker, the scheduler and Reverb, plus the app built as a static SPA, an SSR server or a Cloudflare Worker. Split them across machines as you need; the steps stay the same.
 
 ## API
 
@@ -222,6 +222,34 @@ cd dist/ssr && yarn install --production && node index.js
 ```
 
 It listens on port 3000 (`PORT` changes it). Keep it running with Supervisor or pm2, and put Nginx in front.
+
+### As a Cloudflare Worker
+
+The same SSR app runs on [Cloudflare Workers](https://developers.cloudflare.com/workers/), so there is no server to keep running. The Worker runs the Express server through Workers' Node.js support, and Cloudflare serves the files in `dist/ssr/client` before the Worker is called.
+
+```bash
+yarn --cwd src-ssr install --frozen-lockfile
+yarn worker:dev        # build, then serve it with wrangler at http://localhost:8787
+yarn wrangler login    # once, on your machine
+yarn worker:deploy     # build and deploy
+```
+
+`yarn build:worker` builds `dist/ssr` for Workers: it bundles the server's packages with their Node builds and leaves out `public/_redirects`, since the Worker renders every page. The Worker's name, compatibility date and flags live in `wrangler.jsonc`. Add a custom domain to the Worker in Cloudflare under **Workers & Pages > toneflix-collab > Settings > Domains & Routes**.
+
+The page HTML is rendered on each request and needs the API, so `VITE_PROD_BASE_URL` must be reachable from Cloudflare.
+
+#### Deploy from GitHub
+
+The `Deploy to Cloudflare Workers` workflow (`.github/workflows/deploy-worker.yml` in the app repository) deploys on every push to `main`, and can be run by hand from the Actions tab. It needs:
+
+| Name | Kind | What it is |
+| --- | --- | --- |
+| `CLOUDFLARE_API_TOKEN` | secret | An API token with the **Account > Workers Scripts > Edit** permission (the **Edit Cloudflare Workers** template works). |
+| `CLOUDFLARE_ACCOUNT_ID` | secret | Your Cloudflare account ID. |
+| `CLOUDFLARE_WORKER_NAME` | variable, optional | The Worker's name. Defaults to `toneflix-collab`. |
+| `VITE_*` | variables, optional | Any app variable from [App .env](../reference/app-env). They override the committed `.env`. Set at least `VITE_PROD_BASE_URL` and `VITE_FRONT_URL`. |
+
+The workflow builds with `VITE_APP_ENVIRONMENT` and `VITE_API_ENVIRONMENT` set to `production`. The `Checks` workflow also builds the Worker on every pull request, so a change that breaks it fails there first.
 
 ## Go-live checklist
 
