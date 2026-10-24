@@ -132,8 +132,7 @@ class SoundController extends Controller
         $user = $request->user();
 
         abort_unless(
-            (int) $track->project_id === (int) $project->id &&
-            ((int) $project->user_id === (int) $user->id || $project->isCollaber($user)),
+            (int) $track->project_id === (int) $project->id && $project->canEdit($user),
             HttpStatus::FORBIDDEN->value,
             'Only the owner and collaborators can add to this track.'
         );
