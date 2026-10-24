@@ -202,7 +202,7 @@ It listens on port 3000 (`PORT` changes it). Keep it running with Supervisor or 
 - [ ] Queue worker, cron and (if used) Reverb running
 - [ ] FFmpeg shows `chromaprint` in `ffmpeg -muxers`
 - [ ] `php artisan webpush:vapid` run once, `FRONTEND_URL` set
-- [ ] `app_currency`, `creator_share` and payout limits set (see [App configuration](../reference/configuration))
+- [ ] `app_currency`, `creator_share` and payout limits set at `/admin/configuration`
 - [ ] Paystack webhook added and transfer OTP turned off
 - [ ] Stripe and Flutterwave webhooks added, if those payouts are on
 - [ ] Freesound callback URL set, if Freesound is on

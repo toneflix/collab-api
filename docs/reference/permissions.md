@@ -10,7 +10,7 @@ Roles and permissions use [spatie/laravel-permission](https://spatie.be/docs/lar
 
 | Permission | Opens |
 | --- | --- |
-| `manage-configuration` | Realtime, Sounds (and the Freesound library account), AI and Payouts > Providers |
+| `manage-configuration` | Configuration, Realtime, Sounds (and the Freesound library account), AI and Payouts > Providers |
 | `manage-plans` | Plans |
 | `manage-payouts` | Withdrawal requests |
 | `manage-content` | Moderation (reports, takedowns, appeals) |

@@ -2,13 +2,15 @@
 
 Business settings that are not secrets live in the `configurations` table, not in `.env`. The seeder and migrations create them with defaults. They are cached; saving a row through the model clears the cache.
 
-There is no admin page for these yet. Change them with tinker:
+Admins with `manage-configuration` change them at `/admin/configuration`. `App\Services\Settings\AppConfiguration` lists the fields that page can edit and validates them.
+
+To change one from the command line, save it through the model so the cached copy is cleared:
 
 ```bash
 php artisan tinker --execute="App\Models\Configuration::where('key', 'app_currency')->first()->update(['value' => 'NGN']);"
 ```
 
-Use the model's `update()` rather than editing the table directly, so the cached copy is cleared. If you do edit the table, run `php artisan cache:forget configuration::build` afterwards.
+If you edit the table directly, run `php artisan cache:forget configuration::build` afterwards.
 
 ## Settings that matter for going live
 
