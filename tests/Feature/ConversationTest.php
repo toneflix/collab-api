@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Comment;
 use App\Models\Project;
 use App\Models\ProjectTrack;
 use App\Models\User;
@@ -10,8 +11,11 @@ use App\Services\Realtime\RealtimeSettings;
 use Illuminate\Broadcasting\Broadcasters\Broadcaster;
 use Illuminate\Broadcasting\BroadcastManager;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
+use Toneflix\LaravelFileable\Media;
 
 class ConversationTest extends TestCase
 {
@@ -203,5 +207,72 @@ class ConversationTest extends TestCase
         $this->assertNotContains("private-user.{$this->stranger->id}", $inbox['channels']);
         $this->assertSame('Chat track', $inbox['payload']['conversation']['title']);
         $this->assertSame('Harmony is in', $inbox['payload']['message']['body']);
+    }
+
+    public function test_voice_notes_are_stored_and_played_back(): void
+    {
+        Storage::fake(config('filesystems.default'));
+        Sanctum::actingAs($this->collaborator);
+
+        $id = $this->post($this->url('/messages'), [
+            'voice' => UploadedFile::fake()->create('note.webm', 40, 'audio/webm'),
+            'duration' => 12.4,
+            'waveform' => json_encode([0.1, 0.5, 1]),
+        ], ['Accept' => 'application/json'])
+            ->assertCreated()
+            ->assertJsonPath('data.body', '')
+            ->assertJsonPath('data.voice.duration', 12.4)
+            ->assertJsonPath('data.voice.waveform', [0.1, 0.5, 1])
+            ->json('data.id');
+
+        $voice = $this->getJson($this->url('/messages'))->json('data.0.voice');
+        $this->assertStringContainsString('/media/files/', $voice['url']);
+
+        // The inbox shows something readable for a message with no text.
+        Sanctum::actingAs($this->owner);
+        $this->getJson('/api/conversations')->assertJsonPath('data.0.lastMessage.body', 'Voice note (0:12)');
+
+        // Deleting the message removes the recording.
+        $path = (new Media)->mediaInfo('voice_notes', Comment::find($id)->meta['voice']['file'])['path'];
+        Storage::disk(config('filesystems.default'))->assertExists($path);
+        Sanctum::actingAs($this->collaborator);
+        $this->deleteJson($this->url("/messages/{$id}"))->assertStatus(202);
+        Storage::disk(config('filesystems.default'))->assertMissing($path);
+    }
+
+    public function test_a_message_needs_text_or_a_voice_note(): void
+    {
+        Sanctum::actingAs($this->owner);
+
+        $this->postJson($this->url('/messages'), ['body' => ''])->assertJsonValidationErrors('body');
+        $this->post($this->url('/messages'), [
+            'voice' => UploadedFile::fake()->create('note.txt', 2, 'text/plain'),
+            'duration' => 3,
+        ], ['Accept' => 'application/json'])->assertJsonValidationErrors('voice');
+    }
+
+    public function test_messages_can_point_at_part_of_the_track(): void
+    {
+        $stem = $this->track->stems()->forceCreate(['user_id' => $this->owner->id, 'title' => 'Vocals', 'meta' => ['name' => 'Vocals']]);
+        Sanctum::actingAs($this->collaborator);
+
+        $this->postJson($this->url('/messages'), [
+            'body' => 'The breath here is loud',
+            'region' => ['start' => 12.5, 'end' => 14.25, 'stem_id' => $stem->id],
+        ])
+            ->assertCreated()
+            ->assertJsonPath('data.region.start', 12.5)
+            ->assertJsonPath('data.region.end', 14.25)
+            ->assertJsonPath('data.region.stemId', $stem->id)
+            ->assertJsonPath('data.region.stemName', 'Vocals')
+            ->assertJsonPath('data.region.trackId', $this->track->id)
+            ->assertJsonPath('data.region.projectId', $this->project->id);
+
+        $this->postJson($this->url('/messages'), ['body' => 'x', 'region' => ['start' => 5, 'end' => 2]])
+            ->assertJsonValidationErrors('region.end');
+        $this->postJson($this->url('/messages'), ['body' => 'x', 'region' => ['start' => 1, 'end' => 2, 'stem_id' => 999999]])
+            ->assertUnprocessable();
+        $this->postJson("/api/conversations/project/{$this->project->id}/messages", ['body' => 'x', 'region' => ['start' => 1, 'end' => 2]])
+            ->assertUnprocessable();
     }
 }

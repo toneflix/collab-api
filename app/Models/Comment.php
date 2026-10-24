@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 /**
  * @property string|null $root_type
  * @property int|null $root_id
+ * @property array<string, mixed>|null $meta
  */
 #[ScopedBy([
     RestrictBlockedUserScope::class,
@@ -18,6 +19,11 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 ])]
 class Comment extends BeyondCodeComment
 {
+    protected $casts = [
+        'is_approved' => 'boolean',
+        'meta' => 'array',
+    ];
+
     public static function boot(): void
     {
         parent::boot();

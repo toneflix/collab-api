@@ -24,6 +24,9 @@ return [
             'path' => 'media/music/stem/',
             'default' => 'default.mp3',
         ],
+        'voice_notes' => [
+            'path' => 'media/voice-notes/',
+        ],
         'banner' => [
             'size' => [1200, 600],
             'path' => 'media/banners/',

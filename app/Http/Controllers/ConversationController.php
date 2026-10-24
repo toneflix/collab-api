@@ -12,6 +12,7 @@ use App\Models\Track;
 use App\Services\Conversations\Conversations;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
+use Toneflix\LaravelFileable\Media;
 
 /**
  * Conversations as a chat: the list of a user's conversations, and each
@@ -75,16 +76,38 @@ class ConversationController extends Controller
     }
 
     /**
-     * Send a message, optionally as a reply to another one.
+     * Send a message: text, a voice note, or both. It can reply to another
+     * message, and on a project track it can point at part of the track.
      */
     public function store(Request $request, string $type, string $id)
     {
         $root = Conversations::find($type, $id, $request->user());
 
+        if (is_string($request->input('waveform'))) {
+            $request->merge(['waveform' => json_decode($request->input('waveform'), true)]);
+        }
+
         $valid = $request->validate([
-            'body' => ['required', 'string', 'max:5000'],
+            'body' => ['nullable', 'required_without:voice', 'string', 'max:5000'],
             'reply_to' => ['nullable', 'integer'],
-        ], [], ['body' => 'message']);
+            'voice' => [
+                'nullable',
+                'file',
+                'max:10240',
+                'mimetypes:audio/webm,video/webm,audio/ogg,audio/opus,audio/mp4,video/mp4,audio/x-m4a,audio/aac,audio/mpeg,audio/wav,audio/x-wav',
+            ],
+            'duration' => ['nullable', 'required_with:voice', 'numeric', 'min:0', 'max:600'],
+            'waveform' => ['nullable', 'array', 'max:120'],
+            'waveform.*' => ['numeric', 'min:0', 'max:1'],
+            'region' => ['nullable', 'array'],
+            'region.start' => ['required_with:region', 'numeric', 'min:0'],
+            'region.end' => ['required_with:region', 'numeric', 'gt:region.start'],
+            'region.stem_id' => ['nullable', 'integer'],
+        ], [
+            'body.required_without' => 'Write a message or record a voice note.',
+            'voice.max' => 'Voice notes can be up to 10 MB.',
+            'voice.mimetypes' => 'That recording format isn\'t supported.',
+        ], ['body' => 'message']);
 
         $target = $root;
         if (! empty($valid['reply_to'])) {
@@ -92,8 +115,17 @@ class ConversationController extends Controller
             abort_unless($target, HttpStatus::UNPROCESSABLE_ENTITY->value, 'The message you replied to is gone.');
         }
 
+        $meta = array_filter([
+            'region' => isset($valid['region']) ? $this->region($root, $valid['region']) : null,
+            'voice' => $request->hasFile('voice') ? $this->voice($request, $valid) : null,
+        ]);
+
         /** @var Comment $comment */
-        $comment = $target->commentAsUser($request->user(), trim($valid['body']));
+        $comment = $target->commentAsUser($request->user(), trim((string) ($valid['body'] ?? '')));
+        if ($meta) {
+            $comment->meta = $meta;
+            $comment->save();
+        }
 
         Conversations::markRead($root, $request->user());
         Conversations::broadcast($comment, 'comment.posted');
@@ -102,6 +134,56 @@ class ConversationController extends Controller
             'data' => Conversations::message($comment),
             'message' => 'Message sent.',
         ], HttpStatus::CREATED);
+    }
+
+    /**
+     * The part of the track a message points at. Only project tracks have
+     * an editor to point into.
+     *
+     * @param  array{start: float|string, end: float|string, stem_id?: int|string|null}  $region
+     * @return array<string, mixed>
+     */
+    protected function region(Model $root, array $region): array
+    {
+        abort_unless(
+            $root instanceof ProjectTrack,
+            HttpStatus::UNPROCESSABLE_ENTITY->value,
+            'Only messages on a project track can point at part of it.'
+        );
+
+        $stem = null;
+        if (! empty($region['stem_id'])) {
+            $stem = $root->stems()->find($region['stem_id']);
+            abort_unless($stem, HttpStatus::UNPROCESSABLE_ENTITY->value, 'That stem isn\'t on this track.');
+        }
+
+        return [
+            'start' => round((float) $region['start'], 3),
+            'end' => round((float) $region['end'], 3),
+            'stemId' => $stem?->id,
+            'stemName' => $stem ? ($stem->title ?: ($stem->meta['name'] ?? null)) : null,
+            'trackId' => $root->id,
+            'projectId' => $root->project_id,
+        ];
+    }
+
+    /**
+     * Store an uploaded voice note.
+     *
+     * @param  array<string, mixed>  $valid
+     * @return array<string, mixed>
+     */
+    protected function voice(Request $request, array $valid): array
+    {
+        $file = $request->file('voice');
+        $saved = (new Media)->save('voice_notes', $file);
+
+        return [
+            'file' => is_array($saved) ? $saved['new_name'] : $saved,
+            'duration' => round((float) $valid['duration'], 2),
+            'waveform' => collect($valid['waveform'] ?? [])->map(fn ($v) => round((float) $v, 2))->values()->all(),
+            'mime' => $file->getMimeType(),
+        ];
     }
 
     /**
@@ -121,6 +203,7 @@ class ConversationController extends Controller
         );
 
         Conversations::broadcast($comment, 'comment.deleted');
+        Conversations::forgetVoice($comment);
         $comment->delete();
 
         return Providers::response()->success([
