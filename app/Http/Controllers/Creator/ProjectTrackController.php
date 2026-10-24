@@ -126,6 +126,8 @@ class ProjectTrackController extends Controller
         Realtime::send(Channels::projectTrack($track), 'track.saved', [
             'track_id' => $track->id,
             'title' => $track->title,
+            'bpm' => (float) ($track->meta['bpm'] ?? 120),
+            'timeSignature' => (string) ($track->meta['timeSignature'] ?? '4/4'),
             'stems' => strlen((string) json_encode($stems)) > 8000 ? null : $stems->all(),
         ]);
 
