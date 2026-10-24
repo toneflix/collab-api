@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Broadcasting\Channels;
 use App\Enums\HttpStatus;
 use App\Helpers\Providers;
 use App\Http\Resources\CommentCollection;
@@ -11,7 +10,7 @@ use App\Models\Comment;
 use App\Models\Project;
 use App\Models\Release;
 use App\Models\Track;
-use App\Services\Realtime\Realtime;
+use App\Services\Conversations\Conversations;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 
@@ -111,25 +110,12 @@ class CommentController extends Controller
     }
 
     /**
-     * Tell everyone viewing the conversation about a new or deleted comment.
+     * Tell everyone viewing the conversation, and its participants, about a
+     * new or deleted comment.
      */
     protected function broadcast(Comment $comment, string $event): void
     {
-        $comment->loadMissing(['commentable', 'commentator']);
-
-        $data = (new CommentResource($comment))->resolve(request());
-        $user = $comment->commentator;
-
-        $data['user'] = $user ? [
-            'id' => $user->id,
-            'type' => 'user',
-            'name' => $user->fullname,
-            'fullname' => $user->fullname,
-            'username' => $user->username,
-            'imageUrl' => $user->images['image'] ?? null,
-        ] : null;
-
-        Realtime::send(Channels::conversation($comment->commentable), $event, ['comment' => $data]);
+        Conversations::broadcast($comment, $event);
     }
 
     /**
