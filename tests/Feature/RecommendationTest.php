@@ -28,13 +28,24 @@ class RecommendationTest extends TestCase
             ]);
     }
 
+    /**
+     * A user without the random follows the factory gives every new user.
+     */
+    protected function listener(): User
+    {
+        $user = User::factory()->create();
+        $user->followings()->delete();
+
+        return $user;
+    }
+
     public function test_recommends_unheard_tracks_from_the_genres_a_user_listens_to(): void
     {
         $genre = Genre::factory()->create();
         $published = $this->makeRelease($genre);
         $draft = $this->makeRelease($genre, 1, true);
 
-        $user = User::factory()->create();
+        $user = $this->listener();
         $heard = $published->tracks->first();
         $heard->stream(120, $user);
 
@@ -58,7 +69,7 @@ class RecommendationTest extends TestCase
         $release = $this->makeRelease($genre);
         $other = $this->makeRelease($genre);
 
-        $user = User::factory()->create();
+        $user = $this->listener();
         $release->tracks->first()->stream(120, $user);
 
         $followed = $other->tracks->first()->artists->first();
@@ -100,7 +111,7 @@ class RecommendationTest extends TestCase
     {
         $genre = Genre::factory()->create();
         $release = $this->makeRelease($genre);
-        $user = User::factory()->create();
+        $user = $this->listener();
         $release->tracks->first()->stream(120, $user);
 
         $this->artisan('app:recommend', ['user_ids' => [$user->id]])->assertSuccessful();
@@ -110,7 +121,9 @@ class RecommendationTest extends TestCase
 
     public function test_playlist_falls_back_to_published_tracks_for_new_listeners(): void
     {
-        Sanctum::actingAs(User::factory()->create(), ['*']);
+        $this->makeRelease(Genre::factory()->create());
+
+        Sanctum::actingAs($this->listener(), ['*']);
 
         $this->getJson('api/playlist')
             ->assertOk()
