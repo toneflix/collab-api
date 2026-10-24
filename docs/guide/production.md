@@ -2,6 +2,8 @@
 
 This page covers a single Linux server running the API, its worker, the scheduler and Reverb, plus the app built as a static SPA, an SSR server or a Cloudflare Worker. Split them across machines as you need; the steps stay the same.
 
+Deploying to Railway or another Railpack host? See [Railpack and Railway](./railpack).
+
 ## API
 
 ### Server

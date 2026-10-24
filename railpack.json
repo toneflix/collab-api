@@ -1,0 +1,22 @@
+{
+  "$schema": "https://schema.railpack.com",
+  "provider": "php",
+  "steps": {
+    "extensions": {
+      "commands": [
+        "...",
+        "install-php-extensions bcmath exif gd gmp intl pcntl pdo_pgsql pgsql zip"
+      ]
+    }
+  },
+  "deploy": {
+    "aptPackages": [
+      "ffmpeg"
+    ],
+    "variables": {
+      "AUDIO_ENCODING_CODEC": "aac",
+      "LANG": "en_US.UTF-8",
+      "LC_ALL": "en_US.UTF-8"
+    }
+  }
+}
