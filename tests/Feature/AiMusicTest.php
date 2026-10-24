@@ -324,7 +324,7 @@ class AiMusicTest extends TestCase
 
         $job = AiJob::findOrFail($id);
         $this->assertSame(AiJob::SUCCEEDED, $job->status);
-        $this->assertStringContainsString('Upload failed', $job->failure);
+        $this->assertSame('Split into stems: HTTP 500: Upload failed', $job->failure);
         $this->assertSame($job->output['notice'], $job->present()['notice']);
 
         $this->assertSame([$this->track->stems()->sole()->id], $job->output['stems']);
