@@ -5,7 +5,7 @@ The studio's AI panel can **generate music** from a prompt and **split a track i
 ## Setup
 
 1. Set `REPLICATE_API_TOKEN` in the API's `.env`.
-2. Keep a queue worker running. Each AI request is a queued `RunAiJob` that can take up to 25 minutes, so check `DB_QUEUE_RETRY_AFTER` (see [Production deploy](../guide/production#processes-that-must-run)).
+2. Keep a queue worker running. Each AI request is a queued `RunAiJob` that can take up to 25 minutes.
 3. Keep the scheduler running. `ai:sweep` refunds jobs that stopped without finishing.
 4. On `/admin/ai` (needs `manage-configuration`), check that AI Tools is on and set prices.
 5. Give plans the `ai_tools` feature and a monthly `ai_credits` amount at `/admin/plans`. Premium starts with AI tools and 100 credits a month.

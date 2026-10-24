@@ -46,8 +46,6 @@ APP_URL=https://collab-api.example.com
 FRONTEND_URL=https://collab.example.com
 DB_CONNECTION=pgsql
 QUEUE_CONNECTION=database
-# Must be longer than the longest job (the sound library sync can run for an hour)
-DB_QUEUE_RETRY_AFTER=3700
 MAIL_MAILER=smtp
 ```
 
@@ -100,7 +98,7 @@ stdout_logfile=/var/www/collab-api/storage/logs/reverb.log
 ```
 
 ::: warning Queue timeouts
-The AI job can run for 25 minutes and the sound library sync for an hour. With the database queue, `DB_QUEUE_RETRY_AFTER` (90 seconds by default) must be longer than that, or a second worker starts the same job again while the first is still running. Use `REDIS_QUEUE_RETRY_AFTER` the same way if the queue is on Redis.
+The AI job can run for 25 minutes and the sound library sync for an hour. `DB_QUEUE_RETRY_AFTER` (or `REDIS_QUEUE_RETRY_AFTER`) must stay longer than that, or a second worker starts the same job again while the first is still running. Both default to 3700 seconds, so only change them if you add a longer job.
 :::
 
 ### Scheduler
@@ -202,7 +200,6 @@ It listens on port 3000 (`PORT` changes it). Keep it running with Supervisor or 
 
 - [ ] `APP_DEBUG=false`, real mail settings, seeded admin password changed
 - [ ] Queue worker, cron and (if used) Reverb running
-- [ ] `DB_QUEUE_RETRY_AFTER` longer than the longest job
 - [ ] FFmpeg shows `chromaprint` in `ffmpeg -muxers`
 - [ ] `php artisan webpush:vapid` run once, `FRONTEND_URL` set
 - [ ] `app_currency`, `creator_share` and payout limits set (see [App configuration](../reference/configuration))
