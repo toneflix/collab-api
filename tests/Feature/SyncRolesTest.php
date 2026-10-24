@@ -20,8 +20,8 @@ class SyncRolesTest extends TestCase
 
         $this->assertSame($all->all(), $permissions('super-admin'));
         $this->assertSame($all->diff(['manage-admins'])->values()->all(), $permissions('admin'));
-        $this->assertSame($all->diff(['manage-plans', 'manage-payouts'])->values()->all(), $permissions('support'));
-        $this->assertNotContains('manage-content', $permissions('user'));
+        $this->assertSame($all->diff(['manage-admins', 'manage-plans', 'manage-payouts'])->values()->all(), $permissions('support'));
+        $this->assertSame([], $permissions('user'));
     }
 
     public function test_roles_are_given_by_name_or_id(): void

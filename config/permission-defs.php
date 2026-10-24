@@ -74,8 +74,8 @@ return [
     | you can add them here using the role name as key.
     */
     'exclusions' => [
-        'user' => ['manage-plans', 'manage-payouts', 'manage-content'],
-        'support' => ['manage-plans', 'manage-payouts'],
+        'user' => ['manage-users', 'manage-admins', 'manage-configuration', 'manage-plans', 'manage-payouts', 'manage-content'],
+        'support' => ['manage-admins', 'manage-plans', 'manage-payouts'],
         'admin' => ['manage-admins'],
         'manager' => ['manage-admins'],
     ],
