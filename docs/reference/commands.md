@@ -19,7 +19,8 @@ These run from `php artisan schedule:run`, which cron calls every minute (see [P
 | --- | --- |
 | `php artisan migrate --force` | Every deploy. |
 | `php artisan app:sync-roles` | Every deploy. Creates roles and permissions that do not exist yet. |
-| `php artisan app:sync-roles <user ids> --roles=<role>` | To give people roles, for example `--roles=admin`. Add `--remove` to take them away. `--permissions=<name>` works the same way for single permissions. |
+| `php artisan app:users` | To list users a page at a time. Filter with `--search`, `--role`, `--permission` and `--status`. See [Permissions](./permissions#giving-someone-access). |
+| `php artisan app:user-access <user> --grant-role=<role>` | To give someone a role. `--revoke-role`, `--grant-permission` and `--revoke-permission` work the same way. With no options it shows their access. Changes are kept in the user's admin history. |
 | `php artisan webpush:vapid` | Once, to create the browser push keys. |
 | `php artisan storage:link` | Once, with the local disk. |
 | `php artisan queue:restart` | After every deploy and `.env` change, so workers load the new code. |

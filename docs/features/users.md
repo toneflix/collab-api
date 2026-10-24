@@ -9,9 +9,10 @@ Admins with `manage-users` find accounts at `/admin/users` and open each one for
 - `search`: name, username, email or id.
 - `status`: `active`, `suspended`, `premium` (on a paid plan now), `verified` or `staff` (has a role other than `user`).
 - `role`: one role name.
+- `permission`: one permission name, held directly or through a role.
 - `sort`: `latest` (default), `oldest` or `name`.
 
-Admins see every account, including ones that blocked them.
+Admins see every account, including ones that blocked them. `App\Services\Admin\UserDirectory` builds this query, and `php artisan app:users` uses it too.
 
 ## A user's page
 
@@ -44,6 +45,7 @@ Other rules:
 
 - Admins can't suspend themselves or change their own roles.
 - Only super admins act on super admins, or give and take the `super-admin` role.
+- Roles and permissions changed with `php artisan app:user-access` go through the same service. They have no admin, so the history shows them as made from the console. See [Permissions](../reference/permissions#giving-someone-access).
 
 ### Suspensions
 
