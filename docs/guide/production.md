@@ -194,7 +194,7 @@ yarn install --frozen-lockfile
 # .env.local.prod on the build machine
 VITE_APP_ENVIRONMENT = "production"
 VITE_API_ENVIRONMENT = "production"
-VITE_PROD_BASE_URL = "https://collab-api.example.com"
+VITE_PROD_API_BASE_URL = "https://collab-api.example.com"
 VITE_FRONT_URL = "https://collab.example.com"
 VITE_DEBUG = false
 ```
@@ -236,7 +236,7 @@ yarn worker:deploy     # build and deploy
 
 `yarn build:worker` builds `dist/ssr` for Workers: it bundles the server's packages with their Node builds and leaves out `public/_redirects`, since the Worker renders every page. The Worker's name, compatibility date and flags live in `wrangler.jsonc`. Add a custom domain to the Worker in Cloudflare under **Workers & Pages > toneflix-collab > Settings > Domains & Routes**.
 
-The page HTML is rendered on each request and needs the API, so `VITE_PROD_BASE_URL` must be reachable from Cloudflare.
+The page HTML is rendered on each request and needs the API, so `VITE_PROD_API_BASE_URL` must be reachable from Cloudflare.
 
 #### Deploy from GitHub
 
@@ -247,7 +247,7 @@ The `Deploy to Cloudflare Workers` workflow (`.github/workflows/deploy-worker.ym
 | `CLOUDFLARE_API_TOKEN` | secret | An API token with the **Account > Workers Scripts > Edit** permission (the **Edit Cloudflare Workers** template works). |
 | `CLOUDFLARE_ACCOUNT_ID` | secret | Your Cloudflare account ID. |
 | `CLOUDFLARE_WORKER_NAME` | variable, optional | The Worker's name. Defaults to `toneflix-collab`. |
-| `VITE_*` | variables, optional | Any app variable from [App .env](../reference/app-env). They override the committed `.env`. Set at least `VITE_PROD_BASE_URL` and `VITE_FRONT_URL`. |
+| `VITE_*` | variables, optional | Any app variable from [App .env](../reference/app-env). They override the committed `.env`. Set at least `VITE_PROD_API_BASE_URL` and `VITE_FRONT_URL`. |
 
 The workflow builds with `VITE_APP_ENVIRONMENT` and `VITE_API_ENVIRONMENT` set to `production`. The `Checks` workflow also builds the Worker on every pull request, so a change that breaks it fails there first.
 

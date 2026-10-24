@@ -24,7 +24,7 @@ The committed `.env` already targets a local API at `http://127.0.0.1:8001`:
 ```dotenv
 VITE_APP_ENVIRONMENT = "development"
 VITE_API_ENVIRONMENT = "development"
-VITE_DEV_BASE_URL = "http://127.0.0.1:8001"
+VITE_DEV_API_BASE_URL = "http://127.0.0.1:8001"
 ```
 
 Base URLs are the API's root. The app adds `/api/` itself. To keep personal changes out of git, put them in `.env.local`, which is read after `.env`. All variables are listed in [App .env](../reference/app-env).
