@@ -2,22 +2,18 @@
 
 namespace App\Services\Realtime;
 
-use App\Models\Configuration;
-use Illuminate\Contracts\Encryption\DecryptException;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Crypt;
-use Illuminate\Support\Facades\Schema;
+use App\Services\Settings\SettingsStore;
 
 /**
  * Realtime settings, kept in the `configurations` table so admins can change
  * them. Secret values are encrypted. Anything left empty falls back to the
  * matching config value (and so `.env`), so a server can also be set up there.
  */
-class RealtimeSettings
+class RealtimeSettings extends SettingsStore
 {
     public const DRIVERS = ['none', 'reverb', 'pusher', 'ably', 'firebase'];
 
-    private const CACHE_KEY = 'realtime::settings';
+    protected const CACHE_KEY = 'realtime::settings';
 
     /**
      * @var array<string, mixed>|null
@@ -54,136 +50,32 @@ class RealtimeSettings
     ];
 
     /**
-     * All settings with secrets decrypted.
-     *
-     * @return array<string, string|null>
+     * Config values used for empty settings. Read once: Realtime::configure()
+     * later writes the resolved values back into the same keys.
      */
-    public static function all(): array
+    protected static function fallback(string $key, array $field): ?string
     {
-        // Before migrations run there is nothing stored; don't cache that.
-        if (! Cache::has(self::CACHE_KEY) && ! self::tableExists()) {
-            return self::resolve([]);
-        }
-
-        return Cache::rememberForever(self::CACHE_KEY, fn () => self::resolve(
-            Configuration::query()->toBase()->whereIn('key', array_keys(self::FIELDS))->pluck('value', 'key')->all()
-        ));
-    }
-
-    /**
-     * @param  array<string, mixed>  $stored
-     * @return array<string, string|null>
-     */
-    private static function resolve(array $stored): array
-    {
-        // Read the config fallbacks once: Realtime::configure() later
-        // writes the resolved values back into the same keys.
-        self::$defaults ??= collect(self::FIELDS)
-            ->map(fn ($field) => $field[2] ? config($field[2]) : null)
+        self::$defaults ??= collect(static::FIELDS)
+            ->map(fn ($f) => $f[2] ? config($f[2]) : null)
             ->put('realtime_driver', config('services.realtime.driver'))
             ->all();
 
-        $out = [];
-        foreach (self::FIELDS as $key => [, $secret]) {
-            $value = $stored[$key] ?? null;
+        $value = self::$defaults[$key] ?? null;
 
-            if ($secret && filled($value)) {
-                try {
-                    $value = Crypt::decryptString($value);
-                } catch (DecryptException) {
-                    $value = null;
-                }
-            }
-
-            $out[$key] = filled($value) ? (string) $value : (filled(self::$defaults[$key] ?? null) ? (string) self::$defaults[$key] : null);
-        }
-
-        $out['realtime_driver'] = in_array($out['realtime_driver'], self::DRIVERS, true)
-            ? $out['realtime_driver']
-            : (self::$defaults['realtime_driver'] ?: 'none');
-
-        return $out;
+        return filled($value) ? (string) $value : null;
     }
 
-    public static function get(string $key, mixed $default = null): mixed
+    protected static function normalize(array $settings): array
     {
-        return self::all()[$key] ?? $default;
+        $settings['realtime_driver'] = in_array($settings['realtime_driver'], self::DRIVERS, true)
+            ? $settings['realtime_driver']
+            : (self::$defaults['realtime_driver'] ?: 'none');
+
+        return $settings;
     }
 
     public static function driver(): string
     {
         return self::get('realtime_driver', 'none');
-    }
-
-    /**
-     * Save settings. A secret sent as an empty value keeps its stored value,
-     * so admins don't have to re-enter secrets to change something else.
-     *
-     * @param  array<string, mixed>  $values
-     */
-    public static function update(array $values): void
-    {
-        foreach ($values as $key => $value) {
-            if (! isset(self::FIELDS[$key])) {
-                continue;
-            }
-
-            [$title, $secret] = self::FIELDS[$key];
-
-            if ($secret && blank($value)) {
-                continue;
-            }
-
-            $config = Configuration::query()->firstOrNew(['key' => $key]);
-            $config->forceFill([
-                'key' => $key,
-                'title' => $title,
-                'type' => 'string',
-                'secret' => $secret,
-                'value' => blank($value) ? null : ($secret ? Crypt::encryptString((string) $value) : (string) $value),
-            ])->save();
-        }
-
-        self::flush();
-    }
-
-    /**
-     * Settings for the admin page. Secrets are never sent back; only whether
-     * they are set.
-     *
-     * @return array<string, mixed>
-     */
-    public static function forAdmin(): array
-    {
-        $all = self::all();
-        $out = [];
-
-        foreach (self::FIELDS as $key => $field) {
-            [$title, $secret] = $field;
-            $out[$key] = [
-                'title' => $title,
-                'secret' => $secret,
-                'hint' => $field[3] ?? '',
-                'value' => $secret ? null : $all[$key],
-                'isSet' => filled($all[$key]),
-            ];
-        }
-
-        return $out;
-    }
-
-    public static function flush(): void
-    {
-        Cache::forget(self::CACHE_KEY);
-        Cache::forget('configuration::build');
-    }
-
-    private static function tableExists(): bool
-    {
-        try {
-            return Schema::hasTable('configurations');
-        } catch (\Throwable) {
-            return false;
-        }
     }
 }

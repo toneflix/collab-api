@@ -7,6 +7,7 @@ use App\Http\Controllers\ExploreController;
 use App\Http\Controllers\FollowController;
 use App\Http\Controllers\GenreController;
 use App\Http\Controllers\Payment\PaymentController;
+use App\Http\Controllers\Payment\PayoutWebhookController;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\PlaylistController;
 use App\Http\Controllers\ProjectCollaboratorController;
@@ -64,6 +65,10 @@ Route::get('plans', [PlanController::class, 'index'])->name('plans.index');
 
 // Paystack tells us about payments here; the signature is checked in the controller.
 Route::post('payments/paystack/webhook', [PaymentController::class, 'webhook'])->name('payments.webhook');
+
+// Flutterwave and Stripe tell us about payout transfers here.
+Route::post('payouts/flutterwave/webhook', [PayoutWebhookController::class, 'flutterwave'])->name('payouts.webhook.flutterwave');
+Route::post('payouts/stripe/webhook', [PayoutWebhookController::class, 'stripe'])->name('payouts.webhook.stripe');
 
 Route::middleware(['auth:sanctum'])->group(function () {
     // Payments for Premium, paid releases, stems and tips

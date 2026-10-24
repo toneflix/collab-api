@@ -22,7 +22,7 @@ class PayoutController extends Controller
             ->latest()
             ->paginate(min((int) $request->input('limit', 15), 50));
 
-        $account = $this->user->payoutAccount;
+        $account = $payouts->account($this->user);
 
         return PayoutResource::collection($list)->additional([
             'summary' => $payouts->summary($this->user),

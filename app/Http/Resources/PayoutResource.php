@@ -18,9 +18,16 @@ class PayoutResource extends JsonResource
             'reference' => $this->reference,
             'amount' => $this->amount,
             'currency' => $this->currency,
+            // What the creator receives, once the rate is fixed when it is sent
+            'payoutAmount' => $this->payout_amount,
+            'payoutCurrency' => $this->payout_currency,
+            'exchangeRate' => $this->exchange_rate,
+            'provider' => $this->provider,
             'status' => $this->status->value,
             'reason' => $this->failure_reason,
             'bank' => [
+                'country' => $this->destination['country'] ?? null,
+                'method' => $this->destination['method'] ?? 'bank',
                 'name' => $this->destination['bank_name'] ?? null,
                 'accountNumber' => $this->destination['account_number'] ?? null,
                 'accountName' => $this->destination['account_name'] ?? null,

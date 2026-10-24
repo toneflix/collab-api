@@ -10,21 +10,37 @@ use App\Services\Payment\Payouts;
 use Illuminate\Http\Request;
 
 /**
- * The bank account a creator withdraws to.
+ * The bank, mobile money or provider-hosted account a creator withdraws to.
  */
 class PayoutAccountController extends Controller
 {
-    public function banks(Payouts $payouts)
+    /**
+     * Countries creators can be paid in, and the kinds of account each takes.
+     */
+    public function countries(Payouts $payouts)
     {
         return Providers::response()->success([
-            'data' => $payouts->banks(),
+            'data' => $payouts->countries(),
             'message' => HttpStatus::message(HttpStatus::OK),
         ]);
     }
 
-    public function show()
+    public function banks(Request $request, Payouts $payouts)
     {
-        $account = $this->user->payoutAccount;
+        $valid = $this->validate($request, [
+            'country' => ['required', 'string', 'size:2'],
+            'method' => ['nullable', 'string', 'max:30'],
+        ]);
+
+        return Providers::response()->success([
+            'data' => $payouts->banks(strtoupper($valid['country']), $valid['method'] ?? 'bank'),
+            'message' => HttpStatus::message(HttpStatus::OK),
+        ]);
+    }
+
+    public function show(Payouts $payouts)
+    {
+        $account = $payouts->account($this->user);
 
         return Providers::response()->success([
             'data' => $account ? new PayoutAccountResource($account) : null,
@@ -40,7 +56,7 @@ class PayoutAccountController extends Controller
         $valid = $this->validated($request);
 
         return Providers::response()->success([
-            'data' => $payouts->resolve($valid['bank_code'], $valid['account_number']),
+            'data' => $payouts->resolve($valid['country'], $valid['method'], $valid['bank_code'], $valid['account_number'], $valid['details']),
             'message' => HttpStatus::message(HttpStatus::OK),
         ]);
     }
@@ -49,11 +65,31 @@ class PayoutAccountController extends Controller
     {
         $valid = $this->validated($request);
 
-        $account = $payouts->saveAccount($this->user, $valid['bank_code'], $valid['account_number']);
+        $account = $payouts->saveAccount($this->user, $valid['country'], $valid['method'], $valid['bank_code'], $valid['account_number'], $valid['details']);
 
         return Providers::response()->success([
             'data' => new PayoutAccountResource($account),
             'message' => 'Your payout account was saved.',
+        ]);
+    }
+
+    /**
+     * Send the creator to the provider to add their bank details there.
+     */
+    public function connect(Request $request, Payouts $payouts)
+    {
+        $valid = $this->validate($request, [
+            'country' => ['required', 'string', 'size:2'],
+            'return_url' => ['required', 'url', 'max:500'],
+        ]);
+
+        $this->ensureOwnOrigin($valid['return_url']);
+
+        $url = $payouts->connect($this->user, strtoupper($valid['country']), $valid['return_url']);
+
+        return Providers::response()->success([
+            'data' => ['url' => $url],
+            'message' => 'Continue with the provider to finish.',
         ]);
     }
 
@@ -68,15 +104,47 @@ class PayoutAccountController extends Controller
     }
 
     /**
-     * @return array{bank_code: string, account_number: string}
+     * @return array{country: string, method: string, bank_code: string, account_number: string, details: array<string, string|null>}
      */
     protected function validated(Request $request): array
     {
-        return $this->validate($request, [
-            'bank_code' => ['required', 'string', 'max:20'],
-            'account_number' => ['required', 'string', 'regex:/^\d{10}$/'],
-        ], [
-            'account_number.regex' => 'Enter the 10 digit account number.',
+        $valid = $this->validate($request, [
+            'country' => ['required', 'string', 'size:2'],
+            'method' => ['nullable', 'string', 'max:30'],
+            'bank_code' => ['required', 'string', 'max:30'],
+            // The pattern for each kind of account is checked by the payout service.
+            'account_number' => ['required', 'string', 'max:30'],
+            'account_name' => ['nullable', 'string', 'max:150'],
+            'account_type' => ['nullable', 'in:personal,business'],
+            'document_type' => ['nullable', 'in:identityNumber,passportNumber,businessRegistrationNumber'],
+            'document_number' => ['nullable', 'string', 'max:40'],
         ]);
+
+        return [
+            'country' => strtoupper($valid['country']),
+            'method' => $valid['method'] ?? 'bank',
+            'bank_code' => $valid['bank_code'],
+            'account_number' => preg_replace('/\s+/', '', $valid['account_number']),
+            'details' => array_filter([
+                'account_name' => $valid['account_name'] ?? null,
+                'account_type' => $valid['account_type'] ?? null,
+                'document_type' => $valid['document_type'] ?? null,
+                'document_number' => $valid['document_number'] ?? null,
+            ]),
+        ];
+    }
+
+    /**
+     * Only send creators back to our own app after onboarding.
+     */
+    protected function ensureOwnOrigin(string $url): void
+    {
+        $host = parse_url($url, PHP_URL_HOST);
+        $allowed = collect([config('app.url'), config('app.frontend_url'), ...(array) config('cors.allowed_origins', [])])
+            ->filter(fn ($origin) => is_string($origin) && $origin !== '*')
+            ->map(fn ($origin) => parse_url($origin, PHP_URL_HOST))
+            ->filter();
+
+        abort_unless($host && $allowed->contains($host), HttpStatus::UNPROCESSABLE_ENTITY->value, 'That return link is not allowed.');
     }
 }

@@ -31,10 +31,12 @@ Route::middleware(['auth:sanctum'])
         Route::post('takedowns/{takedown}/appeal', [TakedownController::class, 'appeal'])->middleware('throttle:5,1')->name('takedowns.appeal');
 
         // Withdrawing earnings
+        Route::get('payouts/countries', [PayoutAccountController::class, 'countries'])->name('payouts.countries');
         Route::get('payouts/banks', [PayoutAccountController::class, 'banks'])->name('payouts.banks');
         Route::get('payouts/account', [PayoutAccountController::class, 'show'])->name('payouts.account.show');
         Route::post('payouts/account/resolve', [PayoutAccountController::class, 'resolve'])->middleware('throttle:20,1')->name('payouts.account.resolve');
         Route::put('payouts/account', [PayoutAccountController::class, 'update'])->middleware('throttle:10,1')->name('payouts.account.update');
+        Route::post('payouts/account/connect', [PayoutAccountController::class, 'connect'])->middleware('throttle:10,1')->name('payouts.account.connect');
         Route::delete('payouts/account', [PayoutAccountController::class, 'destroy'])->name('payouts.account.destroy');
         Route::apiResource('payouts', PayoutController::class)->only(['index', 'store', 'destroy']);
 
