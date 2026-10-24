@@ -4,7 +4,7 @@ namespace App\Services\Notifications;
 
 use App\Enums\NotificationCategory;
 use App\Models\User;
-use NotificationChannels\WebPush\WebPushChannel;
+use App\Notifications\Channels\PushChannel;
 
 /**
  * A user's choice of email and push for each notification category, kept in
@@ -93,7 +93,7 @@ class NotificationPreferences
         }
 
         if ($this->allows($category, 'push') && WebPush::enabled() && $this->user->pushSubscriptions()->exists()) {
-            $channels[] = WebPushChannel::class;
+            $channels[] = PushChannel::class;
         }
 
         return $channels;

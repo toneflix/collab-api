@@ -9,6 +9,7 @@ use App\Models\ProjectTrack;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Notifications\ActivityNotification;
+use App\Notifications\Channels\PushChannel;
 use App\Notifications\JoinProjectRequestNotification;
 use App\Notifications\NewMessagesNotification;
 use App\Notifications\SaleNotification;
@@ -22,7 +23,6 @@ use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\URL;
 use Laravel\Sanctum\Sanctum;
 use Mockery;
-use NotificationChannels\WebPush\WebPushChannel;
 use Tests\TestCase;
 
 class NotificationsTest extends TestCase
@@ -110,13 +110,13 @@ class NotificationsTest extends TestCase
         $this->assertSame(['database', 'mail'], $prefs->channelsFor(NotificationCategory::SALES));
 
         $this->owner->updatePushSubscription('https://push.test/abc', 'key', 'auth');
-        $this->assertSame(['database', 'mail', WebPushChannel::class], $prefs->channelsFor(NotificationCategory::SALES));
+        $this->assertSame(['database', 'mail', PushChannel::class], $prefs->channelsFor(NotificationCategory::SALES));
 
         $prefs->update(['sales' => ['mail' => false, 'push' => false]]);
         $this->assertSame(['database'], NotificationPreferences::for($this->owner->fresh())->channelsFor(NotificationCategory::SALES));
 
         config(['webpush.vapid.private_key' => null]);
-        $this->assertNotContains(WebPushChannel::class, NotificationPreferences::for($this->owner->fresh())->channelsFor(NotificationCategory::COLLABS));
+        $this->assertNotContains(PushChannel::class, NotificationPreferences::for($this->owner->fresh())->channelsFor(NotificationCategory::COLLABS));
     }
 
     public function test_an_invitation_notifies_the_invited_user(): void
