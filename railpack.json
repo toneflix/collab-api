@@ -6,7 +6,8 @@
       "commands": [
         "...",
         "install-php-extensions bcmath exif gd gmp intl pcntl pdo_pgsql pgsql zip"
-      ]
+      ],
+      "deployOutputs": []
     }
   },
   "deploy": {
