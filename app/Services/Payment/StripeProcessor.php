@@ -143,7 +143,6 @@ final class StripeProcessor implements PaymentInterface
     /**
      * Pay out to the user's connected Stripe account.
      *
-     * @param  ?string  $reason
      * @return CustomObject
      */
     public function transfer(

@@ -2,14 +2,19 @@
 
 namespace App\Services\Payment;
 
+use App\Models\TempUser;
+use App\Models\User;
+use App\Services\CustomObject;
+use Illuminate\Http\Request;
+
 interface PaymentInterface
 {
     /**
-     * @param  \App\Models\User  $user
+     * @param  User  $user
      */
     public function __construct(
-        \Illuminate\Http\Request $request,
-        \App\Models\User|\App\Models\TempUser $user
+        Request $request,
+        User|TempUser $user
     );
 
     /**
@@ -59,11 +64,9 @@ interface PaymentInterface
     /**
      * Do transfter to the specified user
      *
-     * @param  ?string  $reason
-     * @param  ?callable  $successCallback
      * @param  ?callable  $errorCallback  The callback function to call when an error occurs
      * @param  bool  $respond  Wether to return a response or not.
-     * @return array|object|\App\Services\CustomObject
+     * @return array|object|CustomObject
      */
     public function transfer(
         int|float $amount,

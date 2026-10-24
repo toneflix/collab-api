@@ -8,6 +8,8 @@ use App\Http\Resources\ProjectCollaboratorCollection;
 use App\Http\Resources\ProjectCollaboratorResource;
 use App\Models\Project;
 use App\Models\ProjectCollaborator;
+use App\Models\User;
+use App\Services\Limits;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 
@@ -43,12 +45,12 @@ class ProjectCollaboratorController extends Controller
             'custom' => ['nullable', 'required_if:role,custom', 'string'],
         ]);
 
-        /** @var \App\Models\User $sender */
+        /** @var User $sender */
         $sender = $request->user('sanctum');
 
         if ($project->isCollaber($sender)) {
             return Providers::response()->error([
-                'message' => 'You are already a collaber on this project.'
+                'message' => 'You are already a collaber on this project.',
             ], HttpStatus::UNPROCESSABLE_ENTITY);
         }
 
@@ -60,7 +62,16 @@ class ProjectCollaboratorController extends Controller
             $valid['meta']['custom'] = $valid['custom'];
         }
 
-        /** @var \App\Models\ProjectCollaborator $collaborator */
+        // The project owner's plan decides how many collaborators it can have.
+        Limits::for($project->user)->ensureBelow(
+            'collaborators',
+            // Only people already on the project count; requests don't take a spot until accepted.
+            $project->collaborators()->accepted()->count(),
+            'role',
+            'This project can have up to :limit collaborators.'
+        );
+
+        /** @var ProjectCollaborator $collaborator */
         $collaborator = $project->collaborators()->create($valid);
 
         $sender->sendApprovableNotification(
@@ -78,7 +89,7 @@ class ProjectCollaboratorController extends Controller
         return (new ProjectCollaboratorResource($collaborator))->additional([
             'message' => __('Your request to join :0 as a :1 has been sent.', [
                 $project->title,
-                $role
+                $role,
             ]),
             'status' => 'success',
             'status_code' => HttpStatus::CREATED,
@@ -115,7 +126,7 @@ class ProjectCollaboratorController extends Controller
         $collaborator->delete();
 
         return (new ProjectCollaboratorResource($collaborator))->additional([
-            'message' => __(!$collaborator->accepted ? 'Your request has been cancelled.' : 'You have now left the project.'),
+            'message' => __(! $collaborator->accepted ? 'Your request has been cancelled.' : 'You have now left the project.'),
             'status' => 'success',
             'status_code' => HttpStatus::ACCEPTED,
         ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);

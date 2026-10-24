@@ -6,6 +6,7 @@ use App\Enums\HttpStatus;
 use App\Helpers\Providers;
 use App\Models\TempUser;
 use App\Models\User;
+use App\Services\CustomObject;
 use Illuminate\Http\Request;
 use Valorin\Random\Random;
 use Yabacon\Paystack;
@@ -34,7 +35,7 @@ class PaystackProcessor implements PaymentInterface
      * @param  callable  $successCallback  The callback function to call when the transaction is initialized
      * @param  callable  $errorCallback  The callback function to call when an error occurs
      * @param  bool  $respond  Wether to return a response or not.
-     * @return array|object|\App\Services\CustomObject
+     * @return array|object|CustomObject
      */
     public function intent(
         int|float $amount,
@@ -51,7 +52,7 @@ class PaystackProcessor implements PaymentInterface
         $reference = Providers::config('reference_prefix', 'TRX-').Random::string(20, ! 1, ! 0, ! 0, ! 1);
         $real_due = round($due * 100, 2);
 
-        $response = new \stdClass();
+        $response = new \stdClass;
 
         // Initialize paystack transaction
         try {
@@ -63,7 +64,7 @@ class PaystackProcessor implements PaymentInterface
                     'data' => ['reference' => $reference],
                 ];
             } else {
-                $builder = new MetadataBuilder();
+                $builder = new MetadataBuilder;
                 $builder->withCustomField('Name', $user->fullname);
                 $builder->withCustomField('Phone Number', $user->phone);
 
@@ -94,7 +95,7 @@ class PaystackProcessor implements PaymentInterface
 
             // Call the callback function
             if ($callback) {
-                $tranx = new \App\Services\CustomObject($tranx);
+                $tranx = new CustomObject($tranx);
                 $response = $callback($reference, $tranx, $real_due, $msg, $code);
                 if ($respond) {
                     return $response;
@@ -125,7 +126,7 @@ class PaystackProcessor implements PaymentInterface
         }
 
         // Return the response as a collection
-        return new \App\Services\CustomObject($response);
+        return new CustomObject($response);
     }
 
     /**
@@ -134,7 +135,7 @@ class PaystackProcessor implements PaymentInterface
      * @param  callable  $successCallback
      * @param  callable  $errorCallback  The callback function to call when an error occurs
      * @param  bool  $respond  Wether to return a response or not.
-     * @return array|object|\App\Services\CustomObject
+     * @return array|object|CustomObject
      */
     public function verify(
         string $reference,
@@ -142,7 +143,7 @@ class PaystackProcessor implements PaymentInterface
         ?callable $error_callback = null,
         ?bool $respond = true
     ) {
-        $response = new \stdClass();
+        $response = new \stdClass;
         $code = HttpStatus::BAD_REQUEST;
         $msg = 'Transaction Failed';
 
@@ -155,7 +156,7 @@ class PaystackProcessor implements PaymentInterface
 
             // Call the error callback function
             if ($error_callback) {
-                $tranx = new \App\Services\CustomObject($tranx);
+                $tranx = new CustomObject($tranx);
                 $response = $error_callback($msg, $code, $tranx);
                 if (is_object($response)) {
                     $response->error = $code->value;
@@ -178,21 +179,21 @@ class PaystackProcessor implements PaymentInterface
 
                 // Call the callback function
                 if ($callback) {
-                    $tranx = new \App\Services\CustomObject($tranx);
+                    $tranx = new CustomObject($tranx);
                     $response = $callback($this->request->reference, $tranx, $msg, $code);
                     if ($respond) {
                         return $response;
                     }
                 }
             } catch (ApiException|\InvalidArgumentException|\ErrorException|\Exception $e) {
-                $tranx = $e instanceof ApiException ? $e->getResponseObject() : new \stdClass();
+                $tranx = $e instanceof ApiException ? $e->getResponseObject() : new \stdClass;
                 $code = HttpStatus::UNPROCESSABLE_ENTITY;
                 $msg = $e->getMessage();
                 $response->error = $code->value;
 
                 // Call the error callback function
                 if ($error_callback) {
-                    $tranx = new \App\Services\CustomObject($tranx);
+                    $tranx = new CustomObject($tranx);
                     $response = $error_callback($msg, $code, $tranx);
                     if (is_object($response)) {
                         $response->error = $code->value;
@@ -211,7 +212,7 @@ class PaystackProcessor implements PaymentInterface
             $response->payment_approved = $tranx->payment_approved ?? false;
         }
 
-        return new \App\Services\CustomObject($response);
+        return new CustomObject($response);
     }
 
     /**
@@ -227,7 +228,7 @@ class PaystackProcessor implements PaymentInterface
         ?callable $error_callback = null,
         ?bool $respond = true
     ) {
-        $response = new \stdClass();
+        $response = new \stdClass;
         $code = HttpStatus::BAD_REQUEST;
         $msg = 'Transaction Failed';
 
@@ -242,13 +243,13 @@ class PaystackProcessor implements PaymentInterface
                     'authorization_code' => $authorization_code,
                 ]);
             } catch (ApiException|\InvalidArgumentException|\ErrorException $e) {
-                $tranx = $e instanceof ApiException ? $e->getResponseObject() : new \stdClass();
+                $tranx = $e instanceof ApiException ? $e->getResponseObject() : new \stdClass;
                 $code = HttpStatus::UNPROCESSABLE_ENTITY;
                 $msg = $e->getMessage();
 
                 // Call the error callback function
                 if ($error_callback) {
-                    $tranx = new \App\Services\CustomObject($tranx);
+                    $tranx = new CustomObject($tranx);
                     $response = $error_callback($msg, $code, $tranx);
                     if ($respond) {
                         return $response;
@@ -263,17 +264,15 @@ class PaystackProcessor implements PaymentInterface
             $response->status_code = $code;
         }
 
-        return new \App\Services\CustomObject($response);
+        return new CustomObject($response);
     }
 
     /**
      * Do transfter to the specified user
      *
-     * @param  ?string  $reason
-     * @param  ?callable  $successCallback
      * @param  ?callable  $errorCallback  The callback function to call when an error occurs
      * @param  bool  $respond  Wether to return a response or not.
-     * @return array|object|\App\Services\CustomObject
+     * @return array|object|CustomObject
      */
     public function transfer(
         int|float $amount,
@@ -282,7 +281,7 @@ class PaystackProcessor implements PaymentInterface
         ?callable $errorCallback = null,
         ?bool $respond = true
     ) {
-        $response = new \stdClass();
+        $response = new \stdClass;
         $code = HttpStatus::BAD_REQUEST;
         $user = $this->user;
         $msg = 'Transfer Failed';
@@ -326,19 +325,19 @@ class PaystackProcessor implements PaymentInterface
 
             // Call the callback function
             if ($successCallback) {
-                $tranx = new \App\Services\CustomObject($tranx);
+                $tranx = new CustomObject($tranx);
                 $response = $successCallback($tranx, $msg, $code);
                 if ($respond) {
                     return $response;
                 }
             }
-        } catch (\Yabacon\Paystack\Exception\ApiException $e) {
-            $tranx = $e instanceof ApiException ? $e->getResponseObject() : new \stdClass();
+        } catch (ApiException $e) {
+            $tranx = $e instanceof ApiException ? $e->getResponseObject() : new \stdClass;
             $code = HttpStatus::UNPROCESSABLE_ENTITY;
             $msg = $e->getMessage();
 
             if ($errorCallback) {
-                $tranx = new \App\Services\CustomObject($tranx);
+                $tranx = new CustomObject($tranx);
                 $response = $errorCallback($msg, $code, $tranx);
                 if ($respond) {
                     return $response;
@@ -352,6 +351,6 @@ class PaystackProcessor implements PaymentInterface
             $response->status_code = $code;
         }
 
-        return new \App\Services\CustomObject($response);
+        return new CustomObject($response);
     }
 }

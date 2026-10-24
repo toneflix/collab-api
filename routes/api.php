@@ -6,6 +6,7 @@ use App\Http\Controllers\CommentController;
 use App\Http\Controllers\ExploreController;
 use App\Http\Controllers\FollowController;
 use App\Http\Controllers\GenreController;
+use App\Http\Controllers\Payment\PaymentController;
 use App\Http\Controllers\PlaylistController;
 use App\Http\Controllers\ProjectCollaboratorController;
 use App\Http\Controllers\ProjectController;
@@ -16,9 +17,10 @@ use App\Http\Controllers\UserController;
 use App\Services\Realtime\Realtime;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Route;
+use Symfony\Component\Finder\SplFileInfo;
 
 if (file_exists(base_path('routes/api'))) {
-    array_filter(File::files(base_path('routes/api')), function (Symfony\Component\Finder\SplFileInfo $file) {
+    array_filter(File::files(base_path('routes/api')), function (SplFileInfo $file) {
         if ($file->getExtension() === 'php') {
             Route::middleware('api')->group($file->getPathName());
         }
@@ -52,7 +54,18 @@ Route::apiResource('releases/{release}/tracks', TrackController::class)->only(['
 Route::apiResource('projects', ProjectController::class)->only(['index', 'show']);
 Route::apiResource('playlist', PlaylistController::class)->only(['index']);
 
+// Paystack tells us about payments here; the signature is checked in the controller.
+Route::post('payments/paystack/webhook', [PaymentController::class, 'webhook'])->name('payments.webhook');
+
 Route::middleware(['auth:sanctum'])->group(function () {
+    // Payments for Premium, paid releases, stems and tips
+    Route::post('payments', [PaymentController::class, 'store'])->name('payments.store');
+    Route::post('payments/{reference}/verify', [PaymentController::class, 'verify'])->name('payments.verify');
+
+    // Paid downloads
+    Route::get('tracks/{track}/stems', [TrackController::class, 'stems'])->name('tracks.stems');
+    Route::get('tracks/{track}/download', [TrackController::class, 'download'])->name('tracks.download');
+
     // Collaborators Routes
     Route::apiResource(
         'projects/{project}/collaborators',

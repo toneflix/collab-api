@@ -51,6 +51,7 @@ class UserResource extends JsonResource
                 fn () => $this->followings()->count(),
             ),
             'reputation' => $this->reputation,
+            'isPremium' => $this->is_premium,
             'projectsCount' => $this->projects_count,
             'isProjectCreator' => $this->when($request->has('project_id'), $this->is_project_creator),
             'followsYou' => $user ? $user->isFollowedBy($this->resource) : false,

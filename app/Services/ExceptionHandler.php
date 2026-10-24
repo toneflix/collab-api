@@ -11,7 +11,9 @@ use Illuminate\Foundation\Exceptions\Handler;
 use Illuminate\Foundation\Exceptions\RegisterErrorViewPaths;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Validation\ValidationException;
+use Spatie\Permission\Exceptions\UnauthorizedException;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
@@ -27,6 +29,7 @@ class ExceptionHandler // extends Handler
     public static function render($request, Throwable $e)
     {
         static::$request = $request;
+        static::$message = null;
 
         if ($request->isXmlHttpRequest() || request()->is('api/*')) {
             $line = method_exists($e, 'getFile') ? ' in '.$e->getFile() : '';
@@ -52,7 +55,7 @@ class ExceptionHandler // extends Handler
                             : HttpStatus::message(HttpStatus::NOT_FOUND))->replace('resource', $prefix ?: 'resource'),
                         HttpStatus::NOT_FOUND
                     ),
-                $e instanceof \Spatie\Permission\Exceptions\UnauthorizedException ||
+                $e instanceof UnauthorizedException ||
                     $e instanceof AuthorizationException ||
                     $e instanceof AccessDeniedHttpException ||
                     $e->getCode() === HttpStatus::FORBIDDEN => static::renderException(
@@ -81,9 +84,9 @@ class ExceptionHandler // extends Handler
                     HttpStatus::message(HttpStatus::TOO_MANY_REQUESTS),
                     HttpStatus::TOO_MANY_REQUESTS
                 ),
-                $e instanceof \Symfony\Component\HttpKernel\Exception\HttpException => static::renderException(
+                $e instanceof HttpException => static::renderException(
                     $plainMessage ?: HttpStatus::message(HttpStatus::FORBIDDEN),
-                    $getCode ?: HttpStatus::FORBIDDEN
+                    HttpStatus::tryFrom($e->getStatusCode()) ?? HttpStatus::FORBIDDEN
                 ),
                 default => static::renderException($msg, HttpStatus::SERVER_ERROR),
             };
@@ -105,7 +108,7 @@ class ExceptionHandler // extends Handler
     {
         return Providers::response()->error([
             'message' => static::$message ?? $msg,
-            ...array_merge($misc, ['data' => new \stdClass()]),
+            ...array_merge($misc, ['data' => new \stdClass]),
         ], $code);
     }
 
@@ -126,6 +129,6 @@ class ExceptionHandler // extends Handler
      */
     protected static function registerErrorViewPaths()
     {
-        (new RegisterErrorViewPaths())();
+        (new RegisterErrorViewPaths)();
     }
 }

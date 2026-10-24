@@ -2,6 +2,24 @@
 
 A streaming platform that brings together creatives in the music industry to make awesome sounds through collaboration.
 
+### Database
+
+PostgreSQL is the preferred database. MySQL/MariaDB and SQLite also work.
+
+```bash
+createdb toneflix_collab
+php artisan migrate --seed
+php artisan app:sync-roles
+```
+
+The tests use a separate `toneflix_collab_tests` database (see `phpunit.xml`):
+
+```bash
+createdb toneflix_collab_tests
+DB_DATABASE=toneflix_collab_tests php artisan migrate --seed
+php artisan test
+```
+
 ### Running Queues
 
 Laravel includes an Artisan command that will start a queue worker and process new jobs as they are pushed onto the queue. You may run the worker using the `queue:work` Artisan command. Note that once the `queue:work` command has started, it will continue to run until it is manually stopped or you close your terminal ([From Laravel Docs](https://laravel.com/docs/9.x/queues#running-the-queue-worker))

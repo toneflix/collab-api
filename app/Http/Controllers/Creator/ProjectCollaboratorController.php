@@ -8,6 +8,8 @@ use App\Http\Resources\ProjectCollaboratorCollection;
 use App\Http\Resources\ProjectCollaboratorResource;
 use App\Models\Project;
 use App\Models\ProjectCollaborator;
+use App\Models\User;
+use App\Services\Limits;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -53,10 +55,18 @@ class ProjectCollaboratorController extends Controller
             $valid['meta']['custom'] = $valid['custom'];
         }
 
-        /** @var \App\Models\ProjectCollaborator $collaborator */
+        // The project owner's plan decides how many collaborators it can have.
+        Limits::for($project->user)->ensureBelow(
+            'collaborators',
+            $project->collaborators()->count(),
+            'user_id',
+            'This project can have up to :limit collaborators.'
+        );
+
+        /** @var ProjectCollaborator $collaborator */
         $collaborator = $project->collaborators()->create($valid);
 
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
 
         $user->sendApprovableNotification(
