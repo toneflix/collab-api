@@ -10,10 +10,10 @@ use App\Http\Resources\AdminUserResource;
 use App\Http\Resources\TransactionResource;
 use App\Models\Plan;
 use App\Models\User;
+use App\Services\Admin\UserDirectory;
 use App\Services\Admin\UserInsights;
 use App\Services\Admin\UserManager;
 use Closure;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
@@ -34,42 +34,20 @@ class UserController extends Controller
         });
     }
 
-    public function index(Request $request)
+    public function index(Request $request, UserDirectory $directory)
     {
         $valid = $request->validate([
             'search' => ['nullable', 'string', 'max:100'],
-            'status' => ['nullable', Rule::in(['active', 'suspended', 'premium', 'verified', 'staff'])],
+            'status' => ['nullable', Rule::in(UserDirectory::STATUSES)],
             'role' => ['nullable', 'string', 'max:50'],
-            'sort' => ['nullable', Rule::in(['latest', 'oldest', 'name'])],
+            'permission' => ['nullable', 'string', 'max:50'],
+            'sort' => ['nullable', Rule::in(UserDirectory::SORTS)],
             'limit' => ['nullable', 'integer', 'min:1', 'max:50'],
         ]);
 
-        $users = User::query()
-            ->withoutGlobalScopes()
+        $users = $directory->query($valid)
             ->withCount(['projects', 'collabProjects', 'releases'])
             ->with(['roles', 'subscriptions' => fn ($q) => $q->active()->with('planModel')])
-            ->when($valid['search'] ?? null, fn (Builder $q, string $search) => $q->where(fn (Builder $q) => $q
-                ->whereLike('username', "%{$search}%")
-                ->orWhereLike('email', "%{$search}%")
-                ->orWhereLike('firstname', "%{$search}%")
-                ->orWhereLike('lastname', "%{$search}%")
-                ->when(is_numeric($search), fn ($q) => $q->orWhere('id', $search))))
-            ->when($valid['status'] ?? null, fn (Builder $q, string $status) => match ($status) {
-                'active' => $q->suspended(false),
-                'suspended' => $q->suspended(),
-                'premium' => $q->whereHas('subscriptions', fn ($q) => $q->active()),
-                'verified' => $q->where('verified', true),
-                'staff' => $q->whereHas('roles', fn ($q) => $q->where('name', '!=', 'user')),
-            })
-            ->when($valid['role'] ?? null, fn (Builder $q, string $role) => $q->whereHas('roles', fn ($q) => $q->where('name', $role)))
-            ->when(
-                $valid['sort'] ?? 'latest',
-                fn (Builder $q, string $sort) => match ($sort) {
-                    'oldest' => $q->oldest('id'),
-                    'name' => $q->orderBy('firstname')->orderBy('lastname')->orderBy('id'),
-                    default => $q->latest('id'),
-                }
-            )
             ->paginate($valid['limit'] ?? 20);
 
         return AdminUserResource::collection($users)->additional([
