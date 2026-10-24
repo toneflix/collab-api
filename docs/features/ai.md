@@ -26,6 +26,16 @@ Both are cleared for commercial use: ElevenLabs Music under its music terms, Dem
 - Each plan gives a number of credits per calendar month. They are used first and reset each month.
 - Bought credits come on top and never expire.
 - A failed job refunds its credits.
+- If a song is made but splitting it into stems fails, the song is added whole and only the split's credits are refunded.
+
+## When a job fails
+
+Failures are logged at `error` level with the exception, so they show with `LOG_LEVEL=error`. The reason is also kept on the job (`ai_jobs.failure`). List recent problems with:
+
+```bash
+php artisan ai:jobs --failures
+php artisan ai:jobs --status=failed --user=12
+```
 
 Admin settings on `/admin/ai`:
 

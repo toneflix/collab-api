@@ -28,7 +28,7 @@ class ReplicateAudioGateway implements AudioGateway
 
         $prediction = $client->run($model, ['prompt' => $text, ...$providerOptions], $timeout);
 
-        $url = collect((array) $prediction['output'])->flatten()->first(fn ($value) => is_string($value) && str_starts_with($value, 'http'));
+        $url = collect((array) $prediction['output'])->flatten()->first(fn ($value) => ReplicateClient::isFile($value));
 
         if (! $url) {
             throw new ReplicateException("{$model} returned no audio.");

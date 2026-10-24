@@ -14,7 +14,9 @@ use App\Services\Ai\Credits;
 use App\Services\Studio\StemFiles;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\Client\Request;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Sleep;
 use Laravel\Ai\Audio;
@@ -28,6 +30,40 @@ class AiMusicTest extends TestCase
     use DatabaseTransactions;
 
     protected const API = 'https://replicate.test/v1';
+
+    /**
+     * A finished elevenlabs/music prediction, as Replicate returned it.
+     */
+    protected const ELEVENLABS_PREDICTION = [
+        'completed_at' => '2026-10-24T19:37:55.139086Z',
+        'created_at' => '2026-10-24T19:37:40.499000Z',
+        'data_removed' => false,
+        'error' => null,
+        'id' => 'faw4q8ssjdrmt0d1dxnrhtsdrg',
+        'input' => [
+            'prompt' => 'Make an Afrobeat song about the day I got burnt',
+            'music_length_ms' => 75000,
+            'force_instrumental' => false,
+        ],
+        'metrics' => [
+            'audio_output_count' => 1,
+            'audio_output_duration_seconds' => 75.05,
+            'predict_time' => 14.594620167,
+            'total_time' => 14.64008665,
+        ],
+        'model' => 'elevenlabs/music',
+        'output' => 'https://replicate.delivery/xezq/21uiLLPUfqQoXqFsYr6k3LHCcpQFUfMk7fbEOb70jQZnYX1uA/tmpz0m1donk.mp3',
+        'source' => 'api',
+        'started_at' => '2026-10-24T19:37:40.544466Z',
+        'status' => 'succeeded',
+        'urls' => [
+            'stream' => 'https://stream.replicate.com/v1/files/jbxs-3a3wri6ydoekmpcb6ravp3hrhgsuauualddq6rqeuwm7zkoqxiea',
+            'get' => 'https://api.replicate.com/v1/predictions/faw4q8ssjdrmt0d1dxnrhtsdrg',
+            'cancel' => 'https://api.replicate.com/v1/predictions/faw4q8ssjdrmt0d1dxnrhtsdrg/cancel',
+            'web' => 'https://replicate.com/p/faw4q8ssjdrmt0d1dxnrhtsdrg',
+        ],
+        'version' => 'hidden',
+    ];
 
     protected User $owner;
 
@@ -155,7 +191,7 @@ class AiMusicTest extends TestCase
 
         Http::assertSent(fn (Request $request) => $request->url() === self::API.'/predictions'
             && $request['version'] === 'v-demucs'
-            && $request['input'] === ['audio' => self::API.'/files/f1', 'format' => 'mp3']);
+            && $request['input'] === ['audio' => self::API.'/files/f1', 'output_format' => 'mp3']);
     }
 
     public function test_an_existing_stem_can_be_split(): void
@@ -183,6 +219,7 @@ class AiMusicTest extends TestCase
         $job = AiJob::findOrFail($id);
         $this->assertSame(AiJob::FAILED, $job->status);
         $this->assertStringContainsString('refunded', $job->error);
+        $this->assertSame('RuntimeException: Model is down', $job->failure);
         $this->assertSame(100, Credits::for($this->owner)->total());
         $this->assertSame(['refund', 'spend'], AiCreditEntry::where('user_id', $this->owner->id)->orderBy('type')->pluck('type')->all());
         $this->assertSame(0, $this->track->stems()->count());
@@ -238,5 +275,73 @@ class AiMusicTest extends TestCase
 
         $this->assertSame(AiJob::FAILED, $job->fresh()->status);
         $this->assertSame(100, Credits::for($this->owner)->total());
+    }
+
+    /**
+     * Replicate answering with the elevenlabs/music prediction above.
+     */
+    protected function fakeElevenLabs(): void
+    {
+        Http::fake([
+            self::API.'/models/elevenlabs/music/predictions' => Http::response(self::ELEVENLABS_PREDICTION, 201),
+            self::ELEVENLABS_PREDICTION['output'] => Http::response(file_get_contents(base_path('tests/fixtures/audio.mp3')), 200, ['Content-Type' => 'audio/mpeg']),
+        ]);
+    }
+
+    public function test_a_song_from_a_single_file_output_is_added_to_the_track(): void
+    {
+        $this->fakeElevenLabs();
+        Sanctum::actingAs($this->owner);
+
+        $id = $this->postJson($this->url(), ['prompt' => 'Make an Afrobeat song about the day I got burnt', 'seconds' => 75])
+            ->assertCreated()
+            ->json('data.id');
+
+        $job = AiJob::findOrFail($id);
+        $this->assertSame(AiJob::SUCCEEDED, $job->status);
+        $this->assertNull($job->failure);
+
+        $stem = $this->track->stems()->sole();
+        $this->assertSame([$stem->id], $job->output['stems']);
+        Storage::disk(config('filesystems.default'))->assertExists('public/media/music/stem/'.$stem->src);
+
+        Http::assertSent(fn (Request $request) => $request->url() === self::ELEVENLABS_PREDICTION['output']
+            && ! $request->hasHeader('Authorization'));
+    }
+
+    public function test_a_song_is_added_whole_when_splitting_it_fails(): void
+    {
+        $this->fakeElevenLabs();
+        Http::fake([self::API.'/files' => Http::response(['detail' => 'Upload failed'], 500)]);
+        Log::spy();
+        Sanctum::actingAs($this->owner);
+
+        $id = $this->postJson($this->url(), ['prompt' => 'Make an Afrobeat song about the day I got burnt', 'seconds' => 75, 'split' => true])
+            ->assertCreated()
+            ->assertJsonPath('data.credits', 43)
+            ->json('data.id');
+
+        $job = AiJob::findOrFail($id);
+        $this->assertSame(AiJob::SUCCEEDED, $job->status);
+        $this->assertStringContainsString('Upload failed', $job->failure);
+        $this->assertSame($job->output['notice'], $job->present()['notice']);
+
+        $this->assertSame([$this->track->stems()->sole()->id], $job->output['stems']);
+        $this->assertSame(100 - 43 + 5, Credits::for($this->owner)->total());
+
+        Log::shouldHaveReceived('error')->withArgs(fn ($message, $context) => $message === 'AI job failed'
+            && $context['step'] === 'Split into stems'
+            && $context['exception'] instanceof RequestException);
+    }
+
+    public function test_admins_can_list_what_went_wrong_with_jobs(): void
+    {
+        AiJob::create(['user_id' => $this->owner->id, 'project_track_id' => $this->track->id, 'kind' => 'music', 'status' => AiJob::FAILED, 'input' => ['prompt' => 'Jazz', 'seconds' => 10], 'failure' => 'RequestException: 422 invalid input']);
+
+        $this->artisan('ai:jobs', ['--failures' => true, '--user' => $this->owner->id])
+            ->expectsOutputToContain('RequestException: 422 invalid input')
+            ->assertSuccessful();
+
+        $this->artisan('ai:jobs', ['--status' => 'done'])->assertExitCode(2);
     }
 }
