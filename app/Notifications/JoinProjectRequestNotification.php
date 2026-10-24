@@ -2,85 +2,58 @@
 
 namespace App\Notifications;
 
-use App\Helpers\Providers;
-use Illuminate\Bus\Queueable;
-use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Notifications\Notification;
-use Toneflix\ApprovableNotifications\Models\Notification as ModelsNotification;
+use App\Enums\NotificationCategory;
+use App\Models\ProjectCollaborator;
+use App\Models\User;
 
-class JoinProjectRequestNotification extends Notification
+/**
+ * A collab invitation or request, or the answer to one.
+ *
+ * Types: `request`, `invitation`, `request_approved`, `invitation_accepted`.
+ */
+class JoinProjectRequestNotification extends ActivityNotification
 {
-    use Queueable;
+    protected string $sender;
 
-    /**
-     * Create a new notification instance.
-     */
-    public function __construct(
-        protected ModelsNotification $notification,
-        protected string $type = 'request',
-    ) {
+    protected string $project;
+
+    protected int|string $projectId;
+
+    protected string $role;
+
+    public function __construct(ProjectCollaborator $collaborator, User $sender, protected string $type = 'request')
+    {
+        $this->sender = $sender->fullname ?: $sender->username;
+        $this->project = (string) $collaborator->project?->title;
+        $this->projectId = $collaborator->project?->slug ?: $collaborator->project_id;
+        $this->role = (string) $collaborator->role;
+
+        $this->afterCommit();
     }
 
-    /**
-     * Get the notification's delivery channels.
-     *
-     * @return array<int, string>
-     */
-    public function via(object $notifiable): array
+    public function category(): NotificationCategory
     {
-        return Providers::config('prefered_notification_channels', ['mail', 'sms']);
+        return NotificationCategory::COLLABS;
     }
 
-    /**
-     * Get the mail representation of the notification.
-     */
-    public function toMail(object $notifiable): MailMessage
+    protected function key(): string
     {
-        $message = Providers::messageParser(
-            "project::{$this->type}",
-            $notifiable,
-            $this->notification->actionable,
-            $this->notification->actionable->project,
-            [
-                'sendername' => $this->notification->notifier->fullname,
-            ]
-        );
-
-        return (new MailMessage())
-            ->subject($message->subject)
-            ->view(['email', 'email-plain'], [
-                'subject' => $message->subject,
-                'lines' => $message->lines,
-            ]);
+        return 'collabs.'.$this->type;
     }
 
-    /**
-     * Get the sms representation of the notification.
-     *
-     * @param  mixed  $notifiable  notifiable
-     */
-    public function toSms($notifiable)
+    protected function params(User $notifiable): array
     {
-        $message = Providers::messageParser(
-            "project::{$this->type}",
-            $notifiable,
-            [
-                'role' => $this->notification->actionable->role,
-                'title' => $this->notification->actionable->title,
-                'sendername' => $this->notification->notifier->fullname,
-            ]
-        );
-
-        return SmsProvider::getMessage(implode("\n", $message->lines));
+        return [
+            'sendername' => $this->sender,
+            'title' => $this->project,
+            'role' => $this->role,
+        ];
     }
 
-    public function toTwilio($n): \NotificationChannels\Twilio\TwilioSmsMessage
+    protected function path(): string
     {
-        return $this->toSms($n);
-    }
-
-    public function toKudiSms($n): \Toneflix\KudiSmsNotification\KudiSmsMessage
-    {
-        return $this->toSms($n);
+        return in_array($this->type, ['request', 'invitation'], true)
+            ? '/notifications?tab=requests'
+            : '/studio/projects/'.$this->projectId;
     }
 }

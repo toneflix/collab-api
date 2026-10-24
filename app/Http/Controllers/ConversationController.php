@@ -128,7 +128,7 @@ class ConversationController extends Controller
         }
 
         Conversations::markRead($root, $request->user());
-        Conversations::broadcast($comment, 'comment.posted');
+        Conversations::posted($comment);
 
         return Providers::response()->success([
             'data' => Conversations::message($comment),

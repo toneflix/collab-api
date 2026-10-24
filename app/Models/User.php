@@ -24,6 +24,7 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use NotificationChannels\WebPush\HasPushSubscriptions;
 use Overtrue\LaravelFollow\Traits\Followable;
 use Overtrue\LaravelFollow\Traits\Follower;
 use Spatie\Permission\Traits\HasRoles;
@@ -45,6 +46,7 @@ class User extends Authenticatable implements Commentator
     use HasApiTokens;
     use HasFactory;
     use HasJsonRelationships;
+    use HasPushSubscriptions;
     use HasRoles;
     use ModelCanExtend;
     use Notifiable;

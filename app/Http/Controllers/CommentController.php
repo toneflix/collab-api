@@ -53,7 +53,7 @@ class CommentController extends Controller
 
         $comment = $commentable->comment($request->comment);
 
-        $this->broadcast($comment, 'comment.posted');
+        Conversations::posted($comment);
 
         return (new CommentResource($comment))->additional([
             'message' => 'Comment posted.',
@@ -83,7 +83,7 @@ class CommentController extends Controller
 
         $comment = $comment->comment($request->comment);
 
-        $this->broadcast($comment, 'comment.posted');
+        Conversations::posted($comment);
 
         return (new CommentResource($comment))->additional([
             'message' => 'Reply sent.',
@@ -99,7 +99,7 @@ class CommentController extends Controller
     {
         [$commentable, $comment] = $this->resolver($request, $pid, $comment_id);
 
-        $this->broadcast($comment, 'comment.deleted');
+        Conversations::broadcast($comment, 'comment.deleted');
 
         $comment->delete();
 
@@ -107,15 +107,6 @@ class CommentController extends Controller
             'data' => [],
             'message' => 'Comment Deleted Successfully',
         ], HttpStatus::ACCEPTED);
-    }
-
-    /**
-     * Tell everyone viewing the conversation, and its participants, about a
-     * new or deleted comment.
-     */
-    protected function broadcast(Comment $comment, string $event): void
-    {
-        Conversations::broadcast($comment, $event);
     }
 
     /**

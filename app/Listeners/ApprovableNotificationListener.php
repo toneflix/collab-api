@@ -35,14 +35,12 @@ class ApprovableNotificationListener implements ShouldQueue
              * Project collaboration request
              */
             if ($event->notification->actionable instanceof ProjectCollaborator) {
+                /** @var \App\Models\User $recipient */
+                $recipient = $event->notification->notifiable;
 
-                $collaborator = $event->notification->actionable;
-                /** @var \App\Models\User $user */
-                $user = $collaborator->user;
-
-                // Notify the user
-                $user->notify(new JoinProjectRequestNotification(
-                    $event->notification,
+                $recipient->notify(new JoinProjectRequestNotification(
+                    $event->notification->actionable,
+                    $event->notification->notifier,
                     $event->notification->data['action']
                 ));
             }
@@ -64,8 +62,11 @@ class ApprovableNotificationListener implements ShouldQueue
                         ? 'invitation_accepted'
                         : 'request_approved';
 
-                    // Notify the user
-                    $user->notify(new JoinProjectRequestNotification($event->notification, $direction));
+                    $user->notify(new JoinProjectRequestNotification(
+                        $collaborator,
+                        $event->notification->notifiable,
+                        $direction
+                    ));
 
                     // Add reputation for the users
                     (new Reputation($user, "collab_{$direction}"))->add();

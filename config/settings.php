@@ -145,5 +145,19 @@ return [
         |
         */
         'enable_progress_logs' =>  true
-    ]
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Notifications
+    |--------------------------------------------------------------------------
+    |
+    | message_delay: minutes to wait after a new message before emailing or
+    | pushing it, so people reading along aren't notified and a burst of
+    | messages makes one notification.
+    |
+    */
+    'notifications' => [
+        'message_delay' => (int) env('NOTIFY_MESSAGE_DELAY', 5),
+    ],
 ];

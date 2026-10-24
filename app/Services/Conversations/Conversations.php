@@ -3,6 +3,7 @@
 namespace App\Services\Conversations;
 
 use App\Broadcasting\Channels;
+use App\Jobs\NotifyUnreadMessages;
 use App\Models\Comment;
 use App\Models\Project;
 use App\Models\ProjectTrack;
@@ -322,6 +323,66 @@ class Conversations
 
         if ($root instanceof Release) {
             $ids->push($root->user_id);
+        }
+
+        return $ids->filter()->map(fn ($id) => (int) $id)->unique()->values();
+    }
+
+    /**
+     * A new message: broadcast it, and queue a notification for the people
+     * who should hear about it when they're away.
+     */
+    public static function posted(Comment $comment): void
+    {
+        static::broadcast($comment, 'comment.posted');
+
+        $root = $comment->root_type && class_exists($comment->root_type)
+            ? $comment->root_type::query()->find($comment->root_id)
+            : null;
+
+        if (! $root) {
+            return;
+        }
+
+        $delay = now()->addMinutes(NotifyUnreadMessages::waitMinutes());
+
+        static::recipients($root, $comment)
+            ->reject(fn (int $id) => $id === (int) $comment->user_id)
+            ->each(fn (int $id) => NotifyUnreadMessages::dispatch($id, $root::class, $root->getKey())->delay($delay));
+    }
+
+    /**
+     * Who gets notified about a message: the project's owner and
+     * collaborators, or the release or track's owner, plus the author of the
+     * message being replied to.
+     *
+     * @return Collection<int, int>
+     */
+    public static function recipients(Model $root, Comment $comment): Collection
+    {
+        $project = match (true) {
+            $root instanceof ProjectTrack => $root->project,
+            $root instanceof Project => $root,
+            default => null,
+        };
+
+        $ids = collect();
+
+        if ($project) {
+            $ids->push($project->user_id)
+                ->push(...$project->collaborators()->where('accepted', true)->limit(200)->pluck('user_id'));
+        }
+
+        if ($root instanceof Release) {
+            $ids->push($root->user_id);
+        }
+
+        if ($root instanceof Track) {
+            $ids->push($root->release?->user_id);
+        }
+
+        if ($comment->commentable_type === Comment::class) {
+            $ids->push(Comment::withoutGlobalScopes()->whereKey($comment->commentable_id)->value('user_id'));
         }
 
         return $ids->filter()->map(fn ($id) => (int) $id)->unique()->values();

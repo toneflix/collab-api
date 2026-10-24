@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Account;
 
 use App\Enums\HttpStatus;
+use App\Helpers\Providers;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\NotificationCollection;
 use Illuminate\Database\Eloquent\Builder;
@@ -22,10 +23,11 @@ class NotificationController extends Controller
 
         $query
             ->where(function (Builder $q) {
-                $q->whereJsonDoesntContain('data->important', true);
+                $q->whereNull('data->important');
+                $q->orWhere('data->important', false);
                 $q->orWhereNotNull('read_at');
             })
-            ->orderBy('read_at', 'asc');
+            ->latest();
 
         $stats = [
             'read' => $user->notifications()->read()->count(),
@@ -55,11 +57,42 @@ class NotificationController extends Controller
     }
 
     /**
+     * Mark one notification as read.
+     */
+    public function update(Request $request, string $id)
+    {
+        $request->user()->notifications()->findOrFail($id)->markAsRead();
+
+        return $this->stats($request, 'Notification marked as read.');
+    }
+
+    /**
+     * Mark every notification as read.
+     */
+    public function readAll(Request $request)
+    {
+        $request->user()->unreadNotifications()->update(['read_at' => now()]);
+
+        return $this->stats($request, 'All notifications marked as read.');
+    }
+
+    protected function stats(Request $request, string $message)
+    {
+        return Providers::response()->success([
+            'data' => [],
+            'stats' => [
+                'unread' => $request->user()->unreadNotifications()->count(),
+            ],
+            'message' => $message,
+        ], HttpStatus::ACCEPTED);
+    }
+
+    /**
      * Remove the specified resource from storage.
      */
     public function destroy(Request $request, string $id)
     {
-        $request->user()->notifications()->find($id)->delete();
+        $request->user()->notifications()->findOrFail($id)->delete();
 
         return (new NotificationCollection([]))->additional([
             'message' => __('Notification Deleted'),
