@@ -57,7 +57,9 @@ Route::apiResource('artists', ArtistController::class)->only(['index', 'show']);
 Route::apiResource('explore', ExploreController::class)->only(['index']);
 
 Route::apiResource('releases', ReleaseController::class)->only(['index', 'show']);
-Route::apiResource('releases/{release}/tracks', TrackController::class)->only(['index', 'show']);
+Route::apiResource('releases/{release}/tracks', TrackController::class)
+    ->only(['index', 'show'])
+    ->names('releases.tracks');
 
 Route::apiResource('projects', ProjectController::class)->only(['index', 'show']);
 Route::apiResource('playlist', PlaylistController::class)->only(['index']);
@@ -94,19 +96,21 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::apiResource(
             "$path/{{$param}}/comments",
             CommentController::class
-        );
+        )->names("$path.comments");
 
         // Interaction Routes
         Route::apiResource(
             "$path/{{$param}}/interactions",
             SocialInteractionController::class
-        )->only(['store', 'index']);
+        )->only(['store', 'index'])->names("$path.interactions");
     }
 
     foreach (['users', 'artists'] as $path) {
         $param = str($path)->singular()->toString();
 
         // Follows Routes
-        Route::apiResource("$path/{{$param}}/follows", FollowController::class)->only(['store', 'index']);
+        Route::apiResource("$path/{{$param}}/follows", FollowController::class)
+            ->only(['store', 'index'])
+            ->names("$path.follows");
     }
 });
