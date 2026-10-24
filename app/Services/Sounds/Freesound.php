@@ -54,7 +54,7 @@ class Freesound
             'fields' => self::FIELDS,
             'page' => max(1, $page),
             'page_size' => max(1, min(150, $pageSize)),
-            'token' => SoundSettings::get('freesound_client_secret'),
+            'token' => config('services.freesound.client_secret'),
         ]);
 
         // A page past the end is a 404 on Freesound.
@@ -86,7 +86,7 @@ class Freesound
     {
         $response = self::http()->get(self::base().'/sounds/'.urlencode((string) $id).'/', [
             'fields' => self::FIELDS,
-            'token' => SoundSettings::get('freesound_client_secret'),
+            'token' => config('services.freesound.client_secret'),
         ]);
 
         if ($response->status() === 404) {
@@ -148,7 +148,7 @@ class Freesound
     public static function authorizeUrl(string $state): string
     {
         return self::base().'/oauth2/authorize/?'.http_build_query([
-            'client_id' => SoundSettings::get('freesound_client_id'),
+            'client_id' => config('services.freesound.client_id'),
             'response_type' => 'code',
             'state' => $state,
         ]);
@@ -202,8 +202,8 @@ class Freesound
     protected static function token(array $grant): array
     {
         $response = Http::asForm()->acceptJson()->timeout(20)->post(self::base().'/oauth2/access_token/', [
-            'client_id' => SoundSettings::get('freesound_client_id'),
-            'client_secret' => SoundSettings::get('freesound_client_secret'),
+            'client_id' => config('services.freesound.client_id'),
+            'client_secret' => config('services.freesound.client_secret'),
             ...$grant,
         ]);
 

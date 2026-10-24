@@ -165,7 +165,7 @@ class StripeConnectGateway implements HostsPayoutAccounts, PayoutGateway
      */
     public function webhookEvent(string $payload, ?string $signature): ?Event
     {
-        $secret = (string) PayoutSettings::get('stripe_webhook_secret');
+        $secret = (string) config('services.stripe.webhook_secret');
 
         if ($secret === '' || ! $signature) {
             return null;

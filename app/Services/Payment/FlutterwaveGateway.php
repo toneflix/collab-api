@@ -204,7 +204,7 @@ class FlutterwaveGateway implements CollectsBankDetails, PayoutGateway
      */
     public function validWebhook(?string $hash): bool
     {
-        $secret = (string) PayoutSettings::get('flutterwave_webhook_hash');
+        $secret = (string) config('services.flutterwave.webhook_hash');
 
         return $hash !== null && $secret !== '' && hash_equals($secret, $hash);
     }
@@ -231,7 +231,7 @@ class FlutterwaveGateway implements CollectsBankDetails, PayoutGateway
 
     protected function http(): PendingRequest
     {
-        $secret = (string) PayoutSettings::get('flutterwave_secret_key');
+        $secret = (string) config('services.flutterwave.secret_key');
 
         if ($secret === '') {
             throw ValidationException::withMessages(['payout' => 'Flutterwave payouts are not set up yet.']);

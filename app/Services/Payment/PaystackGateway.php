@@ -11,7 +11,7 @@ class PaystackGateway implements CollectsBankDetails, PaymentGateway, PayoutGate
 {
     protected function secret(): string
     {
-        return (string) Providers::config('paystack_secret_key', env('PAYSTACK_SECRET_KEY'), true);
+        return (string) config('services.paystack.secret_key');
     }
 
     protected function client(): Paystack

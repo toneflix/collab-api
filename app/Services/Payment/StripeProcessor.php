@@ -27,7 +27,7 @@ final class StripeProcessor implements PaymentInterface
         $this->request = $request;
         $this->user = $user;
         $this->stripe = new StripeClient(
-            (string) Providers::config('stripe_secret_key', env('STRIPE_SECRET_KEY'), true)
+            (string) config('services.stripe.secret_key')
         );
     }
 

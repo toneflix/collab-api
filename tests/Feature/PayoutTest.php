@@ -613,7 +613,7 @@ class PayoutTest extends TestCase
 
     public function test_flutterwave_and_stripe_webhooks_settle_their_own_payouts(): void
     {
-        PayoutSettings::update(['flutterwave_webhook_hash' => 'fw-hash', 'stripe_webhook_secret' => 'whsec_test']);
+        config(['services.flutterwave.webhook_hash' => 'fw-hash', 'services.stripe.webhook_secret' => 'whsec_test']);
 
         $creator = User::factory()->create();
         $this->earn($creator, 10000);
@@ -669,13 +669,16 @@ class PayoutTest extends TestCase
         $admin->givePermissionTo('manage-configuration');
         $this->actingAsFresh($admin);
 
-        $this->putJson('/api/admin/payouts/settings', ['flutterwave_secret_key' => 'FLWSECK-123', 'stripe_currency' => 'eur', 'stripe_payouts_enabled' => false])
+        config(['services.flutterwave.secret_key' => 'FLWSECK-123']);
+
+        $this->putJson('/api/admin/payouts/settings', ['flutterwave_secret_key' => 'ignored', 'stripe_currency' => 'eur', 'stripe_payouts_enabled' => false])
             ->assertAccepted()
             ->assertJsonPath('data.fields.stripe_currency.value', 'EUR')
-            ->assertJsonPath('data.fields.flutterwave_secret_key.value', null)
-            ->assertJsonPath('data.fields.flutterwave_secret_key.isSet', true);
+            ->assertJsonPath('data.keys.flutterwave.0.env', 'FLUTTERWAVE_SECRET_KEY')
+            ->assertJsonPath('data.keys.flutterwave.0.isSet', true)
+            ->assertDontSee('FLWSECK-123');
 
-        $this->assertSame('FLWSECK-123', PayoutSettings::get('flutterwave_secret_key'));
+        $this->assertDatabaseMissing('configurations', ['key' => 'flutterwave_secret_key']);
         $this->assertNotContains('GB', collect($this->getJson('/api/admin/payouts/settings')->json('data.countries'))->pluck('code'));
     }
 

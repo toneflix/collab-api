@@ -40,7 +40,9 @@ Route::get('/', function () {
 Route::get('/initialize', function () {
     return [
         'data' => [
-            'configuration' => Providers::config(),
+            'configuration' => Providers::config()->merge([
+                'paystack_public_key' => config('services.paystack.public_key'),
+            ]),
             'realtime' => Realtime::clientConfig(),
             'sounds' => SoundSettings::clientConfig(),
             'push' => WebPush::clientConfig(),

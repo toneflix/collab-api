@@ -14,7 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 /**
- * Lets admins choose the realtime driver and enter its keys.
+ * Lets admins choose the realtime driver. Each driver's keys come from `.env`.
  */
 class RealtimeSettingsController extends Controller
 {
@@ -42,17 +42,6 @@ class RealtimeSettingsController extends Controller
     {
         $valid = $request->validate([
             'realtime_driver' => ['required', Rule::in(RealtimeSettings::DRIVERS)],
-            'reverb_port' => ['nullable', 'integer', 'between:1,65535'],
-            'reverb_scheme' => ['nullable', Rule::in(['http', 'https'])],
-            'ably_key' => ['nullable', 'string', 'regex:/^[^:]+:.+$/'],
-            'firebase_credentials' => ['nullable', 'json'],
-            'firebase_database_url' => ['nullable', 'url'],
-            ...collect(RealtimeSettings::FIELDS)
-                ->except(['realtime_driver', 'reverb_port', 'reverb_scheme', 'ably_key', 'firebase_credentials', 'firebase_database_url'])
-                ->map(fn () => ['nullable', 'string', 'max:255'])
-                ->all(),
-        ], [
-            'ably_key.regex' => 'Use the full API key, like appId.keyId:secret.',
         ]);
 
         RealtimeSettings::update($valid);
@@ -61,7 +50,7 @@ class RealtimeSettingsController extends Controller
         $missing = $this->missing();
 
         return $this->settings(
-            $missing ? 'Saved, but '.$valid['realtime_driver'].' still needs: '.implode(', ', $missing).'.' : 'Realtime settings saved.',
+            $missing ? 'Saved, but '.$valid['realtime_driver'].' still needs these in .env: '.implode(', ', $missing).'.' : 'Realtime settings saved.',
             HttpStatus::ACCEPTED
         );
     }
@@ -77,7 +66,7 @@ class RealtimeSettingsController extends Controller
 
         if ($missing = $this->missing()) {
             return Providers::response()->error([
-                'message' => 'Fill in '.implode(', ', $missing).' first.',
+                'message' => 'Set '.implode(', ', $missing).' in .env first.',
             ], HttpStatus::UNPROCESSABLE_ENTITY);
         }
 
@@ -100,26 +89,13 @@ class RealtimeSettingsController extends Controller
     }
 
     /**
-     * Settings the chosen driver needs that are still empty.
+     * Keys the chosen driver needs that `.env` leaves empty.
      *
      * @return array<int, string>
      */
     protected function missing(): array
     {
-        $required = [
-            'reverb' => ['reverb_app_id', 'reverb_key', 'reverb_secret', 'reverb_host'],
-            'pusher' => ['pusher_app_id', 'pusher_key', 'pusher_secret', 'pusher_cluster'],
-            'ably' => ['ably_key'],
-            'firebase' => ['firebase_credentials', 'firebase_database_url', 'firebase_api_key', 'firebase_project_id'],
-        ][RealtimeSettings::driver()] ?? [];
-
-        $all = RealtimeSettings::all();
-
-        return collect($required)
-            ->filter(fn ($key) => blank($all[$key] ?? null))
-            ->map(fn ($key) => RealtimeSettings::FIELDS[$key][0])
-            ->values()
-            ->all();
+        return RealtimeSettings::missing(RealtimeSettings::driver());
     }
 
     protected function settings(string $message = 'OK', HttpStatus $status = HttpStatus::OK)
@@ -128,7 +104,7 @@ class RealtimeSettingsController extends Controller
             'data' => [
                 'driver' => RealtimeSettings::driver(),
                 'drivers' => RealtimeSettings::DRIVERS,
-                'fields' => RealtimeSettings::forAdmin(),
+                'keys' => RealtimeSettings::keys(),
                 'missing' => $this->missing(),
                 'client' => Realtime::clientConfig(),
             ],

@@ -76,15 +76,14 @@ class ConversationTest extends TestCase
 
     protected function useSpyDriver(): void
     {
-        RealtimeSettings::update([
-            'realtime_driver' => 'reverb',
-            'reverb_app_id' => 'app',
-            'reverb_key' => 'key',
-            'reverb_secret' => 'secret',
-            'reverb_host' => 'localhost',
-            'reverb_port' => '8080',
-            'reverb_scheme' => 'http',
+        config([
+            'broadcasting.connections.reverb.app_id' => 'app',
+            'broadcasting.connections.reverb.key' => 'key',
+            'broadcasting.connections.reverb.secret' => 'secret',
+            'broadcasting.connections.reverb.options.host' => 'localhost',
         ]);
+
+        RealtimeSettings::update(['realtime_driver' => 'reverb']);
         Realtime::configure();
 
         $spy = new class($this->sent) extends Broadcaster
