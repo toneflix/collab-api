@@ -333,4 +333,15 @@ class AiMusicTest extends TestCase
             && $context['step'] === 'Split into stems'
             && $context['exception'] instanceof RequestException);
     }
+
+    public function test_admins_can_list_what_went_wrong_with_jobs(): void
+    {
+        AiJob::create(['user_id' => $this->owner->id, 'project_track_id' => $this->track->id, 'kind' => 'music', 'status' => AiJob::FAILED, 'input' => ['prompt' => 'Jazz', 'seconds' => 10], 'failure' => 'RequestException: 422 invalid input']);
+
+        $this->artisan('ai:jobs', ['--failures' => true, '--user' => $this->owner->id])
+            ->expectsOutputToContain('RequestException: 422 invalid input')
+            ->assertSuccessful();
+
+        $this->artisan('ai:jobs', ['--status' => 'done'])->assertExitCode(2);
+    }
 }
