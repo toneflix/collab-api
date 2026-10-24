@@ -117,7 +117,7 @@ class TrackHistoryTest extends TestCase
 
         $this->assertSame(ProjectTrackVersion::SAVED, $saved['action']);
         $this->assertSame($this->collaborator->id, $saved['user']['id']);
-        $this->assertSame('set the tempo to 128 BPM and moved and changed the volume of Bass', $saved['summary']);
+        $this->assertSame('set the tempo to 128 BPM and moved Bass and changed its volume', $saved['summary']);
         $this->assertEqualsCanonicalizing(['moved', 'volume'], $saved['changes'][1]['what']);
     }
 
@@ -141,7 +141,7 @@ class TrackHistoryTest extends TestCase
         $latest = $this->track->versions()->latest('id')->first();
 
         $this->assertSame(2, $this->track->versions()->count());
-        $this->assertSame('added Bass and added Drums', $latest->summary);
+        $this->assertSame('added Bass and Drums', $latest->summary);
     }
 
     public function test_restoring_brings_back_removed_stems_and_the_old_arrangement(): void

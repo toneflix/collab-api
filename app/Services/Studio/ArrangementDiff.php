@@ -13,23 +13,28 @@ class ArrangementDiff
     /** Numbers closer than this count as the same */
     protected const TOLERANCE = 0.0005;
 
-    /**
-     * What each kind of stem edit reads as, before the stem's name.
-     */
-    protected const LABELS = [
+    /** Stem edits that read as a verb: "moved Bass" */
+    protected const VERBS = [
         'moved' => 'moved',
         'trimmed' => 'trimmed',
-        'split' => 'split or joined the clips of',
-        'volume' => 'changed the volume of',
         'pan' => 'panned',
         'muted' => 'muted',
         'unmuted' => 'unmuted',
-        'solo' => 'changed solo on',
-        'fades' => 'changed the fades on',
-        'effects' => 'changed the effects on',
-        'pattern' => 'changed the pattern of',
-        'audio' => 'replaced the audio of',
     ];
+
+    /** Stem edits that read as a thing changed: "changed the volume of Bass" */
+    protected const NOUNS = [
+        'split' => 'clips',
+        'volume' => 'volume',
+        'solo' => 'solo',
+        'fades' => 'fades',
+        'effects' => 'effects',
+        'pattern' => 'pattern',
+        'audio' => 'audio',
+    ];
+
+    /** The tempo and meter a track has when none is set */
+    protected const DEFAULTS = ['bpm' => 120.0, 'timeSignature' => '4/4'];
 
     /** @var array<int, array<string, mixed>> */
     protected array $changes;
@@ -70,8 +75,19 @@ class ArrangementDiff
      */
     public function summary(int $limit = 3): string
     {
-        $phrases = array_map(fn (array $change) => $this->phrase($change), $this->changes);
-        $shown = array_slice($phrases, 0, $limit);
+        $changes = collect($this->changes);
+        $grouped = fn (string $type) => $changes->where('type', $type)->pluck('title')->all();
+
+        $phrases = [
+            ...$changes->whereIn('type', ['tempo', 'meter', 'title'])->map(fn ($change) => $this->phrase($change))->all(),
+            ...array_filter([
+                ($added = $grouped('added')) ? 'added '.Arr::join($added, ', ', ' and ') : null,
+                ($removed = $grouped('removed')) ? 'removed '.Arr::join($removed, ', ', ' and ') : null,
+            ]),
+            ...$changes->whereIn('type', ['renamed', 'edited'])->map(fn ($change) => $this->phrase($change))->all(),
+        ];
+
+        $shown = array_slice(array_values($phrases), 0, $limit);
         $more = count($phrases) - count($shown);
 
         if ($more > 0) {
@@ -90,15 +106,29 @@ class ArrangementDiff
             'tempo' => "set the tempo to {$change['to']} BPM",
             'meter' => "changed the meter to {$change['to']}",
             'title' => "renamed the track to \"{$change['to']}\"",
-            'added' => "added {$change['title']}",
-            'removed' => "removed {$change['title']}",
             'renamed' => "renamed {$change['from']} to {$change['title']}",
-            default => Arr::join(
-                array_map(fn (string $what) => self::LABELS[$what] ?? $what, $change['what']),
-                ', ',
-                ' and '
-            )." {$change['title']}",
+            default => $this->editPhrase($change['title'], $change['what']),
         };
+    }
+
+    /**
+     * "moved and panned Keys and changed its volume"
+     *
+     * @param  array<int, string>  $what
+     */
+    protected function editPhrase(string $title, array $what): string
+    {
+        $verbs = array_values(array_filter(array_map(fn ($w) => self::VERBS[$w] ?? null, $what)));
+        $nouns = array_values(array_filter(array_map(fn ($w) => self::NOUNS[$w] ?? null, $what)));
+        $things = Arr::join($nouns, ', ', ' and ');
+
+        if (! $verbs) {
+            return "changed the {$things} of {$title}";
+        }
+
+        $phrase = Arr::join($verbs, ', ', ' and ')." {$title}";
+
+        return $nouns ? "{$phrase} and changed its {$things}" : $phrase;
     }
 
     /**
@@ -108,12 +138,17 @@ class ArrangementDiff
     {
         $changes = [];
 
-        if (array_key_exists('bpm', $this->before) && $this->differs($this->before['bpm'] ?? null, $this->after['bpm'] ?? null)) {
-            $changes[] = ['type' => 'tempo', 'from' => $this->before['bpm'] ?? null, 'to' => $this->after['bpm'] ?? null];
-        }
+        foreach (['bpm' => 'tempo', 'timeSignature' => 'meter'] as $key => $type) {
+            if (! array_key_exists($key, $this->before)) {
+                continue;
+            }
 
-        if (array_key_exists('timeSignature', $this->before) && ($this->before['timeSignature'] ?? null) !== ($this->after['timeSignature'] ?? null)) {
-            $changes[] = ['type' => 'meter', 'from' => $this->before['timeSignature'] ?? null, 'to' => $this->after['timeSignature'] ?? null];
+            $from = $this->before[$key] ?? self::DEFAULTS[$key];
+            $to = $this->after[$key] ?? self::DEFAULTS[$key];
+
+            if ($this->differs($from, $to)) {
+                $changes[] = ['type' => $type, 'from' => $from, 'to' => $to];
+            }
         }
 
         if (array_key_exists('title', $this->before) && ($this->before['title'] ?? null) !== ($this->after['title'] ?? null)) {
