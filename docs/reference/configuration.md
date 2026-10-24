@@ -16,7 +16,7 @@ Use the model's `update()` rather than editing the table directly, so the cached
 | --- | --- | --- |
 | `app_name` | `APP_NAME` | Name shown in the app. |
 | `app_email` | `support@toneflix.com.ng` | Support address. |
-| `app_currency` | `USD` | The currency of every price, balance and payout. It also decides which country Paystack pays out in; see [Payment providers](../guide/payments#app-currency). |
+| `app_currency` | `NGN` | The currency of every price, balance and payout. It also decides which country Paystack pays out in; see [Payment providers](../guide/payments#app-currency). |
 | `creator_share` | `85` | Percent of each sale and tip that goes to the creator. |
 | `min_tip_amount` | `100` | Smallest tip, in the app currency. |
 | `min_payout_amount` | `1000` | Smallest withdrawal, in the app currency. |

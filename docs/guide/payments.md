@@ -6,7 +6,7 @@ All keys go in the API's `.env`. The admin pages under **Payouts > Providers** o
 
 ## App currency
 
-Prices, balances and payouts use one app currency, the `app_currency` setting in [App configuration](../reference/configuration). The seeder sets it to `USD`.
+Prices, balances and payouts use one app currency, the `app_currency` setting in [App configuration](../reference/configuration). New installs start with `NGN`.
 
 Paystack only pays out in the country of your Paystack business, and the API works that out from the app currency:
 
