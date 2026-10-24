@@ -9,9 +9,13 @@ use App\Http\Controllers\Admin\PayoutSettingsController;
 use App\Http\Controllers\Admin\PlanController;
 use App\Http\Controllers\Admin\RealtimeSettingsController;
 use App\Http\Controllers\Admin\SoundSettingsController;
+use App\Http\Controllers\Admin\StatsController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth:sanctum'])->prefix('admin')->name('admin.')->group(function () {
+    // Numbers for the admin overview
+    Route::get('stats', StatsController::class)->name('stats');
+
     Route::apiResource('genres', GenreController::class)->except(['index']);
 
     // General app settings

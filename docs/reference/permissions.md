@@ -15,6 +15,8 @@ Roles and permissions use [spatie/laravel-permission](https://spatie.be/docs/lar
 | `manage-payouts` | Withdrawal requests |
 | `manage-content` | Moderation (reports, takedowns, appeals) |
 
+Any of these four opens the admin overview at `/admin`, which shows sign-ups, subscribers, releases and projects. Revenue shows with `manage-plans` or `manage-payouts`, withdrawals waiting with `manage-payouts`, and the moderation queue with `manage-content`. The numbers come from `GET /api/admin/stats`.
+
 `manage-users` and `manage-admins` also exist, but no page checks them yet.
 
 New features that add a permission need `php artisan app:sync-roles` after deploy before their admin pages open.
