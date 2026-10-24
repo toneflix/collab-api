@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Creator;
 
+use App\Enums\Feature;
 use App\Enums\HttpStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ProjectCollection;
@@ -51,7 +52,7 @@ class ProjectController extends Controller
         ]);
 
         Limits::for($this->user)->ensureBelow(
-            'projects',
+            Feature::MAX_PROJECTS,
             $this->user->projects()->count(),
             'title',
             'Your account can have up to :limit projects.'

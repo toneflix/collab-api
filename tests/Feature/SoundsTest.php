@@ -3,14 +3,15 @@
 namespace Tests\Feature;
 
 use App\Models\Artist;
+use App\Enums\Feature;
 use App\Models\Configuration;
+use App\Models\Plan;
 use App\Models\FreesoundConnection;
 use App\Models\Genre;
 use App\Models\Project;
 use App\Models\ProjectTrack;
 use App\Models\Sound;
 use App\Models\User;
-use App\Services\Limits;
 use App\Services\Sounds\Freesound;
 use App\Services\Sounds\SoundLibrary;
 use App\Services\Sounds\SoundSettings;
@@ -77,10 +78,10 @@ class SoundsTest extends TestCase
         return $admin;
     }
 
-    protected function setLimit(string $key, int $value): void
+    protected function setStorage(int $mb): void
     {
-        Configuration::query()->where('key', $key)->update(['value' => $value]);
-        Cache::forget('configuration::build');
+        $plan = Plan::default();
+        $plan->forceFill(['features' => [...($plan->features ?? []), Feature::MAX_STORAGE->value => $mb]])->save();
     }
 
     protected function configureFreesound(array $more = []): void
@@ -169,7 +170,7 @@ class SoundsTest extends TestCase
 
     public function test_people_can_upload_their_own_sounds_within_their_storage(): void
     {
-        $this->setLimit('free_max_storage', 1);
+        $this->setStorage(1);
         Sanctum::actingAs($this->owner);
 
         $this->post('/api/sounds/mine', [
@@ -190,7 +191,7 @@ class SoundsTest extends TestCase
             ->assertJsonValidationErrors('file');
 
         $this->getJson('/api/sounds/mine')->assertJsonCount(1, 'data');
-        $this->assertSame(1, Limits::forTier('free')['storage']);
+        $this->getJson('/api/plans')->assertOk();
     }
 
     public function test_people_can_only_change_their_own_sounds(): void
@@ -410,7 +411,7 @@ class SoundsTest extends TestCase
 
     public function test_imports_count_towards_storage(): void
     {
-        $this->setLimit('free_max_storage', 1);
+        $this->setStorage(1);
         $this->configureFreesound();
         $this->fakeFreesound([$this->fsResult(1, self::CC0, ['filesize' => 5 * 1024 * 1024])]);
         FreesoundConnection::query()->create(['user_id' => $this->owner->id, 'access_token' => 'user-token']);

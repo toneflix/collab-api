@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\Feature;
 use App\Enums\HttpStatus;
 use App\Helpers\Providers;
 use App\Http\Resources\TrackCollection;
@@ -134,9 +135,9 @@ class TrackController extends Controller
         $paidFor = $track->release && $track->release->price > 0;
 
         abort_unless(
-            $user->is_premium || $paidFor,
+            $user->feature(Feature::DOWNLOADS) || $paidFor,
             HttpStatus::FORBIDDEN->value,
-            'Downloads are a Premium feature.'
+            'Downloads are not included in your plan.'
         );
 
         $url = $track->getFiles['audio']['dynamicLink'] ?? '';

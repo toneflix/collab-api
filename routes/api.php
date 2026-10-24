@@ -7,6 +7,7 @@ use App\Http\Controllers\ExploreController;
 use App\Http\Controllers\FollowController;
 use App\Http\Controllers\GenreController;
 use App\Http\Controllers\Payment\PaymentController;
+use App\Http\Controllers\PlanController;
 use App\Http\Controllers\PlaylistController;
 use App\Http\Controllers\ProjectCollaboratorController;
 use App\Http\Controllers\ProjectController;
@@ -55,6 +56,9 @@ Route::apiResource('releases/{release}/tracks', TrackController::class)->only(['
 
 Route::apiResource('projects', ProjectController::class)->only(['index', 'show']);
 Route::apiResource('playlist', PlaylistController::class)->only(['index']);
+
+// Subscription plans on offer
+Route::get('plans', [PlanController::class, 'index'])->name('plans.index');
 
 // Paystack tells us about payments here; the signature is checked in the controller.
 Route::post('payments/paystack/webhook', [PaymentController::class, 'webhook'])->name('payments.webhook');

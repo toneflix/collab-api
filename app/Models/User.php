@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 
+use App\Enums\Feature;
 use App\Models\Scopes\RestrictBlockedUserScope;
 use App\Notifications\SendCode;
 use App\Traits\ModelCanExtend;
@@ -488,13 +489,32 @@ class User extends Authenticatable implements Commentator
     }
 
     /**
-     * Whether the user has an active Premium subscription.
+     * Whether the user has an active paid subscription.
      */
     public function isPremium(): Attribute
     {
         return Attribute::make(
             get: fn () => $this->subscriptions()->active()->exists(),
         )->shouldCache();
+    }
+
+    /**
+     * The plan the user is on: their active subscription's plan, or the default plan.
+     */
+    public function currentPlan(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->subscriptions()->active()->whereNotNull('plan_id')->with('planModel')->first()?->planModel
+                ?? Plan::default(),
+        )->shouldCache();
+    }
+
+    /**
+     * What the user's plan gives for a feature.
+     */
+    public function feature(Feature $feature): bool|int
+    {
+        return $this->current_plan->feature($feature);
     }
 
     /**

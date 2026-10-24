@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Enums\Feature;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -52,6 +53,8 @@ class UserResource extends JsonResource
             ),
             'reputation' => $this->reputation,
             'isPremium' => $this->is_premium,
+            'badge' => (bool) $this->feature(Feature::BADGE),
+            'acceptsTips' => (bool) $this->feature(Feature::RECEIVE_TIPS),
             'projectsCount' => $this->projects_count,
             'isProjectCreator' => $this->when($request->has('project_id'), $this->is_project_creator),
             'followsYou' => $user ? $user->isFollowedBy($this->resource) : false,
