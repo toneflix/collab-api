@@ -13,6 +13,8 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
+    // Listeners are registered in EventServiceProvider; discovering them too runs each one twice.
+    ->withEvents(discover: false)
     ->withSingletons([
         \Faker\Generator::class => function () {
             $faker = \Faker\Factory::create();

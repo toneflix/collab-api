@@ -11,9 +11,11 @@ use App\Http\Resources\ProjectTrackStemResource;
 use App\Models\Project;
 use App\Models\ProjectTrack;
 use App\Models\ProjectTrackStem;
+use App\Models\ProjectTrackVersion;
 use App\Services\Limits;
 use App\Services\Realtime\Realtime;
 use App\Services\Reputation;
+use App\Services\Studio\TrackHistory;
 use Illuminate\Http\Request;
 
 class ProjectTrackStemController extends Controller
@@ -53,7 +55,12 @@ class ProjectTrackStemController extends Controller
 
         $valid['user_id'] = $request->user()->id;
 
+        $history = TrackHistory::for($track);
+        $history->baseline();
+
         $stem = $track->stems()->create($valid);
+
+        $history->record($request->user(), ProjectTrackVersion::ADDED);
 
         // Add reputation for the owner
         (new Reputation($this->user, 'create_project_track_stem'))->add();
@@ -102,7 +109,12 @@ class ProjectTrackStemController extends Controller
 
         $valid['user_id'] = $request->user()->id;
 
+        $history = TrackHistory::for($track);
+        $history->baseline();
+
         $stem->update($valid);
+
+        $history->record($request->user(), ProjectTrackVersion::EDITED);
 
         Realtime::send(Channels::projectTrack($track), 'stem.updated', [
             'track_id' => $track->id,
@@ -123,7 +135,12 @@ class ProjectTrackStemController extends Controller
      */
     public function destroy(Request $request, Project $project, ProjectTrack $track, ProjectTrackStem $stem)
     {
+        $history = TrackHistory::for($track);
+        $history->baseline();
+
         $stem->delete();
+
+        $history->record($request->user(), ProjectTrackVersion::REMOVED);
 
         Realtime::send(Channels::projectTrack($track), 'stem.removed', [
             'track_id' => $track->id,

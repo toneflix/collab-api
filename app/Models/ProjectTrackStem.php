@@ -6,12 +6,16 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Toneflix\LaravelFileable\Traits\Fileable;
 
 class ProjectTrackStem extends Model
 {
-    use Fileable;
+    use Fileable {
+        removeFile as protected removeFileNow;
+    }
     use HasFactory;
+    use SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -66,6 +70,17 @@ class ProjectTrackStem extends Model
         $this->fileableLoader([
             'src' => 'stem_files',
         ], 'default', true);
+    }
+
+    /**
+     * A removed stem keeps its audio while version history can still bring it
+     * back; the file goes when the stem is deleted for good.
+     */
+    public function removeFile(string|array|null $file_field = null, string $collection = 'default')
+    {
+        if ($this->isForceDeleting()) {
+            $this->removeFileNow($file_field, $collection);
+        }
     }
 
     public static function registerEvents()

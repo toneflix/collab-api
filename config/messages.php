@@ -143,4 +143,71 @@ return [
             ':sendername has accepted your invitaion to join project: :title as a :role.',
         ],
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Activity messages
+    |--------------------------------------------------------------------------
+    |
+    | Sent by the App\Notifications\ActivityNotification classes to the app's
+    | notification list, by email and by push. Each has a subject (also the push
+    | title), a body and the label of the button that opens the app.
+    |
+    */
+    'activity::collabs' => [
+        'request' => [
+            'subject' => ':sendername wants to join :title',
+            'body' => ':sendername asked to join your project ":title" as :role.',
+            'action' => 'Review request',
+        ],
+        'invitation' => [
+            'subject' => ':sendername invited you to :title',
+            'body' => ':sendername invited you to join the project ":title" as :role.',
+            'action' => 'View invitation',
+        ],
+        'request_approved' => [
+            'subject' => 'You\'re in: :title',
+            'body' => 'Your request to join ":title" as :role was approved.',
+            'action' => 'Open project',
+        ],
+        'invitation_accepted' => [
+            'subject' => ':sendername joined :title',
+            'body' => ':sendername accepted your invitation to join ":title" as :role.',
+            'action' => 'Open project',
+        ],
+    ],
+    'activity::messages' => [
+        'one' => [
+            'subject' => 'New message in :title',
+            'body' => ':senders: :preview',
+            'action' => 'Reply',
+        ],
+        'many' => [
+            'subject' => ':count new messages in :title',
+            'body' => ':senders sent :count messages you haven\'t read.',
+            'action' => 'Read messages',
+        ],
+    ],
+    'activity::sales' => [
+        'release' => [
+            'subject' => ':payer bought :title',
+            'body' => ':payer bought your release ":title". You earned :amount.',
+            'action' => 'See earnings',
+        ],
+        'stems' => [
+            'subject' => ':payer bought the stems for :title',
+            'body' => ':payer bought the stems for ":title". You earned :amount.',
+            'action' => 'See earnings',
+        ],
+        'tip' => [
+            'subject' => ':payer sent you a tip',
+            'body' => ':payer sent you a tip. You earned :amount.',
+            'action' => 'See earnings',
+        ],
+        'tip_note' => [
+            'subject' => ':payer sent you a tip',
+            'body' => ':payer sent you a tip: ":note" You earned :amount.',
+            'action' => 'See earnings',
+        ],
+    ],
 ];

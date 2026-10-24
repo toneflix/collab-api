@@ -35,8 +35,7 @@ class RealtimeController extends Controller
     public function live(Request $request, Project $project, ProjectTrack $track)
     {
         abort_unless(
-            (int) $track->project_id === (int) $project->id &&
-            ((int) $project->user_id === (int) $request->user()->id || $project->isCollaber($request->user())),
+            (int) $track->project_id === (int) $project->id && $project->canEdit($request->user()),
             HttpStatus::FORBIDDEN->value,
             'Only the owner and collaborators can edit this track.'
         );

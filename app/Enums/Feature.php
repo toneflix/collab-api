@@ -20,6 +20,7 @@ enum Feature: string
     case MAX_COLLABORATORS = 'max_collaborators';
     case MAX_STEM_SIZE = 'max_stem_size';
     case MAX_STORAGE = 'max_storage';
+    case HISTORY_DAYS = 'history_days';
 
     public function title(): string
     {
@@ -33,6 +34,7 @@ enum Feature: string
             self::MAX_COLLABORATORS => 'Collaborators per project',
             self::MAX_STEM_SIZE => 'Largest stem upload',
             self::MAX_STORAGE => 'Sound storage',
+            self::HISTORY_DAYS => 'Version history',
         };
     }
 
@@ -48,6 +50,7 @@ enum Feature: string
             self::MAX_COLLABORATORS => 'How many collaborators each of your projects can have.',
             self::MAX_STEM_SIZE => 'The largest stem file you can upload.',
             self::MAX_STORAGE => 'Space for your own sounds, uploaded or imported from Freesound.',
+            self::HISTORY_DAYS => 'How long earlier versions of your project tracks are kept.',
         };
     }
 
@@ -57,7 +60,7 @@ enum Feature: string
     public function type(): string
     {
         return match ($this) {
-            self::MAX_PROJECTS, self::MAX_COLLABORATORS, self::MAX_STEM_SIZE, self::MAX_STORAGE => 'limit',
+            self::MAX_PROJECTS, self::MAX_COLLABORATORS, self::MAX_STEM_SIZE, self::MAX_STORAGE, self::HISTORY_DAYS => 'limit',
             default => 'toggle',
         };
     }
@@ -66,6 +69,7 @@ enum Feature: string
     {
         return match ($this) {
             self::MAX_STEM_SIZE, self::MAX_STORAGE => 'MB',
+            self::HISTORY_DAYS => 'days',
             default => null,
         };
     }
@@ -82,6 +86,7 @@ enum Feature: string
             self::MAX_COLLABORATORS => 5,
             self::MAX_STEM_SIZE => 50,
             self::MAX_STORAGE => 200,
+            self::HISTORY_DAYS => 30,
         };
     }
 

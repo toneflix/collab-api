@@ -127,6 +127,15 @@ class Project extends Model
         return $this->collaborators()->accepted()->forUser($user)->exists();
     }
 
+    /**
+     * Whether a user can work on this project's tracks: its owner and the
+     * accepted collaborators.
+     */
+    public function canEdit(User $user): bool
+    {
+        return (int) $this->user_id === (int) $user->id || $this->isCollaber($user);
+    }
+
     public function collaberData(User $user, $pending = false): ProjectCollaborator|null
     {
         return $this->collaborators()->accepted(!$pending)->forUser($user)->first();

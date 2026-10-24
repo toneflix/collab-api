@@ -20,6 +20,7 @@
         "coderflexx/laravisit": "^2.2",
         "kreait/firebase-php": "^8.6",
         "laravel-notification-channels/twilio": "^4.2",
+        "laravel-notification-channels/webpush": "^13.0",
         "laravel/framework": "^13.0",
         "laravel/reverb": "^1.12",
         "laravel/sanctum": "^4.3",

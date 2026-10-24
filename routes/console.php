@@ -19,3 +19,6 @@ Schedule::command('sounds:sync')->dailyAt('03:30')->withoutOverlapping()->runInB
 
 // Settle payouts whose Paystack webhook never arrived.
 Schedule::command('payouts:sync')->everyThirtyMinutes()->withoutOverlapping();
+
+// Drop track versions older than each owner's plan keeps.
+Schedule::command('studio:prune-history')->dailyAt('04:00')->withoutOverlapping();
