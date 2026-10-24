@@ -11,6 +11,8 @@ use App\Models\Track;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Notifications\SaleNotification;
+use App\Services\Ai\AiSettings;
+use App\Services\Ai\Credits;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
@@ -19,18 +21,19 @@ use Valorin\Random\Random;
 
 /**
  * Turns "I want to pay for X" into a pending transaction, and a confirmed
- * payment into what was paid for (an unlocked release or stems, a tip, a plan).
+ * payment into what was paid for (an unlocked release or stems, a tip, a plan,
+ * AI credits).
  */
 class Checkout
 {
-    public const PURPOSES = ['premium', 'release', 'stems', 'tip'];
+    public const PURPOSES = ['premium', 'release', 'stems', 'tip', 'credits'];
 
     public function __construct(protected PaymentGateway $gateway) {}
 
     /**
      * Create a pending transaction and start the payment with the gateway.
      *
-     * @param  array{id?: string|int|null, plan?: ?string, cycles?: int|string|null, amount?: float|int|string|null, message?: ?string}  $input
+     * @param  array{id?: string|int|null, plan?: ?string, cycles?: int|string|null, amount?: float|int|string|null, message?: ?string, credits?: int|string|null}  $input
      * @return array{transaction: Transaction, access_code: ?string, authorization_url: ?string}
      */
     public function start(User $payer, string $purpose, array $input): array
@@ -40,6 +43,7 @@ class Checkout
             'stems' => $this->forStems($payer, $input['id'] ?? null),
             'tip' => $this->forTip($payer, $input['id'] ?? null, $input['amount'] ?? null, $input['message'] ?? null),
             'premium' => $this->forPremium($payer, $input['plan'] ?? null, $input['cycles'] ?? null),
+            'credits' => $this->forCredits($payer, $input['credits'] ?? null),
             default => throw ValidationException::withMessages(['purpose' => 'Unknown payment type.']),
         };
 
@@ -129,6 +133,10 @@ class Checkout
 
             if ($locked->purpose === 'premium') {
                 $this->extendPremium($locked);
+            }
+
+            if ($locked->purpose === 'credits') {
+                Credits::for($locked->user)->add((int) $locked->meta['credits'], (string) $locked->meta['title'], $locked);
             }
 
             if ($locked->recipient_id) {
@@ -262,6 +270,26 @@ class Checkout
             'cycles' => $option['cycles'],
             'discount' => $option['discount'],
             'title' => $option['cycles'] > 1 ? "{$model->name} ({$model->period($option['cycles'])}s)" : $model->name,
+        ]];
+    }
+
+    /**
+     * @return array{0: float, 1: Model, 2: ?User, 3: array<string, mixed>}
+     */
+    protected function forCredits(User $payer, int|string|null $credits): array
+    {
+        Credits::for($payer)->ensureAccess('credits');
+
+        $pack = AiSettings::pack((int) $credits);
+
+        if (! $pack || $pack['price'] <= 0) {
+            throw ValidationException::withMessages(['credits' => 'Choose a credit pack.']);
+        }
+
+        return [$pack['price'], $payer, null, [
+            'credits' => $pack['credits'],
+            'discount' => $pack['discount'],
+            'title' => "{$pack['credits']} AI credits",
         ]];
     }
 }

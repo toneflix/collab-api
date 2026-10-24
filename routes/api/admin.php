@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\AiSettingsController;
 use App\Http\Controllers\Admin\GenreController;
 use App\Http\Controllers\Admin\ModerationController;
 use App\Http\Controllers\Admin\PayoutController;
@@ -26,6 +27,10 @@ Route::middleware(['auth:sanctum'])->prefix('admin')->name('admin.')->group(func
     Route::post('sounds/library', [SoundSettingsController::class, 'store'])->name('sounds.store');
     Route::put('sounds/library/{sound}', [SoundSettingsController::class, 'updateSound'])->name('sounds.update-sound');
     Route::delete('sounds/library/{sound}', [SoundSettingsController::class, 'destroy'])->name('sounds.destroy');
+
+    // AI tools and credit prices
+    Route::get('ai', [AiSettingsController::class, 'show'])->name('ai.show');
+    Route::put('ai', [AiSettingsController::class, 'update'])->name('ai.update');
 
     // Subscription plans and the features they can grant or limit
     Route::get('plans/features', [PlanController::class, 'features'])->name('plans.features');
