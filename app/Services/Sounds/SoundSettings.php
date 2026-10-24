@@ -2,21 +2,18 @@
 
 namespace App\Services\Sounds;
 
-use App\Models\Configuration;
 use App\Models\Sound;
-use Illuminate\Contracts\Encryption\DecryptException;
+use App\Services\Settings\SettingsStore;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Crypt;
-use Illuminate\Support\Facades\Schema;
 
 /**
  * Settings for the sound library and Freesound, kept in the `configurations`
  * table so admins can change them. The Freesound secret is encrypted and never
  * sent back to the browser.
  */
-class SoundSettings
+class SoundSettings extends SettingsStore
 {
-    private const CACHE_KEY = 'sounds::settings';
+    protected const CACHE_KEY = 'sounds::settings';
 
     /**
      * Every setting: key => [title, secret, default, hint].
@@ -34,49 +31,6 @@ class SoundSettings
         'freesound_library_account' => ['Library Download Account', false, null, 'The admin whose connected Freesound account downloads original files for the library.'],
         'freesound_last_sync' => ['Last Library Sync', false, null, ''],
     ];
-
-    /**
-     * @return array<string, string|null>
-     */
-    public static function all(): array
-    {
-        if (! Cache::has(self::CACHE_KEY) && ! self::tableExists()) {
-            return self::resolve([]);
-        }
-
-        return Cache::rememberForever(self::CACHE_KEY, fn () => self::resolve(
-            Configuration::query()->toBase()->whereIn('key', array_keys(self::FIELDS))->pluck('value', 'key')->all()
-        ));
-    }
-
-    /**
-     * @param  array<string, mixed>  $stored
-     * @return array<string, string|null>
-     */
-    private static function resolve(array $stored): array
-    {
-        $out = [];
-        foreach (self::FIELDS as $key => [, $secret, $default]) {
-            $value = $stored[$key] ?? null;
-
-            if ($secret && filled($value)) {
-                try {
-                    $value = Crypt::decryptString($value);
-                } catch (DecryptException) {
-                    $value = null;
-                }
-            }
-
-            $out[$key] = filled($value) ? (string) $value : $default;
-        }
-
-        return $out;
-    }
-
-    public static function get(string $key, mixed $default = null): mixed
-    {
-        return self::all()[$key] ?? $default;
-    }
 
     public static function libraryEnabled(): bool
     {
@@ -142,77 +96,9 @@ class SoundSettings
         return Cache::remember('sounds::library-size', 300, fn () => Sound::query()->library()->active()->count());
     }
 
-    /**
-     * Save settings. A secret sent as an empty value keeps its stored value.
-     *
-     * @param  array<string, mixed>  $values
-     */
-    public static function update(array $values): void
-    {
-        foreach ($values as $key => $value) {
-            if (! isset(self::FIELDS[$key])) {
-                continue;
-            }
-
-            [$title, $secret] = self::FIELDS[$key];
-
-            if ($secret && blank($value)) {
-                continue;
-            }
-
-            if (is_bool($value)) {
-                $value = $value ? '1' : '0';
-            }
-
-            Configuration::query()->firstOrNew(['key' => $key])->forceFill([
-                'key' => $key,
-                'title' => $title,
-                'type' => 'string',
-                'secret' => $secret,
-                'value' => blank($value) ? null : ($secret ? Crypt::encryptString((string) $value) : (string) $value),
-            ])->save();
-        }
-
-        self::flush();
-    }
-
-    /**
-     * Settings for the admin page. The secret is never sent back, only whether it's set.
-     *
-     * @return array<string, mixed>
-     */
-    public static function forAdmin(): array
-    {
-        $all = self::all();
-        $out = [];
-
-        foreach (self::FIELDS as $key => $field) {
-            [$title, $secret] = $field;
-            $out[$key] = [
-                'title' => $title,
-                'secret' => $secret,
-                'hint' => $field[3] ?? '',
-                'value' => $secret ? null : $all[$key],
-                'isSet' => filled($all[$key]),
-            ];
-        }
-
-        return $out;
-    }
-
     public static function flush(): void
     {
-        Cache::forget(self::CACHE_KEY);
+        parent::flush();
         Cache::forget('sounds::library-size');
-        Cache::forget('configuration::build');
-    }
-
-    private static function tableExists(string $table = 'configurations'): bool
-    {
-        try {
-            return Schema::hasTable($table);
-        } catch (\Throwable) {
-            return false;
-        }
     }
 }
