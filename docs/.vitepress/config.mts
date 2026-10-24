@@ -24,6 +24,7 @@ export default defineConfig({
           { text: 'App: local setup', link: '/guide/app-local' },
           { text: 'FFmpeg and Chromaprint', link: '/guide/ffmpeg' },
           { text: 'Production deploy', link: '/guide/production' },
+          { text: 'Railpack and Railway', link: '/guide/railpack' },
           { text: 'Payment providers', link: '/guide/payments' },
           { text: 'This docs site', link: '/guide/docs-site' },
         ],
