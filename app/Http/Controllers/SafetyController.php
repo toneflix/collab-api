@@ -3,10 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Enums\HttpStatus;
-use App\Helpers\Providers;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\SafetyResource;
 use App\Models\Safety;
+use App\Services\Moderation\Moderation;
+use App\Services\Moderation\Reportables;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -15,39 +16,39 @@ class SafetyController extends Controller
     /**
      * Report something
      */
-    public function report(Request $request)
+    public function report(Request $request, Reportables $reportables, Moderation $moderation)
     {
-        $request->validate([
+        $copyright = in_array($request->input('reason'), Safety::$copyrightReasons, true);
+
+        $valid = $request->validate([
             'reason' => ['required', 'string', Rule::in(Safety::$allowedReasons)],
-            'type' => ['required', 'string', 'in:feed,comment,user'],
-            'id' => [Rule::exists(str($request->type)->plural()->toString(), 'id')],
-        ]);
-
-        $model_type = str($request->type)->ucfirst()->prepend('App\\Models\\')->toString();
-        if (!class_exists($model_type)) {
-            return Providers::response()->error(['message' => 'Invalid report type'], HttpStatus::UNPROCESSABLE_ENTITY);
-        }
-
-        $safety = Safety::query()->firstOrNew([
-            'model_type' => $model_type,
-            'model_id' => $request->id,
+            'type' => ['required', 'string', Rule::in($reportables->names())],
+            'id' => ['required', 'integer'],
+            'details' => [$copyright ? 'required' : 'nullable', 'string', 'min:10', 'max:2000'],
+            'claim' => ['nullable', 'array'],
+            'claim.original_url' => ['nullable', 'url', 'max:500'],
+            'claim.claimant' => [$copyright ? 'required' : 'nullable', 'string', 'max:120'],
+            'claim.email' => [$copyright ? 'required' : 'nullable', 'email', 'max:180'],
+            'claim.statement' => [$copyright ? 'accepted' : 'nullable'],
         ], [
-            'reason' => $request->reason,
-            'type' => 'report',
+            'details.required' => 'Tell us which work is being copied and how.',
+            'claim.statement.accepted' => 'Please confirm the statement to file a copyright claim.',
         ]);
 
-        $safety->user_id = $request->user()->id;
-        $safety->save();
+        $class = $reportables->classFor($valid['type']);
+        $item = $class::query()->findOrFail($valid['id']);
 
-        $labels = [
-            'comment' => 'comment',
-            'report' => 'report',
-            'feed' => 'post',
-            'user' => 'account',
-        ];
+        $claim = $copyright ? array_filter([
+            'original_url' => $valid['claim']['original_url'] ?? null,
+            'claimant' => $valid['claim']['claimant'] ?? null,
+            'email' => $valid['claim']['email'] ?? null,
+            'statement' => true,
+        ]) : [];
 
-        return (new SafetyResource($safety))->additional([
-            'message' => __('Thank you for looking out, we are reviewing your report and if the :0 is found to be in violation of any of our Terms of service, it will be permanently removed.', [$labels[$request->type]]),
+        $report = $moderation->report($request->user(), $item, $valid['reason'], $valid['details'] ?? null, $claim);
+
+        return (new SafetyResource($report))->additional([
+            'message' => __('Thank you for looking out. We\'re reviewing your report, and if this :0 breaks our Terms of service, it will be removed.', [$moderation->label($item)]),
             'status' => 'success',
             'status_code' => HttpStatus::CREATED,
         ])->response()->setStatusCode(HttpStatus::CREATED->value);

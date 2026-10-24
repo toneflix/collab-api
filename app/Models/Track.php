@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
+use App\Contracts\CanBeTakenDown;
 use App\Jobs\ProcessAudio;
 use App\Traits\HasLikedScope;
 use App\Traits\Metricable;
 use App\Traits\ModelCanExtend;
 use App\Traits\Purchasable;
+use App\Traits\TakesDown;
 use BeyondCode\Comments\Traits\HasComments;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\AsCollection;
@@ -18,7 +20,7 @@ use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 use Toneflix\LaravelFileable\Traits\Fileable;
 use Toneflix\SocialInteractions\Traits\HasSocialInteractions;
 
-class Track extends Model
+class Track extends Model implements CanBeTakenDown
 {
     use Fileable;
     use HasComments;
@@ -28,6 +30,7 @@ class Track extends Model
     use Metricable;
     use ModelCanExtend;
     use Purchasable;
+    use TakesDown;
 
     /**
      * The attributes that should be hidden for serialization.
@@ -273,6 +276,33 @@ class Track extends Model
                 }
             });
         });
+    }
+
+    public function whereOwnedBy(Builder $query, int $userId): void
+    {
+        $query->whereIn('tracks.release_id', fn ($releases) => $releases
+            ->select('id')
+            ->from('releases')
+            ->where('user_id', $userId));
+    }
+
+    public function moderationOwnerId(): ?int
+    {
+        $owner = Release::query()->withoutGlobalScopes()->whereKey($this->release_id)->value('user_id');
+
+        return $owner ? (int) $owner : null;
+    }
+
+    public function moderationSummary(): array
+    {
+        $artist = $this->artists()->withoutGlobalScopes()->first();
+
+        return [
+            'title' => (string) $this->title,
+            'subtitle' => $artist?->name,
+            'image' => $this->files['image'] ?? null,
+            'link' => $artist?->username ? "/artist/{$artist->username}/{$this->slug}" : null,
+        ];
     }
 
     public function scopeForFeaturedArtist(Builder $query, Artist|string $artist): void

@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Contracts\CanBeTakenDown;
+use App\Traits\TakesDown;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -17,8 +19,10 @@ use Toneflix\LaravelFileable\Media;
  * @property string $file
  * @property int $size
  */
-class Sound extends Model
+class Sound extends Model implements CanBeTakenDown
 {
+    use TakesDown;
+
     public const COLLECTION = 'sounds';
 
     protected $fillable = [
@@ -58,7 +62,7 @@ class Sound extends Model
     {
         static::deleted(function (self $sound) {
             // Another sound can share the file, e.g. a library copy.
-            if (! self::query()->where('file', $sound->file)->exists()) {
+            if (! self::query()->withoutGlobalScopes()->where('file', $sound->file)->exists()) {
                 (new Media)->delete(self::COLLECTION, $sound->file);
             }
         });
@@ -67,6 +71,26 @@ class Sound extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function whereOwnedBy(Builder $query, int $userId): void
+    {
+        $query->where('sounds.user_id', $userId);
+    }
+
+    public function moderationOwnerId(): ?int
+    {
+        return $this->user_id ? (int) $this->user_id : null;
+    }
+
+    public function moderationSummary(): array
+    {
+        return [
+            'title' => (string) $this->name,
+            'subtitle' => $this->user_id ? 'My sounds' : 'Sound library',
+            'image' => null,
+            'link' => null,
+        ];
     }
 
     /**

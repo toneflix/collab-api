@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\Contracts\CanBeTakenDown;
 use App\Helpers\Freq;
-use App\Models\Scopes\HideReportedModels;
 use App\Models\Scopes\RestrictBlockedUserScope;
 use App\Traits\HasLikedScope;
 use App\Traits\Metricable;
 use App\Traits\ModelCanExtend;
 use App\Traits\Purchasable;
+use App\Traits\TakesDown;
 use BeyondCode\Comments\Traits\HasComments;
 use Coderflex\Laravisit\Concerns\CanVisit;
 use Coderflex\Laravisit\Concerns\HasVisits;
@@ -25,9 +26,8 @@ use Toneflix\SocialInteractions\Traits\HasSocialInteractions;
 
 #[ScopedBy([
     RestrictBlockedUserScope::class,
-    HideReportedModels::class,
 ])]
-class Release extends Model implements CanVisit
+class Release extends Model implements CanBeTakenDown, CanVisit
 {
     use Fileable;
     use HasComments;
@@ -38,6 +38,7 @@ class Release extends Model implements CanVisit
     use Metricable;
     use ModelCanExtend;
     use Purchasable;
+    use TakesDown;
 
     /**
      * The attributes that are mass assignable.
@@ -212,6 +213,28 @@ class Release extends Model implements CanVisit
     public function isUnlockedFor(?User $user): bool
     {
         return $this->price <= 0 || $this->isOwnedBy($user) || $this->isPurchasedBy($user, 'release');
+    }
+
+    public function whereOwnedBy(Builder $query, int $userId): void
+    {
+        $query->where('releases.user_id', $userId);
+    }
+
+    public function moderationOwnerId(): ?int
+    {
+        return $this->user_id ? (int) $this->user_id : null;
+    }
+
+    public function moderationSummary(): array
+    {
+        $artist = $this->artist()->withoutGlobalScopes()->first();
+
+        return [
+            'title' => (string) $this->title,
+            'subtitle' => $artist?->name,
+            'image' => $this->files['artwork'] ?? null,
+            'link' => $artist?->username ? "/artist/{$artist->username}/album/{$this->slug}" : null,
+        ];
     }
 
     public function scopeForArtist(Builder $query, Artist|string $artist): void

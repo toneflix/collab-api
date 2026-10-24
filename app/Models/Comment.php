@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Contracts\CanBeTakenDown;
 use App\Models\Scopes\HideReportedModels;
+use App\Traits\TakesDown;
 use App\Models\Scopes\RestrictBlockedUserScope;
 use BeyondCode\Comments\Comment as BeyondCodeComment;
 use Illuminate\Database\Eloquent\Attributes\ScopedBy;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 /**
@@ -17,8 +20,10 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
     RestrictBlockedUserScope::class,
     HideReportedModels::class,
 ])]
-class Comment extends BeyondCodeComment
+class Comment extends BeyondCodeComment implements CanBeTakenDown
 {
+    use TakesDown;
+
     protected $casts = [
         'is_approved' => 'boolean',
         'meta' => 'array',
@@ -40,6 +45,28 @@ class Comment extends BeyondCodeComment
                 $comment->root_id = $comment->commentable_id;
             }
         });
+    }
+
+    public function whereOwnedBy(Builder $query, int $userId): void
+    {
+        $query->where('comments.user_id', $userId);
+    }
+
+    public function moderationOwnerId(): ?int
+    {
+        return $this->user_id ? (int) $this->user_id : null;
+    }
+
+    public function moderationSummary(): array
+    {
+        $author = User::query()->withoutGlobalScopes()->find($this->user_id);
+
+        return [
+            'title' => (string) str($this->comment)->limit(140),
+            'subtitle' => $author ? "Comment by {$author->fullname}" : 'Comment',
+            'image' => null,
+            'link' => null,
+        ];
     }
 
     /**
