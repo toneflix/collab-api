@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\GenreController;
+use App\Http\Controllers\Admin\ModerationController;
 use App\Http\Controllers\Admin\PlanController;
 use App\Http\Controllers\Admin\RealtimeSettingsController;
 use App\Http\Controllers\Admin\SoundSettingsController;
@@ -27,4 +28,15 @@ Route::middleware(['auth:sanctum'])->prefix('admin')->name('admin.')->group(func
     // Subscription plans and the features they can grant or limit
     Route::get('plans/features', [PlanController::class, 'features'])->name('plans.features');
     Route::apiResource('plans', PlanController::class);
+
+    // Reported and flagged content, takedowns and appeals
+    Route::prefix('moderation')->name('moderation.')->group(function () {
+        Route::get('queue', [ModerationController::class, 'queue'])->name('queue');
+        Route::get('takedowns', [ModerationController::class, 'takedowns'])->name('takedowns');
+        Route::post('items/{type}/{id}/takedown', [ModerationController::class, 'takeDown'])->whereNumber('id')->name('takedown');
+        Route::post('items/{type}/{id}/dismiss', [ModerationController::class, 'dismiss'])->whereNumber('id')->name('dismiss');
+        Route::post('items/{type}/{id}/resolve', [ModerationController::class, 'resolve'])->whereNumber('id')->name('resolve');
+        Route::post('takedowns/{takedown}/restore', [ModerationController::class, 'restore'])->name('restore');
+        Route::post('takedowns/{takedown}/uphold', [ModerationController::class, 'uphold'])->name('uphold');
+    });
 });

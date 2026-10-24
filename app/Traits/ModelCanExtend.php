@@ -2,6 +2,7 @@
 
 namespace App\Traits;
 
+use App\Models\Scopes\HideTakenDown;
 use Valorin\Random\Random;
 
 trait ModelCanExtend
@@ -25,7 +26,7 @@ trait ModelCanExtend
     ) {
         $username = str($current ?: $string)->slug($separator);
 
-        if (static::where($field, $username)->when($scope, $scope)->exists()) {
+        if (static::query()->withoutGlobalScope(HideTakenDown::class)->where($field, $username)->when($scope, $scope)->exists()) {
             $username = $username->append($separator)->append(Random::number(1111, 9999));
         }
 

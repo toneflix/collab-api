@@ -62,6 +62,7 @@ return [
         'manage-admins',
         'manage-configuration',
         'manage-plans',
+        'manage-content',
     ],
     /*
     |--------------------------------------------------------------------------
@@ -72,7 +73,7 @@ return [
     | you can add them here using the role name as key.
     */
     'exclusions' => [
-        'user' => ['manage-plans'],
+        'user' => ['manage-plans', 'manage-content'],
         'support' => ['manage-plans'],
         'admin' => ['manage-admins'],
         'manager' => ['manage-admins'],
