@@ -23,5 +23,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
     });
 
     Route::post('creator/projects/{project}/tracks/{track}/sounds', [SoundController::class, 'addToTrack'])
+        ->scopeBindings()
         ->name('creator.tracks.sounds');
 });

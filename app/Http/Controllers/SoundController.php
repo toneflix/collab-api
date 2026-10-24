@@ -131,11 +131,7 @@ class SoundController extends Controller
     {
         $user = $request->user();
 
-        abort_unless(
-            (int) $track->project_id === (int) $project->id && $project->canEdit($user),
-            HttpStatus::FORBIDDEN->value,
-            'Only the owner and collaborators can add to this track.'
-        );
+        $this->authorize('update', $track);
 
         $valid = $request->validate([
             'sound_id' => ['required', 'integer'],

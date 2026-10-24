@@ -39,9 +39,9 @@ class ProjectPolicy
      */
     public function update(User $user, Project $project): Response
     {
-        return $user->id !== $project->user_id
+        return $project->canEdit($user)
             ? Response::allow()
-            : Response::deny('You do not own this project.');
+            : Response::deny('Only the owner and collaborators can work on this project.');
     }
 
     /**

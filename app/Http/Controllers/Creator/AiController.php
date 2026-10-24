@@ -20,7 +20,7 @@ class AiController extends Controller
 {
     public function music(Request $request, AiStudio $studio, Project $project, ProjectTrack $track)
     {
-        $this->authorizeTrack($request, $project, $track);
+        $this->authorize('update', $track);
 
         $valid = $request->validate([
             'prompt' => ['required', 'string', 'min:3', 'max:2000'],
@@ -43,8 +43,7 @@ class AiController extends Controller
 
     public function split(Request $request, AiStudio $studio, Project $project, ProjectTrack $track, ProjectTrackStem $stem)
     {
-        $this->authorizeTrack($request, $project, $track);
-        abort_unless((int) $stem->track_id === (int) $track->id, HttpStatus::NOT_FOUND->value, 'Stem not found.');
+        $this->authorize('update', $track);
 
         $job = $studio->start($request->user(), $track, 'stems', [
             'stem_id' => $stem->id,
@@ -59,7 +58,7 @@ class AiController extends Controller
      */
     public function jobs(Request $request, Project $project, ProjectTrack $track)
     {
-        $this->authorizeTrack($request, $project, $track);
+        $this->authorize('update', $track);
 
         $jobs = AiJob::query()->where('project_track_id', $track->id)->latest('id')->limit(20)->get();
 
@@ -77,15 +76,6 @@ class AiController extends Controller
             'data' => $job->present(),
             'message' => HttpStatus::message(HttpStatus::OK),
         ]);
-    }
-
-    protected function authorizeTrack(Request $request, Project $project, ProjectTrack $track): void
-    {
-        abort_unless(
-            (int) $track->project_id === (int) $project->id && $project->canEdit($request->user()),
-            HttpStatus::FORBIDDEN->value,
-            'You can\'t work on this track.'
-        );
     }
 
     protected function started(AiJob $job, string $message)

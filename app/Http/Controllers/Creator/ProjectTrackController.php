@@ -40,6 +40,8 @@ class ProjectTrackController extends Controller
      */
     public function store(Request $request, Project $project)
     {
+        $this->authorize('update', $project);
+
         $allowedAudio = str(collect(Providers::config('allowed_audio_exts'))->join(','))
             ->remove('.')
             ->prepend('mimes:')
@@ -84,6 +86,8 @@ class ProjectTrackController extends Controller
      */
     public function update(Request $request, Project $project, ProjectTrack $track)
     {
+        $this->authorize('update', $track);
+
         $allowedAudio = str(collect(Providers::config('allowed_audio_exts'))->join(','))
             ->remove('.')
             ->prepend('mimes:')
@@ -189,6 +193,8 @@ class ProjectTrackController extends Controller
      */
     public function destroy(Project $project, ProjectTrack $track)
     {
+        $this->authorize('delete', $track);
+
         $track->delete();
 
         return (new ProjectTrackResource($track))->additional([

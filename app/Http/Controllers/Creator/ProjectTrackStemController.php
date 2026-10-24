@@ -41,6 +41,8 @@ class ProjectTrackStemController extends Controller
      */
     public function store(Request $request, Project $project, ProjectTrack $track)
     {
+        $this->authorize('update', $track);
+
         $allowedAudio = str(collect(Providers::config('allowed_audio_exts'))->join(','))
             ->remove('.')
             ->prepend('mimes:')
@@ -95,6 +97,8 @@ class ProjectTrackStemController extends Controller
      */
     public function update(Request $request, Project $project, ProjectTrack $track, ProjectTrackStem $stem)
     {
+        $this->authorize('update', $track);
+
         $allowedAudio = str(collect(Providers::config('allowed_audio_exts'))->join(','))
             ->remove('.')
             ->prepend('mimes:')
@@ -135,6 +139,8 @@ class ProjectTrackStemController extends Controller
      */
     public function destroy(Request $request, Project $project, ProjectTrack $track, ProjectTrackStem $stem)
     {
+        $this->authorize('update', $track);
+
         $history = TrackHistory::for($track);
         $history->baseline();
 

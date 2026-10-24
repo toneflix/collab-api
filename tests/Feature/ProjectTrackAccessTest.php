@@ -1,0 +1,158 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\Artist;
+use App\Models\Genre;
+use App\Models\Project;
+use App\Models\ProjectTrack;
+use App\Models\ProjectTrackStem;
+use App\Models\User;
+use Database\Seeders\ConfigurationSeeder;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
+use Laravel\Sanctum\Sanctum;
+use Tests\TestCase;
+
+class ProjectTrackAccessTest extends TestCase
+{
+    use DatabaseTransactions;
+
+    protected User $owner;
+
+    protected User $collaborator;
+
+    protected User $pending;
+
+    protected User $stranger;
+
+    protected Project $project;
+
+    protected ProjectTrack $track;
+
+    protected ProjectTrackStem $stem;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Storage::fake(config('filesystems.default'));
+        $this->seed(ConfigurationSeeder::class);
+
+        $this->owner = User::factory()->create();
+        $this->collaborator = User::factory()->create();
+        $this->pending = User::factory()->create();
+        $this->stranger = User::factory()->create();
+
+        $this->project = Project::query()->forceCreate([
+            'user_id' => $this->owner->id,
+            'title' => 'Access test',
+            'privacy' => 'private',
+        ]);
+        $this->project->collaborators()->forceCreate(['user_id' => $this->collaborator->id, 'role' => 'keys', 'accepted' => true]);
+        $this->project->collaborators()->forceCreate(['user_id' => $this->pending->id, 'role' => 'bass', 'accepted' => false]);
+
+        $this->track = $this->project->tracks()->forceCreate(['title' => 'Night Drive', 'privacy' => 'private']);
+
+        Sanctum::actingAs($this->owner);
+        $id = $this->addStem('Bass')->assertCreated()->json('data.id');
+        $this->stem = ProjectTrackStem::query()->findOrFail($id);
+    }
+
+    protected function url(string $path = '', ?ProjectTrack $track = null): string
+    {
+        $track ??= $this->track;
+
+        return "/api/creator/projects/{$track->project->id}/tracks/{$track->id}{$path}";
+    }
+
+    protected function addStem(string $title)
+    {
+        return $this->post($this->url('/stems'), [
+            'title' => $title,
+            'src' => UploadedFile::fake()->create("{$title}.mp3", 40, 'audio/mpeg'),
+            'meta' => ['gain' => 1, 'start' => 0],
+        ], ['Accept' => 'application/json']);
+    }
+
+    public function test_outsiders_cannot_add_edit_or_delete_stems(): void
+    {
+        foreach ([$this->stranger, $this->pending] as $user) {
+            Sanctum::actingAs($user);
+
+            $this->addStem('Intruder')->assertForbidden();
+            $this->putJson($this->url("/stems/{$this->stem->id}"), ['meta' => ['gain' => 0]])->assertForbidden();
+            $this->deleteJson($this->url("/stems/{$this->stem->id}"))->assertForbidden();
+        }
+
+        $this->assertSame(1, $this->track->stems()->count());
+        $this->assertEquals(1, $this->stem->fresh()->meta['gain']);
+    }
+
+    public function test_owner_and_collaborators_can_edit_and_delete_stems(): void
+    {
+        Sanctum::actingAs($this->collaborator);
+        $this->putJson($this->url("/stems/{$this->stem->id}"), ['meta' => ['gain' => 0.5]])->assertAccepted();
+        $this->assertEquals(0.5, $this->stem->fresh()->meta['gain']);
+
+        Sanctum::actingAs($this->owner);
+        $this->deleteJson($this->url("/stems/{$this->stem->id}"))->assertAccepted();
+        $this->assertSoftDeleted($this->stem);
+    }
+
+    public function test_outsiders_cannot_change_tracks(): void
+    {
+        $genre = Genre::query()->firstOrCreate(['title' => 'Test genre'], ['slug' => 'test-genre']);
+        $artist = Artist::factory()->create(['user_id' => $this->stranger->id]);
+        $form = ['title' => 'Taken', 'genre_id' => (string) $genre->id, 'artist_id' => (string) $artist->id];
+
+        Sanctum::actingAs($this->stranger);
+
+        $this->postJson("/api/creator/projects/{$this->project->id}/tracks", $form)->assertForbidden();
+        $this->putJson($this->url(), [
+            ...$form,
+            'stems' => [['id' => $this->stem->id, 'meta' => ['gain' => 0]]],
+        ])->assertForbidden();
+        $this->deleteJson($this->url())->assertForbidden();
+        $this->postJson($this->url('/assets'), ['file' => UploadedFile::fake()->create('notes.pdf', 10)])->assertForbidden();
+
+        $this->assertSame('Night Drive', $this->track->fresh()->title);
+        $this->assertEquals(1, $this->stem->fresh()->meta['gain']);
+    }
+
+    public function test_stems_and_tracks_must_belong_to_the_url(): void
+    {
+        $other = Project::query()->forceCreate([
+            'user_id' => $this->stranger->id,
+            'title' => 'Someone else',
+            'privacy' => 'private',
+        ]);
+        $theirTrack = $other->tracks()->forceCreate(['title' => 'Theirs', 'privacy' => 'private']);
+        $sibling = $this->project->tracks()->forceCreate(['title' => 'Sibling', 'privacy' => 'private']);
+
+        Sanctum::actingAs($this->owner);
+
+        $this->putJson($this->url("/stems/{$this->stem->id}", $sibling), ['meta' => ['gain' => 0]])->assertNotFound();
+        $this->deleteJson("/api/creator/projects/{$this->project->id}/tracks/{$theirTrack->id}")->assertNotFound();
+
+        $this->assertEquals(1, $this->stem->fresh()->meta['gain']);
+        $this->assertNotNull($theirTrack->fresh());
+    }
+
+    public function test_only_people_on_the_project_get_full_stem_audio(): void
+    {
+        $elsewhere = Project::query()->forceCreate([
+            'user_id' => $this->owner->id,
+            'title' => 'Elsewhere',
+            'privacy' => 'private',
+        ]);
+        $elsewhere->collaborators()->forceCreate(['user_id' => $this->stranger->id, 'role' => 'drums', 'accepted' => true]);
+
+        $this->assertTrue($this->stem->verifyAccess($this->owner));
+        $this->assertTrue($this->stem->verifyAccess($this->collaborator));
+        $this->assertFalse($this->stem->verifyAccess($this->pending));
+        $this->assertFalse($this->stem->verifyAccess($this->stranger));
+        $this->assertFalse($this->stem->verifyAccess(null));
+    }
+}

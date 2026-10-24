@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -115,12 +114,11 @@ class ProjectTrackStem extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function verifyAccess(User $user): bool
+    /**
+     * Whether the user can work on this stem's track and so get its full audio.
+     */
+    public function verifyAccess(?User $user): bool
     {
-        return $this->track->project()
-            ->whereUserId($user->id)
-            ->orWhereHas('collaborators', function (Builder $query) use ($user) {
-                $query->whereUserId($user->id);
-            })->exists();
+        return $user !== null && (bool) $this->track?->project?->canEdit($user);
     }
 }
