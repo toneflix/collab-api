@@ -120,21 +120,21 @@ class ConversationTest extends TestCase
             ->assertJsonPath('data.1.parent.user.id', $this->owner->id)
             ->assertJsonPath('data.1.user.id', $this->collaborator->id)
             ->assertJsonMissingPath('data.1.user.email')
-            ->assertJsonPath('meta.hasMore', false);
+            ->assertJsonPath('meta.next_cursor', null);
     }
 
     public function test_messages_page_backwards(): void
     {
-        $ids = collect(range(1, 5))->map(fn ($i) => $this->send($this->owner, "Message {$i}"));
+        collect(range(1, 5))->map(fn ($i) => $this->send($this->owner, "Message {$i}"));
 
         Sanctum::actingAs($this->owner);
         $newest = $this->getJson($this->url('/messages?limit=2'))->assertOk();
         $this->assertSame(['Message 4', 'Message 5'], array_column($newest->json('data'), 'body'));
-        $this->assertTrue($newest->json('meta.hasMore'));
+        $this->assertNotNull($cursor = $newest->json('meta.next_cursor'));
 
-        $older = $this->getJson($this->url('/messages?limit=3&before='.$ids[3]))->assertOk();
+        $older = $this->getJson($this->url('/messages?limit=3&cursor='.$cursor))->assertOk();
         $this->assertSame(['Message 1', 'Message 2', 'Message 3'], array_column($older->json('data'), 'body'));
-        $this->assertFalse($older->json('meta.hasMore'));
+        $this->assertNull($older->json('meta.next_cursor'));
     }
 
     public function test_the_list_shows_latest_message_and_unread_counts(): void
@@ -145,7 +145,7 @@ class ConversationTest extends TestCase
         Sanctum::actingAs($this->collaborator);
         $this->getJson('/api/conversations')
             ->assertOk()
-            ->assertJsonPath('meta.unread', 2)
+            ->assertJsonPath('unread', 2)
             ->assertJsonPath('data.0.key', "project-track.{$this->track->id}")
             ->assertJsonPath('data.0.title', 'Chat track')
             ->assertJsonPath('data.0.context.projectId', $this->project->id)
@@ -154,11 +154,11 @@ class ConversationTest extends TestCase
 
         // The sender's own messages never count as unread.
         Sanctum::actingAs($this->owner);
-        $this->getJson('/api/conversations')->assertJsonPath('meta.unread', 0);
+        $this->getJson('/api/conversations')->assertJsonPath('unread', 0);
 
         Sanctum::actingAs($this->collaborator);
         $this->postJson($this->url('/read'))->assertOk();
-        $this->getJson('/api/conversations')->assertJsonPath('meta.unread', 0);
+        $this->getJson('/api/conversations')->assertJsonPath('unread', 0);
     }
 
     public function test_outsiders_cannot_read_or_write(): void

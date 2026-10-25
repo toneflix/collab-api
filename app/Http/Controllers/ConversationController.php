@@ -4,10 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Enums\HttpStatus;
 use App\Helpers\Providers;
+use App\Http\Resources\ConversationMessageCollection;
+use App\Http\Resources\ConversationMessageResource;
+use App\Http\Resources\ConversationResource;
 use App\Models\Comment;
 use App\Models\Project;
 use App\Models\ProjectTrack;
-use App\Models\Release;
 use App\Models\Track;
 use App\Services\Conversations\Conversations;
 use Illuminate\Database\Eloquent\Model;
@@ -25,12 +27,15 @@ class ConversationController extends Controller
      */
     public function index(Request $request)
     {
-        $list = Conversations::forUser($request->user());
+        $request->validate(['limit' => ['nullable', 'integer', 'between:1,50']]);
 
-        return Providers::response()->success([
-            'data' => $list->all(),
-            'meta' => ['unread' => $list->sum('unread')],
+        $list = Conversations::forUser($request->user(), (int) $request->input('limit', 50));
+
+        return ConversationResource::collection($list)->additional([
+            'unread' => $list->getCollection()->sum('unread_count'),
             'message' => HttpStatus::message(HttpStatus::OK),
+            'status' => 'success',
+            'status_code' => HttpStatus::OK,
         ]);
     }
 
@@ -41,37 +46,29 @@ class ConversationController extends Controller
     {
         $root = Conversations::find($type, $id, $request->user());
 
-        return Providers::response()->success([
-            'data' => Conversations::subject($root) + [
-                'unread' => Conversations::unreadCount($root, $request->user()),
-                'canDeleteAny' => $this->ownsRoot($request, $root),
-            ],
+        return (new ConversationResource($root))->additional([
             'message' => HttpStatus::message(HttpStatus::OK),
+            'status' => 'success',
+            'status_code' => HttpStatus::OK,
         ]);
     }
 
     /**
-     * A page of messages, oldest first. Without `before` it's the newest
-     * page; pass the oldest id you have as `before` for the page above it.
+     * A page of messages, oldest first. Without a cursor it's the newest
+     * page; pass `meta.next_cursor` as `cursor` for the page above it.
      */
     public function messages(Request $request, string $type, string $id)
     {
+        $request->validate(['limit' => ['nullable', 'integer', 'between:1,100']]);
+
         $root = Conversations::find($type, $id, $request->user());
-        $limit = min(100, max(1, (int) $request->input('limit', 30)));
 
-        $page = Conversations::messages($root)
-            ->with('commentator')
-            ->when($request->filled('before'), fn ($q) => $q->where('id', '<', (int) $request->input('before')))
-            ->orderByDesc('id')
-            ->limit($limit + 1)
-            ->get();
+        $messages = Conversations::messagesPage($root, (int) $request->input('limit', 30));
 
-        $hasMore = $page->count() > $limit;
-
-        return Providers::response()->success([
-            'data' => $page->take($limit)->reverse()->values()->map(fn (Comment $c) => Conversations::message($c))->all(),
-            'meta' => ['hasMore' => $hasMore],
+        return (new ConversationMessageCollection($messages))->additional([
             'message' => HttpStatus::message(HttpStatus::OK),
+            'status' => 'success',
+            'status_code' => HttpStatus::OK,
         ]);
     }
 
@@ -130,10 +127,11 @@ class ConversationController extends Controller
         Conversations::markRead($root, $request->user());
         Conversations::posted($comment);
 
-        return Providers::response()->success([
-            'data' => Conversations::message($comment),
+        return (new ConversationMessageResource($comment))->additional([
             'message' => 'Message sent.',
-        ], HttpStatus::CREATED);
+            'status' => 'success',
+            'status_code' => HttpStatus::CREATED,
+        ])->response()->setStatusCode(HttpStatus::CREATED->value);
     }
 
     /**
@@ -197,7 +195,7 @@ class ConversationController extends Controller
         $comment = Conversations::messages($root)->find($message);
         abort_unless($comment, HttpStatus::NOT_FOUND->value, 'This message no longer exists.');
         abort_unless(
-            (int) $comment->user_id === (int) $request->user()->id || $this->ownsRoot($request, $root),
+            (int) $comment->user_id === (int) $request->user()->id || Conversations::ownedBy($root, $request->user()),
             HttpStatus::FORBIDDEN->value,
             'You can only delete your own messages.'
         );
@@ -224,18 +222,5 @@ class ConversationController extends Controller
             'data' => ['unread' => 0],
             'message' => HttpStatus::message(HttpStatus::OK),
         ]);
-    }
-
-    protected function ownsRoot(Request $request, Model $root): bool
-    {
-        $userId = (int) $request->user()->id;
-
-        return match (true) {
-            $root instanceof ProjectTrack => (int) $root->project?->user_id === $userId,
-            $root instanceof Project => (int) $root->user_id === $userId,
-            $root instanceof Release => (int) $root->user_id === $userId,
-            $root instanceof Track => (int) $root->release?->user_id === $userId,
-            default => false,
-        };
     }
 }
