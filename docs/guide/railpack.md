@@ -25,7 +25,7 @@ Laravel's own required extensions are added by Railpack.
 
 | `CONTAINER_ROLE` | Runs | Notes |
 | --- | --- | --- |
-| `web` (default) | FrankenPHP | Runs `migrate --force` and `app:sync-roles` first, unless `RAILPACK_SKIP_MIGRATIONS=true`. |
+| `web` (default) | FrankenPHP | Runs `migrate --force`, `app:sync-roles` and `words:import --if-empty` first, unless `RAILPACK_SKIP_MIGRATIONS=true`. |
 | `worker` | `queue:work --tries=3 --timeout=3600` | Needed for audio, fingerprints, AI jobs, mail and push. Scale it with replicas. |
 | `scheduler` | `schedule:work` | Run exactly one. |
 | `reverb` | `reverb:start` on `$PORT` | Only when `REALTIME_DRIVER=reverb`. |

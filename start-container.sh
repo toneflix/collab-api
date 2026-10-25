@@ -14,6 +14,7 @@ case "$ROLE" in
     if [ "$RAILPACK_SKIP_MIGRATIONS" != "true" ]; then
       php artisan migrate --force
       php artisan app:sync-roles
+      php artisan words:import --if-empty
     fi
 
     php artisan storage:link
