@@ -16,11 +16,28 @@ The tools stay hidden unless admins turned them on, the token is set, and the pe
 
 | Task | Default model | Change with |
 | --- | --- | --- |
-| Music generation | `elevenlabs/music` | `REPLICATE_MUSIC_MODEL` |
+| Music generation | `elevenlabs/music` | "Music model" on `/admin/ai` (`REPLICATE_MUSIC_MODEL` sets the default) |
 | Stem separation | `ryan5453/demucs` | `REPLICATE_STEMS_MODEL` |
 | Lyrics transcription | `openai/whisper` (large-v3) | `REPLICATE_LYRICS_MODEL` |
 
-All are cleared for commercial use: ElevenLabs Music under its music terms, Demucs and Whisper under MIT. Generated music is added to the project track as a stem, or split into stems first if the person asks.
+Generated music is added to the project track as a stem, or split into stems first if the person asks.
+
+### Music models
+
+Admins pick one music model on `/admin/ai`, and each has its own credit price. A job keeps the model and price it started with.
+
+| Model | Credits (default) | Length | Lyrics | Reference audio |
+| --- | --- | --- | --- | --- |
+| `elevenlabs/music` | 5 per 10 seconds | Chosen, up to 5 min | In the prompt | No |
+| `minimax/music-2.5` | 30 per song | Model decides, up to about 5 min | Required, up to 3500 characters | No |
+| `minimax/music-1.5` | 10 per song | Model decides, up to 4 min | Required, 10 to 600 characters | Song, voice or instrumental, over 15 s |
+| `stability-ai/stable-audio-2.5` | 40 per track | Chosen, up to 190 s | No vocals | No |
+
+- MiniMax 2.5 is asked for lossless WAV. WAV output is split as it is and stored once as a 320 kbps MP3.
+- A reference is a stem on the track (`reference_stem_id`) or an uploaded MP3 or WAV up to 20 MB (`reference`), with `reference_kind`. Uploads wait on the uploads disk under `ai/references/` and are deleted once the job has run.
+- Models are classes in `App\Services\Ai\Music` (`MusicModel` and one subclass each). A subclass sets the Replicate id, the credit setting, its pricing, the form rules and how the form maps to the model's inputs. Add one to `MusicModel::MODELS` and its credit setting to `AiSettings::FIELDS`.
+- The default prices are rough, since Replicate doesn't publish all of these. Check the cost of a run on Replicate and adjust.
+- Licensing: ElevenLabs Music is cleared for commercial use under its music terms, and Stable Audio is trained on licensed music. MiniMax's terms only say the customer owns outputs "to the extent permitted by law", with no explicit commercial grant. Demucs and Whisper are MIT.
 
 ## Audio quality
 
@@ -50,7 +67,11 @@ Admin settings on `/admin/ai`:
 | --- | --- |
 | Price per credit | By app currency, for example 0.02 USD or 30 NGN |
 | Credit packs | `100, 500:10, 2000:20` (pack size, then an optional discount in percent) |
-| Music credits per 10 seconds | 5 |
+| Music model | `elevenlabs/music` |
+| ElevenLabs Music credits per 10 seconds | 5 |
+| MiniMax Music 2.5 credits per song | 30 |
+| MiniMax Music 1.5 credits per song | 10 |
+| Stable Audio 2.5 credits per track | 40 |
 | Stem split credits | 5 |
 | Longest generated track | 300 seconds |
 | Lyrics credits | 2 |

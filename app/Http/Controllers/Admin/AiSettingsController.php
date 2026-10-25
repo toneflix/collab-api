@@ -6,8 +6,10 @@ use App\Enums\HttpStatus;
 use App\Helpers\Providers;
 use App\Http\Controllers\Controller;
 use App\Services\Ai\AiSettings;
+use App\Services\Ai\Music\MusicModel;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 /**
  * Lets admins switch the AI tools on or off and set what credits cost.
@@ -40,7 +42,10 @@ class AiSettingsController extends Controller
             'ai_enabled' => ['nullable', 'boolean'],
             'ai_credit_price' => ['nullable', 'numeric', 'min:0', 'max:1000000'],
             'ai_credit_packs' => ['nullable', 'string', 'max:200', 'regex:/^\s*\d+(\s*:\s*\d+(\.\d+)?)?(\s*,\s*\d+(\s*:\s*\d+(\.\d+)?)?)*\s*$/'],
-            'ai_music_credits' => ['nullable', 'integer', 'between:1,1000'],
+            'ai_music_model' => ['nullable', 'string', Rule::in(array_keys(MusicModel::all()))],
+            ...collect(MusicModel::all())->mapWithKeys(fn (MusicModel $model) => [
+                $model::CREDITS_SETTING => ['nullable', 'integer', 'between:1,1000'],
+            ])->all(),
             'ai_stems_credits' => ['nullable', 'integer', 'between:1,1000'],
             'ai_music_max_seconds' => ['nullable', 'integer', 'between:10,300'],
             'ai_lyrics_credits' => ['nullable', 'integer', 'between:1,1000'],
@@ -71,6 +76,7 @@ class AiSettingsController extends Controller
                 'fields' => AiSettings::forAdmin(),
                 'keys' => AiSettings::keys(),
                 'client' => AiSettings::clientConfig(),
+                'models' => AiSettings::musicModels(),
                 'currency' => (string) Providers::config('app_currency', 'USD'),
             ],
             'message' => $message,
