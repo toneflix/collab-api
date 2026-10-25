@@ -20,6 +20,12 @@ class SyncSounds extends Command
             return self::SUCCESS;
         }
 
+        if (SoundSettings::syncPaused()) {
+            $this->info('Library sync is paused.');
+
+            return self::SUCCESS;
+        }
+
         if (! SoundSettings::syncQueries()) {
             $this->info('There are no sync searches.');
 

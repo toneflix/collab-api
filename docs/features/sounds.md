@@ -25,3 +25,5 @@ Only CC0 (public domain) sounds are imported from Freesound, so nothing needs at
    - Add **Library Sync Searches**, one per line. Start a line with a category and a colon, like `Drums: drum loop`.
 
 `sounds:sync` runs every night at 03:30 and adds up to **Sounds per Search** results for each search, skipping sounds longer than **Longest Sound**. It waits `FREESOUND_DOWNLOAD_DELAY` seconds between downloads to stay under Freesound's limits. Run it by hand with `php artisan sounds:sync --force`.
+
+Tick **Pause Library Sync** to stop syncing. The nightly run and **Sync now** are skipped while it's ticked, and a sync that is already running stops after the sound it's on.

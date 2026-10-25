@@ -111,12 +111,12 @@ class SoundLibrary
      * search. Sounds already in the library are skipped.
      *
      * @param  callable(string): void|null  $log
-     * @return array{added: int, skipped: int, failed: int, at: string, errors: array<int, string>}
+     * @return array{added: int, skipped: int, failed: int, paused: bool, at: string, errors: array<int, string>}
      */
     public static function sync(?callable $log = null): array
     {
         $log ??= fn() => null;
-        $result = ['added' => 0, 'skipped' => 0, 'failed' => 0, 'at' => now()->toIso8601String(), 'errors' => []];
+        $result = ['added' => 0, 'skipped' => 0, 'failed' => 0, 'paused' => false, 'at' => now()->toIso8601String(), 'errors' => []];
 
         if (! SoundSettings::freesoundConfigured()) {
             $result['errors'][] = 'Add the Freesound keys first.';
@@ -147,6 +147,13 @@ class SoundLibrary
                 foreach ($found['results'] as $item) {
                     if ($wanted <= 0) {
                         break;
+                    }
+
+                    if (SoundSettings::syncPaused()) {
+                        $result['paused'] = true;
+                        $log('Paused');
+
+                        return self::finishSync($result);
                     }
 
                     $exists = Sound::query()->withoutGlobalScope(HideTakenDown::class)->library()
@@ -188,8 +195,8 @@ class SoundLibrary
     }
 
     /**
-     * @param  array{added: int, skipped: int, failed: int, at: string, errors: array<int, string>}  $result
-     * @return array{added: int, skipped: int, failed: int, at: string, errors: array<int, string>}
+     * @param  array{added: int, skipped: int, failed: int, paused: bool, at: string, errors: array<int, string>}  $result
+     * @return array{added: int, skipped: int, failed: int, paused: bool, at: string, errors: array<int, string>}
      */
     protected static function finishSync(array $result): array
     {

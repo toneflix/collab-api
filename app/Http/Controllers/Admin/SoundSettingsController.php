@@ -47,6 +47,7 @@ class SoundSettingsController extends Controller
         $valid = $request->validate([
             'sounds_library_enabled' => ['nullable', 'boolean'],
             'freesound_enabled' => ['nullable', 'boolean'],
+            'freesound_sync_paused' => ['nullable', 'boolean'],
             'freesound_sync_queries' => ['nullable', 'string', 'max:3000'],
             'freesound_sync_limit' => ['nullable', 'integer', 'between:1,150'],
             'freesound_sync_max_duration' => ['nullable', 'numeric', 'between:1,600'],
@@ -84,6 +85,7 @@ class SoundSettingsController extends Controller
      */
     public function sync(Request $request)
     {
+        abort_if(SoundSettings::syncPaused(), HttpStatus::UNPROCESSABLE_ENTITY->value, 'Library sync is paused.');
         abort_unless(SoundSettings::freesoundConfigured(), HttpStatus::UNPROCESSABLE_ENTITY->value, 'Set the Freesound keys in .env first.');
         abort_unless(SoundSettings::syncQueries(), HttpStatus::UNPROCESSABLE_ENTITY->value, 'Add at least one sync search first.');
 

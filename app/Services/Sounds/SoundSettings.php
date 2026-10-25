@@ -22,6 +22,7 @@ class SoundSettings extends SettingsStore
     public const FIELDS = [
         'sounds_library_enabled' => ['Sound Library', '0', 'Show the shared sound library in the studio. It stays hidden while it has no sounds.'],
         'freesound_enabled' => ['Freesound', '0', 'Let people search Freesound and import CC0 sounds into My sounds.'],
+        'freesound_sync_paused' => ['Pause Library Sync', '0', 'Stops the daily sync and Sync now, and ends a running sync after its current sound.'],
         'freesound_sync_queries' => ['Library Sync Searches', null, 'One search per line. Start a line with a category and a colon, like "Drums: drum loop".'],
         'freesound_sync_limit' => ['Sounds per Search', '25', 'How many sounds each sync search adds, at most.'],
         'freesound_sync_max_duration' => ['Longest Sound (seconds)', '30', 'Longer sounds are skipped by the sync.'],
@@ -52,6 +53,11 @@ class SoundSettings extends SettingsStore
     public static function freesoundConfigured(): bool
     {
         return self::configured('freesound');
+    }
+
+    public static function syncPaused(): bool
+    {
+        return filter_var(self::get('freesound_sync_paused'), FILTER_VALIDATE_BOOL);
     }
 
     /**
