@@ -18,6 +18,7 @@ enum Feature: string
     case SELL_STEMS = 'sell_stems';
     case RECEIVE_TIPS = 'receive_tips';
     case MAX_PROJECTS = 'max_projects';
+    case MAX_SONGS = 'max_songs';
     case MAX_COLLABORATORS = 'max_collaborators';
     case MAX_STEM_SIZE = 'max_stem_size';
     case MAX_STORAGE = 'max_storage';
@@ -34,6 +35,7 @@ enum Feature: string
             self::SELL_STEMS => 'Sell stems',
             self::RECEIVE_TIPS => 'Receive tips',
             self::MAX_PROJECTS => 'Projects',
+            self::MAX_SONGS => 'Composer songs',
             self::MAX_COLLABORATORS => 'Collaborators per project',
             self::MAX_STEM_SIZE => 'Largest stem upload',
             self::MAX_STORAGE => 'Sound storage',
@@ -52,6 +54,7 @@ enum Feature: string
             self::SELL_STEMS => 'Put a price on the stems of your released tracks.',
             self::RECEIVE_TIPS => 'Let fans tip you from your profile.',
             self::MAX_PROJECTS => 'How many projects you can create.',
+            self::MAX_SONGS => 'How many songs you can keep in Composer.',
             self::MAX_COLLABORATORS => 'How many collaborators each of your projects can have.',
             self::MAX_STEM_SIZE => 'The largest stem file you can upload.',
             self::MAX_STORAGE => 'Space for your own sounds, uploaded or imported from Freesound.',
@@ -68,7 +71,7 @@ enum Feature: string
     public function type(): string
     {
         return match ($this) {
-            self::MAX_PROJECTS, self::MAX_COLLABORATORS, self::MAX_STEM_SIZE, self::MAX_STORAGE, self::HISTORY_DAYS => 'limit',
+            self::MAX_PROJECTS, self::MAX_SONGS, self::MAX_COLLABORATORS, self::MAX_STEM_SIZE, self::MAX_STORAGE, self::HISTORY_DAYS => 'limit',
             self::AI_CREDITS => 'credits',
             default => 'toggle',
         };
@@ -93,6 +96,7 @@ enum Feature: string
             self::DOWNLOADS, self::BADGE, self::AI_TOOLS => false,
             self::SELL_RELEASES, self::SELL_STEMS, self::RECEIVE_TIPS => true,
             self::MAX_PROJECTS => 10,
+            self::MAX_SONGS => 10,
             self::MAX_COLLABORATORS => 5,
             self::MAX_STEM_SIZE => 50,
             self::MAX_STORAGE => 200,
