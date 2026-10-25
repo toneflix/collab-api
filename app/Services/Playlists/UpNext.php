@@ -11,8 +11,8 @@ use Illuminate\Support\Collection;
 /**
  * Tracks to play once the player's queue runs out, so playback never stops.
  *
- * Only public, playable tracks from live releases are picked. Tracks like the seed (same genre,
- * artists or tempo) come first, then the listener's recommendations, then
+ * Only playable tracks from live releases are picked. Tracks like the seed
+ * (same genre, artists or tempo) come first, then the listener's recommendations, then
  * the rest. When the exclusions leave nothing, they are dropped, so the only
  * track that is never returned is the seed.
  */
@@ -74,7 +74,6 @@ class UpNext
         $exclude = $this->seed ? $exclude->merge([$this->seed->id])->unique() : $exclude;
 
         $query = Track::query()
-            ->where('tracks.privacy', 'public')
             ->whereHas('release', fn(Builder $q) => $q->live())
             ->playableBy($this->user)
             ->when($exclude->isNotEmpty(), fn(Builder $q) => $q->whereNotIn('tracks.id', $exclude->all()));
