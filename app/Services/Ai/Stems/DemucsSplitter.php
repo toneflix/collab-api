@@ -98,7 +98,7 @@ class DemucsSplitter implements StemSplitter
     }
 
     /**
-     * The Demucs weights to separate with, like htdemucs_ft.
+     * The Demucs weights to separate with, like htdemucs.
      */
     protected function variant(): ?string
     {

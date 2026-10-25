@@ -63,8 +63,8 @@ return [
                 'audio' => ['default' => env('REPLICATE_MUSIC_MODEL', 'elevenlabs/music')],
                 'stems' => [
                     'default' => env('REPLICATE_STEMS_MODEL', 'ryan5453/demucs'),
-                    // Demucs weights; htdemucs_ft separates more cleanly than htdemucs but takes about four times as long
-                    'variant' => env('REPLICATE_STEMS_VARIANT', 'htdemucs_ft'),
+                    // Demucs weights; ryan5453/demucs now only accepts htdemucs
+                    'variant' => env('REPLICATE_STEMS_VARIANT', 'htdemucs'),
                 ],
                 'lyrics' => ['default' => env('REPLICATE_LYRICS_MODEL', 'openai/whisper')],
                 'moderator' => ['default' => env('REPLICATE_MODERATOR_MODEL', 'anthropic/claude-4.5-haiku')],
