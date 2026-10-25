@@ -7,6 +7,8 @@ use App\Traits\TakesDown;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Arr;
+use Toneflix\LaravelFileable\Initiator;
 use Toneflix\LaravelFileable\Media;
 
 /**
@@ -126,18 +128,21 @@ class Sound extends Model implements CanBeTakenDown
     }
 
     /**
-     * @return array<string, mixed>
-     */
-    public function mediaInfo(): array
-    {
-        return (new Media)->mediaInfo(self::COLLECTION, $this->file);
-    }
-
-    /**
      * Where the file is on its disk, for copying it.
      */
     public function path(): string
     {
-        return $this->mediaInfo()['path'];
+        $media = new Media;
+        $media->setCollectionDisk(self::COLLECTION);
+
+        return $media->getPrefix(self::COLLECTION) . Arr::get($media->namespaces, self::COLLECTION . '.path') . $this->file;
+    }
+
+    /**
+     * The link that streams the file, built without asking the disk about it.
+     */
+    public function url(): string
+    {
+        return route('fileable.open.file', Initiator::base64urlEncode($this->path()));
     }
 }
