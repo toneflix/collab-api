@@ -7,6 +7,7 @@ use App\Helpers\Providers;
 use App\Models\ArtistClaim;
 use App\Models\Release;
 use App\Services\Ai\Music\ElevenLabsMusic;
+use App\Services\Ai\Music\MiniMaxMusic25;
 use App\Services\Ai\Music\MusicModel;
 use App\Services\Ai\Music\SunoMusic;
 use App\Services\Settings\SettingsStore;
@@ -59,6 +60,12 @@ class AiSettings extends SettingsStore
         'ai_moderator_claims_auto' => ['Review Artist Claims Automatically', '0', 'Send every new artist claim to the AI moderator. Claims it isn\'t confident about are flagged for a person.'],
         'ai_moderator_releases_auto' => ['Review Releases Automatically', '0', 'Send every release waiting for approval to the AI moderator. Releases it isn\'t confident about are flagged for a person.'],
         'ai_moderator_confidence' => ['Confidence Needed', '80', 'How sure (0 to 100) the AI moderator must be to decide an automatic review on its own.'],
+        'ai_composer_model' => ['Composer Writing Model', null, 'The Replicate language model that suggests lyrics in Composer, like anthropic/claude-4.5-haiku.'],
+        'ai_composer_line_credits' => ['Composer Line Credits', '1', 'Credits one ask for the next line uses. It returns three options.'],
+        'ai_composer_block_credits' => ['Composer Block Credits', '1', 'Credits one ask for the next four lines uses.'],
+        'ai_composer_verse_credits' => ['Composer Verse Credits', '2', 'Credits one ask for a full verse uses.'],
+        'ai_composer_rewrite_credits' => ['Composer Rewrite Credits', '1', 'Credits one ask for other takes on a line uses.'],
+        'ai_composer_music_model' => ['Composer Song Model', MiniMaxMusic25::ID, 'The music model that sings songs made from Composer lyrics. Only models that take lyrics can be picked.'],
     ];
 
     public const KEYS = [
@@ -233,6 +240,42 @@ class AiSettings extends SettingsStore
         return min(100, max(0, (int) self::get('ai_moderator_confidence')));
     }
 
+    /**
+     * The Replicate model that suggests lyrics in Composer.
+     */
+    public static function composerModel(): string
+    {
+        return trim((string) self::get('ai_composer_model'));
+    }
+
+    /**
+     * Credits one Composer suggestion of a kind (line, block, verse, rewrite) uses.
+     */
+    public static function composerCredits(string $kind): int
+    {
+        return max(1, (int) self::get("ai_composer_{$kind}_credits"));
+    }
+
+    /**
+     * The music model that sings songs made from Composer lyrics.
+     */
+    public static function composerMusicModel(): MusicModel
+    {
+        $model = MusicModel::find(self::get('ai_composer_music_model'));
+
+        return $model && $model->takesLyrics() ? $model : new MiniMaxMusic25;
+    }
+
+    /**
+     * Music models that sing lyrics, which Composer songs can be made with.
+     *
+     * @return list<MusicModel>
+     */
+    public static function lyricMusicModels(): array
+    {
+        return array_values(array_filter(MusicModel::all(), fn(MusicModel $model) => $model->takesLyrics()));
+    }
+
     public static function musicMaxSeconds(): int
     {
         return min(300, max(10, (int) self::get('ai_music_max_seconds')));
@@ -252,6 +295,9 @@ class AiSettings extends SettingsStore
             'costs' => [
                 'stems' => self::stemsCredits(),
                 'lyrics' => self::lyricsCredits(),
+                'composer' => collect(['line', 'block', 'verse', 'rewrite'])
+                    ->mapWithKeys(fn(string $kind) => [$kind => self::composerCredits($kind)])
+                    ->all(),
             ],
             'music' => self::musicModel()->toClient(),
             'stemsEngine' => self::stemsEngine()->value,
@@ -282,6 +328,10 @@ class AiSettings extends SettingsStore
             $configured = (string) config('ai.providers.replicate.models.audio.default');
 
             return MusicModel::find($configured) ? $configured : $field[1];
+        }
+
+        if ($key === 'ai_composer_model') {
+            return (string) config('ai.providers.replicate.models.composer.default');
         }
 
         if ($key === 'ai_credit_price') {

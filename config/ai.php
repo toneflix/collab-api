@@ -68,6 +68,7 @@ return [
                 ],
                 'lyrics' => ['default' => env('REPLICATE_LYRICS_MODEL', 'openai/whisper')],
                 'moderator' => ['default' => env('REPLICATE_MODERATOR_MODEL', 'anthropic/claude-4.5-haiku')],
+                'composer' => ['default' => env('REPLICATE_COMPOSER_MODEL', 'anthropic/claude-4.5-haiku')],
             ],
         ],
 

@@ -1,6 +1,6 @@
 # Composer
 
-Composer is the songwriting notepad under Projects in the sidebar. This page covers its word tools: completion, rhymes, related words, definitions and syllable counts.
+Composer is the songwriting notepad under Projects in the sidebar. This page covers its word tools (completion, rhymes, related words, definitions and syllable counts) and its AI suggestions.
 
 ## Word data
 
@@ -45,3 +45,24 @@ All need a signed-in user and are limited to 120 requests a minute. `limit` sets
 | POST | `/api/words/syllables` | `{ words: [...] }`, up to 200; each comes back with `syllables`, `stress` (such as `010`), `vowelKey` (words sharing it rhyme; dictionary words only) and `known` |
 
 Lookup answers carry `source` (`datamuse` or `local`) beside `data`, so the app can show the Datamuse credit only when it applies.
+
+## AI suggestions
+
+Writers can ask for the next line, the next four lines (a block), a full verse, or other takes on a line. Each ask returns options (three lines, two blocks, one verse or three rewrites) that the writer picks from or dismisses.
+
+```
+POST /api/creator/songs/{song}/suggestions
+{ "kind": "line", "line": 12, "body": "...", "instruction": "make it about leaving home" }
+```
+
+- `kind` is `line`, `block`, `verse` or `rewrite`. `line` is the cursor's line, counted from 1: an empty line is filled, and new lines go after a line with words. `rewrite` rewrites that line.
+- `body` is the text in the editor, so unsaved typing counts. Without it the saved lyrics are used. `instruction` is an optional note to the model (up to 200 characters).
+- The answer has `options` (each `{ lines: [...] }`), the `credits` spent and the writer's `balance`. Asks are limited to 30 a minute.
+
+Suggestions need the **AI studio tools** plan feature (`ai_tools`, on Premium by default) and credits. Each kind has its own cost on `/admin/ai` (`ai_composer_line_credits` 1, `ai_composer_block_credits` 1, `ai_composer_verse_credits` 2, `ai_composer_rewrite_credits` 1). When the model fails or every option is dropped, the credits go back.
+
+The model is Claude Haiku on Replicate by default (**Composer Writing Model**, `ai_composer_model`, starting from `REPLICATE_COMPOSER_MODEL`), with the same `REPLICATE_API_TOKEN` as the other AI tools. It sees the song's title, mood, language, tempo, about 60 lines before the cursor and 12 after, and the typical syllable count of nearby lines. It is told to write original lines only and to keep songs not marked explicit clean. Options with words on the lyrics review list are dropped, and so are options with explicit words on songs not marked explicit.
+
+Before a block or verse suggestion the song is saved as a `before_ai` version, so the writer can go back.
+
+**Composer Song Model** (`ai_composer_music_model`, MiniMax Music 2.5 by default) is the music model that sings songs made from Composer lyrics. Only models that take lyrics can be picked (MiniMax 2.5, MiniMax 1.5 and Suno).

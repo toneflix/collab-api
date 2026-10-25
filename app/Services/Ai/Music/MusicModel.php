@@ -141,6 +141,14 @@ abstract class MusicModel
     }
 
     /**
+     * Whether it sings lyrics it is given.
+     */
+    public function takesLyrics(): bool
+    {
+        return $this->lyricsLength() !== null && ! $this->instrumentalOnly();
+    }
+
+    /**
      * Whether a model that takes lyrics needs them.
      */
     public function lyricsRequired(): bool
