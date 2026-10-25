@@ -224,7 +224,7 @@ class ComposerSongProjectTest extends TestCase
 
     public function test_saving_a_linked_song_updates_its_lyric_sheet_and_the_track_shows_the_song(): void
     {
-        $song = $this->song($this->writer);
+        $song = $this->song($this->writer, ['bpm' => 92, 'key' => 'A minor', 'settings' => ['mood' => 'hopeful']]);
         $this->actingAsFresh($this->writer);
 
         $this->postJson("/api/creator/songs/{$song->id}/project", $this->payload())
@@ -255,6 +255,9 @@ class ComposerSongProjectTest extends TestCase
         $this->getJson("/api/creator/projects/{$track->project_id}/tracks/{$track->id}")
             ->assertOk()
             ->assertJsonPath('data.song.id', $song->id)
-            ->assertJsonPath('data.song.body', "[Verse 1]\nA line written after the project");
+            ->assertJsonPath('data.song.body', "[Verse 1]\nA line written after the project")
+            ->assertJsonPath('data.song.bpm', 92)
+            ->assertJsonPath('data.song.key', 'A minor')
+            ->assertJsonPath('data.song.mood', 'hopeful');
     }
 }

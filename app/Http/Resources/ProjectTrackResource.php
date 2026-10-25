@@ -46,13 +46,16 @@ class ProjectTrackResource extends JsonResource
             // The studio's master volume, 0 to 1, and where the server is with the preview mix.
             'mixVolume' => MixRenderer::masterVolume($this->resource),
             'mix' => MixPreview::state($this->resource),
-            // The Composer song the track came from, for prefilling AI lyrics; loaded for editors only.
+            // The Composer song the track came from, for prefilling AI music; loaded for editors only.
             'song' => $this->when(
                 $this->relationLoaded('song') && $this->song,
                 fn() => [
                     'id' => $this->song->id,
                     'title' => $this->song->title,
                     'body' => $this->song->body,
+                    'bpm' => $this->song->bpm,
+                    'key' => $this->song->key?->value,
+                    'mood' => $this->song->editorSettings()['mood'],
                 ],
             ),
         ];
