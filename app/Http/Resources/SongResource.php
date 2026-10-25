@@ -38,6 +38,15 @@ class SongResource extends JsonResource
                 'language' => $settings['language'],
                 'explicit' => (bool) $settings['explicit'],
             ],
+            'project' => $this->when(
+                $this->relationLoaded('track'),
+                fn() => $this->track?->project ? [
+                    'id' => $this->track->project->id,
+                    'slug' => $this->track->project->slug,
+                    'title' => $this->track->project->title,
+                    'trackId' => $this->track->id,
+                ] : null,
+            ),
             'revision' => $this->revision,
             'lineCount' => $this->line_count,
             'wordCount' => $this->word_count,

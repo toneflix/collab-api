@@ -10,6 +10,7 @@ use App\Http\Resources\SettingsResource;
 use App\Services\Ai\AiSettings;
 use App\Services\Ai\Music\MusicModel;
 use App\Services\Ai\Music\SunoMusic;
+use App\Services\Composer\ComposerSettings;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -70,6 +71,7 @@ class AiSettingsController extends Controller
             'ai_composer_block_credits' => ['nullable', 'integer', 'between:1,1000'],
             'ai_composer_verse_credits' => ['nullable', 'integer', 'between:1,1000'],
             'ai_composer_rewrite_credits' => ['nullable', 'integer', 'between:1,1000'],
+            'composer_word_source' => ['nullable', 'string', Rule::in(ComposerSettings::WORD_SOURCES)],
             'ai_composer_music_model' => [
                 'nullable',
                 'string',
@@ -82,6 +84,7 @@ class AiSettingsController extends Controller
         ]);
 
         AiSettings::update($valid);
+        ComposerSettings::update($valid);
 
         return $this->settings($this->savedMessage(), HttpStatus::ACCEPTED);
     }
@@ -104,13 +107,14 @@ class AiSettingsController extends Controller
     protected function settings(string $message = 'OK', HttpStatus $status = HttpStatus::OK)
     {
         $settings = [
-            'fields' => AiSettings::forAdmin(),
-            'keys' => AiSettings::keys(),
+            'fields' => [...AiSettings::forAdmin(), ...ComposerSettings::forAdmin()],
+            'keys' => [...AiSettings::keys(), ...ComposerSettings::keys()],
             'client' => AiSettings::clientConfig(),
             'models' => AiSettings::musicModels(),
             'options' => [
                 'sunoVersions' => SunoMusic::VERSIONS,
                 'sunoStemTypes' => AiSettings::SUNO_STEM_TYPES,
+                'wordSources' => ['datamuse' => 'Datamuse', 'local' => 'Built-in dictionary'],
                 'composerMusicModels' => array_map(fn(MusicModel $model) => $model::ID, AiSettings::lyricMusicModels()),
                 'engines' => collect(AiEngine::cases())
                     ->mapWithKeys(fn(AiEngine $engine) => [$engine->value => $engine->label()])
