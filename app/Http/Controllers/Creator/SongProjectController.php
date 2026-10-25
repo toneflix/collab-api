@@ -6,12 +6,13 @@ use App\Enums\HttpStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\AiJobResource;
 use App\Http\Resources\SongResource;
+use App\Models\Project;
 use App\Models\Song;
 use App\Services\Composer\SongProjects;
 use Illuminate\Http\Request;
 
 /**
- * Makes a project from a song, and keeps that project's lyric sheet in step with the song.
+ * Puts a song on a new project or an existing one, and keeps that project's lyric sheet in step with the song.
  */
 class SongProjectController extends Controller
 {
@@ -20,6 +21,7 @@ class SongProjectController extends Controller
         $this->authorize('update', $song);
 
         $data = $request->validate([
+            'project_id' => ['nullable', 'integer', 'exists:projects,id'],
             'title' => ['nullable', 'string', 'max:150'],
             'privacy' => ['nullable', 'string', 'in:private,public,public_preview'],
             'genre_id' => ['required', 'integer', 'exists:genres,id'],
@@ -29,16 +31,23 @@ class SongProjectController extends Controller
             'seconds' => ['nullable', 'integer', 'min:1', 'max:600'],
         ]);
 
-        $made = $projects->create($song, $this->user, $data);
+        $project = isset($data['project_id']) ? Project::find($data['project_id']) : null;
+
+        if ($project) {
+            $this->authorize('update', $project);
+        }
+
+        $made = $projects->create($song, $this->user, $data, $project);
         $job = $made['job'];
+        $done = $project ? "Track added to {$project->title}" : 'Project created';
         $song->load(['beat', 'track.project']);
 
         return (new SongResource($song))
             ->additional([
                 'aiJob' => $job ? new AiJobResource($job) : null,
                 'message' => $job
-                    ? 'Project created. AI is making the song, and it shows up on the track when it\'s ready.'
-                    : 'Project created with the lyric sheet.',
+                    ? "{$done}. AI is making the song, and it shows up on the track when it's ready."
+                    : "{$done} with the lyric sheet.",
                 'status' => 'success',
                 'status_code' => HttpStatus::CREATED,
             ])
