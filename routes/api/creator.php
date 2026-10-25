@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Creator\AiController;
 use App\Http\Controllers\Creator\ArtistController;
+use App\Http\Controllers\Creator\AudioTagController;
 use App\Http\Controllers\Creator\LyricsController;
 use App\Http\Controllers\Creator\ProjectCollaboratorController;
 use App\Http\Controllers\Creator\ProjectController;
@@ -35,6 +36,8 @@ Route::middleware(['auth:sanctum'])->prefix('creator')->name('creator.')->group(
         Route::put('projects/{project}/tracks/{track}/lyrics', [LyricsController::class, 'update'])->name('projects.tracks.lyrics.update');
         Route::post('projects/{project}/tracks/{track}/stems/{stem}/lyrics', [LyricsController::class, 'transcribe'])->middleware('throttle:10,1')->name('projects.tracks.stems.lyrics');
 
+        Route::put('projects/{project}/tracks/{track}/tags', [AudioTagController::class, 'update'])->name('projects.tracks.tags.update');
+
         Route::get('projects/{project}/tracks/{track}/versions', [ProjectTrackVersionController::class, 'index'])
             ->name('projects.tracks.versions.index');
         Route::post('projects/{project}/tracks/{track}/versions/{version}/restore', [ProjectTrackVersionController::class, 'restore'])
@@ -43,5 +46,6 @@ Route::middleware(['auth:sanctum'])->prefix('creator')->name('creator.')->group(
     });
     Route::get('ai/jobs/{job}', [AiController::class, 'show'])->name('ai.jobs.show');
     Route::put('tracks/{track}/lyrics', [LyricsController::class, 'updateTrack'])->name('tracks.lyrics.update');
+    Route::put('tracks/{track}/tags', [AudioTagController::class, 'updateTrack'])->name('tracks.tags.update');
     Route::apiResource('projects/{project}/collaborators', ProjectCollaboratorController::class);
 });

@@ -47,6 +47,7 @@ class AiSettingsController extends Controller
             'ai_lyrics_auto' => ['nullable', 'boolean'],
             'ai_lyrics_explicit_words' => ['nullable', 'string', 'max:2000'],
             'ai_lyrics_review_words' => ['nullable', 'string', 'max:2000'],
+            'ai_tags_auto' => ['nullable', 'boolean'],
         ], [
             'ai_credit_packs.regex' => 'List pack sizes like "100, 500:10, 2000:20".',
         ]);

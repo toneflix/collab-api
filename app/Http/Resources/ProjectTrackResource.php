@@ -38,6 +38,7 @@ class ProjectTrackResource extends JsonResource
             // The studio's tempo and meter, for the beat grid and metronome.
             'bpm' => (float) ($this->meta['bpm'] ?? 120),
             'timeSignature' => (string) ($this->meta['timeSignature'] ?? '4/4'),
+            'tags' => $this->audioTags(),
         ];
     }
 }

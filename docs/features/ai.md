@@ -66,10 +66,22 @@ Lyrics are kept per released track and per project track in the `lyrics` table, 
 
 Whisper hears vocals best on their own, so transcribing a vocals stem (for example one made with the stem split) gives cleaner lyrics than a full mix.
 
+## Tempo and key
+
+New tracks and studio mixes are tagged with their BPM and musical key. This runs on the API's own server with FFmpeg, uses no Replicate calls and no credits, and works with AI tools turned off. Admins turn it off with "Detect tempo and key" at `/admin/ai`.
+
+- **When it runs.** Saving a track with new audio, or a project track with a new preview mix, queues `TagAudio`. A track released from the studio takes its project track's tags instead. A project track's tags also pass to its draft releases.
+- **How it works.** FFmpeg decodes up to 180 seconds to mono at 11 kHz. Tempo comes from a spectral flux onset curve and its autocorrelation, weighted toward 120 BPM. Key comes from the spectral peaks folded into 12 pitch classes, tuned to the recording, and matched against major and minor key profiles (Albrecht and Shanahan, 2013). A song takes about 2 to 5 seconds. Guesses below 0.2 confidence are left empty.
+- **Licensing.** All of it is our own code on published methods, with FFmpeg already in the image. Essentia (AGPL, and its models are CC BY-NC-SA), aubio and libKeyFinder (GPL) were left out.
+- **Accuracy.** Like every detector, it sometimes picks half, double or 4/3 of the tempo, or the relative or parallel key. Creators correct tags with `PUT /api/creator/tracks/{track}/tags` or `PUT /api/creator/projects/{project}/tracks/{track}/tags` (`bpm`, `key` like "A minor"). Corrected tags are never replaced. Sending neither detects them again.
+- **API.** Tracks and project tracks carry `tags`: `bpm`, `key`, `keyShort` ("Am"), `camelot` ("8A") and `source` (`detected` or `manual`). `GET /api/tracks` filters with `bpm_min`, `bpm_max` and `key` (a full name, short name or Camelot code, comma separated), and `compatible=1` adds the keys that mix with it on the Camelot wheel.
+- **Older tracks.** Run `php artisan tags:detect` once to queue every track and mix without tags. `--all` detects again on everything not set by hand.
+
 ## In code
 
 - `App\Services\Ai\AiStudio` starts, runs and fails jobs (`ai_jobs` table).
 - `App\Services\Ai\Credits` spends, refunds and adds credits.
 - Each task is an `AiTask` in `App\Services\Ai\Tasks` (`GenerateMusic`, `SplitStems`, `TranscribeLyrics`).
 - `App\Services\Lyrics\Lyrics` saves lyrics and applies the explicit and review checks (`LyricsCheck`). `Transcriber` calls Whisper.
+- `App\Services\Audio\AudioTagger` saves tempo and key tags. `Analysis\AudioAnalyzer` decodes audio for `TempoDetector` and `KeyDetector`.
 - `laravel/ai` has no Replicate driver, so a custom `replicate` driver is registered in `AppServiceProvider`, and Demucs is called through `ReplicateClient`.
