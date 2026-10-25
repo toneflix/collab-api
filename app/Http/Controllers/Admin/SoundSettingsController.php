@@ -6,6 +6,7 @@ use App\Enums\HttpStatus;
 use App\Helpers\Providers;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\SoundController;
+use App\Http\Resources\SoundResource;
 use App\Jobs\SyncSoundLibrary;
 use App\Models\Sound;
 use App\Services\Sounds\SoundLibrary;
@@ -115,10 +116,10 @@ class SoundSettingsController extends Controller
             ->latest('id')
             ->paginate((int) $request->input('limit', 30));
 
-        return Providers::response()->success([
-            'data' => collect($sounds->items())->map(fn (Sound $s) => SoundLibrary::present($s))->all(),
-            'meta' => ['total' => $sounds->total(), 'page' => $sounds->currentPage(), 'lastPage' => $sounds->lastPage()],
+        return SoundResource::collection($sounds)->additional([
             'message' => HttpStatus::message(HttpStatus::OK),
+            'status' => 'success',
+            'status_code' => HttpStatus::OK,
         ]);
     }
 
@@ -148,10 +149,11 @@ class SoundSettingsController extends Controller
             'waveform' => SoundController::waveform($request->input('waveform')),
         ]);
 
-        return Providers::response()->success([
-            'data' => SoundLibrary::present($sound),
+        return (new SoundResource($sound))->additional([
             'message' => 'Sound added to the library.',
-        ], HttpStatus::CREATED);
+            'status' => 'success',
+            'status_code' => HttpStatus::CREATED,
+        ])->response()->setStatusCode(HttpStatus::CREATED->value);
     }
 
     public function updateSound(Request $request, Sound $sound)
@@ -167,10 +169,11 @@ class SoundSettingsController extends Controller
 
         SoundLibrary::forgetSize();
 
-        return Providers::response()->success([
-            'data' => SoundLibrary::present($sound),
+        return (new SoundResource($sound))->additional([
             'message' => 'Sound updated.',
-        ], HttpStatus::ACCEPTED);
+            'status' => 'success',
+            'status_code' => HttpStatus::ACCEPTED,
+        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 
     public function destroy(Sound $sound)

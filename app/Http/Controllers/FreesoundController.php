@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\HttpStatus;
 use App\Helpers\Providers;
+use App\Http\Resources\SoundResource;
 use App\Models\Sound;
 use App\Services\Limits;
 use App\Services\Sounds\Freesound;
@@ -135,10 +136,11 @@ class FreesoundController extends Controller
 
         $existing = Sound::query()->where('user_id', $user->id)->where('source', 'freesound')->where('source_id', $valid['id'])->first();
         if ($existing) {
-            return Providers::response()->success([
-                'data' => SoundLibrary::present($existing),
+            return (new SoundResource($existing))->additional([
                 'storage' => Limits::for($user)->storage(),
                 'message' => 'That sound is already in My sounds.',
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
             ]);
         }
 
@@ -175,11 +177,12 @@ class FreesoundController extends Controller
 
         $stored = SoundLibrary::storeDownload($download, SoundLibrary::freesoundAttributes($sound), $user);
 
-        return Providers::response()->success([
-            'data' => SoundLibrary::present($stored),
+        return (new SoundResource($stored))->additional([
             'storage' => Limits::for($user)->storage(),
             'message' => 'Imported to My sounds.',
-        ], HttpStatus::CREATED);
+            'status' => 'success',
+            'status_code' => HttpStatus::CREATED,
+        ])->response()->setStatusCode(HttpStatus::CREATED->value);
     }
 
     protected function isAdmin(Request $request): bool

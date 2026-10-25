@@ -6,6 +6,7 @@ use App\Broadcasting\Channels;
 use App\Enums\HttpStatus;
 use App\Helpers\Providers;
 use App\Http\Resources\ProjectTrackStemResource;
+use App\Http\Resources\SoundResource;
 use App\Models\Project;
 use App\Models\ProjectTrack;
 use App\Models\ProjectTrackVersion;
@@ -86,11 +87,12 @@ class SoundController extends Controller
             'waveform' => $this->waveform($request->input('waveform')),
         ], $request->user());
 
-        return Providers::response()->success([
-            'data' => SoundLibrary::present($sound),
+        return (new SoundResource($sound))->additional([
             'storage' => Limits::for($request->user())->storage(),
             'message' => 'Sound added to My sounds.',
-        ], HttpStatus::CREATED);
+            'status' => 'success',
+            'status_code' => HttpStatus::CREATED,
+        ])->response()->setStatusCode(HttpStatus::CREATED->value);
     }
 
     /**
@@ -105,10 +107,11 @@ class SoundController extends Controller
             'bpm' => ['nullable', 'numeric', 'between:20,300'],
         ]));
 
-        return Providers::response()->success([
-            'data' => SoundLibrary::present($sound),
+        return (new SoundResource($sound))->additional([
             'message' => 'Sound updated.',
-        ], HttpStatus::ACCEPTED);
+            'status' => 'success',
+            'status_code' => HttpStatus::ACCEPTED,
+        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 
     public function destroy(Request $request, Sound $sound)
@@ -183,14 +186,10 @@ class SoundController extends Controller
             ->latest('id')
             ->paginate((int) $request->input('limit', 30));
 
-        return Providers::response()->success([
-            'data' => collect($sounds->items())->map(fn (Sound $s) => SoundLibrary::present($s))->all(),
-            'meta' => [
-                'total' => $sounds->total(),
-                'page' => $sounds->currentPage(),
-                'lastPage' => $sounds->lastPage(),
-            ],
+        return SoundResource::collection($sounds)->additional([
             'message' => HttpStatus::message(HttpStatus::OK),
+            'status' => 'success',
+            'status_code' => HttpStatus::OK,
         ]);
     }
 

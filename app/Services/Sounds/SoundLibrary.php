@@ -251,38 +251,6 @@ class SoundLibrary
         return $stem->refresh();
     }
 
-    /**
-     * A sound for the browser.
-     *
-     * @return array<string, mixed>
-     */
-    public static function present(Sound $sound): array
-    {
-        $info = $sound->mediaInfo();
-
-        return [
-            'id' => $sound->id,
-            'name' => $sound->name,
-            'category' => $sound->category,
-            'tags' => $sound->tags ?? [],
-            'bpm' => $sound->bpm,
-            'key' => $sound->key,
-            'duration' => $sound->duration,
-            'author' => $sound->author,
-            'license' => $sound->license,
-            'source' => $sound->source,
-            'sourceUrl' => $sound->source_url,
-            'quality' => $sound->quality,
-            'size' => $sound->size,
-            'waveform' => $sound->waveform ?? [],
-            'url' => $info['dynamicLink'],
-            'isActive' => $sound->is_active,
-            'takenDown' => $sound->taken_down_at !== null,
-            'mine' => $sound->user_id !== null,
-            'createdAt' => $sound->created_at,
-        ];
-    }
-
     public static function forgetSize(): void
     {
         Cache::forget('sounds::library-size');
