@@ -22,11 +22,6 @@ class TrackResource extends JsonResource
         $interaction = $this->socialInteractionData($user);
         $locked = ! $this->isUnlockedFor($user);
 
-        $imageUrl = $this->files['image'];
-        if (! $this->image && isset($this->projectTrack->project)) {
-            $imageUrl = $this->projectTrack->project->files['image'];
-        }
-
         return [
             'id' => $this->id,
             'slug' => $this->slug,
@@ -57,7 +52,7 @@ class TrackResource extends JsonResource
             'streams' => $this->streams,
             'genreId' => $this->genre_id,
             'duration' => $this->duration,
-            'imageUrl' => $imageUrl,
+            'imageUrl' => $this->artworkUrl(),
             'artistId' => $this->artist?->id,
             'price' => (float) ($this->release?->price ?? 0),
             'locked' => $locked,

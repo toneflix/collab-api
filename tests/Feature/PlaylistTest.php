@@ -170,6 +170,16 @@ class PlaylistTest extends TestCase
         $this->assertEquals([$track->id], $this->playlist(['similar_to' => $seed->id])->all());
     }
 
+    public function test_tracks_without_artwork_show_their_release_artwork(): void
+    {
+        $release = $this->makeRelease(Genre::factory()->create(), 1, ['image' => 'cover.jpg']);
+        $track = $release->tracks
+            ->first();
+        $track->updateQuietly(['image' => null]);
+
+        $this->assertSame($release->files['artwork'], $track->fresh()->artworkUrl());
+    }
+
     public function test_exclusions_are_bounded(): void
     {
         $this->getJson('api/playlist?' . http_build_query(['exclude' => range(1, 101)]))
