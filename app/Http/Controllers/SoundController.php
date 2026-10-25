@@ -6,7 +6,9 @@ use App\Broadcasting\Channels;
 use App\Enums\HttpStatus;
 use App\Helpers\Providers;
 use App\Http\Resources\ProjectTrackStemResource;
+use App\Http\Resources\SoundCollection;
 use App\Http\Resources\SoundResource;
+use App\Http\Resources\SoundsStatusResource;
 use App\Models\Project;
 use App\Models\ProjectTrack;
 use App\Models\ProjectTrackVersion;
@@ -35,15 +37,18 @@ class SoundController extends Controller
         $user = $request->user();
         $connection = $user->freesound()->first();
 
-        return Providers::response()->success([
-            'data' => [
-                ...SoundSettings::clientConfig(),
-                'freesoundConnected' => (bool) $connection,
-                'freesoundUsername' => $connection?->username,
-                'storage' => Limits::for($user)->storage(),
-                'categories' => $this->categories(),
-            ],
+        $status = [
+            ...SoundSettings::clientConfig(),
+            'freesoundConnected' => (bool) $connection,
+            'freesoundUsername' => $connection?->username,
+            'storage' => Limits::for($user)->storage(),
+            'categories' => $this->categories(),
+        ];
+
+        return (new SoundsStatusResource($status))->additional([
             'message' => HttpStatus::message(HttpStatus::OK),
+            'status' => 'success',
+            'status_code' => HttpStatus::OK,
         ]);
     }
 
@@ -54,7 +59,11 @@ class SoundController extends Controller
     {
         abort_unless(SoundSettings::libraryEnabled(), HttpStatus::NOT_FOUND->value, 'The sound library is turned off.');
 
-        return $this->list($request, Sound::query()->library()->active());
+        $query = Sound::query()
+            ->library()
+            ->active();
+
+        return $this->list($request, $query);
     }
 
     /**
@@ -62,7 +71,9 @@ class SoundController extends Controller
      */
     public function index(Request $request)
     {
-        return $this->list($request, Sound::query()->where('user_id', $request->user()->id));
+        $query = Sound::query()->where('user_id', $request->user()->id);
+
+        return $this->list($request, $query);
     }
 
     /**
@@ -78,21 +89,32 @@ class SoundController extends Controller
             'waveform' => ['nullable'],
         ]);
 
-        Limits::for($request->user())->ensureRoomFor((int) $request->file('file')->getSize());
+        $user = $request->user();
+        $file = $request->file('file');
 
-        $sound = SoundLibrary::store($request->file('file'), [
-            'name' => $valid['name'] ?? str($request->file('file')->getClientOriginalName())->beforeLast('.')->limit(180, '')->toString(),
+        Limits::for($user)->ensureRoomFor((int) $file->getSize());
+
+        $name = $valid['name'] ?? str($file->getClientOriginalName())
+            ->beforeLast('.')
+            ->limit(180, '')
+            ->toString();
+
+        $sound = SoundLibrary::store($file, [
+            'name' => $name,
             'duration' => (float) ($valid['duration'] ?? 0),
             'bpm' => $valid['bpm'] ?? null,
             'waveform' => $this->waveform($request->input('waveform')),
-        ], $request->user());
+        ], $user);
 
-        return (new SoundResource($sound))->additional([
-            'storage' => Limits::for($request->user())->storage(),
-            'message' => 'Sound added to My sounds.',
-            'status' => 'success',
-            'status_code' => HttpStatus::CREATED,
-        ])->response()->setStatusCode(HttpStatus::CREATED->value);
+        return (new SoundResource($sound))
+            ->additional([
+                'storage' => Limits::for($user)->storage(),
+                'message' => 'Sound added to My sounds.',
+                'status' => 'success',
+                'status_code' => HttpStatus::CREATED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::CREATED->value);
     }
 
     /**
@@ -102,16 +124,21 @@ class SoundController extends Controller
     {
         $this->ensureOwn($request, $sound);
 
-        $sound->update($request->validate([
+        $valid = $request->validate([
             'name' => ['required', 'string', 'max:180'],
             'bpm' => ['nullable', 'numeric', 'between:20,300'],
-        ]));
+        ]);
 
-        return (new SoundResource($sound))->additional([
-            'message' => 'Sound updated.',
-            'status' => 'success',
-            'status_code' => HttpStatus::ACCEPTED,
-        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
+        $sound->update($valid);
+
+        return (new SoundResource($sound))
+            ->additional([
+                'message' => 'Sound updated.',
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 
     public function destroy(Request $request, Sound $sound)
@@ -120,11 +147,15 @@ class SoundController extends Controller
 
         $sound->delete();
 
-        return Providers::response()->success([
-            'data' => ['id' => $sound->id],
-            'storage' => Limits::for($request->user())->storage(),
-            'message' => 'Sound removed.',
-        ], HttpStatus::ACCEPTED);
+        return (new SoundResource($sound))
+            ->additional([
+                'storage' => Limits::for($request->user())->storage(),
+                'message' => 'Sound removed.',
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 
     /**
@@ -141,12 +172,17 @@ class SoundController extends Controller
             'start' => ['nullable', 'numeric', 'min:0', 'max:36000'],
         ]);
 
-        $sound = Sound::query()->active()->whereKey($valid['sound_id'])->where(function (Builder $q) use ($user) {
-            $q->where('user_id', $user->id);
-            if (SoundSettings::libraryEnabled()) {
-                $q->orWhereNull('user_id');
-            }
-        })->first();
+        $sound = Sound::query()
+            ->active()
+            ->whereKey($valid['sound_id'])
+            ->where(function (Builder $q) use ($user) {
+                $q->where('user_id', $user->id);
+
+                if (SoundSettings::libraryEnabled()) {
+                    $q->orWhereNull('user_id');
+                }
+            })
+            ->first();
 
         abort_unless($sound, HttpStatus::NOT_FOUND->value, 'That sound isn\'t available.');
 
@@ -162,11 +198,14 @@ class SoundController extends Controller
             'stem_id' => $stem->id,
         ]);
 
-        return (new ProjectTrackStemResource($stem))->additional([
-            'message' => 'Sound added to the track.',
-            'status' => 'success',
-            'status_code' => HttpStatus::CREATED,
-        ])->response()->setStatusCode(HttpStatus::CREATED->value);
+        return (new ProjectTrackStemResource($stem))
+            ->additional([
+                'message' => 'Sound added to the track.',
+                'status' => 'success',
+                'status_code' => HttpStatus::CREATED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::CREATED->value);
     }
 
     /**
@@ -180,13 +219,15 @@ class SoundController extends Controller
             'limit' => ['nullable', 'integer', 'between:1,100'],
         ]);
 
+        $category = $request->input('category');
+
         $sounds = $query
             ->search($request->input('search'))
-            ->when($request->filled('category'), fn($q) => $q->where('category', $request->input('category')))
+            ->when($category, fn(Builder $q) => $q->where('category', $category))
             ->latest('id')
-            ->paginate((int) $request->input('limit', 30));
+            ->paginate($request->perPage(30));
 
-        return SoundResource::collection($sounds)->additional([
+        return (new SoundCollection($sounds))->additional([
             'message' => HttpStatus::message(HttpStatus::OK),
             'status' => 'success',
             'status_code' => HttpStatus::OK,
@@ -202,8 +243,15 @@ class SoundController extends Controller
             return [];
         }
 
-        return Sound::query()->library()->active()->whereNotNull('category')
-            ->distinct()->orderBy('category')->limit(50)->pluck('category')->all();
+        return Sound::query()
+            ->library()
+            ->active()
+            ->whereNotNull('category')
+            ->distinct()
+            ->orderBy('category')
+            ->limit(50)
+            ->pluck('category')
+            ->all();
     }
 
     protected function ensureOwn(Request $request, Sound $sound): void
@@ -213,7 +261,9 @@ class SoundController extends Controller
 
     public static function audioRule(): string
     {
-        return str(collect(Providers::config('allowed_audio_exts'))->join(','))
+        $exts = collect(Providers::config('allowed_audio_exts'))->join(',');
+
+        return str($exts)
             ->remove('.')
             ->prepend('mimes:')
             ->toString();
@@ -232,6 +282,10 @@ class SoundController extends Controller
             return null;
         }
 
-        return collect($bars)->take(200)->map(fn($v) => round(max(0, min(1, (float) $v)), 3))->values()->all();
+        return collect($bars)
+            ->take(200)
+            ->map(fn($v) => round(max(0, min(1, (float) $v)), 3))
+            ->values()
+            ->all();
     }
 }

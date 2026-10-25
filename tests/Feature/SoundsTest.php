@@ -365,7 +365,7 @@ class SoundsTest extends TestCase
         $this->postJson('/api/sounds/freesound/callback', ['code' => 'abc', 'state' => $query['state']])
             ->assertOk()
             ->assertJsonPath('data.username', 'obi_fs')
-            ->assertJsonPath('data.return', null);
+            ->assertJsonPath('return', null);
 
         $connection = $this->owner->freesound()->first();
         $this->assertSame('access-1', $connection->access_token);
