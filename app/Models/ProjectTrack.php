@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Toneflix\LaravelFileable\Traits\Fileable;
@@ -190,6 +191,14 @@ class ProjectTrack extends Model
     /**
      * Get the stems for the Track
      */
+    /**
+     * The Composer song this track was made from, if any.
+     */
+    public function song(): HasOne
+    {
+        return $this->hasOne(Song::class, 'project_track_id');
+    }
+
     public function stems(): HasMany
     {
         return $this->hasMany(ProjectTrackStem::class, 'track_id');

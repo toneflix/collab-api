@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\SongCollection;
 use App\Http\Resources\SongResource;
 use App\Models\Song;
+use App\Services\Composer\SongProjects;
 use App\Services\Composer\Songs;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Http\Request;
@@ -69,7 +70,7 @@ class SongController extends Controller
     /**
      * Autosave: saves the fields sent, from the revision the editor last loaded.
      */
-    public function update(Request $request, Songs $songs, Song $song)
+    public function update(Request $request, Songs $songs, SongProjects $projects, Song $song)
     {
         $this->authorize('update', $song);
 
@@ -77,12 +78,22 @@ class SongController extends Controller
             'revision' => ['required', 'integer', 'min:1'],
         ]);
 
+        $lines = $song->lyricLines();
         $song = $songs->save($song, $this->user, $data, (int) $data['revision']);
-        $song->load('beat');
+        $song->load(['beat', 'track.project']);
+
+        // A song made into a project keeps its track's lyric sheet in step.
+        $synced = $song->track
+            && $song->lyricLines() !== $lines
+            && $this->user->can('update', $song->track);
+
+        if ($synced) {
+            $projects->syncLyrics($song, $this->user);
+        }
 
         return (new SongResource($song))
             ->additional([
-                'message' => 'Song saved.',
+                'message' => $synced ? 'Song saved and its lyric sheet updated.' : 'Song saved.',
                 'status' => 'success',
                 'status_code' => HttpStatus::ACCEPTED,
             ])

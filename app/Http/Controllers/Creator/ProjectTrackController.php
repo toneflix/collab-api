@@ -88,6 +88,10 @@ class ProjectTrackController extends Controller
     {
         $this->authorize('view', $track);
 
+        if ($this->user?->can('update', $track)) {
+            $track->load('song');
+        }
+
         return (new ProjectTrackResource($track))
             ->additional([
                 'message' => HttpStatus::message(HttpStatus::OK),

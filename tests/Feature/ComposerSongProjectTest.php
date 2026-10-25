@@ -221,4 +221,40 @@ class ComposerSongProjectTest extends TestCase
             ->assertUnprocessable()
             ->assertJsonValidationErrors('genre_id');
     }
+
+    public function test_saving_a_linked_song_updates_its_lyric_sheet_and_the_track_shows_the_song(): void
+    {
+        $song = $this->song($this->writer);
+        $this->actingAsFresh($this->writer);
+
+        $this->postJson("/api/creator/songs/{$song->id}/project", $this->payload())
+            ->assertCreated();
+
+        $song->refresh();
+        $track = $song->track;
+
+        $this->putJson("/api/creator/songs/{$song->id}", [
+            'revision' => $song->revision,
+            'body' => "[Verse 1]\nA line written after the project",
+        ])
+            ->assertAccepted()
+            ->assertJsonPath('message', 'Song saved and its lyric sheet updated.');
+
+        $lyric = Lyric::query()
+            ->whereMorphedTo('lyricable', $track)
+            ->first();
+        $this->assertSame('A line written after the project', $lyric->text);
+
+        $this->putJson("/api/creator/songs/{$song->id}", [
+            'revision' => $song->refresh()->revision,
+            'title' => 'A new title',
+        ])
+            ->assertAccepted()
+            ->assertJsonPath('message', 'Song saved.');
+
+        $this->getJson("/api/creator/projects/{$track->project_id}/tracks/{$track->id}")
+            ->assertOk()
+            ->assertJsonPath('data.song.id', $song->id)
+            ->assertJsonPath('data.song.body', "[Verse 1]\nA line written after the project");
+    }
 }
