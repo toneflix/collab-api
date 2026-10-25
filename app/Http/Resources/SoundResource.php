@@ -31,7 +31,7 @@ class SoundResource extends JsonResource
             'quality' => $this->quality,
             'size' => $this->size,
             'waveform' => $this->waveform ?? [],
-            'url' => $this->mediaInfo()['dynamicLink'],
+            'url' => $this->url(),
             'isActive' => $this->is_active,
             'takenDown' => $this->taken_down_at !== null,
             'mine' => $this->user_id !== null,

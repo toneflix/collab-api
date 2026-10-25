@@ -23,6 +23,7 @@ use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
+use Toneflix\LaravelFileable\Initiator;
 
 class SoundsTest extends TestCase
 {
@@ -371,6 +372,22 @@ class SoundsTest extends TestCase
         $this
             ->getJson('/api/admin/sounds')
             ->assertJsonPath('data.lastSync.added', 1);
+    }
+
+    public function test_admins_list_library_sounds_with_links_to_their_files(): void
+    {
+        $sound = $this->librarySound();
+        $path = 'public/media/sounds/' . $sound->file;
+
+        Sanctum::actingAs($this->admin());
+        $url = $this
+            ->getJson('/api/admin/sounds/library')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $sound->id)
+            ->json('data.0.url');
+
+        $this->assertSame($path, $sound->path());
+        $this->assertStringContainsString(Initiator::base64urlEncode($path), $url);
     }
 
     public function test_freesound_search_only_returns_cc0_sounds(): void
