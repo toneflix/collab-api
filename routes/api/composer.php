@@ -3,7 +3,8 @@
 use App\Http\Controllers\WordController;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware(['auth:sanctum', 'throttle:120,1'])
+Route::middleware(['auth:sanctum', 'throttle:composer'])
+    ->withoutMiddleware('throttle:api')
     ->prefix('words')
     ->name('words.')
     ->group(function () {

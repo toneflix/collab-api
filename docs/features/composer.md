@@ -34,7 +34,7 @@ Local lists put common words first. Each word's `rank` is its [SCOWL](http://wor
 
 ## Endpoints
 
-All need a signed-in user and are limited to 120 requests a minute. `limit` sets how many words come back.
+All need a signed-in user. Word lookups and the song routes share their own limit of 300 requests a minute per user, apart from the app-wide limit of 60, because the editor looks up words and autosaves as the writer types. `limit` sets how many words come back.
 
 | Method | Path | Returns |
 | --- | --- | --- |
