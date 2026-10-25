@@ -23,6 +23,9 @@ use Illuminate\Validation\ValidationException;
  */
 class SongProjects
 {
+    /** Song length asked for when the model takes one and the writer gave none */
+    public const DEFAULT_SECONDS = 180;
+
     public function __construct(
         protected Lyrics $lyrics,
         protected AiStudio $studio,
@@ -135,7 +138,7 @@ class SongProjects
         }
 
         $seconds = $model->maxSeconds()
-            ? min(max((int) ($data['seconds'] ?? 0), $model->minSeconds()), $model->maxSeconds(), AiSettings::musicMaxSeconds())
+            ? min(max((int) ($data['seconds'] ?? self::DEFAULT_SECONDS), $model->minSeconds()), $model->maxSeconds(), AiSettings::musicMaxSeconds())
             : null;
         $cost = $model->credits((int) $seconds);
 
