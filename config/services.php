@@ -40,6 +40,11 @@ return [
         'download_delay' => (float) env('FREESOUND_DOWNLOAD_DELAY', 2),
     ],
 
+    'datamuse' => [
+        'key' => env('DATAMUSE_API_KEY'),
+        'base_url' => env('DATAMUSE_BASE_URL', 'https://api.datamuse.com'),
+    ],
+
     'paystack' => [
         'public_key' => env('PAYSTACK_PUBLIC_KEY'),
         'secret_key' => env('PAYSTACK_SECRET_KEY'),
