@@ -60,7 +60,16 @@ class Artist extends Model
     {
         $this->fileableLoader([
             'image' => 'avatar',
+            'cover' => 'banner',
         ], 'default', true);
+    }
+
+    /**
+     * Whether the user's account manages this artist.
+     */
+    public function isManagedBy(?User $user): bool
+    {
+        return $user && $this->user_id && (int) $this->user_id === (int) $user->id;
     }
 
     public static function registerEvents()
@@ -74,7 +83,7 @@ class Artist extends Model
      * Retrieve the model for a bound value.
      *
      * @param  string|null  $field
-     * @return \Illuminate\Database\Eloquent\Model|null
+     * @return Model|null
      */
     public function resolveRouteBinding($value, $field = null)
     {
@@ -124,6 +133,22 @@ class Artist extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class)->withDefault(fn () => User::firstWhere('curator', true));
+    }
+
+    /**
+     * Requests from people who want to manage this artist.
+     */
+    public function claims(): HasMany
+    {
+        return $this->hasMany(ArtistClaim::class);
+    }
+
+    /**
+     * An artist no account manages yet can be claimed.
+     */
+    public function isClaimable(): bool
+    {
+        return ! $this->user_id;
     }
 
     public function recommendings(): MorphMany

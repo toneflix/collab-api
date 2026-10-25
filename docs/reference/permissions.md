@@ -13,7 +13,7 @@ Roles and permissions use [spatie/laravel-permission](https://spatie.be/docs/lar
 | `manage-configuration` | Configuration, Realtime, Sounds (and the Freesound library account), AI and Payouts > Providers |
 | `manage-plans` | Plans |
 | `manage-payouts` | Withdrawal requests |
-| `manage-content` | Moderation (reports, takedowns, appeals) |
+| `manage-content` | Moderation (reports, takedowns, appeals, artist claims) and editing or verifying any artist |
 | `manage-users` | Users: the list, each user's page, editing, suspending, verifying and AI credits |
 | `manage-admins` | With `manage-users`, changing roles and suspending other staff |
 

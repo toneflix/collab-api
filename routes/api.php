@@ -1,6 +1,7 @@
 <?php
 
 use App\Helpers\Providers;
+use App\Http\Controllers\ArtistClaimController;
 use App\Http\Controllers\ArtistController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\ExploreController;
@@ -106,6 +107,11 @@ Route::middleware(['auth:sanctum'])->group(function () {
             SocialInteractionController::class
         )->only(['store', 'index'])->names("$path.interactions");
     }
+
+    // Ask to manage an artist no account manages yet
+    Route::post('artists/{artist}/claims', [ArtistClaimController::class, 'store'])
+        ->middleware('throttle:5,1')
+        ->name('artists.claims.store');
 
     foreach (['users', 'artists'] as $path) {
         $param = str($path)->singular()->toString();
