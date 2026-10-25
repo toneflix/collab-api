@@ -155,7 +155,7 @@ class Recommendation
         return Track::query()
             ->with('genre')
             ->whereNotIn('id', $heard)
-            ->whereHas('release', fn (Builder $q) => $q->where('draft', false))
+            ->whereHas('release', fn (Builder $q) => $q->live())
             ->where(function (Builder $q) use ($genres, $artists) {
                 $q->whereIn('genre_id', $genres)
                     ->orWhereHas('artists', fn (Builder $q) => $q->whereIn('artists.id', $artists));

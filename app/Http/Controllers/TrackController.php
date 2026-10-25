@@ -23,7 +23,7 @@ class TrackController extends Controller
     {
         $query = $release
             ? $release->tracks()->getQuery()
-            : Track::query();
+            : Track::query()->whereHas('release', fn (Builder $q) => $q->live());
 
         $filters = str($request->filters)->remove(' ')->explode(',');
 

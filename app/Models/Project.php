@@ -26,7 +26,7 @@ use Toneflix\SocialInteractions\Traits\HasSocialInteractions;
  */
 #[ScopedBy([
     RestrictBlockedUserScope::class,
-    HideReportedModels::class
+    HideReportedModels::class,
 ])]
 class Project extends Model
 {
@@ -80,12 +80,11 @@ class Project extends Model
         });
 
         static::updated(function (self $model) {
-            if ($model->release) {
-                $model->release->title = $model->title;
-                $model->release->privacy = $model->privacy;
-                $model->release->description = $model->description;
-                $model->release->saveQuietly();
-            }
+            $model->releases()->where('draft', true)->update([
+                'title' => $model->title,
+                'privacy' => $model->privacy,
+                'description' => $model->description,
+            ]);
         });
 
         static::addGlobalScopes([
@@ -136,32 +135,38 @@ class Project extends Model
         return (int) $this->user_id === (int) $user->id || $this->isCollaber($user);
     }
 
-    public function collaberData(User $user, $pending = false): ProjectCollaborator|null
+    public function collaberData(User $user, $pending = false): ?ProjectCollaborator
     {
-        return $this->collaborators()->accepted(!$pending)->forUser($user)->first();
+        return $this->collaborators()->accepted(! $pending)->forUser($user)->first();
     }
 
     public function ready(): Attribute
     {
         return Attribute::make(
-            get: function () {
-                $this->tracks()->ready()->exists();
-            }
+            get: fn () => $this->tracks()->ready()->exists(),
         );
     }
 
     /**
-     * Get the release for this Project if available
+     * Every release of this project, one per version.
+     */
+    public function releases(): HasMany
+    {
+        return $this->hasMany(Release::class);
+    }
+
+    /**
+     * The latest release of this project, published or not.
      */
     public function release(): HasOne
     {
-        return $this->hasOne(Release::class);
+        return $this->hasOne(Release::class)->latest('id');
     }
 
     public function released(): Attribute
     {
         return Attribute::make(
-            get: fn () => $this->release && $this->release->draft !== true,
+            get: fn () => $this->releases()->where('draft', false)->exists(),
         );
     }
 
@@ -182,10 +187,9 @@ class Project extends Model
     public function scopeReleased(Builder $query, $released = true): void
     {
         if ($released === true) {
-            $query->whereHas('release', fn ($q) => $q->whereDraft(false));
+            $query->whereHas('releases', fn ($q) => $q->whereDraft(false));
         } else {
-            $query->whereDoesntHave('release');
-            $query->orWhereHas('release', fn ($q) => $q->whereDraft(true));
+            $query->whereDoesntHave('releases', fn ($q) => $q->whereDraft(false));
         }
     }
 

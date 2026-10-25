@@ -26,7 +26,7 @@ class PlaylistController extends Controller
         $query
             ->when($personal, fn (Builder $query) => $query->recommended($user))
             ->when(! $personal, fn (Builder $query) => $query
-                ->whereHas('release', fn (Builder $q) => $q->where('draft', false))
+                ->whereHas('release', fn (Builder $q) => $q->live())
                 ->withCount(['visits as plays' => fn (Builder $q) => $q->where('data->duration', '>', 0)])
                 ->orderByDesc('plays'))
             // Paid tracks the listener hasn't bought can't play, so leave them out.

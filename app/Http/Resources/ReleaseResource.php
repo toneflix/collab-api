@@ -29,6 +29,9 @@ class ReleaseResource extends JsonResource
             'slug' => $this->slug,
             'title' => $this->title,
             'draft' => $this->draft,
+            'version' => $this->version,
+            'retired' => $this->retired_at !== null,
+            'retiredAt' => $this->retired_at,
             'genre' => $this->when($with->contains('genre'), fn () => new GenreResource($this->genre)),
             'tracks' => $this->when($with->contains('tracks'), fn () => new TrackCollection($this->tracks)),
             'artist' => $this->when($with->contains('artist'), [

@@ -16,7 +16,7 @@ class ReleaseController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Release::query();
+        $query = Release::query()->live();
 
         $filters = str($request->filters)->remove(' ')->explode(',');
 

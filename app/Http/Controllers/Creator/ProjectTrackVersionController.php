@@ -44,8 +44,6 @@ class ProjectTrackVersionController extends Controller
     {
         $this->authorize('update', $track);
 
-        abort_if($project->released, HttpStatus::FORBIDDEN->value, 'Released tracks can\'t be changed.');
-
         $result = TrackHistory::for($track)->restore($version, $request->user());
 
         abort_unless($result['version'], HttpStatus::UNPROCESSABLE_ENTITY->value, 'The track already matches that version.');

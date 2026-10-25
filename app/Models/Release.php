@@ -50,6 +50,7 @@ class Release extends Model implements CanBeTakenDown, CanVisit
         'isrc',
         'iswc',
         'title',
+        'version',
         'image',
         'draft',
         'privacy',
@@ -88,6 +89,7 @@ class Release extends Model implements CanBeTakenDown, CanVisit
     {
         return [
             'draft' => 'boolean',
+            'retired_at' => 'datetime',
             'price' => 'float',
             'explicit' => 'boolean',
             'release_date' => 'date:Y/m/d',
@@ -100,6 +102,19 @@ class Release extends Model implements CanBeTakenDown, CanVisit
         $this->fileableLoader([
             'artwork' => 'artwork',
         ], 'default', true, false, 'image');
+    }
+
+    /**
+     * Published releases that haven't been retired.
+     */
+    public function scopeLive(Builder $query): void
+    {
+        $query->where($this->qualifyColumn('draft'), false)->whereNull($this->qualifyColumn('retired_at'));
+    }
+
+    public function isRetired(): bool
+    {
+        return $this->retired_at !== null;
     }
 
     public static function registerEvents()
