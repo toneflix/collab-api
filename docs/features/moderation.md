@@ -1,6 +1,6 @@
 # Moderation
 
-Moderation covers reports from people, copied-audio matches found automatically, takedowns, and appeals.
+Moderation covers reports from people, copied-audio matches and lyrics found automatically, takedowns, and appeals.
 
 ## Reports
 
@@ -28,9 +28,18 @@ Every uploaded track is checked by the queued `FingerprintTrack` job:
 
 Matches never take anything down on their own. Without Chromaprint only exact copies are caught; see [FFmpeg and Chromaprint](../guide/ffmpeg).
 
+## Lyrics check
+
+When a released track's lyrics are saved, whether written out by Whisper or by the creator, they are checked against two word lists in `config/lyrics.php`, plus words admins add on `/admin/ai`:
+
+- **Explicit words** mark the track explicit. Nothing goes to the queue.
+- **Words to review** add the track to the queue as a `lyrics` flag with the words found. A moderator who dismisses it won't see the same words flagged again.
+
+See [Lyrics](./ai#lyrics).
+
 ## In code
 
-- `App\Services\Moderation\Moderation` is the only place moderation state changes: `report`, `flagMatches`, `takeDown`, `dismiss`, `resolve`, `appeal`, `restore`, `uphold`.
+- `App\Services\Moderation\Moderation` is the only place moderation state changes: `report`, `flagMatches`, `flagLyrics`, `takeDown`, `dismiss`, `resolve`, `appeal`, `restore`, `uphold`.
 - `ModerationQueue` builds the admin views.
 - `Reportables` maps API type names to models. Reportable models implement `App\Contracts\Reportable` or `CanBeTakenDown`.
 - In the app: `ReportDialog`, `/admin/moderation` and `/studio/takedowns`.

@@ -31,6 +31,8 @@ class Safety extends Model
 
     public const TYPE_MATCH = 'match';
 
+    public const TYPE_LYRICS = 'lyrics';
+
     /**
      * The attributes that are mass assignable.
      *
@@ -55,16 +57,16 @@ class Safety extends Model
     ];
 
     public static $allowedReasons = [
-        "dmca",
-        "spam",
-        "hate",
-        "abuse",
-        "violent",
-        "privacy",
-        "sensitive",
-        "self-harm",
-        "copyright",
-        "child-safety",
+        'dmca',
+        'spam',
+        'hate',
+        'abuse',
+        'violent',
+        'privacy',
+        'sensitive',
+        'self-harm',
+        'copyright',
+        'child-safety',
     ];
 
     /**

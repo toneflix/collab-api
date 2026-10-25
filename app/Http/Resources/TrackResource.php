@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Services\Lyrics\LyricMatch;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -73,7 +74,12 @@ class TrackResource extends JsonResource
                     return $streamUrl;
                 }
             ),
-            'explicit' => $this->explicit,
+            'explicit' => (bool) $this->explicit || (bool) $this->release?->explicit,
+            'hasLyrics' => $this->when($this->relationLoaded('lyric'), fn () => $this->lyric !== null),
+            'lyricMatch' => $this->when(
+                $request->filled('search') && $this->relationLoaded('lyric'),
+                fn () => $this->lyric ? LyricMatch::line($this->lyric, (string) $request->search) : null
+            ),
             'description' => $this->description,
             'audioMissing' => ! $this->audio,
             'commentsCount' => $this->when($with->contains('comments_count'), fn () => $this->comments()->count()),

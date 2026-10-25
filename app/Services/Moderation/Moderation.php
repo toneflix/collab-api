@@ -121,6 +121,38 @@ class Moderation
     }
 
     /**
+     * Send a track whose lyrics use words to review to the moderation queue.
+     * A pending flag is updated, and words a moderator already reviewed
+     * aren't flagged again.
+     *
+     * @param  list<string>  $words
+     */
+    public function flagLyrics(Track $track, array $words): Safety
+    {
+        $words = collect($words)->unique()->sort()->values()->all();
+
+        $latest = Safety::query()->forItem($track)->where('type', Safety::TYPE_LYRICS)->latest('id')->first();
+
+        if ($latest && $latest->status !== Safety::PENDING && ($latest->data['words'] ?? null) === $words) {
+            return $latest;
+        }
+
+        $flag = $latest?->status === Safety::PENDING ? $latest : new Safety([
+            'model_type' => $track->getMorphClass(),
+            'model_id' => $track->id,
+            'type' => Safety::TYPE_LYRICS,
+        ]);
+
+        $flag->fill([
+            'reason' => 'hate',
+            'details' => 'The lyrics use words to review: '.implode(', ', array_map(fn ($word) => "“{$word}”", $words)).'.',
+            'data' => ['words' => $words],
+        ])->save();
+
+        return $flag;
+    }
+
+    /**
      * Take content down. Its pending reports are closed, and the owner and
      * reporters are told.
      */

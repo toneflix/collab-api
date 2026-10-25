@@ -34,6 +34,10 @@ class AiSettings extends SettingsStore
         'ai_music_credits' => ['Music Credits per 10 Seconds', '5', 'Credits a generated track uses for every 10 seconds of audio.'],
         'ai_stems_credits' => ['Stem Split Credits', '5', 'Credits one split into stems uses.'],
         'ai_music_max_seconds' => ['Longest Generated Track (seconds)', '300', 'The longest track people can generate at once.'],
+        'ai_lyrics_credits' => ['Lyrics Credits', '2', 'Credits one lyrics transcription in the studio uses.'],
+        'ai_lyrics_auto' => ['Transcribe Released Tracks', '1', 'Write out the lyrics of newly released tracks automatically. The app pays for these, not the creator.'],
+        'ai_lyrics_explicit_words' => ['More Explicit Words', null, 'Comma separated words that mark a track explicit, on top of the built-in list.'],
+        'ai_lyrics_review_words' => ['More Words to Review', null, 'Comma separated words or phrases that send a track to the moderation queue, on top of the built-in list.'],
     ];
 
     public const KEYS = [
@@ -105,6 +109,33 @@ class AiSettings extends SettingsStore
         return max(1, (int) self::get('ai_stems_credits'));
     }
 
+    public static function lyricsCredits(): int
+    {
+        return max(1, (int) self::get('ai_lyrics_credits'));
+    }
+
+    /**
+     * Whether released tracks get their lyrics transcribed when uploaded.
+     */
+    public static function autoLyrics(): bool
+    {
+        return self::enabled() && filter_var(self::get('ai_lyrics_auto'), FILTER_VALIDATE_BOOL);
+    }
+
+    /**
+     * Words admins added to a lyrics check list, "explicit" or "review".
+     *
+     * @return list<string>
+     */
+    public static function lyricsWords(string $list): array
+    {
+        return collect(explode(',', (string) self::get("ai_lyrics_{$list}_words")))
+            ->map(fn (string $word) => mb_strtolower(trim($word)))
+            ->filter()
+            ->values()
+            ->all();
+    }
+
     public static function musicMaxSeconds(): int
     {
         return min(300, max(10, (int) self::get('ai_music_max_seconds')));
@@ -124,6 +155,7 @@ class AiSettings extends SettingsStore
             'costs' => [
                 'music10s' => max(1, (int) self::get('ai_music_credits')),
                 'stems' => self::stemsCredits(),
+                'lyrics' => self::lyricsCredits(),
             ],
             'musicMaxSeconds' => self::musicMaxSeconds(),
         ];

@@ -43,6 +43,10 @@ class AiSettingsController extends Controller
             'ai_music_credits' => ['nullable', 'integer', 'between:1,1000'],
             'ai_stems_credits' => ['nullable', 'integer', 'between:1,1000'],
             'ai_music_max_seconds' => ['nullable', 'integer', 'between:10,300'],
+            'ai_lyrics_credits' => ['nullable', 'integer', 'between:1,1000'],
+            'ai_lyrics_auto' => ['nullable', 'boolean'],
+            'ai_lyrics_explicit_words' => ['nullable', 'string', 'max:2000'],
+            'ai_lyrics_review_words' => ['nullable', 'string', 'max:2000'],
         ], [
             'ai_credit_packs.regex' => 'List pack sizes like "100, 500:10, 2000:20".',
         ]);

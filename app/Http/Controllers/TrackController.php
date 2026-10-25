@@ -28,6 +28,7 @@ class TrackController extends Controller
         $filters = str($request->filters)->remove(' ')->explode(',');
 
         $query
+            ->when($request->filled('search'), fn (Builder $q) => $q->search((string) $request->search)->with('lyric'))
             ->when($request->has('genre'), fn (Builder $q) => $q->genre($request->genre))
             ->when($filters->contains('latest'), fn (Builder $q) => $q->latestInPeriod($request->period))
             ->when(

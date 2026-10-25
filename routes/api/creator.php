@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Creator\AiController;
 use App\Http\Controllers\Creator\ArtistController;
+use App\Http\Controllers\Creator\LyricsController;
 use App\Http\Controllers\Creator\ProjectCollaboratorController;
 use App\Http\Controllers\Creator\ProjectController;
 use App\Http\Controllers\Creator\ProjectTrackAssetController;
@@ -28,6 +29,11 @@ Route::middleware(['auth:sanctum'])->prefix('creator')->name('creator.')->group(
         Route::post('projects/{project}/tracks/{track}/ai/music', [AiController::class, 'music'])->middleware('throttle:10,1')->name('projects.tracks.ai.music');
         Route::post('projects/{project}/tracks/{track}/stems/{stem}/split', [AiController::class, 'split'])->middleware('throttle:10,1')->name('projects.tracks.stems.split');
 
+        // Lyric sheet
+        Route::get('projects/{project}/tracks/{track}/lyrics', [LyricsController::class, 'show'])->name('projects.tracks.lyrics.show');
+        Route::put('projects/{project}/tracks/{track}/lyrics', [LyricsController::class, 'update'])->name('projects.tracks.lyrics.update');
+        Route::post('projects/{project}/tracks/{track}/stems/{stem}/lyrics', [LyricsController::class, 'transcribe'])->middleware('throttle:10,1')->name('projects.tracks.stems.lyrics');
+
         Route::get('projects/{project}/tracks/{track}/versions', [ProjectTrackVersionController::class, 'index'])
             ->name('projects.tracks.versions.index');
         Route::post('projects/{project}/tracks/{track}/versions/{version}/restore', [ProjectTrackVersionController::class, 'restore'])
@@ -35,5 +41,6 @@ Route::middleware(['auth:sanctum'])->prefix('creator')->name('creator.')->group(
         Route::apiResource('projects/{project}/tracks/{track}/assets', ProjectTrackAssetController::class);
     });
     Route::get('ai/jobs/{job}', [AiController::class, 'show'])->name('ai.jobs.show');
+    Route::put('tracks/{track}/lyrics', [LyricsController::class, 'updateTrack'])->name('tracks.lyrics.update');
     Route::apiResource('projects/{project}/collaborators', ProjectCollaboratorController::class);
 });

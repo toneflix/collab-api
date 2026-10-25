@@ -49,7 +49,7 @@ class ModerationController extends Controller
         $valid = $request->validate([
             'type' => ['nullable', Rule::in($this->reportables->names())],
             'reason' => ['nullable', Rule::in(Safety::$allowedReasons)],
-            'source' => ['nullable', Rule::in([Safety::TYPE_REPORT, Safety::TYPE_MATCH])],
+            'source' => ['nullable', Rule::in([Safety::TYPE_REPORT, Safety::TYPE_MATCH, Safety::TYPE_LYRICS])],
             'limit' => ['nullable', 'integer', 'between:1,50'],
         ]);
 
