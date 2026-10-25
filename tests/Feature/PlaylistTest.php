@@ -108,11 +108,25 @@ class PlaylistTest extends TestCase
         [$seed, $albumMate] = $album->tracks->all();
         $albumMate->updateQuietly(['genre_id' => $other->id]);
 
-        $rest = $this->makeRelease($other, 1, ['record_label' => 'Other Records'])->tracks->first();
-        $label = $this->makeRelease($other, 1, ['record_label' => 'Seed Records'])->tracks->first();
-        $artist = $this->makeRelease($other, 1, ['record_label' => 'Other Records'])->tracks->first();
-        $artist->artists()->attach($seed->artists()->pluck('artists.id'));
-        $related = $this->makeRelease($genre, 1, ['record_label' => 'Other Records'])->tracks->first();
+        $rest = $this
+            ->makeRelease($other, 1, ['record_label' => 'Other Records'])->tracks
+            ->first();
+        $label = $this
+            ->makeRelease($other, 1, ['record_label' => 'Seed Records'])->tracks
+            ->first();
+        $artist = $this
+            ->makeRelease($other, 1, ['record_label' => 'Other Records'])->tracks
+            ->first();
+        $seedArtists = $seed
+            ->artists()
+            ->pluck('artists.id');
+
+        $artist
+            ->artists()
+            ->attach($seedArtists);
+        $related = $this
+            ->makeRelease($genre, 1, ['record_label' => 'Other Records'])->tracks
+            ->first();
 
         $ids = $this->playlist(['similar_to' => $seed->id]);
 
