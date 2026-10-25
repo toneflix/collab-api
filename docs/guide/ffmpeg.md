@@ -86,3 +86,11 @@ FAUST_PLUGIN_PATH=/var/lib/toneflix/faust
 ```
 
 Without the compiler, the studio offers no Faust effects, and a mix leaves out any it finds. Each new `.dsp` file needs the `tf_label`, `tf_group` and `tf_description` declarations. Its sliders become the effect's settings.
+
+## Plugins the server can't run
+
+Creators can also add any Web Audio Module (WAM) plugin to a stem by its URL. FFmpeg can't run those, so when the studio saves, it renders the stem through its whole chain in the browser and uploads the result as a WAV (`POST creator/projects/{project}/tracks/{track}/stems/{stem}/print`). The stem keeps its own audio and the plugin's settings, so it can be printed again after any change.
+
+The mix plays the printed audio in place of the stem while at least one plugin in its chain is switched on. Volume, pan, mute and solo still apply on the server. The print is saved under `meta.print` and is left out of copies of the stem.
+
+Prints are 16-bit WAV, about 10 MB a minute. `STUDIO_PRINT_MAX_MB` caps them (100 by default), and PHP's `upload_max_filesize` and `post_max_size` must allow that size too.

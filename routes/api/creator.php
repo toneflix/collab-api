@@ -29,6 +29,7 @@ Route::middleware(['auth:sanctum'])
             Route::apiResource('projects/{project}/tracks', ProjectTrackController::class)->names('projects.tracks');
             Route::apiResource('projects/{project}/tracks/{track}/stems', ProjectTrackStemController::class);
             Route::post('projects/{project}/tracks/{track}/stems/{stem}/duplicate', [ProjectTrackStemController::class, 'duplicate'])->name('projects.tracks.stems.duplicate');
+            Route::post('projects/{project}/tracks/{track}/stems/{stem}/print', [ProjectTrackStemController::class, 'print'])->name('projects.tracks.stems.print');
 
             // AI tools
             Route::get('projects/{project}/tracks/{track}/ai/jobs', [AiController::class, 'jobs'])->name('projects.tracks.ai.jobs');
