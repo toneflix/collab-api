@@ -319,6 +319,11 @@ class ReleaseController extends Controller
                     $track->projectTrack->saveQuietly();
                 }
                 $track->artists()->sync($artists);
+
+                // Saved quietly above, so the lyrics and tags from the studio are queued here.
+                if ($track->wasRecentlyCreated) {
+                    $track->queueSoundChecks(isset($form['audio']));
+                }
             }
         });
     }

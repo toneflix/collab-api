@@ -2,12 +2,16 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\TagAudio;
+use App\Jobs\TranscribeTrack;
 use App\Models\Artist;
 use App\Models\Genre;
+use App\Models\Lyric;
 use App\Models\Project;
 use App\Models\ProjectTrack;
 use App\Models\ProjectTrackStem;
 use App\Models\User;
+use App\Services\Lyrics\Lyrics;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Queue;
 use Laravel\Sanctum\Sanctum;
@@ -150,6 +154,30 @@ class ProjectReleaseTest extends TestCase
             ->assertCreated();
 
         $this->assertNotNull($this->project->releases()->find($first)->retired_at);
+    }
+
+    public function test_released_tracks_queue_their_lyrics_and_tags_from_the_studio(): void
+    {
+        Sanctum::actingAs($this->owner);
+
+        $this->postJson('/api/creator/releases', $this->releaseForm(['draft' => false]))->assertCreated();
+
+        Queue::assertPushed(TranscribeTrack::class, 1);
+        Queue::assertPushed(TagAudio::class, fn (TagAudio $job) => $job->inherit);
+    }
+
+    public function test_a_released_track_without_lyrics_picks_up_the_studio_sheet(): void
+    {
+        Sanctum::actingAs($this->owner);
+
+        $id = $this->postJson('/api/creator/releases', $this->releaseForm(['draft' => false]))->json('data.id');
+        $track = $this->project->releases()->find($id)->tracks()->first();
+
+        app(Lyrics::class)->save($this->track, [['start' => 1, 'end' => 2, 'text' => 'Written in the studio']], Lyric::WRITTEN, $this->owner);
+        $track->lyric()->delete();
+
+        $this->getJson("/api/tracks/{$track->id}/lyrics")->assertJsonPath('data.lines.0.text', 'Written in the studio');
+        $this->assertNotNull(app(Lyrics::class)->for($track));
     }
 
     public function test_drafts_cannot_be_retired(): void
