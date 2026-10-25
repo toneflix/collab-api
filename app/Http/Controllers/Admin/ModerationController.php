@@ -4,12 +4,15 @@ namespace App\Http\Controllers\Admin;
 
 use App\Contracts\CanBeTakenDown;
 use App\Enums\HttpStatus;
-use App\Helpers\Providers;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\ActionResource;
 use App\Http\Resources\AiReviewResource;
+use App\Http\Resources\ArtistClaimCollection;
 use App\Http\Resources\ArtistClaimResource;
-use App\Http\Resources\ModerationItemResource;
+use App\Http\Resources\ModerationItemCollection;
+use App\Http\Resources\ReleaseReviewCollection;
 use App\Http\Resources\ReleaseReviewResource;
+use App\Http\Resources\TakedownCollection;
 use App\Http\Resources\TakedownResource;
 use App\Models\AiReview;
 use App\Models\ArtistClaim;
@@ -25,9 +28,9 @@ use App\Services\Releases\ReleaseVersions;
 use Closure;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
-use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Validation\Rule;
+use Toneflix\ResourceModifier\Services\Json\JsonResource;
+use Toneflix\ResourceModifier\Services\Json\ResourceCollection;
 
 /**
  * The moderation queue: reported and flagged content, takedowns and appeals.
@@ -66,8 +69,9 @@ class ModerationController extends Controller
         ]);
 
         $items = $this->queue->pending($valid, (int) ($valid['limit'] ?? 20));
+        $list = new ModerationItemCollection($items);
 
-        return $this->list(ModerationItemResource::collection($items));
+        return $this->list($list);
     }
 
     public function takedowns(Request $request)
@@ -79,8 +83,9 @@ class ModerationController extends Controller
         ]);
 
         $takedowns = $this->queue->takedowns($valid['status'] ?? null, $valid['search'] ?? null, (int) ($valid['limit'] ?? 20));
+        $list = new TakedownCollection($takedowns);
 
-        return $this->list(TakedownResource::collection($takedowns));
+        return $this->list($list);
     }
 
     /**
@@ -94,8 +99,9 @@ class ModerationController extends Controller
         ]);
 
         $releases = $this->queue->releases($valid['search'] ?? null, (int) ($valid['limit'] ?? 20));
+        $list = new ReleaseReviewCollection($releases);
 
-        return $this->list(ReleaseReviewResource::collection($releases));
+        return $this->list($list);
     }
 
     public function approveRelease(Request $request, Release $reviewRelease, ReleaseVersions $versions)
@@ -104,10 +110,7 @@ class ModerationController extends Controller
 
         $versions->approve($reviewRelease, $request->user());
 
-        return Providers::response()->success([
-            'data' => ['id' => $reviewRelease->id],
-            'message' => 'Approved. The release is live and its owner was told.',
-        ], HttpStatus::ACCEPTED);
+        return $this->done(new ReleaseReviewResource($reviewRelease), 'Approved. The release is live and its owner was told.');
     }
 
     public function rejectRelease(Request $request, Release $reviewRelease, ReleaseVersions $versions)
@@ -118,10 +121,7 @@ class ModerationController extends Controller
 
         $versions->reject($reviewRelease, $request->user(), $valid['note']);
 
-        return Providers::response()->success([
-            'data' => ['id' => $reviewRelease->id],
-            'message' => 'Sent back to its owner with your note.',
-        ], HttpStatus::ACCEPTED);
+        return $this->done(new ReleaseReviewResource($reviewRelease), 'Sent back to its owner with your note.');
     }
 
     /**
@@ -135,9 +135,10 @@ class ModerationController extends Controller
             'limit' => ['nullable', 'integer', 'between:1,50'],
         ]);
 
-        $list = $claims->queue($valid['status'] ?? ArtistClaim::PENDING, $valid['search'] ?? null, (int) ($valid['limit'] ?? 20));
+        $queue = $claims->queue($valid['status'] ?? ArtistClaim::PENDING, $valid['search'] ?? null, (int) ($valid['limit'] ?? 20));
+        $list = new ArtistClaimCollection($queue);
 
-        return $this->list(ArtistClaimResource::collection($list));
+        return $this->list($list);
     }
 
     public function approveClaim(Request $request, ArtistClaim $claim, ArtistClaims $claims)
@@ -146,10 +147,7 @@ class ModerationController extends Controller
 
         $claims->approve($claim, $request->user(), $valid['note'] ?? null);
 
-        return Providers::response()->success([
-            'data' => ['id' => $claim->id],
-            'message' => 'Approved. The artist is now linked to the claimant\'s account.',
-        ], HttpStatus::ACCEPTED);
+        return $this->done(new ArtistClaimResource($claim), 'Approved. The artist is now linked to the claimant\'s account.');
     }
 
     public function rejectClaim(Request $request, ArtistClaim $claim, ArtistClaims $claims)
@@ -158,10 +156,7 @@ class ModerationController extends Controller
 
         $claims->reject($claim, $request->user(), $valid['note']);
 
-        return Providers::response()->success([
-            'data' => ['id' => $claim->id],
-            'message' => 'Declined. The claimant was told why.',
-        ], HttpStatus::ACCEPTED);
+        return $this->done(new ArtistClaimResource($claim), 'Declined. The claimant was told why.');
     }
 
     /**
@@ -169,7 +164,9 @@ class ModerationController extends Controller
      */
     public function aiReviewClaim(Request $request, ArtistClaim $claim, AiModerator $moderator)
     {
-        return $this->sentToAi($moderator->send($claim, $request->user()));
+        $review = $moderator->send($claim, $request->user());
+
+        return $this->sentToAi($review);
     }
 
     /**
@@ -177,12 +174,16 @@ class ModerationController extends Controller
      */
     public function aiReviewRelease(Request $request, Release $reviewRelease, AiModerator $moderator)
     {
-        return $this->sentToAi($moderator->send($reviewRelease, $request->user()));
+        $review = $moderator->send($reviewRelease, $request->user());
+
+        return $this->sentToAi($review);
     }
 
     protected function sentToAi(AiReview $review)
     {
-        return $this->done(new AiReviewResource($review->refresh()), 'Sent to the AI moderator. Its decision shows here when it is done.', HttpStatus::ACCEPTED);
+        $review->refresh();
+
+        return $this->done(new AiReviewResource($review), 'Sent to the AI moderator. Its decision shows here when it is done.');
     }
 
     public function claimDocument(ArtistClaim $claim, ArtistClaims $claims)
@@ -198,31 +199,31 @@ class ModerationController extends Controller
         ]);
 
         $item = $this->item($type, $id);
+
         abort_unless($item instanceof CanBeTakenDown, HttpStatus::UNPROCESSABLE_ENTITY->value, 'This kind of content can\'t be taken down.');
 
         $takedown = $this->moderation->takeDown($item, $request->user(), $valid['reason'], $valid['note'] ?? null);
+        $takedown->refresh();
 
-        return $this->done(new TakedownResource($takedown->fresh()), 'Taken down. The owner and reporters were told.', HttpStatus::CREATED);
+        return $this->done(new TakedownResource($takedown), 'Taken down. The owner and reporters were told.', HttpStatus::CREATED);
     }
 
     public function dismiss(Request $request, string $type, int $id)
     {
-        $closed = $this->moderation->dismiss($this->item($type, $id), $request->user());
+        $item = $this->item($type, $id);
+        $closed = $this->moderation->dismiss($item, $request->user());
+        $result = ['closed' => $closed];
 
-        return Providers::response()->success([
-            'data' => ['closed' => $closed],
-            'message' => 'Reports dismissed.',
-        ], HttpStatus::ACCEPTED);
+        return $this->done(new ActionResource($result), 'Reports dismissed.');
     }
 
     public function resolve(Request $request, string $type, int $id)
     {
-        $closed = $this->moderation->resolve($this->item($type, $id), $request->user());
+        $item = $this->item($type, $id);
+        $closed = $this->moderation->resolve($item, $request->user());
+        $result = ['closed' => $closed];
 
-        return Providers::response()->success([
-            'data' => ['closed' => $closed],
-            'message' => 'Reports marked as handled.',
-        ], HttpStatus::ACCEPTED);
+        return $this->done(new ActionResource($result), 'Reports marked as handled.');
     }
 
     public function restore(Request $request, Takedown $takedown)
@@ -231,7 +232,11 @@ class ModerationController extends Controller
 
         $this->moderation->restore($takedown, $request->user(), $valid['resolution'] ?? null);
 
-        return $this->done(new TakedownResource($takedown->fresh('moderator')), 'Restored. The owner was told.', HttpStatus::ACCEPTED);
+        $takedown
+            ->refresh()
+            ->load('moderator');
+
+        return $this->done(new TakedownResource($takedown), 'Restored. The owner was told.');
     }
 
     public function uphold(Request $request, Takedown $takedown)
@@ -240,7 +245,11 @@ class ModerationController extends Controller
 
         $this->moderation->uphold($takedown, $request->user(), $valid['resolution'] ?? null);
 
-        return $this->done(new TakedownResource($takedown->fresh('moderator')), 'Appeal declined. The owner was told.', HttpStatus::ACCEPTED);
+        $takedown
+            ->refresh()
+            ->load('moderator');
+
+        return $this->done(new TakedownResource($takedown), 'Appeal declined. The owner was told.');
     }
 
     protected function item(string $type, int $id): Model
@@ -248,6 +257,7 @@ class ModerationController extends Controller
         abort_unless(in_array($type, $this->reportables->names(), true), HttpStatus::NOT_FOUND->value);
 
         $item = $this->reportables->find($type, $id);
+
         abort_unless($item, HttpStatus::NOT_FOUND->value, 'That content no longer exists.');
 
         return $item;
@@ -256,25 +266,30 @@ class ModerationController extends Controller
     /**
      * A page of a moderation list, with the counts the tabs show.
      */
-    protected function list(AnonymousResourceCollection $list)
+    protected function list(ResourceCollection $list)
     {
+        $stats = [
+            ...$this->queue->stats(),
+            'aiModerator' => app(AiModerator::class)->available(),
+        ];
+
         return $list->additional([
-            'stats' => [
-                ...$this->queue->stats(),
-                'aiModerator' => app(AiModerator::class)->available(),
-            ],
+            'stats' => $stats,
             'message' => HttpStatus::message(HttpStatus::OK),
             'status' => 'success',
             'status_code' => HttpStatus::OK,
         ]);
     }
 
-    protected function done(JsonResource $resource, string $message, HttpStatus $status)
+    protected function done(JsonResource $resource, string $message, HttpStatus $status = HttpStatus::ACCEPTED)
     {
-        return $resource->additional([
-            'message' => $message,
-            'status' => 'success',
-            'status_code' => $status,
-        ])->response()->setStatusCode($status->value);
+        return $resource
+            ->additional([
+                'message' => $message,
+                'status' => 'success',
+                'status_code' => $status,
+            ])
+            ->response()
+            ->setStatusCode($status->value);
     }
 }

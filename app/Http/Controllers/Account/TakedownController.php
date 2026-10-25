@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Account;
 
 use App\Enums\HttpStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\TakedownCollection;
 use App\Http\Resources\TakedownResource;
 use App\Models\Takedown;
 use App\Services\Moderation\Moderation;
@@ -21,7 +22,7 @@ class TakedownController extends Controller
 
         $takedowns = $queue->takedownsFor($request->user(), (int) $request->input('limit', 20));
 
-        return TakedownResource::collection($takedowns)->additional([
+        return (new TakedownCollection($takedowns))->additional([
             'message' => HttpStatus::message(HttpStatus::OK),
             'status' => 'success',
             'status_code' => HttpStatus::OK,
@@ -38,10 +39,15 @@ class TakedownController extends Controller
 
         $moderation->appeal($takedown, $request->user(), $valid['message']);
 
-        return (new TakedownResource($takedown->fresh()))->additional([
-            'message' => 'Appeal sent. A moderator will look at it again.',
-            'status' => 'success',
-            'status_code' => HttpStatus::ACCEPTED,
-        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
+        $takedown->refresh();
+
+        return (new TakedownResource($takedown))
+            ->additional([
+                'message' => 'Appeal sent. A moderator will look at it again.',
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 }
