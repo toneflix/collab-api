@@ -28,7 +28,7 @@ class ModerationQueue
     /**
      * Content with pending reports, most reported first.
      *
-     * @param  array{type?: ?string, reason?: ?string, source?: ?string}  $filters
+     * @param  array{type?: ?string, reason?: ?string, source?: ?string, search?: ?string}  $filters
      */
     public function pending(array $filters = [], int $perPage = 20): LengthAwarePaginator
     {
@@ -97,20 +97,28 @@ class ModerationQueue
     /**
      * Published releases waiting for an admin to approve them, oldest first.
      */
-    public function releases(int $perPage = 20): LengthAwarePaginator
+    public function releases(?string $search = null, int $perPage = 20): LengthAwarePaginator
     {
         return Release::query()
             ->withoutGlobalScope(RestrictBlockedUserScope::class)
             ->inReview()
+            ->when($search, fn (Builder $q, string $search) => $q->where(fn (Builder $q) => $q
+                ->whereLike('title', "%{$search}%")
+                ->orWhereLike('version', "%{$search}%")
+                ->orWhereHas('user', fn (Builder $q) => $q->withoutGlobalScopes()->where(fn (Builder $q) => $q
+                    ->whereLike('username', "%{$search}%")
+                    ->orWhereLike('firstname', "%{$search}%")
+                    ->orWhereLike('lastname', "%{$search}%")))))
             ->with(['user', 'artist', 'project'])
             ->oldest('updated_at')
             ->paginate($perPage);
     }
 
-    public function takedowns(?string $status = null, int $perPage = 20): LengthAwarePaginator
+    public function takedowns(?string $status = null, ?string $search = null, int $perPage = 20): LengthAwarePaginator
     {
         return Takedown::query()
             ->when($status, fn (Builder $q) => $q->where('status', $status))
+            ->when($search, fn (Builder $q, string $search) => $this->reportables->whereContentMatches($q, $search))
             ->with('moderator')
             ->when($status === Takedown::APPEALED, fn (Builder $q) => $q->oldest('appealed_at'), fn (Builder $q) => $q->latest('id'))
             ->paginate($perPage);
@@ -172,14 +180,15 @@ class ModerationQueue
     }
 
     /**
-     * @param  array{type?: ?string, reason?: ?string, source?: ?string}  $filters
+     * @param  array{type?: ?string, reason?: ?string, source?: ?string, search?: ?string}  $filters
      */
     protected function filtered(Builder $query, array $filters): Builder
     {
         return $query
             ->when($filters['type'] ?? null, fn (Builder $q, string $type) => $q->where('model_type', $this->reportables->classFor($type)))
             ->when($filters['reason'] ?? null, fn (Builder $q, string $reason) => $q->where('reason', $reason))
-            ->when($filters['source'] ?? null, fn (Builder $q, string $source) => $q->where('type', $source));
+            ->when($filters['source'] ?? null, fn (Builder $q, string $source) => $q->where('type', $source))
+            ->when($filters['search'] ?? null, fn (Builder $q, string $search) => $this->reportables->whereContentMatches($q, $search));
     }
 
     /**
