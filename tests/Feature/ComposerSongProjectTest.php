@@ -260,4 +260,57 @@ class ComposerSongProjectTest extends TestCase
             ->assertJsonPath('data.song.key', 'A minor')
             ->assertJsonPath('data.song.mood', 'hopeful');
     }
+
+    public function test_a_song_joins_a_project_the_writer_can_edit(): void
+    {
+        $owner = $this->writerOnPlan(true, 100);
+        $project = Project::query()
+            ->forceCreate(['user_id' => $owner->id, 'title' => 'Night Drive EP', 'privacy' => 'private']);
+        $project
+            ->collaborators()
+            ->forceCreate(['user_id' => $this->writer->id, 'role' => 'writer', 'accepted' => true]);
+        $project
+            ->tracks()
+            ->forceCreate(['title' => 'Intro', 'privacy' => 'private']);
+        $song = $this->song($this->writer);
+        $projects = Project::query()->count();
+        $this->actingAsFresh($this->writer);
+
+        $this->getJson('/api/creator/projects?search=night%20drive')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $project->id);
+
+        $this->postJson("/api/creator/songs/{$song->id}/project", $this->payload(['project_id' => $project->id]))
+            ->assertCreated()
+            ->assertJsonPath('message', 'Track added to Night Drive EP with the lyric sheet.')
+            ->assertJsonPath('data.project.id', $project->id);
+
+        $track = $song
+            ->refresh()
+            ->track;
+        $this->assertSame($project->id, $track->project_id);
+        $this->assertSame('Late Night Train', $track->title);
+        $this->assertSame(2, $project->tracks()->count());
+        $this->assertSame($projects, Project::query()->count());
+
+        $lyric = Lyric::query()
+            ->whereMorphedTo('lyricable', $track)
+            ->first();
+        $this->assertStringStartsWith('City lights are humming', $lyric->text);
+    }
+
+    public function test_a_song_cannot_join_a_project_the_writer_cannot_edit(): void
+    {
+        $owner = $this->writerOnPlan(true, 100);
+        $project = Project::query()
+            ->forceCreate(['user_id' => $owner->id, 'title' => 'Not yours', 'privacy' => 'public']);
+        $song = $this->song($this->writer);
+        $this->actingAsFresh($this->writer);
+
+        $this->postJson("/api/creator/songs/{$song->id}/project", $this->payload(['project_id' => $project->id]))
+            ->assertForbidden();
+
+        $this->assertSame(0, $project->tracks()->count());
+        $this->assertNull($song->refresh()->project_track_id);
+    }
 }

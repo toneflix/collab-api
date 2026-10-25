@@ -5,6 +5,7 @@ namespace App\Services\Composer;
 use App\Enums\Feature;
 use App\Models\AiJob;
 use App\Models\Lyric;
+use App\Models\Project;
 use App\Models\ProjectTrack;
 use App\Models\Song;
 use App\Models\User;
@@ -18,8 +19,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Turns a Composer song into a project with one track carrying its lyric
- * sheet, and can have AI sing the lyrics onto that track.
+ * Turns a Composer song into a project track carrying its lyric sheet, on a
+ * new project or one the writer can edit, and can have AI sing the lyrics
+ * onto that track.
  */
 class SongProjects
 {
@@ -32,13 +34,14 @@ class SongProjects
     ) {}
 
     /**
-     * Create the project and track. With `generate`, AI makes a song from the
-     * lyrics on the track; that is checked before anything is created.
+     * Create the track, on `$project` when given or else on a new project.
+     * With `generate`, AI makes a song from the lyrics on the track; that is
+     * checked before anything is created.
      *
      * @param  array{title?: ?string, privacy?: ?string, genre_id: string, artist_id: string, generate?: bool, prompt?: ?string, seconds?: ?int}  $data
      * @return array{track: ProjectTrack, job: ?AiJob}
      */
-    public function create(Song $song, User $user, array $data): array
+    public function create(Song $song, User $user, array $data, ?Project $project = null): array
     {
         if ($song->track) {
             throw ValidationException::withMessages(['song' => 'This song already has a project. Update its lyric sheet instead.']);
@@ -48,18 +51,20 @@ class SongProjects
             throw ValidationException::withMessages(['song' => 'Write some lyrics before making a project from this song.']);
         }
 
-        Limits::for($user)->ensureBelow(
-            Feature::MAX_PROJECTS,
-            $user->projects()->count(),
-            'title',
-            'Your account can have up to :limit projects.'
-        );
+        if (! $project) {
+            Limits::for($user)->ensureBelow(
+                Feature::MAX_PROJECTS,
+                $user->projects()->count(),
+                'title',
+                'Your account can have up to :limit projects.'
+            );
+        }
 
         $input = ! empty($data['generate']) ? $this->musicInput($song, $user, $data) : null;
         $title = trim((string) ($data['title'] ?? '')) ?: $song->title;
 
-        $track = DB::transaction(function () use ($song, $user, $data, $title) {
-            $project = $user
+        $track = DB::transaction(function () use ($song, $user, $data, $title, $project) {
+            $project ??= $user
                 ->projects()
                 ->create([
                     'title' => $title,
@@ -84,7 +89,13 @@ class SongProjects
             return $track;
         });
 
-        (new Reputation($user, $user->projects()->count() > 1 ? 'create_project' : 'first_project'))->add();
+        $action = match (true) {
+            $project !== null => 'create_project_track',
+            $user->projects()->count() > 1 => 'create_project',
+            default => 'first_project',
+        };
+
+        (new Reputation($user, $action))->add();
 
         $job = $input ? $this->studio->start($user, $track, 'music', $input) : null;
 

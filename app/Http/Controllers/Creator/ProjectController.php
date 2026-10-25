@@ -32,7 +32,11 @@ class ProjectController extends Controller
             $query->collaber($this->user);
         }
 
-        $query->when($filters->contains('latest'), fn($q) => $q->latest());
+        $search = trim((string) $request->input('search'));
+
+        $query
+            ->when($filters->contains('latest'), fn($q) => $q->latest())
+            ->when($search !== '', fn($q) => $q->whereLike('title', "%{$search}%"));
 
         $projects = $query->paginate($request->perPage(45));
 
