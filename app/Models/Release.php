@@ -40,6 +40,12 @@ class Release extends Model implements CanBeTakenDown, CanVisit
     use Purchasable;
     use TakesDown;
 
+    public const REVIEW_PENDING = 'pending';
+
+    public const REVIEW_APPROVED = 'approved';
+
+    public const REVIEW_REJECTED = 'rejected';
+
     /**
      * The attributes that are mass assignable.
      *
@@ -90,6 +96,8 @@ class Release extends Model implements CanBeTakenDown, CanVisit
         return [
             'draft' => 'boolean',
             'retired_at' => 'datetime',
+            'reviewed_at' => 'datetime',
+            'retire_on_approval' => 'array',
             'price' => 'float',
             'explicit' => 'boolean',
             'release_date' => 'date:Y/m/d',
@@ -109,7 +117,29 @@ class Release extends Model implements CanBeTakenDown, CanVisit
      */
     public function scopeLive(Builder $query): void
     {
-        $query->where($this->qualifyColumn('draft'), false)->whereNull($this->qualifyColumn('retired_at'));
+        $query->where($this->qualifyColumn('draft'), false)
+            ->whereNull($this->qualifyColumn('retired_at'))
+            ->where(fn (Builder $q) => $q
+                ->whereNull($this->qualifyColumn('review_status'))
+                ->orWhere($this->qualifyColumn('review_status'), self::REVIEW_APPROVED));
+    }
+
+    /**
+     * Releases waiting for an admin to approve them.
+     */
+    public function scopeInReview(Builder $query): void
+    {
+        $query->where($this->qualifyColumn('draft'), false)->where($this->qualifyColumn('review_status'), self::REVIEW_PENDING);
+    }
+
+    public function isInReview(): bool
+    {
+        return ! $this->draft && $this->review_status === self::REVIEW_PENDING;
+    }
+
+    public function reviewer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'reviewed_by');
     }
 
     public function isRetired(): bool

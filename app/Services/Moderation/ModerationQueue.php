@@ -5,7 +5,9 @@ namespace App\Services\Moderation;
 use App\Contracts\CanBeTakenDown;
 use App\Http\Resources\SafetyResource;
 use App\Http\Resources\TakedownResource;
+use App\Models\Release;
 use App\Models\Safety;
+use App\Models\Scopes\RestrictBlockedUserScope;
 use App\Models\Takedown;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -88,7 +90,21 @@ class ModerationQueue
                 'items'
             )->count(),
             'appeals' => Takedown::query()->where('status', Takedown::APPEALED)->count(),
+            'releases' => Release::query()->withoutGlobalScopes()->inReview()->count(),
         ];
+    }
+
+    /**
+     * Published releases waiting for an admin to approve them, oldest first.
+     */
+    public function releases(int $perPage = 20): LengthAwarePaginator
+    {
+        return Release::query()
+            ->withoutGlobalScope(RestrictBlockedUserScope::class)
+            ->inReview()
+            ->with(['user', 'artist', 'project'])
+            ->oldest('updated_at')
+            ->paginate($perPage);
     }
 
     public function takedowns(?string $status = null, int $perPage = 20): LengthAwarePaginator
