@@ -5,37 +5,36 @@ namespace App\Http\Controllers;
 use App\Enums\HttpStatus;
 use App\Http\Resources\TrackCollection;
 use App\Models\Track;
-use Illuminate\Database\Eloquent\Builder;
+use App\Services\Playlists\UpNext;
 use Illuminate\Http\Request;
 
 class PlaylistController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Tracks to keep playback going, like `similar_to` when given and never
+     * the ones in `exclude` unless nothing else is left.
      */
     public function index(Request $request)
     {
-        $query = Track::query();
+        if (is_string($request->input('exclude'))) {
+            $request->merge(['exclude' => array_values(array_filter(explode(',', $request->input('exclude'))))]);
+        }
 
-        $user = $request->user('sanctum');
+        $request->validate([
+            'similar_to' => ['nullable', 'integer'],
+            'exclude' => ['nullable', 'array', 'max:'.UpNext::MAX_EXCLUDED],
+            'exclude.*' => ['integer'],
+            'limit' => ['nullable', 'integer', 'min:1'],
+        ]);
 
-        // Use the listener's recommendations and history when they have some,
-        // otherwise fall back to the most played published tracks.
-        $personal = $user && Track::recommended($user)->exists();
+        $upNext = new UpNext(
+            user: $request->user('sanctum'),
+            seed: $request->filled('similar_to') ? Track::find($request->integer('similar_to')) : null,
+            exclude: $request->input('exclude', []),
+            randomize: $request->boolean('randomize'),
+        );
 
-        $query
-            ->when($personal, fn (Builder $query) => $query->recommended($user))
-            ->when(! $personal, fn (Builder $query) => $query
-                ->whereHas('release', fn (Builder $q) => $q->live())
-                ->withCount(['visits as plays' => fn (Builder $q) => $q->where('data->duration', '>', 0)])
-                ->orderByDesc('plays'))
-            // Paid tracks the listener hasn't bought can't play, so leave them out.
-            ->playableBy($user)
-            ->when($request->boolean('randomize'), fn (Builder $q) => $q->inRandomOrder());
-
-        $tracks = $query->paginate($request->input('limit', 15));
-
-        return (new TrackCollection($tracks))->additional([
+        return (new TrackCollection($upNext->paginate($request->integer('limit', 15))))->additional([
             'message' => HttpStatus::message(HttpStatus::OK),
             'status' => 'success',
             'status_code' => HttpStatus::OK,
