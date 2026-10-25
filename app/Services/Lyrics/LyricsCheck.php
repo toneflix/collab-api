@@ -15,7 +15,7 @@ class LyricsCheck
      */
     public function scan(string $text): array
     {
-        $normalized = ' '.implode(' ', $this->words($text)).' ';
+        $normalized = ' ' . implode(' ', $this->words($text)) . ' ';
 
         return [
             'explicit' => $this->found($normalized, 'explicit'),
@@ -31,10 +31,10 @@ class LyricsCheck
     protected function found(string $normalized, string $list): array
     {
         return collect([...(array) config("lyrics.{$list}", []), ...AiSettings::lyricsWords($list)])
-            ->map(fn (string $entry) => implode(' ', $this->words($entry)))
+            ->map(fn(string $entry) => implode(' ', $this->words($entry)))
             ->filter()
             ->unique()
-            ->filter(fn (string $entry) => str_contains($normalized, " {$entry} "))
+            ->filter(fn(string $entry) => str_contains($normalized, " {$entry} "))
             ->values()
             ->all();
     }

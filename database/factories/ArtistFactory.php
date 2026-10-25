@@ -9,7 +9,7 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Artist>
+ * @extends Factory<Artist>
  */
 class ArtistFactory extends Factory
 {
@@ -36,7 +36,7 @@ class ArtistFactory extends Factory
     {
         return $this->afterCreating(function (Artist $model) {
             Release::factory()
-                ->sequence(fn () => [
+                ->sequence(fn() => [
                     'artist_id' => $model->id,
                     'user_id' => User::where('data->fake', true)->inRandomOrder()->first()->id,
                 ])

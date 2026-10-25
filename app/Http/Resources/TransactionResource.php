@@ -60,7 +60,7 @@ class TransactionResource extends JsonResource
             },
             'payer' => $this->when(
                 $seesEarnings && $this->user,
-                fn () => [
+                fn() => [
                     'id' => $this->user->id,
                     'username' => $this->user->username,
                     'fullname' => $this->user->fullname,

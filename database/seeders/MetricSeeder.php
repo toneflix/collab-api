@@ -41,7 +41,7 @@ class MetricSeeder extends Seeder
         }
 
         // Add dummy stream and likes for tracks
-        $tracks = Track::whereHas('release', fn ($q) => $q->where('draft', false))
+        $tracks = Track::whereHas('release', fn($q) => $q->where('draft', false))
             ->limit(50)
             ->inRandomOrder()
             ->cursor();
@@ -62,7 +62,7 @@ class MetricSeeder extends Seeder
         }
 
         // Add dummy props for active projects
-        $projects = Project::whereDoesntHave('release', fn ($q) => $q->where('draft', false))
+        $projects = Project::whereDoesntHave('release', fn($q) => $q->where('draft', false))
             ->limit(50)
             ->inRandomOrder()
             ->cursor();
@@ -94,7 +94,7 @@ class MetricSeeder extends Seeder
                 ->where('data->fake', true)
                 ->limit(rand(1, 10))
                 ->get()
-                ->each(fn (User $user) => $user->isNot($model) && $user->follow($model));
+                ->each(fn(User $user) => $user->isNot($model) && $user->follow($model));
         }
 
         // Add dummy followers for artist
@@ -109,7 +109,7 @@ class MetricSeeder extends Seeder
                 ->where('data->fake', true)
                 ->limit(rand(1, 10))
                 ->get()
-                ->each(fn (User $user) => $user->follow($model));
+                ->each(fn(User $user) => $user->follow($model));
         }
     }
 }

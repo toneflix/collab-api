@@ -19,7 +19,7 @@ class SearchTest extends TestCase
         $user = User::factory()->create(['firstname' => 'Zebulon', 'lastname' => 'Quartermaine']);
 
         foreach (['zebulon', 'QUARTERMAINE', 'zebulon quarter'] as $term) {
-            $ids = collect($this->getJson('/api/users?limit=50&search='.urlencode($term))->assertOk()->json('data'))->pluck('id');
+            $ids = collect($this->getJson('/api/users?limit=50&search=' . urlencode($term))->assertOk()->json('data'))->pluck('id');
             $this->assertContains($user->id, $ids->all(), "Searching for \"$term\"");
         }
     }

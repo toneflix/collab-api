@@ -105,7 +105,7 @@ class AiModeratorTest extends TestCase
     public function test_admin_can_send_a_claim_and_the_moderator_approves_it(): void
     {
         $claim = $this->claim();
-        $this->answers = ["Here you go:\n```json\n".$this->verdict('approve', 95)."\n```"];
+        $this->answers = ["Here you go:\n```json\n" . $this->verdict('approve', 95) . "\n```"];
 
         Sanctum::actingAs($this->admin);
         $this->postJson("/api/admin/moderation/claims/{$claim->id}/ai-review")->assertAccepted();

@@ -34,8 +34,8 @@ class FakeGateway implements PaymentGateway
 
         return [
             'reference' => $reference,
-            'access_code' => 'code_'.$reference,
-            'authorization_url' => 'https://checkout.test/'.$reference,
+            'access_code' => 'code_' . $reference,
+            'authorization_url' => 'https://checkout.test/' . $reference,
         ];
     }
 
@@ -135,7 +135,7 @@ class CheckoutTest extends TestCase
 
         $reference = $this->postJson('/api/payments', $body)
             ->assertCreated()
-            ->assertJsonPath('data.access_code', fn ($code) => str_starts_with($code, 'code_'))
+            ->assertJsonPath('data.access_code', fn($code) => str_starts_with($code, 'code_'))
             ->json('data.reference');
 
         $this->postJson("/api/payments/{$reference}/verify")->assertOk();

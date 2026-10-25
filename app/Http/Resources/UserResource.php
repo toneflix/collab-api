@@ -43,13 +43,13 @@ class UserResource extends JsonResource
             'firstname' => $this->firstname,
             'followers' => $this->whenLoaded(
                 'followers',
-                fn () => $this->followers->count(),
-                fn () => $this->followers()->count(),
+                fn() => $this->followers->count(),
+                fn() => $this->followers()->count(),
             ),
             'following' => $this->whenLoaded(
                 'followings',
-                fn () => $this->followings->count(),
-                fn () => $this->followings()->count(),
+                fn() => $this->followings->count(),
+                fn() => $this->followings()->count(),
             ),
             'reputation' => $this->reputation,
             'isPremium' => $this->is_premium,
@@ -61,7 +61,7 @@ class UserResource extends JsonResource
             'youFollow' => $user ? $this->isFollowedBy($user) : false,
             'country' => $this->country,
             'state' => $this->state,
-            $this->mergeWhen($previleged, fn () => [
+            $this->mergeWhen($previleged, fn() => [
                 'city' => $this->city,
                 'address' => $this->address,
                 'roles' => $this->getRoleNames(),

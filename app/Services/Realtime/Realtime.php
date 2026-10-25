@@ -112,7 +112,7 @@ class Realtime
                     'wsHost' => $reverb['options']['host'] ?? null,
                     'wsPort' => (int) (($reverb['options']['port'] ?? null) ?: 443),
                     'forceTLS' => (($reverb['options']['scheme'] ?? null) ?: 'https') === 'https',
-                ], fn ($v) => $v !== null && $v !== ''),
+                ], fn($v) => $v !== null && $v !== ''),
             ],
             'pusher' => [
                 'transport' => 'pusher',

@@ -121,7 +121,7 @@ class Release extends Model implements CanBeTakenDown, CanVisit
     {
         $query->where($this->qualifyColumn('draft'), false)
             ->whereNull($this->qualifyColumn('retired_at'))
-            ->where(fn (Builder $q) => $q
+            ->where(fn(Builder $q) => $q
                 ->whereNull($this->qualifyColumn('review_status'))
                 ->orWhere($this->qualifyColumn('review_status'), self::REVIEW_APPROVED));
     }
@@ -160,7 +160,7 @@ class Release extends Model implements CanBeTakenDown, CanVisit
         });
 
         static::addGlobalScopes([
-            fn (Builder $query) => $query->withCount(['tracks']),
+            fn(Builder $query) => $query->withCount(['tracks']),
         ]);
     }
 
@@ -186,7 +186,7 @@ class Release extends Model implements CanBeTakenDown, CanVisit
      */
     public function artist(): BelongsTo
     {
-        return $this->belongsTo(Artist::class)->withDefault(fn () => Artist::make([
+        return $this->belongsTo(Artist::class)->withDefault(fn() => Artist::make([
             'name' => 'Unknown',
             'about' => 'Unknown',
             'username' => 'unknown',
@@ -198,7 +198,7 @@ class Release extends Model implements CanBeTakenDown, CanVisit
      */
     public function genre(): BelongsTo
     {
-        return $this->belongsTo(Genre::class)->withDefault(fn () => Genre::first() ?? Genre::make([
+        return $this->belongsTo(Genre::class)->withDefault(fn() => Genre::first() ?? Genre::make([
             'slug' => 'unknown',
             'title' => 'Unknown',
             'description' => 'Unknown',
@@ -227,12 +227,12 @@ class Release extends Model implements CanBeTakenDown, CanVisit
     public function streams(): Attribute
     {
         return Attribute::make(
-            get: fn () => Visit::whereHasMorph(
+            get: fn() => Visit::whereHasMorph(
                 'visitable',
                 [Track::class],
-                fn ($q) => $q->where('data->duration', '>', 0)->whereHas(
+                fn($q) => $q->where('data->duration', '>', 0)->whereHas(
                     'release',
-                    fn ($q) => $q->whereId($this->id)
+                    fn($q) => $q->whereId($this->id)
                 )
             )->count(),
         );
@@ -243,7 +243,7 @@ class Release extends Model implements CanBeTakenDown, CanVisit
      */
     public function user(): BelongsTo
     {
-        return $this->belongsTo(User::class)->withDefault(fn () => User::firstWhere('curator', true));
+        return $this->belongsTo(User::class)->withDefault(fn() => User::firstWhere('curator', true));
     }
 
     /**
@@ -288,14 +288,14 @@ class Release extends Model implements CanBeTakenDown, CanVisit
     {
         $id = is_string($artist) ? $artist : $artist->id;
         $query->whereHas('artist', function (Builder $q) use ($id) {
-            $q->where('username', $id)->when(is_numeric($id), fn ($q) => $q->orWhere('id', $id));
+            $q->where('username', $id)->when(is_numeric($id), fn($q) => $q->orWhere('id', $id));
         });
     }
 
     public function scopeGenre(Builder $query, string $genre): void
     {
         $query->whereHas('genre', function (Builder $q) use ($genre) {
-            $q->where('slug', $genre)->when(is_numeric($genre), fn ($q) => $q->orWhere('id', $genre));
+            $q->where('slug', $genre)->when(is_numeric($genre), fn($q) => $q->orWhere('id', $genre));
         });
     }
 

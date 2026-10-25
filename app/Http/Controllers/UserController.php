@@ -42,17 +42,17 @@ class UserController extends Controller
             }
         })->when(
             $request->has('skip'),
-            fn (Builder $q) => $q->whereNotIn('id', str($request->skip)->remove(' ')->explode(','))
+            fn(Builder $q) => $q->whereNotIn('id', str($request->skip)->remove(' ')->explode(','))
         );
 
         $filters = str($request->filters)->remove(' ')->explode(',');
 
         $query
-            ->when($request->has('genre'), fn (Builder $q) => $q->genre($request->genre))
-            ->when($request->has('project_id'), fn (Builder $q) => $q->forProject($request->project_id))
-            ->when($filters->contains('creator'), fn (Builder $q) => $q->creator())
-            ->when($filters->contains('collabing'), fn (Builder $q) => $q->collabing($request->user('sanctum')))
-            ->when($filters->contains('random'), fn (Builder $q) => $q->inRandomOrder())
+            ->when($request->has('genre'), fn(Builder $q) => $q->genre($request->genre))
+            ->when($request->has('project_id'), fn(Builder $q) => $q->forProject($request->project_id))
+            ->when($filters->contains('creator'), fn(Builder $q) => $q->creator())
+            ->when($filters->contains('collabing'), fn(Builder $q) => $q->collabing($request->user('sanctum')))
+            ->when($filters->contains('random'), fn(Builder $q) => $q->inRandomOrder())
             ->when(
                 $filters->contains('top'),
                 function (Builder $q) use ($filters, $request) {

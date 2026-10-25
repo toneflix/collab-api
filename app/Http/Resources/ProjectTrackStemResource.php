@@ -29,8 +29,8 @@ class ProjectTrackStemResource extends JsonResource
             'stem_id' => $this->stem_id,
             'track_id' => $this->track_id,
             'meta' => $this->meta,
-            'stem' => $this->when($with->contains('stem'), fn () => new static($this->stem)),
-            'track' => $this->when($with->contains('track'), fn () => new TrackResource($this->track), new \stdClass()),
+            'stem' => $this->when($with->contains('stem'), fn() => new static($this->stem)),
+            'track' => $this->when($with->contains('track'), fn() => new TrackResource($this->track), new \stdClass),
             'updatesAt' => $this->updated_at,
             'createdAt' => $this->created_at,
         ];

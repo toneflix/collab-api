@@ -7,21 +7,24 @@ use App\Helpers\Providers as PV;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\UserResource;
 use App\Models\User;
+use Carbon\Carbon;
 use DeviceDetector\DeviceDetector;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rules;
+use Illuminate\Validation\ValidationException;
 
 class RegisteredUserController extends Controller
 {
     /**
      * Handle an incoming registration request.
      *
-     * @return \Illuminate\Http\Response
+     * @return Response
      *
-     * @throws \Illuminate\Validation\ValidationException
+     * @throws ValidationException
      */
     public function store(Request $request)
     {
@@ -49,12 +52,12 @@ class RegisteredUserController extends Controller
     /**
      * Create a new user based on the provided data.
      *
-     * @return \App\Models\User
+     * @return User
      */
     public function createUser(Request $request)
     {
         $firstname = str($request->get('name'))->explode(' ')->first(null, $request->firstname);
-        $lastname = str($request->get('name'))->explode(' ')->last(fn ($n) => $n !== $firstname, $request->lastname);
+        $lastname = str($request->get('name'))->explode(' ')->last(fn($n) => $n !== $firstname, $request->lastname);
 
         $user = User::create([
             'role' => 'user',
@@ -78,7 +81,7 @@ class RegisteredUserController extends Controller
         $dev = new DeviceDetector($request->userAgent());
 
         $device = $dev->getBrandName()
-            ? ($dev->getBrandName().$dev->getDeviceName())
+            ? ($dev->getBrandName() . $dev->getDeviceName())
             : $request->userAgent();
 
         $user->save();
@@ -92,7 +95,7 @@ class RegisteredUserController extends Controller
      * Log the newly registered user in.
      *
      * @param  string  $token
-     * @return \App\Http\Resources\UserResource
+     * @return UserResource
      */
     public function preflight($token)
     {
@@ -104,10 +107,10 @@ class RegisteredUserController extends Controller
 
         Auth::loginUsingId($user_id);
 
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = Auth::user();
 
-        /** @var \Carbon\Carbon */
+        /** @var Carbon */
         $datetime = $user->last_attempt ?? now()->subSeconds(PV::config('token_lifespan', 30) + 1);
         $dateAdd = $datetime->addSeconds(PV::config('token_lifespan', 30));
         // dd($dateAdd->format('H:i:s'));

@@ -56,7 +56,7 @@ class AdminUsersTest extends TestCase
     {
         $payer = User::factory()->create();
         $transaction = new Transaction([
-            'reference' => 'TRX-'.uniqid(),
+            'reference' => 'TRX-' . uniqid(),
             'purpose' => 'tip',
             'method' => 'paystack',
             'status' => 'complete',
@@ -83,7 +83,7 @@ class AdminUsersTest extends TestCase
     public function test_the_list_is_paginated_and_searchable(): void
     {
         $this->adminWith('manage-users');
-        $match = User::factory()->create(['username' => 'findme_'.uniqid()]);
+        $match = User::factory()->create(['username' => 'findme_' . uniqid()]);
 
         $this->getJson('/api/admin/users?limit=2')
             ->assertOk()
@@ -166,7 +166,7 @@ class AdminUsersTest extends TestCase
     {
         $this->adminWith('manage-users', 'manage-plans');
         $user = User::factory()->create();
-        $plan = Plan::create(['name' => 'Gift', 'slug' => 'gift-'.uniqid(), 'price' => 1000, 'interval' => 'month']);
+        $plan = Plan::create(['name' => 'Gift', 'slug' => 'gift-' . uniqid(), 'price' => 1000, 'interval' => 'month']);
 
         $this->postJson("/api/admin/users/{$user->id}/plan", ['plan_id' => $plan->id, 'cycles' => 3])
             ->assertOk()

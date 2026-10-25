@@ -46,7 +46,7 @@ class SaleNotification extends ActivityNotification
 
     protected function key(): string
     {
-        return 'sales.'.($this->purpose === 'tip' && $this->note ? 'tip_note' : $this->purpose);
+        return 'sales.' . ($this->purpose === 'tip' && $this->note ? 'tip_note' : $this->purpose);
     }
 
     protected function params(User $notifiable): array

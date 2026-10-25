@@ -173,7 +173,7 @@ class User extends Authenticatable implements Commentator, Reportable
         });
 
         static::addGlobalScopes([
-            fn (Builder $query) => $query->withCount(['projects', 'collabProjects']),
+            fn(Builder $query) => $query->withCount(['projects', 'collabProjects']),
         ]);
     }
 
@@ -210,7 +210,7 @@ class User extends Authenticatable implements Commentator, Reportable
     protected function fullname(): Attribute
     {
         return Attribute::make(
-            get: fn () => collect([$this->firstname, $this->lastname])->join(' '),
+            get: fn() => collect([$this->firstname, $this->lastname])->join(' '),
         );
     }
 
@@ -234,8 +234,8 @@ class User extends Authenticatable implements Commentator, Reportable
 
     public function scopeSuspended(Builder $query, bool $suspended = true): void
     {
-        $active = fn (Builder $q) => $q->whereNotNull('suspended_at')
-            ->where(fn (Builder $q) => $q->whereNull('suspended_until')->orWhere('suspended_until', '>', now()));
+        $active = fn(Builder $q) => $q->whereNotNull('suspended_at')
+            ->where(fn(Builder $q) => $q->whereNull('suspended_until')->orWhere('suspended_until', '>', now()));
 
         $suspended ? $query->where($active) : $query->whereNot($active);
     }
@@ -360,7 +360,7 @@ class User extends Authenticatable implements Commentator, Reportable
     protected function name(): Attribute
     {
         return Attribute::make(
-            get: fn () => $this->fullname,
+            get: fn() => $this->fullname,
         );
     }
 
@@ -406,7 +406,7 @@ class User extends Authenticatable implements Commentator, Reportable
     protected function projectsCount(): Attribute
     {
         return Attribute::make(
-            get: fn ($value) => $value + $this->collab_projects_count,
+            get: fn($value) => $value + $this->collab_projects_count,
         );
     }
 
@@ -481,11 +481,11 @@ class User extends Authenticatable implements Commentator, Reportable
     {
         $query->whereHas('releases', function (Builder $q) use ($genre) {
             $q->whereHas('genre', function (Builder $q) use ($genre) {
-                $q->where('slug', $genre)->when(is_numeric($genre), fn ($q) => $q->orWhere('id', $genre));
+                $q->where('slug', $genre)->when(is_numeric($genre), fn($q) => $q->orWhere('id', $genre));
             });
             $q->orWhereHas('tracks', function (Builder $qx) use ($genre) {
                 $qx->whereHas('genre', function (Builder $q) use ($genre) {
-                    $q->where('slug', $genre)->when(is_numeric($genre), fn ($q) => $q->orWhere('id', $genre));
+                    $q->where('slug', $genre)->when(is_numeric($genre), fn($q) => $q->orWhere('id', $genre));
                 });
             });
         });
@@ -493,7 +493,7 @@ class User extends Authenticatable implements Commentator, Reportable
 
     public function scopeOrderByUserProjectVotesLastDays(Builder $query, int $days = 7, string $direction = 'desc')
     {
-        $scope = fn (Builder $q) => $q
+        $scope = fn(Builder $q) => $q
             ->whereBetween('social_interactions.created_at', [now()->subDays($days), now()]);
 
         $query
@@ -504,7 +504,7 @@ class User extends Authenticatable implements Commentator, Reportable
 
     public function scopeOrderByFollowersLastDays(Builder $query, int $days = 7, string $direction = 'desc')
     {
-        $scope = fn (Builder $q) => $q
+        $scope = fn(Builder $q) => $q
             ->whereBetween('followables.created_at', [now()->subDays($days), now()]);
 
         $query
@@ -535,7 +535,7 @@ class User extends Authenticatable implements Commentator, Reportable
     public function isPremium(): Attribute
     {
         return Attribute::make(
-            get: fn () => $this->subscriptions()->active()->exists(),
+            get: fn() => $this->subscriptions()->active()->exists(),
         )->shouldCache();
     }
 
@@ -545,7 +545,7 @@ class User extends Authenticatable implements Commentator, Reportable
     public function currentPlan(): Attribute
     {
         return Attribute::make(
-            get: fn () => $this->subscriptions()->active()->whereNotNull('plan_id')->with('planModel')->first()?->planModel
+            get: fn() => $this->subscriptions()->active()->whereNotNull('plan_id')->with('planModel')->first()?->planModel
                 ?? Plan::default(),
         )->shouldCache();
     }
@@ -598,8 +598,8 @@ class User extends Authenticatable implements Commentator, Reportable
     protected function userData(): Attribute
     {
         return Attribute::make(
-            get: fn () => $this->data,
-            set: fn ($value) => is_array($value)
+            get: fn() => $this->data,
+            set: fn($value) => is_array($value)
                 ? json_encode($value, JSON_FORCE_OBJECT)
                 : $value,
         );
@@ -619,7 +619,7 @@ class User extends Authenticatable implements Commentator, Reportable
     {
         return [
             'title' => (string) $this->fullname,
-            'subtitle' => $this->username ? '@'.$this->username : null,
+            'subtitle' => $this->username ? '@' . $this->username : null,
             'image' => $this->images['image'] ?? null,
             'link' => $this->username ? "/creator/{$this->username}" : null,
         ];

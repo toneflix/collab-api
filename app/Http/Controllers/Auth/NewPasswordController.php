@@ -7,18 +7,20 @@ use App\Helpers\Providers as PV;
 use App\Http\Controllers\Controller;
 use App\Models\PasswordCodeResets;
 use App\Models\User;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rules;
+use Illuminate\Validation\ValidationException;
 
 class NewPasswordController extends Controller
 {
     /**
      * Handle an incoming new password request.
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      *
-     * @throws \Illuminate\Validation\ValidationException
+     * @throws ValidationException
      */
     public function store(Request $request)
     {
@@ -59,9 +61,9 @@ class NewPasswordController extends Controller
     /**
      * Handle an incoming check password request.
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      *
-     * @throws \Illuminate\Validation\ValidationException
+     * @throws ValidationException
      */
     public function check(Request $request)
     {

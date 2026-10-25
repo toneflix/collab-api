@@ -1,12 +1,14 @@
 <?php
 
+use App\Models\Comment;
+
 return [
 
     /*
      * The comment class that should be used to store and retrieve
      * the comments.
      */
-    'comment_class' => \App\Models\Comment::class,
+    'comment_class' => Comment::class,
 
     /*
      * The user model that should be used when associating comments with

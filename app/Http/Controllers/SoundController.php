@@ -71,7 +71,7 @@ class SoundController extends Controller
     public function store(Request $request)
     {
         $valid = $request->validate([
-            'file' => ['required', 'file', $this->audioRule(), 'max:'.self::MAX_FILE_KB],
+            'file' => ['required', 'file', $this->audioRule(), 'max:' . self::MAX_FILE_KB],
             'name' => ['nullable', 'string', 'max:180'],
             'duration' => ['nullable', 'numeric', 'min:0', 'max:3600'],
             'bpm' => ['nullable', 'numeric', 'between:20,300'],
@@ -182,7 +182,7 @@ class SoundController extends Controller
 
         $sounds = $query
             ->search($request->input('search'))
-            ->when($request->filled('category'), fn ($q) => $q->where('category', $request->input('category')))
+            ->when($request->filled('category'), fn($q) => $q->where('category', $request->input('category')))
             ->latest('id')
             ->paginate((int) $request->input('limit', 30));
 
@@ -232,6 +232,6 @@ class SoundController extends Controller
             return null;
         }
 
-        return collect($bars)->take(200)->map(fn ($v) => round(max(0, min(1, (float) $v)), 3))->values()->all();
+        return collect($bars)->take(200)->map(fn($v) => round(max(0, min(1, (float) $v)), 3))->values()->all();
     }
 }

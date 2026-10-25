@@ -20,7 +20,7 @@ class PaymentsController extends Controller
         $purchases = $this->user->transactions()
             ->where('status', 'complete')
             ->whereNotNull('purpose')
-            ->when($request->purpose, fn ($q, $purpose) => $q->where('purpose', $purpose))
+            ->when($request->purpose, fn($q, $purpose) => $q->where('purpose', $purpose))
             ->latest('paid_at')
             ->paginate($request->perPage(15));
 
@@ -43,14 +43,14 @@ class PaymentsController extends Controller
             ->groupBy('purpose')
             ->get()
             ->keyBy('purpose')
-            ->map(fn ($row) => [
+            ->map(fn($row) => [
                 'count' => (int) $row->count,
                 'gross' => (float) $row->gross,
                 'earned' => (float) $row->earned,
             ]);
 
         $list = $earnings
-            ->when($request->purpose, fn ($q, $purpose) => $q->where('purpose', $purpose))
+            ->when($request->purpose, fn($q, $purpose) => $q->where('purpose', $purpose))
             ->latest('paid_at')
             ->paginate($request->perPage(15));
 

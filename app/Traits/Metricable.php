@@ -107,14 +107,14 @@ trait Metricable
             $query
                 ->whereHas(
                     'recommendations',
-                    fn (Builder $q) => $q->where('recommendations.user_id', $user->id)
+                    fn(Builder $q) => $q->where('recommendations.user_id', $user->id)
                 )
-                ->orWhereHas('visits', fn (Builder $q) => $q->where('data->user', $user->id))
+                ->orWhereHas('visits', fn(Builder $q) => $q->where('data->user', $user->id))
                 ->when(
                     $this instanceof Track,
-                    fn (Builder $q) => $q->orWhereHas(
+                    fn(Builder $q) => $q->orWhereHas(
                         'socialInteractions',
-                        fn (Builder $q) => $q
+                        fn(Builder $q) => $q
                             ->where('interactor_id', $user->id)
                             ->where('interactor_type', $user->getMorphClass())
                     )
@@ -132,7 +132,7 @@ trait Metricable
         }
 
         $this->visits()
-            ->when($duration > 0, fn ($q) => $q->where('created_at', '>=', now()->subSeconds($this->duration ?? 0)))
+            ->when($duration > 0, fn($q) => $q->where('created_at', '>=', now()->subSeconds($this->duration ?? 0)))
             ->updateOrCreate([
                 'data->user' => $user->id,
             ], [
@@ -140,7 +140,7 @@ trait Metricable
                     'user_agent' => request(null)->userAgent(),
                     'user' => $user->id,
                     'ip' => request(null)->ip(),
-                ])->when($duration > 0, fn ($c) => $c->merge(['duration' => $duration]))->toArray(),
+                ])->when($duration > 0, fn($c) => $c->merge(['duration' => $duration]))->toArray(),
             ]);
 
         // Compute the reputation owner and type

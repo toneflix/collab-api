@@ -128,7 +128,7 @@ class RecommendationTest extends TestCase
         $this->getJson('api/playlist')
             ->assertOk()
             ->assertJsonPath('status', 'success')
-            ->assertJson(fn ($json) => $json->has('data.0')->etc());
+            ->assertJson(fn($json) => $json->has('data.0')->etc());
     }
 
     public function test_album_filter_only_returns_releases_with_more_than_one_track(): void

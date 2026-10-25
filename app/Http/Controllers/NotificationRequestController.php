@@ -6,7 +6,9 @@ use App\Enums\HttpStatus;
 use App\Helpers\Providers;
 use App\Http\Resources\NotificationRequestCollection;
 use App\Http\Resources\NotificationRequestResource;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Toneflix\ApprovableNotifications\Models\Notification;
 
 class NotificationRequestController extends Controller
 {
@@ -15,13 +17,13 @@ class NotificationRequestController extends Controller
      */
     public function index(Request $request)
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
 
         $query = $user->approvableNotifications()->getQuery();
         $query->when(
             in_array($request->status, ['pending', 'unread', 'approved', 'rejected']),
-            fn () => $query->{$request->status}()
+            fn() => $query->{$request->status}()
         );
 
         $notifications = $query->paginate($request->perPage(30))->onEachSide(0)->withQueryString();
@@ -39,10 +41,10 @@ class NotificationRequestController extends Controller
      */
     public function show(Request $request, string $id)
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
 
-        /** @var \Toneflix\ApprovableNotifications\Models\Notification $notification */
+        /** @var Notification $notification */
         $notification = $user->approvableNotifications()->findOrFail($id);
         $notification->markAsRead();
 
@@ -59,10 +61,10 @@ class NotificationRequestController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
 
-        /** @var \Toneflix\ApprovableNotifications\Models\Notification $notification */
+        /** @var Notification $notification */
         $notification = $user->approvableNotifications()->findOrFail($id);
         $notification->markAsRead();
 
@@ -89,7 +91,7 @@ class NotificationRequestController extends Controller
      */
     public function destroy(Request $request, string $id)
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
 
         $user->approvableNotifications()->whereId($id)->delete();

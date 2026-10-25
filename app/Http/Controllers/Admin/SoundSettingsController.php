@@ -129,7 +129,7 @@ class SoundSettingsController extends Controller
     public function store(Request $request)
     {
         $valid = $request->validate([
-            'file' => ['required', 'file', SoundController::audioRule(), 'max:'.SoundController::MAX_FILE_KB],
+            'file' => ['required', 'file', SoundController::audioRule(), 'max:' . SoundController::MAX_FILE_KB],
             'name' => ['nullable', 'string', 'max:180'],
             'category' => ['nullable', 'string', 'max:100'],
             'duration' => ['nullable', 'numeric', 'min:0', 'max:3600'],

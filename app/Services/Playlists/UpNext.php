@@ -42,7 +42,7 @@ class UpNext
         public bool $randomize = false,
     ) {
         $this->excluded = collect($exclude)
-            ->map(fn ($id) => (int) $id)
+            ->map(fn($id) => (int) $id)
             ->filter()
             ->unique()
             ->take(self::MAX_EXCLUDED)
@@ -71,9 +71,9 @@ class UpNext
 
         $query = Track::query()
             ->where('tracks.privacy', 'public')
-            ->whereHas('release', fn (Builder $q) => $q->live())
+            ->whereHas('release', fn(Builder $q) => $q->live())
             ->playableBy($this->user)
-            ->when($exclude->isNotEmpty(), fn (Builder $q) => $q->whereNotIn('tracks.id', $exclude->all()));
+            ->when($exclude->isNotEmpty(), fn(Builder $q) => $q->whereNotIn('tracks.id', $exclude->all()));
 
         $this->rank($query);
 
@@ -98,7 +98,7 @@ class UpNext
         $artists = $this->seed?->artists()->pluck('artists.id') ?? collect();
 
         if ($artists->isNotEmpty()) {
-            $marks = $artists->map(fn () => '?')->implode(', ');
+            $marks = $artists->map(fn() => '?')->implode(', ');
             $scores[] = "case when exists (select 1 from track_artist where track_artist.track_id = tracks.id and track_artist.artist_id in ({$marks})) then 3 else 0 end";
             array_push($bindings, ...$artists->all());
         }
@@ -118,7 +118,7 @@ class UpNext
         }
 
         if ($scores) {
-            $query->orderByRaw('('.implode(' + ', $scores).') desc', $bindings);
+            $query->orderByRaw('(' . implode(' + ', $scores) . ') desc', $bindings);
         }
     }
 }

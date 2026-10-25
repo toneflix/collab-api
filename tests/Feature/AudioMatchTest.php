@@ -33,7 +33,7 @@ class AudioMatchTest extends TestCase
         parent::setUp();
 
         Storage::fake(config('filesystems.default'));
-        $this->dir = sys_get_temp_dir().'/audio-match-'.Str::random(8);
+        $this->dir = sys_get_temp_dir() . '/audio-match-' . Str::random(8);
         mkdir($this->dir);
 
         // Artists come with tracks of their own, so make one before any audio exists.
@@ -42,7 +42,7 @@ class AudioMatchTest extends TestCase
 
     protected function tearDown(): void
     {
-        array_map('unlink', glob($this->dir.'/*') ?: []);
+        array_map('unlink', glob($this->dir . '/*') ?: []);
         rmdir($this->dir);
 
         parent::tearDown();
@@ -69,8 +69,8 @@ class AudioMatchTest extends TestCase
 
     protected function track(User $owner, string $file): Track
     {
-        $name = Str::random(12).'.mp3';
-        Storage::put('public/media/music/tracks/'.$name, file_get_contents($file));
+        $name = Str::random(12) . '.mp3';
+        Storage::put('public/media/music/tracks/' . $name, file_get_contents($file));
 
         $genre = Genre::factory()->create();
         $release = Release::factory()->create([

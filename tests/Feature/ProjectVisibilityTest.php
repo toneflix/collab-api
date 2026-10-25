@@ -62,7 +62,7 @@ class ProjectVisibilityTest extends TestCase
     {
         $this->app['auth']->forgetGuards();
 
-        $headers = $user ? ['Authorization' => 'Bearer '.$user->createToken('test')->plainTextToken] : [];
+        $headers = $user ? ['Authorization' => 'Bearer ' . $user->createToken('test')->plainTextToken] : [];
 
         return $this->getJson($uri, $headers);
     }

@@ -5,7 +5,12 @@ namespace App\Http\Controllers;
 use App\Enums\HttpStatus;
 use App\Helpers\Providers;
 use App\Http\Resources\InteractionCollection;
+use App\Models\Project;
+use App\Models\Release;
+use App\Models\Track;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use SocialInteractions\Models\SocialInteraction;
 
 class SocialInteractionController extends Controller
 {
@@ -16,7 +21,7 @@ class SocialInteractionController extends Controller
     {
         [$interactable] = $this->resolver($request, $pid, $interaction_id);
 
-        /** @var \Illuminate\Database\Eloquent\Builder $query */
+        /** @var Builder $query */
         $query = $interactable->socialInteractions();
 
         if ($request->interaction === 'prop') {
@@ -77,7 +82,7 @@ class SocialInteractionController extends Controller
      * Resolve the interaction interface
      *
      * @return array{
-     *  0:\App\Models\Project|\App\Models\Track|\App\Models\Release,
+     *  0:Project|Track|Release,
      *  1:\Toneflix\SocialInteractions\Models\SocialInteraction|null,
      *  2:string
      * }
@@ -94,14 +99,14 @@ class SocialInteractionController extends Controller
             ->prepend('\\App\\Models\\')
             ->toString();
 
-        /** @var \App\Models\Project|\App\Models\Track|\App\Models\Release $interactable */
-        $interactable = (new $className())->resolveRouteBinding($interactable_id);
+        /** @var Project|Track|Release $interactable */
+        $interactable = (new $className)->resolveRouteBinding($interactable_id);
 
         $interaction = null;
 
         if ($interactable) {
             if ($interaction_id) {
-                /** @var \SocialInteractions\Models\SocialInteraction $interaction */
+                /** @var SocialInteraction $interaction */
                 $interaction = $interactable->socialInteractions()->findOrFail($interaction_id);
             }
         }

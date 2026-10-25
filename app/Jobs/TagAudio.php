@@ -39,7 +39,7 @@ class TagAudio implements ShouldBeUnique, ShouldQueue
 
     public function uniqueId(): string
     {
-        return $this->owner::class.':'.$this->owner->getKey();
+        return $this->owner::class . ':' . $this->owner->getKey();
     }
 
     public function handle(AudioTagger $tagger): void

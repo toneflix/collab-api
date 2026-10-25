@@ -28,7 +28,7 @@ class ArtistClaimResource extends JsonResource
             'reviewNote' => $this->review_note,
             'reviewedAt' => $this->reviewed_at,
             'createdAt' => $this->created_at,
-            'artist' => $this->whenLoaded('artist', fn () => [
+            'artist' => $this->whenLoaded('artist', fn() => [
                 'id' => $this->artist->id,
                 'name' => $this->artist->name,
                 'username' => $this->artist->username,
@@ -36,7 +36,7 @@ class ArtistClaimResource extends JsonResource
                 'claimable' => $this->artist->isClaimable(),
                 'unownedReleases' => $this->artist->unowned_releases_count,
             ]),
-            'user' => $this->whenLoaded('user', fn () => $this->user ? [
+            'user' => $this->whenLoaded('user', fn() => $this->user ? [
                 'id' => $this->user->id,
                 'name' => $this->user->fullname,
                 'username' => $this->user->username,
@@ -45,9 +45,9 @@ class ArtistClaimResource extends JsonResource
             ] : null),
             'reviewer' => $this->when(
                 $this->relationLoaded('reviewer'),
-                fn () => $this->reviewer?->fullname ?? ($this->reviewed_at ? 'AI moderator' : null),
+                fn() => $this->reviewer?->fullname ?? ($this->reviewed_at ? 'AI moderator' : null),
             ),
-            'aiReview' => $this->whenLoaded('latestAiReview', fn () => $this->latestAiReview ? (new AiReviewResource($this->latestAiReview))->resolve($request) : null),
+            'aiReview' => $this->whenLoaded('latestAiReview', fn() => $this->latestAiReview ? (new AiReviewResource($this->latestAiReview))->resolve($request) : null),
         ];
     }
 }

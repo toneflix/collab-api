@@ -8,7 +8,7 @@ use App\Models\ProjectTrack;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\ProjectTrack>
+ * @extends Factory<ProjectTrack>
  */
 class ProjectTrackFactory extends Factory
 {

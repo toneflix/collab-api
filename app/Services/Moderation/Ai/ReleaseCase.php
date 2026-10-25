@@ -75,10 +75,10 @@ class ReleaseCase extends ReviewCase
             );
 
             if ($lyric) {
-                $line .= "\n  Lyrics".($lyric->explicit ? ' (contain explicit words)' : '').': '.$this->clip($lyric->text, 500);
+                $line .= "\n  Lyrics" . ($lyric->explicit ? ' (contain explicit words)' : '') . ': ' . $this->clip($lyric->text, 500);
 
                 if ($lyric->flagged) {
-                    $line .= "\n  Words flagged for review: ".implode(', ', (array) $lyric->flagged);
+                    $line .= "\n  Words flagged for review: " . implode(', ', (array) $lyric->flagged);
                 }
             }
 
@@ -94,19 +94,19 @@ class ReleaseCase extends ReviewCase
 
         return implode("\n", [
             'RELEASE',
-            "Title: {$release->title}".($release->version ? " ({$release->version})" : ''),
-            'Artist: '.($artist?->name ?? 'unknown'),
-            'Genre: '.($release->genre()->value('title') ?? 'unknown'),
-            'Marked explicit: '.($release->explicit ? 'yes' : 'no'),
-            'Description: '.$this->clip($release->description, 600),
-            'Record label: '.($release->record_label ?: 'none'),
-            'Publisher: '.($release->publisher ?: 'none'),
-            'Composer: '.($release->composer ?: 'none'),
-            'P line: '.($release->pline ?: 'none'),
-            'Price: '.((float) $release->price > 0 ? $release->price : 'free'),
+            "Title: {$release->title}" . ($release->version ? " ({$release->version})" : ''),
+            'Artist: ' . ($artist?->name ?? 'unknown'),
+            'Genre: ' . ($release->genre()->value('title') ?? 'unknown'),
+            'Marked explicit: ' . ($release->explicit ? 'yes' : 'no'),
+            'Description: ' . $this->clip($release->description, 600),
+            'Record label: ' . ($release->record_label ?: 'none'),
+            'Publisher: ' . ($release->publisher ?: 'none'),
+            'Composer: ' . ($release->composer ?: 'none'),
+            'P line: ' . ($release->pline ?: 'none'),
+            'Price: ' . ((float) $release->price > 0 ? $release->price : 'free'),
             '',
             'CREATOR',
-            'Account: @'.($owner?->username ?? 'unknown').', joined '.($owner?->created_at?->toDateString() ?? 'unknown'),
+            'Account: @' . ($owner?->username ?? 'unknown') . ', joined ' . ($owner?->created_at?->toDateString() ?? 'unknown'),
             "Their releases taken down by moderators: {$takedowns}",
             '',
             'TRACKS',

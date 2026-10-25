@@ -179,7 +179,7 @@ class ConversationController extends Controller
         return [
             'file' => is_array($saved) ? $saved['new_name'] : $saved,
             'duration' => round((float) $valid['duration'], 2),
-            'waveform' => collect($valid['waveform'] ?? [])->map(fn ($v) => round((float) $v, 2))->values()->all(),
+            'waveform' => collect($valid['waveform'] ?? [])->map(fn($v) => round((float) $v, 2))->values()->all(),
             'mime' => $file->getMimeType(),
         ];
     }

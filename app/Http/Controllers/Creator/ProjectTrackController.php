@@ -107,7 +107,7 @@ class ProjectTrackController extends Controller
             'meta' => ['nullable', 'array'],
             'stems' => ['nullable', 'array'],
             'bpm' => ['nullable', 'numeric', 'between:20,300'],
-            'time_signature' => ['nullable', 'string', 'in:'.implode(',', ProjectTrack::TIME_SIGNATURES)],
+            'time_signature' => ['nullable', 'string', 'in:' . implode(',', ProjectTrack::TIME_SIGNATURES)],
         ]);
 
         // Tempo and meter live in the track's meta, next to whatever else is there.
@@ -134,7 +134,7 @@ class ProjectTrackController extends Controller
 
         // Everyone else on the track now has this as the saved state. A
         // message too big for the driver carries no stems; clients reload.
-        $stems = $track->stems()->get()->mapWithKeys(fn ($stem) => [
+        $stems = $track->stems()->get()->mapWithKeys(fn($stem) => [
             $stem->id => collect($stem->meta)->except('src')->all(),
         ]);
 

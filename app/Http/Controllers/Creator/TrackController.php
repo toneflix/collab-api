@@ -22,7 +22,7 @@ class TrackController extends Controller
     {
         /** @var Release $release */
         $release = $this->user->releases()
-            ->where(fn ($q) => $q->where('slug', $release_id)->when(is_numeric($release_id), fn ($q) => $q->orWhere('releases.id', $release_id)))
+            ->where(fn($q) => $q->where('slug', $release_id)->when(is_numeric($release_id), fn($q) => $q->orWhere('releases.id', $release_id)))
             ->firstOrFail();
 
         $query = $release->tracks()->getQuery();
@@ -60,7 +60,7 @@ class TrackController extends Controller
 
         /** @var Release $release */
         $release = $this->user->releases()
-            ->where(fn ($q) => $q->where('slug', $release_id)->when(is_numeric($release_id), fn ($q) => $q->orWhere('releases.id', $release_id)))
+            ->where(fn($q) => $q->where('slug', $release_id)->when(is_numeric($release_id), fn($q) => $q->orWhere('releases.id', $release_id)))
             ->firstOrFail();
 
         Limits::for($this->user)->ensureCanCharge(Feature::SELL_STEMS, $request->input('stems_price'), 0, 'stems_price');
@@ -114,12 +114,12 @@ class TrackController extends Controller
 
         /** @var Release $release */
         $release = $this->user->releases()
-            ->where(fn ($q) => $q->where('slug', $release_id)->when(is_numeric($release_id), fn ($q) => $q->orWhere('releases.id', $release_id)))
+            ->where(fn($q) => $q->where('slug', $release_id)->when(is_numeric($release_id), fn($q) => $q->orWhere('releases.id', $release_id)))
             ->firstOrFail();
 
         /** @var Track $track */
         $track = $release->tracks()
-            ->where(fn ($q) => $q->where('slug', $id)->when(is_numeric($id), fn ($q) => $q->orWhere('tracks.id', $id)))
+            ->where(fn($q) => $q->where('slug', $id)->when(is_numeric($id), fn($q) => $q->orWhere('tracks.id', $id)))
             ->firstOrFail();
 
         Limits::for($this->user)->ensureCanCharge(Feature::SELL_STEMS, $request->input('stems_price'), (float) $track->stems_price, 'stems_price');
@@ -203,11 +203,11 @@ class TrackController extends Controller
     {
         /** @var Release $release */
         $release = $this->user->releases()
-            ->where(fn ($q) => $q->where('slug', $release_id)->when(is_numeric($release_id), fn ($q) => $q->orWhere('releases.id', $release_id)))
+            ->where(fn($q) => $q->where('slug', $release_id)->when(is_numeric($release_id), fn($q) => $q->orWhere('releases.id', $release_id)))
             ->firstOrFail();
 
         $release->tracks()
-            ->where(fn ($q) => $q->where('slug', $id)->when(is_numeric($id), fn ($q) => $q->orWhere('tracks.id', $id)))
+            ->where(fn($q) => $q->where('slug', $id)->when(is_numeric($id), fn($q) => $q->orWhere('tracks.id', $id)))
             ->delete();
 
         return (new TrackCollection([]))->additional([

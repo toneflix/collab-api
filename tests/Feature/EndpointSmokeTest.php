@@ -58,13 +58,13 @@ class EndpointSmokeTest extends TestCase
     }
 
     #[DataProvider('publicRoutes')]
-    public function testPublicEndpointDoesNotFail(string $uri): void
+    public function test_public_endpoint_does_not_fail(string $uri): void
     {
         $this->get($this->resolve($uri))->assertSuccessful();
     }
 
     #[DataProvider('privateRoutes')]
-    public function testPrivateEndpointDoesNotFail(string $uri): void
+    public function test_private_endpoint_does_not_fail(string $uri): void
     {
         $user = User::query()->first();
 

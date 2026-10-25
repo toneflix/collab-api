@@ -111,7 +111,7 @@ class AiStudio
         $spend = $job->creditEntries()->where('type', AiCreditEntry::SPEND)->first();
 
         if ($spend) {
-            Credits::for($job->user)->refund($spend, 'Refund: '.$job->task()->describe($job->input ?? []));
+            Credits::for($job->user)->refund($spend, 'Refund: ' . $job->task()->describe($job->input ?? []));
         }
 
         $this->announce($job);
@@ -127,7 +127,7 @@ class AiStudio
     {
         $this->log($job, $error, $step);
 
-        $job->forceFill(['failure' => "{$step}: ".$this->reason($error)])->save();
+        $job->forceFill(['failure' => "{$step}: " . $this->reason($error)])->save();
 
         $spend = $job->creditEntries()->where('type', AiCreditEntry::SPEND)->first();
 
@@ -150,8 +150,8 @@ class AiStudio
     protected function reason(Throwable|string $error): string
     {
         $reason = match (true) {
-            $error instanceof RequestException => "HTTP {$error->response->status()}: ".($error->response->json('detail') ?? $error->response->body()),
-            $error instanceof Throwable => class_basename($error).': '.$error->getMessage(),
+            $error instanceof RequestException => "HTTP {$error->response->status()}: " . ($error->response->json('detail') ?? $error->response->body()),
+            $error instanceof Throwable => class_basename($error) . ': ' . $error->getMessage(),
             default => $error,
         };
 

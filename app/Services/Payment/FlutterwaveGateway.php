@@ -86,15 +86,15 @@ class FlutterwaveGateway implements CollectsBankDetails, PayoutGateway
     {
         if ($method->key === 'mobile_money') {
             return collect(self::NETWORKS[$country] ?? [])
-                ->map(fn ($name, $code) => ['name' => $name, 'code' => (string) $code])
+                ->map(fn($name, $code) => ['name' => $name, 'code' => (string) $code])
                 ->values()
                 ->all();
         }
 
-        $response = $this->send('bank_code', fn ($http) => $http->get("/banks/{$country}"));
+        $response = $this->send('bank_code', fn($http) => $http->get("/banks/{$country}"));
 
         return collect($response->json('data', []))
-            ->map(fn ($bank) => ['name' => (string) $bank['name'], 'code' => (string) $bank['code']])
+            ->map(fn($bank) => ['name' => (string) $bank['name'], 'code' => (string) $bank['code']])
             ->unique('code')
             ->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)
             ->values()
@@ -107,7 +107,7 @@ class FlutterwaveGateway implements CollectsBankDetails, PayoutGateway
             return (string) ($details['account_name'] ?? '');
         }
 
-        $response = $this->send('account_number', fn ($http) => $http->post('/accounts/resolve', [
+        $response = $this->send('account_number', fn($http) => $http->post('/accounts/resolve', [
             'account_number' => $accountNumber,
             'account_bank' => $bankCode,
         ]));
@@ -131,7 +131,7 @@ class FlutterwaveGateway implements CollectsBankDetails, PayoutGateway
         }
 
         // Ask what 1000 of the destination currency costs in the source currency.
-        $response = $this->send('payout', fn ($http) => $http->get('/transfers/rates', [
+        $response = $this->send('payout', fn($http) => $http->get('/transfers/rates', [
             'amount' => 1000,
             'source_currency' => $from,
             'destination_currency' => $to,

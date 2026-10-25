@@ -32,13 +32,13 @@ class PayoutResource extends JsonResource
                 'accountNumber' => $this->destination['account_number'] ?? null,
                 'accountName' => $this->destination['account_name'] ?? null,
             ],
-            'user' => $this->whenLoaded('user', fn () => [
+            'user' => $this->whenLoaded('user', fn() => [
                 'id' => $this->user->id,
                 'username' => $this->user->username,
                 'fullname' => $this->user->fullname,
                 'imageUrl' => $this->user->images['image'] ?? null,
             ]),
-            'reviewer' => $this->whenLoaded('reviewer', fn () => $this->reviewer ? [
+            'reviewer' => $this->whenLoaded('reviewer', fn() => $this->reviewer ? [
                 'id' => $this->reviewer->id,
                 'fullname' => $this->reviewer->fullname,
             ] : null),

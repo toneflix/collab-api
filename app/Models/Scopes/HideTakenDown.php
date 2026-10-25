@@ -24,7 +24,7 @@ class HideTakenDown implements Scope
             $query->whereNull($model->qualifyColumn('taken_down_at'));
 
             if ($userId) {
-                $query->orWhere(fn (Builder $owned) => $model->whereOwnedBy($owned, $userId));
+                $query->orWhere(fn(Builder $owned) => $model->whereOwnedBy($owned, $userId));
             }
         });
     }

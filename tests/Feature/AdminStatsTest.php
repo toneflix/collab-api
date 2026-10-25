@@ -42,7 +42,7 @@ class AdminStatsTest extends TestCase
     protected function payment(float $amount, ?float $share = null): Transaction
     {
         $transaction = new Transaction([
-            'reference' => 'TRX-'.uniqid(),
+            'reference' => 'TRX-' . uniqid(),
             'purpose' => $share ? 'release' : 'premium',
             'method' => 'paystack',
             'status' => 'complete',

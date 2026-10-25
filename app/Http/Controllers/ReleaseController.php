@@ -20,29 +20,29 @@ class ReleaseController extends Controller
 
         $filters = str($request->filters)->remove(' ')->explode(',');
 
-        $base = fn ($query) => $query
+        $base = fn($query) => $query
             ->when(
                 $filters->contains('recently_played'),
-                fn (Builder $q) => $q->recentlyPlayed($request->user('sanctum'), $request->period ?? 'week')
+                fn(Builder $q) => $q->recentlyPlayed($request->user('sanctum'), $request->period ?? 'week')
             )
             ->when(
                 $filters->contains('liked') && $request->user('sanctum'),
-                fn (Builder $q) => $q->likedBy($request->user('sanctum'))
+                fn(Builder $q) => $q->likedBy($request->user('sanctum'))
             )
             ->when(
                 $filters->contains('own_collabs') && $request->user('sanctum'),
-                fn (Builder $q) => $q->userCollabs($request->user('sanctum'), $request->period)
+                fn(Builder $q) => $q->userCollabs($request->user('sanctum'), $request->period)
             )
-            ->when($request->has('genre'), fn (Builder $q) => $q->genre($request->genre))
-            ->when($request->has('artist_id'), fn (Builder $q) => $q->forArtist($request->artist_id))
-            ->when($filters->contains('latest'), fn (Builder $q) => $q->latestInPeriod('weeks_2'))
-            ->when($filters->contains('random'), fn (Builder $q) => $q->inRandomOrder())
-            ->when($filters->contains('top'), fn (Builder $q) => $q->popular('top', $request->period));
+            ->when($request->has('genre'), fn(Builder $q) => $q->genre($request->genre))
+            ->when($request->has('artist_id'), fn(Builder $q) => $q->forArtist($request->artist_id))
+            ->when($filters->contains('latest'), fn(Builder $q) => $q->latestInPeriod('weeks_2'))
+            ->when($filters->contains('random'), fn(Builder $q) => $q->inRandomOrder())
+            ->when($filters->contains('top'), fn(Builder $q) => $q->popular('top', $request->period));
 
         $query->where($base)
             ->when($filters->contains('album'), function (Builder $q) {
                 // An album is a release with more than one track; single-track releases are singles.
-                $q->whereIn('releases.id', fn ($sub) => $sub->select('release_id')
+                $q->whereIn('releases.id', fn($sub) => $sub->select('release_id')
                     ->from('tracks')
                     ->groupBy('release_id')
                     ->havingRaw('count(*) > 1'));

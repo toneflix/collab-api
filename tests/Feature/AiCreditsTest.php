@@ -64,7 +64,7 @@ class AiCreditsTest extends TestCase
     protected function member(int $credits = 50, bool $tools = true): User
     {
         $plan = Plan::create([
-            'slug' => 'ai-'.uniqid(), 'name' => 'AI', 'price' => 1000, 'interval' => 'month',
+            'slug' => 'ai-' . uniqid(), 'name' => 'AI', 'price' => 1000, 'interval' => 'month',
             'features' => [Feature::AI_TOOLS->value => $tools, Feature::AI_CREDITS->value => $credits],
         ]);
 
@@ -106,7 +106,7 @@ class AiCreditsTest extends TestCase
     {
         $premium = Plan::where('slug', 'premium')->first();
         $migration = require database_path('migrations/2026_10_29_000001_create_ai_credits_tables.php');
-        $grant = fn () => (fn () => $this->grantPremium())->call($migration);
+        $grant = fn() => (fn() => $this->grantPremium())->call($migration);
 
         // A fresh install already holds the off defaults from the plans migration.
         $premium->forceFill(['features' => [...$premium->features, 'ai_tools' => false, 'ai_credits' => 0]])->save();

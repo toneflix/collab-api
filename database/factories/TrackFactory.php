@@ -10,7 +10,7 @@ use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Track>
+ * @extends Factory<Track>
  */
 class TrackFactory extends Factory
 {
@@ -47,7 +47,7 @@ class TrackFactory extends Factory
             }
             User::inRandomOrder()->limit(rand(1, 10))
                 ->get()
-                ->each(fn (User $user) => $model->stream(rand(10, 320), $user));
+                ->each(fn(User $user) => $model->stream(rand(10, 320), $user));
         });
     }
 }

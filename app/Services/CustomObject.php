@@ -6,8 +6,7 @@ class CustomObject implements \ArrayAccess
 {
     public function __construct(
         protected object|array $customItem
-    ) {
-    }
+    ) {}
 
     /**
      * Retrive an item based on how it has been accessed

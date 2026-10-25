@@ -127,7 +127,7 @@ class ProjectReleaseTest extends TestCase
         Sanctum::actingAs($this->owner);
 
         $media = new Media;
-        $preview = 'mix-'.uniqid().'.mp3';
+        $preview = 'mix-' . uniqid() . '.mp3';
         $media->disk->put($media->mediaInfo('music_tracks', $preview)['path'], 'mix');
         $this->track->forceFill(['preview' => $preview])->saveQuietly();
 
@@ -163,7 +163,7 @@ class ProjectReleaseTest extends TestCase
         $this->postJson('/api/creator/releases', $this->releaseForm(['draft' => false]))->assertCreated();
 
         Queue::assertPushed(TranscribeTrack::class, 1);
-        Queue::assertPushed(TagAudio::class, fn (TagAudio $job) => $job->inherit);
+        Queue::assertPushed(TagAudio::class, fn(TagAudio $job) => $job->inherit);
     }
 
     public function test_a_released_track_without_lyrics_picks_up_the_studio_sheet(): void

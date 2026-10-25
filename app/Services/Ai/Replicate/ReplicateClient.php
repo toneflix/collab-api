@@ -131,7 +131,7 @@ class ReplicateClient
 
     public function cancel(string $id): void
     {
-        rescue(fn () => $this->http()->post("predictions/{$id}/cancel"), report: false);
+        rescue(fn() => $this->http()->post("predictions/{$id}/cancel"), report: false);
     }
 
     /**
@@ -188,7 +188,7 @@ class ReplicateClient
      */
     protected function latestVersion(string $model): ?string
     {
-        return Cache::remember($this->versionKey($model), 3600, fn () => $this->http()->get("models/{$model}")->json('latest_version.id'));
+        return Cache::remember($this->versionKey($model), 3600, fn() => $this->http()->get("models/{$model}")->json('latest_version.id'));
     }
 
     protected function versionKey(string $model): string
@@ -198,7 +198,7 @@ class ReplicateClient
 
     protected function baseUrl(): string
     {
-        return rtrim((string) ($this->config['url'] ?? 'https://api.replicate.com/v1'), '/').'/';
+        return rtrim((string) ($this->config['url'] ?? 'https://api.replicate.com/v1'), '/') . '/';
     }
 
     protected function http(): PendingRequest

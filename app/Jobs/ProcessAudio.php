@@ -3,6 +3,11 @@
 namespace App\Jobs;
 
 use App\Models\Track;
+use App\Services\Audio\Aac;
+use FFMpeg\Format\Audio\Flac;
+use FFMpeg\Format\Audio\Mp3;
+use FFMpeg\Format\Audio\Vorbis;
+use FFMpeg\Format\Audio\Wav;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -18,11 +23,11 @@ class ProcessAudio implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected static $outputMap = [
-        'aac' => \App\Services\Audio\Aac::class,
-        'flac' => \FFMpeg\Format\Audio\Flac::class,
-        'mp3' => \FFMpeg\Format\Audio\Mp3::class,
-        'wav' => \FFMpeg\Format\Audio\Wav::class,
-        'vorbis' => \FFMpeg\Format\Audio\Vorbis::class,
+        'aac' => Aac::class,
+        'flac' => Flac::class,
+        'mp3' => Mp3::class,
+        'wav' => Wav::class,
+        'vorbis' => Vorbis::class,
     ];
 
     /**
@@ -30,8 +35,7 @@ class ProcessAudio implements ShouldQueue
      */
     public function __construct(
         public Track $track
-    ) {
-    }
+    ) {}
 
     /**
      * Execute the job.
@@ -41,16 +45,17 @@ class ProcessAudio implements ShouldQueue
         if ($this->check()) {
             $format = static::$outputMap[config('settings.encoding.output')] ?? null;
 
-            if (!class_exists($format)) {
+            if (! class_exists($format)) {
                 $this->track->meta['errors'] = [
                     'message' => 'Invalid format provided for settings.encoding.output',
                 ];
                 $this->track->saveQuietly();
+
                 return;
             }
 
-            /** @var \FFMpeg\Format\Audio\Aac|\FFMpeg\Format\Audio\Flac|\FFMpeg\Format\Audio\Mp3|\FFMpeg\Format\Audio\Wav|\FFMpeg\Format\Audio\Vorbis */
-            $outputFormat = (new $format());
+            /** @var \FFMpeg\Format\Audio\Aac|Flac|Mp3|Wav|Vorbis */
+            $outputFormat = (new $format);
 
             // Use a custom codec when one is configured
             if ($codec = config('settings.encoding.output_codec')) {
@@ -100,7 +105,7 @@ class ProcessAudio implements ShouldQueue
                 $this->track->saveQuietly();
 
                 // Delete the old file
-                (new Media())->delete($this->track->file_field['audio'], $old_name);
+                (new Media)->delete($this->track->file_field['audio'], $old_name);
             } catch (EncodingException $e) {
                 $command = $e->getCommand();
                 $errorLog = $e->getErrorOutput();
@@ -121,7 +126,7 @@ class ProcessAudio implements ShouldQueue
         $ext = pathinfo($path, PATHINFO_EXTENSION);
 
         if (
-            !$processed &&
+            ! $processed &&
             config('settings.encoding.enabled', false) &&
             in_array($ext, config('settings.encoding.formats', [])) &&
             Storage::exists($this->track->get_files['audio']['path'])

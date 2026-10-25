@@ -145,7 +145,7 @@ class Moderation
 
         $flag->fill([
             'reason' => 'hate',
-            'details' => 'The lyrics use words to review: '.implode(', ', array_map(fn ($word) => "“{$word}”", $words)).'.',
+            'details' => 'The lyrics use words to review: ' . implode(', ', array_map(fn($word) => "“{$word}”", $words)) . '.',
             'data' => ['words' => $words],
         ])->save();
 
@@ -179,8 +179,8 @@ class Moderation
         $label = $this->label($item);
 
         $this->notifyOwner($item, "Your {$label} was taken down", trim(
-            "A moderator took down “{$summary['title']}” for {$this->reasonLabel($reason)}. ".
-            ($note ? $note.' ' : '').
+            "A moderator took down “{$summary['title']}” for {$this->reasonLabel($reason)}. " .
+            ($note ? $note . ' ' : '') .
             'If you think this is a mistake, you can appeal from Studio > Takedowns.'
         ), $takedown);
 
@@ -267,7 +267,7 @@ class Moderation
         if ($item instanceof CanBeTakenDown) {
             $summary = $item->moderationSummary();
             $this->notifyOwner($item, "Your {$this->label($item)} is back", trim(
-                "We reviewed “{$summary['title']}” again and restored it. ".($resolution ?? '')
+                "We reviewed “{$summary['title']}” again and restored it. " . ($resolution ?? '')
             ), $takedown);
         }
 
@@ -294,7 +294,7 @@ class Moderation
         if ($item instanceof CanBeTakenDown) {
             $summary = $item->moderationSummary();
             $this->notifyOwner($item, 'Your appeal was declined', trim(
-                "We reviewed your appeal for “{$summary['title']}”, and it stays down. ".($resolution ?? '')
+                "We reviewed your appeal for “{$summary['title']}”, and it stays down. " . ($resolution ?? '')
             ), $takedown);
         }
 
@@ -317,8 +317,8 @@ class Moderation
         Track::query()
             ->withoutGlobalScopes()
             ->where('release_id', $item->id)
-            ->when($at, fn (Builder $q) => $q->whereNull('taken_down_at'))
-            ->when(! $at, fn (Builder $q) => $q->whereNotIn('id', Takedown::query()
+            ->when($at, fn(Builder $q) => $q->whereNull('taken_down_at'))
+            ->when(! $at, fn(Builder $q) => $q->whereNotIn('id', Takedown::query()
                 ->select('model_id')
                 ->where('model_type', (new Track)->getMorphClass())
                 ->inForce()))

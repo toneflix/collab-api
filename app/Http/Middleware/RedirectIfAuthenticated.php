@@ -14,7 +14,7 @@ class RedirectIfAuthenticated
     /**
      * Handle an incoming request.
      *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
+     * @param  Closure(Request): (Response)  $next
      */
     public function handle(Request $request, Closure $next, string ...$guards): Response
     {
@@ -24,7 +24,7 @@ class RedirectIfAuthenticated
             if (Auth::guard($guard)->check()) {
                 return $request->expectsJson()
                     ? Providers::response()->error([
-                        'message' => 'You are already logged in as '.$request->user()->fullname,
+                        'message' => 'You are already logged in as ' . $request->user()->fullname,
                     ], HttpStatus::FORBIDDEN)
                     : redirect('/');
             }

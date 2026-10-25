@@ -120,7 +120,7 @@ class FreesoundController extends Controller
             ->whereIn('source_id', collect($found['results'])->pluck('id'))->pluck('source_id')->all();
 
         return Providers::response()->success([
-            'data' => collect($found['results'])->map(fn ($s) => [...$s, 'imported' => in_array($s['id'], $imported, true)])->all(),
+            'data' => collect($found['results'])->map(fn($s) => [...$s, 'imported' => in_array($s['id'], $imported, true)])->all(),
             'meta' => ['total' => $found['count'], 'page' => (int) ($valid['page'] ?? 1)],
             'message' => HttpStatus::message(HttpStatus::OK),
         ]);

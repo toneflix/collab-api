@@ -50,7 +50,7 @@ class RealtimeSettingsController extends Controller
         $missing = $this->missing();
 
         return $this->settings(
-            $missing ? 'Saved, but '.$valid['realtime_driver'].' still needs these in .env: '.implode(', ', $missing).'.' : 'Realtime settings saved.',
+            $missing ? 'Saved, but ' . $valid['realtime_driver'] . ' still needs these in .env: ' . implode(', ', $missing) . '.' : 'Realtime settings saved.',
             HttpStatus::ACCEPTED
         );
     }
@@ -66,7 +66,7 @@ class RealtimeSettingsController extends Controller
 
         if ($missing = $this->missing()) {
             return Providers::response()->error([
-                'message' => 'Set '.implode(', ', $missing).' in .env first.',
+                'message' => 'Set ' . implode(', ', $missing) . ' in .env first.',
             ], HttpStatus::UNPROCESSABLE_ENTITY);
         }
 
@@ -78,12 +78,12 @@ class RealtimeSettingsController extends Controller
             ]));
         } catch (\Throwable $e) {
             return Providers::response()->error([
-                'message' => 'The test event could not be sent: '.$e->getMessage(),
+                'message' => 'The test event could not be sent: ' . $e->getMessage(),
             ], HttpStatus::UNPROCESSABLE_ENTITY);
         }
 
         return Providers::response()->success([
-            'data' => ['channel' => 'private-user.'.$request->user()->id, 'event' => 'realtime.test'],
+            'data' => ['channel' => 'private-user.' . $request->user()->id, 'event' => 'realtime.test'],
             'message' => 'Test event sent.',
         ]);
     }

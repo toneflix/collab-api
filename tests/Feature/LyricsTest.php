@@ -81,7 +81,7 @@ class LyricsTest extends TestCase
     protected function member(int $credits): User
     {
         $plan = Plan::create([
-            'slug' => 'lyrics-'.uniqid(), 'name' => 'AI', 'price' => 1000, 'interval' => 'month',
+            'slug' => 'lyrics-' . uniqid(), 'name' => 'AI', 'price' => 1000, 'interval' => 'month',
             'features' => [Feature::AI_TOOLS->value => true, Feature::AI_CREDITS->value => $credits],
         ]);
 
@@ -107,11 +107,11 @@ class LyricsTest extends TestCase
     protected function fakeWhisper(array $segments = self::SEGMENTS): void
     {
         Http::fake([
-            self::API.'/files' => Http::response(['urls' => ['get' => self::API.'/files/f1']]),
-            self::API.'/models/openai/whisper/predictions' => Http::response(['detail' => 'version required'], 404),
-            self::API.'/models/openai/whisper' => Http::response(['latest_version' => ['id' => 'v-whisper']]),
-            self::API.'/predictions' => Http::response(['id' => 'p-lyrics', 'status' => 'starting']),
-            self::API.'/predictions/p-lyrics' => Http::response(['id' => 'p-lyrics', 'status' => 'succeeded', 'output' => [
+            self::API . '/files' => Http::response(['urls' => ['get' => self::API . '/files/f1']]),
+            self::API . '/models/openai/whisper/predictions' => Http::response(['detail' => 'version required'], 404),
+            self::API . '/models/openai/whisper' => Http::response(['latest_version' => ['id' => 'v-whisper']]),
+            self::API . '/predictions' => Http::response(['id' => 'p-lyrics', 'status' => 'starting']),
+            self::API . '/predictions/p-lyrics' => Http::response(['id' => 'p-lyrics', 'status' => 'succeeded', 'output' => [
                 'segments' => $segments,
                 'transcription' => implode('', array_column($segments, 'text')),
                 'detected_language' => 'english',
@@ -175,9 +175,9 @@ class LyricsTest extends TestCase
                 ['start' => 14.5, 'end' => 18.25, 'text' => 'We dey shine, we dey shine'],
             ]);
 
-        Http::assertSent(fn (Request $request) => $request->url() === self::API.'/predictions'
+        Http::assertSent(fn(Request $request) => $request->url() === self::API . '/predictions'
             && $request['version'] === 'v-whisper'
-            && $request['input']['audio'] === self::API.'/files/f1'
+            && $request['input']['audio'] === self::API . '/files/f1'
             && $request['input']['translate'] === false);
     }
 
@@ -239,11 +239,11 @@ class LyricsTest extends TestCase
         $this->fakeWhisper([
             ['start' => 0, 'end' => 3, 'text' => ' Fuckin\' with the vibe tonight', 'no_speech_prob' => 0.01, 'avg_logprob' => -0.2],
         ]);
-        $name = Str::random(12).'.mp3';
-        Storage::put('public/media/music/tracks/'.$name, 'ID3-song');
+        $name = Str::random(12) . '.mp3';
+        Storage::put('public/media/music/tracks/' . $name, 'ID3-song');
         $track = $this->release(User::factory()->create(), ['audio' => $name]);
 
-        Bus::assertDispatched(TranscribeTrack::class, fn (TranscribeTrack $job) => $job->track->is($track));
+        Bus::assertDispatched(TranscribeTrack::class, fn(TranscribeTrack $job) => $job->track->is($track));
         $this->transcribe($track);
 
         $lyric = app(Lyrics::class)->for($track);
@@ -257,8 +257,8 @@ class LyricsTest extends TestCase
     public function test_released_tracks_keep_lyrics_their_creator_wrote_and_skip_when_turned_off(): void
     {
         Http::fake();
-        $name = Str::random(12).'.mp3';
-        Storage::put('public/media/music/tracks/'.$name, 'ID3-song');
+        $name = Str::random(12) . '.mp3';
+        Storage::put('public/media/music/tracks/' . $name, 'ID3-song');
         $track = $this->release($owner = User::factory()->create(), ['audio' => $name]);
 
         Sanctum::actingAs($owner);
@@ -298,7 +298,7 @@ class LyricsTest extends TestCase
             ['start' => 2, 'end' => 4, 'text' => 'Dancing under neon moonlight'],
         ], Lyric::WRITTEN, $this->owner);
 
-        $found = collect($this->getJson('/api/tracks?limit=50&search='.urlencode('neon moonlight'))->assertOk()->json('data'));
+        $found = collect($this->getJson('/api/tracks?limit=50&search=' . urlencode('neon moonlight'))->assertOk()->json('data'));
 
         $this->assertSame('Dancing under neon moonlight', $found->firstWhere('id', $track->id)['lyricMatch'] ?? null);
 
@@ -325,7 +325,7 @@ class LyricsTest extends TestCase
         $moderator->givePermissionTo(Permission::findOrCreate('manage-content'));
         Sanctum::actingAs($moderator);
         $queued = collect($this->getJson('/api/admin/moderation/queue?source=lyrics')->assertOk()->json('data'));
-        $this->assertTrue($queued->contains(fn ($row) => collect($row['reports'])->contains('id', $flag->id)));
+        $this->assertTrue($queued->contains(fn($row) => collect($row['reports'])->contains('id', $flag->id)));
 
         $flag->forceFill(['status' => Safety::DISMISSED])->save();
         $lyrics->save($track, [['text' => 'Kill yourself, again']], Lyric::WRITTEN, $this->owner);

@@ -24,11 +24,11 @@ class ProjectController extends Controller
 
         $query
             ->visibleTo($filters->contains('open') ? null : $request->user('sanctum'))
-            ->when($request->has('genre'), fn (Builder $q) => $q->genre($request->genre))
-            ->when($filters->contains('top'), fn ($q) => $q->top(true))
-            ->when($filters->contains('latest'), fn ($q) => $q->orderByLastDays($days, 'desc'))
-            ->when($filters->contains('active'), fn ($q) => $q->released(false)->latest())
-            ->when($request->has('creator_id'), fn ($q) => $q->collaber($request->creator_id)->latest());
+            ->when($request->has('genre'), fn(Builder $q) => $q->genre($request->genre))
+            ->when($filters->contains('top'), fn($q) => $q->top(true))
+            ->when($filters->contains('latest'), fn($q) => $q->orderByLastDays($days, 'desc'))
+            ->when($filters->contains('active'), fn($q) => $q->released(false)->latest())
+            ->when($request->has('creator_id'), fn($q) => $q->collaber($request->creator_id)->latest());
 
         $projects = $query->paginate($request->perPage(45));
 

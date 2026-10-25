@@ -22,8 +22,8 @@ class ProjectCollaboratorController extends Controller
     public function index(Request $request, Project $project)
     {
         $query = $project->collaborators()->getQuery()
-            ->when($request->boolean('accepted'), fn (Builder $q) => $q->whereAccepted(true))
-            ->when($request->boolean('pending'), fn (Builder $q) => $q->whereAccepted(false));
+            ->when($request->boolean('accepted'), fn(Builder $q) => $q->whereAccepted(true))
+            ->when($request->boolean('pending'), fn(Builder $q) => $q->whereAccepted(false));
 
         $collaborators = $query->paginate($request->perPage(45));
 
@@ -119,8 +119,8 @@ class ProjectCollaboratorController extends Controller
     public function destroy(Request $request, Project $project, string $cid)
     {
         $collaborator = $project->collaborators()->getQuery()
-            ->when($cid === 'self', fn (Builder $q) => $q->whereUserId($request->user('sanctum')?->id))
-            ->when($cid !== 'self', fn (Builder $q) => $q->whereId($cid))
+            ->when($cid === 'self', fn(Builder $q) => $q->whereUserId($request->user('sanctum')?->id))
+            ->when($cid !== 'self', fn(Builder $q) => $q->whereId($cid))
             ->firstOrFail();
 
         $collaborator->request()->delete();

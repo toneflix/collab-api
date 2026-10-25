@@ -15,7 +15,7 @@ class SyncRolesTest extends TestCase
 
         $this->artisan('app:sync-roles')->assertSuccessful();
 
-        $permissions = fn (string $role) => Role::findByName($role, 'web')->permissions->pluck('name')->sort()->values()->all();
+        $permissions = fn(string $role) => Role::findByName($role, 'web')->permissions->pluck('name')->sort()->values()->all();
         $all = collect(config('permission-defs.permissions'))->sort()->values();
 
         $this->assertSame($all->all(), $permissions('super-admin'));

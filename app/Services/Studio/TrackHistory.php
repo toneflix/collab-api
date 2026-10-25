@@ -45,7 +45,7 @@ class TrackHistory
             'title' => $this->track->title,
             'bpm' => isset($meta['bpm']) ? (float) $meta['bpm'] : null,
             'timeSignature' => $meta['timeSignature'] ?? null,
-            'stems' => $this->track->stems()->orderBy('id')->get()->map(fn (ProjectTrackStem $stem) => [
+            'stems' => $this->track->stems()->orderBy('id')->get()->map(fn(ProjectTrackStem $stem) => [
                 'id' => $stem->id,
                 'title' => $stem->title,
                 'src' => $stem->getRawOriginal('src'),
@@ -150,7 +150,7 @@ class TrackHistory
             foreach ($target as $id => $data) {
                 /** @var ProjectTrackStem|null $stem */
                 $stem = $stems->get($id);
-                $title = (string) (($data['title'] ?? '') ?: 'Stem '.$id);
+                $title = (string) (($data['title'] ?? '') ?: 'Stem ' . $id);
 
                 if (! $stem) {
                     $missing[] = $title;
@@ -234,6 +234,6 @@ class TrackHistory
      */
     protected function stemIds(array $snapshot): array
     {
-        return array_map(fn ($stem) => (int) $stem['id'], $snapshot['stems'] ?? []);
+        return array_map(fn($stem) => (int) $stem['id'], $snapshot['stems'] ?? []);
     }
 }

@@ -31,7 +31,7 @@ class GenerateMusic implements AiTask
 
     public function describe(array $input): string
     {
-        return 'Music: '.str((string) $input['prompt'])->limit(80);
+        return 'Music: ' . str((string) $input['prompt'])->limit(80);
     }
 
     public function handle(AiJob $job): array
@@ -43,7 +43,7 @@ class GenerateMusic implements AiTask
                 'music_length_ms' => (int) $input['seconds'] * 1000,
                 'force_instrumental' => (bool) ($input['instrumental'] ?? false),
                 'seed' => $input['seed'] ?? null,
-            ], fn ($value) => $value !== null))
+            ], fn($value) => $value !== null))
             ->timeout((int) config('ai.providers.replicate.timeout', 600))
             ->generate('replicate');
 
@@ -58,7 +58,7 @@ class GenerateMusic implements AiTask
                 'seed' => $input['seed'] ?? null,
                 'model' => $audio->meta->model,
                 'job' => $job->id,
-            ], fn ($value) => $value !== null),
+            ], fn($value) => $value !== null),
         ];
 
         $notice = null;
@@ -77,7 +77,7 @@ class GenerateMusic implements AiTask
         }
 
         return array_filter([
-            'stems' => array_map(fn (ProjectTrackStem $stem) => $stem->id, $stems),
+            'stems' => array_map(fn(ProjectTrackStem $stem) => $stem->id, $stems),
             'notice' => $notice,
         ]);
     }

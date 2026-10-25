@@ -29,7 +29,7 @@ class UserAccess extends Command
         $user = $directory->find((string) $this->argument('user'));
 
         if (! $user) {
-            $this->error('No user matches "'.$this->argument('user').'".');
+            $this->error('No user matches "' . $this->argument('user') . '".');
 
             return self::FAILURE;
         }
@@ -70,15 +70,15 @@ class UserAccess extends Command
         foreach (['grant', 'revoke'] as $action) {
             $values = collect((array) $this->option("{$action}-{$kind}"))->filter()->unique()->values();
 
-            [$ids, $names] = $values->partition(fn ($value) => ctype_digit((string) $value));
+            [$ids, $names] = $values->partition(fn($value) => ctype_digit((string) $value));
             $found = $model::query()
-                ->where(fn ($q) => $q->whereIn('name', $names->all())->orWhereIn('id', $ids->all()))
+                ->where(fn($q) => $q->whereIn('name', $names->all())->orWhereIn('id', $ids->all()))
                 ->get(['id', 'name']);
 
-            $missing = $values->reject(fn ($value) => $found->contains(fn ($m) => $m->name === $value || (string) $m->id === (string) $value));
+            $missing = $values->reject(fn($value) => $found->contains(fn($m) => $m->name === $value || (string) $m->id === (string) $value));
 
             if ($missing->isNotEmpty()) {
-                $this->error("Unknown {$kind}: ".$missing->implode(', ').'. Run app:sync-roles to create the defaults.');
+                $this->error("Unknown {$kind}: " . $missing->implode(', ') . '. Run app:sync-roles to create the defaults.');
 
                 return null;
             }

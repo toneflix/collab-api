@@ -53,7 +53,7 @@ class Subscriptions
     public function end(User $user): int
     {
         $now = now();
-        $open = fn () => Subscription::query()->where('user_id', $user->id)->where('ends_at', '>', $now);
+        $open = fn() => Subscription::query()->where('user_id', $user->id)->where('ends_at', '>', $now);
 
         $queued = $open()->where('starts_at', '>', $now)->update(['starts_at' => $now, 'ends_at' => $now]);
 

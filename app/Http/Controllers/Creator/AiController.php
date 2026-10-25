@@ -24,7 +24,7 @@ class AiController extends Controller
 
         $valid = $request->validate([
             'prompt' => ['required', 'string', 'min:3', 'max:2000'],
-            'seconds' => ['required', 'integer', 'min:3', 'max:'.AiSettings::musicMaxSeconds()],
+            'seconds' => ['required', 'integer', 'min:3', 'max:' . AiSettings::musicMaxSeconds()],
             'instrumental' => ['nullable', 'boolean'],
             'seed' => ['nullable', 'integer', 'min:0', 'max:4294967295'],
             'split' => ['nullable', 'boolean'],

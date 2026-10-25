@@ -75,8 +75,8 @@ class LyricsController extends Controller
     protected function lines(Request $request): array
     {
         $request->validate([
-            'lines' => ['present', 'array', 'max:'.Lyrics::MAX_LINES],
-            'lines.*.text' => ['nullable', 'string', 'max:'.Lyrics::MAX_LINE_LENGTH],
+            'lines' => ['present', 'array', 'max:' . Lyrics::MAX_LINES],
+            'lines.*.text' => ['nullable', 'string', 'max:' . Lyrics::MAX_LINE_LENGTH],
             'lines.*.start' => ['nullable', 'numeric', 'min:0', 'max:86400'],
             'lines.*.end' => ['nullable', 'numeric', 'min:0', 'max:86400'],
         ]);

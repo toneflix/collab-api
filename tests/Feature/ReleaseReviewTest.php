@@ -116,7 +116,7 @@ class ReleaseReviewTest extends TestCase
             ->assertJsonFragment(['id' => $second]);
 
         $title = Release::find($second)->title;
-        $this->getJson('/api/admin/moderation/releases?search='.urlencode(strtoupper($title)))->assertJsonFragment(['id' => $second]);
+        $this->getJson('/api/admin/moderation/releases?search=' . urlencode(strtoupper($title)))->assertJsonFragment(['id' => $second]);
         $this->getJson('/api/admin/moderation/releases?search=nothing-like-this')->assertJsonCount(0, 'data');
 
         $this->postJson("/api/admin/moderation/releases/{$second}/approve")->assertStatus(202);

@@ -56,7 +56,7 @@ class KeyDetector
             }
         }
 
-        usort($scores, fn ($a, $b) => $b['score'] <=> $a['score']);
+        usort($scores, fn($a, $b) => $b['score'] <=> $a['score']);
         [$best, $next] = $scores;
 
         if ($best['score'] <= 0.2) {

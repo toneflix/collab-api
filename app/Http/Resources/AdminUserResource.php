@@ -29,7 +29,7 @@ class AdminUserResource extends JsonResource
             'email' => $this->email,
             'phone' => $this->phone,
             'imageUrl' => $this->images['image'] ?? null,
-            'roles' => $this->whenLoaded('roles', fn () => $this->roles->pluck('name')),
+            'roles' => $this->whenLoaded('roles', fn() => $this->roles->pluck('name')),
             'verified' => (bool) $this->verified,
             'emailVerifiedAt' => $this->email_verified_at,
             'suspended' => $this->isSuspended(),

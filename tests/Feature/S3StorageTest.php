@@ -43,7 +43,7 @@ class S3StorageTest extends TestCase
             $this->markTestSkipped('Set S3_TEST_ENDPOINT to run the S3 storage tests.');
         }
 
-        $bucket = 'collab-test-'.strtolower(str()->random(8));
+        $bucket = 'collab-test-' . strtolower(str()->random(8));
 
         config([
             'filesystems.default' => 's3',
@@ -55,7 +55,7 @@ class S3StorageTest extends TestCase
                 'bucket' => $bucket,
                 'endpoint' => $endpoint,
                 'use_path_style_endpoint' => true,
-                'url' => rtrim($endpoint, '/').'/'.$bucket,
+                'url' => rtrim($endpoint, '/') . '/' . $bucket,
                 'throw' => true,
             ],
             'toneflix-fileable.temporary_urls' => true,
@@ -98,14 +98,14 @@ class S3StorageTest extends TestCase
         ])->assertAccepted();
 
         $user = $user->fresh();
-        $key = 'avatars/'.$user->image;
+        $key = 'avatars/' . $user->image;
 
         $this->assertTrue(Storage::disk('s3')->exists($key));
         $this->assertSame([400, 400], array_slice(getimagesizefromstring(Storage::disk('s3')->get($key)), 0, 2));
 
         // Links are signed, so they work on private buckets too.
         $url = $user->files['image'];
-        $this->assertStringStartsWith($this->bucketUrl().'/'.$key, $url);
+        $this->assertStringStartsWith($this->bucketUrl() . '/' . $key, $url);
         $this->assertStringContainsString('X-Amz-Signature', $url);
         $this->assertSame(200, $this->http($url));
     }
@@ -128,7 +128,7 @@ class S3StorageTest extends TestCase
         ])->assertSuccessful();
 
         $stem = $projectTrack->stems()->latest('id')->firstOrFail();
-        $this->assertTrue(Storage::disk('s3')->exists('media/music/stem/'.$stem->src));
+        $this->assertTrue(Storage::disk('s3')->exists('media/music/stem/' . $stem->src));
 
         $this->assertRedirectsToS3($stem->getFiles['src']['dynamicLink']);
     }
@@ -146,7 +146,7 @@ class S3StorageTest extends TestCase
         ], ['Accept' => 'application/json'])->assertSuccessful();
 
         $projectTrack->refresh();
-        $this->assertTrue(Storage::disk('s3')->exists('media/music/tracks/'.$projectTrack->preview));
+        $this->assertTrue(Storage::disk('s3')->exists('media/music/tracks/' . $projectTrack->preview));
         $this->assertRedirectsToS3($projectTrack->getFiles['preview']['dynamicLink']);
     }
 
@@ -157,7 +157,7 @@ class S3StorageTest extends TestCase
         $files = app(StemFiles::class);
 
         $stem = $files->addStem($projectTrack, $owner, base_path('tests/fixtures/audio.mp3'), 'Split vocals');
-        $this->assertTrue(Storage::disk('s3')->exists('media/music/stem/'.$stem->src));
+        $this->assertTrue(Storage::disk('s3')->exists('media/music/stem/' . $stem->src));
 
         $local = $files->local($stem);
         $this->assertFileEquals(base_path('tests/fixtures/audio.mp3'), $local);
@@ -195,7 +195,7 @@ class S3StorageTest extends TestCase
         ], ['Accept' => 'application/json'])->assertCreated()->json('data');
 
         $file = Sound::findOrFail($sound['id'])->file;
-        $this->assertTrue(Storage::disk('s3')->exists('media/sounds/'.$file));
+        $this->assertTrue(Storage::disk('s3')->exists('media/sounds/' . $file));
         $this->assertRedirectsToS3($sound['url']);
 
         $stemId = $this->postJson("/api/creator/projects/{$project->id}/tracks/{$projectTrack->id}/sounds", ['sound_id' => $sound['id']])
@@ -204,8 +204,8 @@ class S3StorageTest extends TestCase
 
         $stem = $projectTrack->stems()->findOrFail($stemId);
         $this->assertSame(
-            Storage::disk('s3')->get('media/sounds/'.$file),
-            Storage::disk('s3')->get('media/music/stem/'.$stem->src)
+            Storage::disk('s3')->get('media/sounds/' . $file),
+            Storage::disk('s3')->get('media/music/stem/' . $stem->src)
         );
     }
 
@@ -218,7 +218,7 @@ class S3StorageTest extends TestCase
         $artist = Artist::factory()->create();
         $release = Release::factory()->create(['user_id' => $owner->id, 'genre_id' => $genre->id, 'artist_id' => $artist->id]);
 
-        $path = tempnam(sys_get_temp_dir(), 'audio').'.mp3';
+        $path = tempnam(sys_get_temp_dir(), 'audio') . '.mp3';
         copy(base_path('tests/fixtures/audio.mp3'), $path);
 
         $id = $this->post("/api/creator/releases/{$release->id}/tracks", [
@@ -235,12 +235,12 @@ class S3StorageTest extends TestCase
         $this->assertTrue($track->meta['processed'] ?? false, json_encode($track->meta));
         $this->assertGreaterThan(0, $track->duration);
         $this->assertStringEndsWith('.aac', $track->audio);
-        $this->assertTrue(Storage::disk('s3')->exists('media/music/tracks/'.$track->audio));
-        $this->assertTrue(Storage::disk('s3')->exists('artwork/'.$track->image));
+        $this->assertTrue(Storage::disk('s3')->exists('media/music/tracks/' . $track->audio));
+        $this->assertTrue(Storage::disk('s3')->exists('artwork/' . $track->image));
 
         // The copy check reads the processed file back from the bucket.
         $fingerprint = AudioFingerprint::query()->where('model_type', $track->getMorphClass())->where('model_id', $track->id)->firstOrFail();
-        $this->assertSame(hash('sha256', Storage::disk('s3')->get('media/music/tracks/'.$track->audio)), $fingerprint->hash);
+        $this->assertSame(hash('sha256', Storage::disk('s3')->get('media/music/tracks/' . $track->audio)), $fingerprint->hash);
     }
 
     /**

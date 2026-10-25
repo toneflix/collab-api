@@ -2,11 +2,11 @@
 
 namespace Tests\Feature;
 
-use App\Models\Artist;
 use App\Enums\Feature;
-use App\Models\Plan;
+use App\Models\Artist;
 use App\Models\FreesoundConnection;
 use App\Models\Genre;
+use App\Models\Plan;
 use App\Models\Project;
 use App\Models\ProjectTrack;
 use App\Models\Sound;
@@ -105,17 +105,17 @@ class SoundsTest extends TestCase
     protected function fakeFreesound(array $results): void
     {
         Http::fake([
-            self::BASE.'/search/text/*' => Http::response(['count' => count($results), 'results' => $results]),
-            self::BASE.'/sounds/*/download/' => Http::response('ORIGINAL-AUDIO', 200, ['Content-Type' => 'audio/wav']),
-            self::BASE.'/sounds/*' => function (ClientRequest $request) use ($results) {
+            self::BASE . '/search/text/*' => Http::response(['count' => count($results), 'results' => $results]),
+            self::BASE . '/sounds/*/download/' => Http::response('ORIGINAL-AUDIO', 200, ['Content-Type' => 'audio/wav']),
+            self::BASE . '/sounds/*' => function (ClientRequest $request) use ($results) {
                 preg_match('#/sounds/(\d+)/#', $request->url(), $m);
                 $found = collect($results)->firstWhere('id', (int) $m[1]);
 
                 return $found ? Http::response($found) : Http::response(['detail' => 'Not found'], 404);
             },
             'https://cdn.freesound.test/*' => Http::response('PREVIEW-AUDIO', 200, ['Content-Type' => 'audio/mpeg']),
-            self::BASE.'/oauth2/access_token/' => Http::response(['access_token' => 'access-1', 'refresh_token' => 'refresh-1', 'expires_in' => 86399]),
-            self::BASE.'/me/' => Http::response(['username' => 'obi_fs']),
+            self::BASE . '/oauth2/access_token/' => Http::response(['access_token' => 'access-1', 'refresh_token' => 'refresh-1', 'expires_in' => 86399]),
+            self::BASE . '/me/' => Http::response(['username' => 'obi_fs']),
         ]);
     }
 
@@ -223,11 +223,11 @@ class SoundsTest extends TestCase
 
         $stem = $this->track->stems()->findOrFail($response->json('data.id'));
         $this->assertNotSame($sound->file, $stem->src);
-        Storage::disk(config('filesystems.default'))->assertExists('public/media/music/stem/'.$stem->src);
+        Storage::disk(config('filesystems.default'))->assertExists('public/media/music/stem/' . $stem->src);
 
         // Removing the stem keeps the library sound.
         $stem->delete();
-        $this->assertTrue(Storage::disk(config('filesystems.default'))->exists('public/media/sounds/'.$sound->file));
+        $this->assertTrue(Storage::disk(config('filesystems.default'))->exists('public/media/sounds/' . $sound->file));
 
         // With the library off, its sounds can't be added.
         SoundSettings::update(['sounds_library_enabled' => '0']);
@@ -281,7 +281,7 @@ class SoundsTest extends TestCase
         // No connected account, so the MP3 preview is used.
         $this->assertSame('preview', $library[0]->quality);
 
-        Http::assertSent(fn (ClientRequest $r) => str_contains($r->url(), '/search/text/')
+        Http::assertSent(fn(ClientRequest $r) => str_contains($r->url(), '/search/text/')
             && str_contains(urldecode($r->url()), 'license:"Creative Commons 0"'));
 
         $again = SoundLibrary::sync();
@@ -300,7 +300,7 @@ class SoundsTest extends TestCase
         SoundLibrary::sync();
 
         $this->assertSame('original', Sound::query()->library()->value('quality'));
-        Http::assertSent(fn (ClientRequest $r) => str_ends_with($r->url(), '/sounds/7/download/')
+        Http::assertSent(fn(ClientRequest $r) => str_ends_with($r->url(), '/sounds/7/download/')
             && $r->hasHeader('Authorization', 'Bearer admin-token'));
     }
 
@@ -330,7 +330,7 @@ class SoundsTest extends TestCase
             ->assertJsonPath('data.0.cc0', true)
             ->assertJsonPath('data.0.imported', false);
 
-        Http::assertSent(fn (ClientRequest $r) => str_contains(urldecode($r->url()), 'license:"Creative Commons 0"')
+        Http::assertSent(fn(ClientRequest $r) => str_contains(urldecode($r->url()), 'license:"Creative Commons 0"')
             && str_contains($r->url(), 'token=secret-456'));
     }
 
@@ -348,7 +348,7 @@ class SoundsTest extends TestCase
 
         Sanctum::actingAs($this->owner);
         $url = $this->getJson('/api/sounds/freesound/connect?return=/studio')->assertOk()->json('data.url');
-        $this->assertStringStartsWith(self::BASE.'/oauth2/authorize/?', $url);
+        $this->assertStringStartsWith(self::BASE . '/oauth2/authorize/?', $url);
         parse_str((string) parse_url($url, PHP_URL_QUERY), $query);
         $this->assertSame('client-123', $query['client_id']);
 
@@ -396,7 +396,7 @@ class SoundsTest extends TestCase
             ->assertJsonPath('data.quality', 'original')
             ->assertJsonPath('data.mine', true);
 
-        Http::assertSent(fn (ClientRequest $r) => str_ends_with($r->url(), '/sounds/1/download/')
+        Http::assertSent(fn(ClientRequest $r) => str_ends_with($r->url(), '/sounds/1/download/')
             && $r->hasHeader('Authorization', 'Bearer user-token'));
 
         // A second import of the same sound doesn't store it twice.

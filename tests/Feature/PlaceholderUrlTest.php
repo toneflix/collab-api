@@ -12,7 +12,7 @@ class PlaceholderUrlTest extends TestCase
     {
         config(['app.url' => 'http://localhost']);
 
-        Route::get('/_placeholder-check', fn () => (new User(['image' => 'missing.png']))->images['image']);
+        Route::get('/_placeholder-check', fn() => (new User(['image' => 'missing.png']))->images['image']);
 
         $this->get('http://collab-api.test/_placeholder-check', [
             'X-Forwarded-Proto' => 'https',

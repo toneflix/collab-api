@@ -62,14 +62,14 @@ class SoundSettings extends SettingsStore
     public static function syncQueries(): array
     {
         return collect(preg_split('/\r\n|\r|\n/', (string) self::get('freesound_sync_queries')))
-            ->map(fn ($line) => trim((string) $line))
+            ->map(fn($line) => trim((string) $line))
             ->filter()
             ->map(function ($line) {
                 [$category, $query] = str_contains($line, ':') ? array_map('trim', explode(':', $line, 2)) : [$line, $line];
 
                 return ['category' => $category ?: $query, 'query' => $query ?: $category];
             })
-            ->filter(fn ($q) => $q['query'] !== '')
+            ->filter(fn($q) => $q['query'] !== '')
             ->take(30)
             ->values()
             ->all();
@@ -97,7 +97,7 @@ class SoundSettings extends SettingsStore
             return 0;
         }
 
-        return Cache::remember('sounds::library-size', 300, fn () => Sound::query()->library()->active()->count());
+        return Cache::remember('sounds::library-size', 300, fn() => Sound::query()->library()->active()->count());
     }
 
     public static function flush(): void

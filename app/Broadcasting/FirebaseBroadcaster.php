@@ -62,7 +62,7 @@ class FirebaseBroadcaster extends Broadcaster
      */
     public static function uid(mixed $user): string
     {
-        return 'user-'.$user->getAuthIdentifier();
+        return 'user-' . $user->getAuthIdentifier();
     }
 
     public function auth($request)
@@ -86,7 +86,7 @@ class FirebaseBroadcaster extends Broadcaster
         $expiresAt = (int) round((microtime(true) + ($this->config['grant_ttl'] ?? 3600)) * 1000);
 
         $this->write([
-            $this->grantsRoot().'/'.$uid.'/'.static::channelKey($request->channel_name) => $expiresAt,
+            $this->grantsRoot() . '/' . $uid . '/' . static::channelKey($request->channel_name) => $expiresAt,
         ]);
 
         return [
@@ -117,7 +117,7 @@ class FirebaseBroadcaster extends Broadcaster
         try {
             $this->write($updates);
         } catch (\Throwable $e) {
-            throw new BroadcastException('Firebase broadcast failed: '.$e->getMessage(), 0, $e);
+            throw new BroadcastException('Firebase broadcast failed: ' . $e->getMessage(), 0, $e);
         }
     }
 
@@ -131,7 +131,7 @@ class FirebaseBroadcaster extends Broadcaster
         $cutoff = (int) round((microtime(true) - $maxAge) * 1000);
 
         $old = $this->database()
-            ->getReference($this->root().'-index')
+            ->getReference($this->root() . '-index')
             ->orderByChild('at')
             ->endAt($cutoff)
             ->limitToFirst($limit)

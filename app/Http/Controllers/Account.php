@@ -6,7 +6,10 @@ use App\Enums\HttpStatus;
 use App\Helpers\Providers;
 use App\Http\Resources\UserResource;
 use App\Http\Rules\validateAccountNumber;
+use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
@@ -58,7 +61,7 @@ class Account extends Controller
     /**
      * Display a listing of the resource.
      *
-     * @return \Illuminate\Http\Response
+     * @return Response
      */
     public function index()
     {
@@ -73,11 +76,11 @@ class Account extends Controller
      * Update the specified resource in storage.
      *
      * @param  int  $id
-     * @return \Illuminate\Http\Response
+     * @return Response
      */
     public function update(Request $request, $identifier = null)
     {
-        /** @var \App\Models\User */
+        /** @var User */
         $user = $request->user();
 
         $filled = collect($request->all());
@@ -90,7 +93,7 @@ class Account extends Controller
                 $field = current(explode(':image', $field));
             }
 
-            $vals = !in_array($field, ['city', 'state']) ? ['required'] : ['nullable'];
+            $vals = ! in_array($field, ['city', 'state']) ? ['required'] : ['nullable'];
 
             $vals[] = $field == 'image' ? 'mimes:png,jpg' : (
                 is_array($filled[$field])
@@ -139,7 +142,7 @@ class Account extends Controller
             $this->validate($request, [
                 'user_data.bank' => ['array'],
                 'user_data.bank.*' => ['required'],
-                'user_data.bank.nuban' => ['required', new validateAccountNumber()],
+                'user_data.bank.nuban' => ['required', new validateAccountNumber],
                 'user_data.bank.recipient_code' => ['nullable'],
             ], [], [
                 'user_data.bank.account_name' => 'Account Name',
@@ -167,20 +170,20 @@ class Account extends Controller
         $this->validate($request, $valid, [], $fields->filter(function ($k) use ($filled) {
             return is_array($filled[$k]);
         })->mapWithKeys(function ($field, $value) use ($filled) {
-            return collect(array_keys((array) $filled[$field]))->mapWithKeys(fn ($k) => ["$field.$k" => "$field $k"]);
+            return collect(array_keys((array) $filled[$field]))->mapWithKeys(fn($k) => ["$field.$k" => "$field $k"]);
         })->all());
 
         $fields = $fields->filter(function ($k) {
-            return !str($k)->contains('_confirmation');
+            return ! str($k)->contains('_confirmation');
         });
 
-        if (!$request->hasFile('image')) {
+        if (! $request->hasFile('image')) {
             foreach ($fields as $_field) {
                 if (str($_field)->contains(':image')) {
                     $_field = current(explode(':image', (string) $_field));
                 }
 
-                if (!in_array($_field, [
+                if (! in_array($_field, [
                     'otp',
                     'password',
                     'new_password',
@@ -230,7 +233,7 @@ class Account extends Controller
         }
 
         $fields = collect($request->keys())->filter(
-            fn ($k) => !in_array($k, [
+            fn($k) => ! in_array($k, [
                 'otp',
                 '_method',
                 'new_password_confirmation',
@@ -264,7 +267,7 @@ class Account extends Controller
      * Update the user profile picture.
      *
      * @param  int  $id
-     * @return \Illuminate\Http\Response
+     * @return Response
      */
     public function updateProfilePicture(Request $request)
     {
@@ -276,8 +279,8 @@ class Account extends Controller
             'image.required' => 'You did not select an image for upload',
         ]);
 
-        $user->image = (new Media())->save('avatar', 'image', $user->image);
-        $user->updated_at = \Carbon\Carbon::now();
+        $user->image = (new Media)->save('avatar', 'image', $user->image);
+        $user->updated_at = Carbon::now();
         $user->save();
 
         return (new UserResource($user))->additional([
@@ -291,13 +294,13 @@ class Account extends Controller
      * Update the user password.
      *
      * @param  int  $id
-     * @return \Illuminate\Http\Response
+     * @return Response
      */
     public function updatePassword(Request $request)
     {
         $user = Auth::user();
 
-        if (!Hash::check($request->current_password, $user->password)) {
+        if (! Hash::check($request->current_password, $user->password)) {
             return Providers::response()->error([
                 'message' => 'Your input has a few errors',
                 'status' => 'error',

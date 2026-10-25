@@ -80,7 +80,7 @@ class ArtistClaims
         $artist = $claim->artist;
 
         $this->notify($claim, 'Your artist claim was approved', trim(
-            "You now manage {$artist->name} on Toneflix. You can edit the profile and manage the catalogue from Studio. ".($note ?? '')
+            "You now manage {$artist->name} on Toneflix. You can edit the profile and manage the catalogue from Studio. " . ($note ?? '')
         ));
 
         $this->declineOthers($claim, $admin);
@@ -105,28 +105,28 @@ class ArtistClaims
     public function queue(?string $status = ArtistClaim::PENDING, ?string $search = null, int $perPage = 20): LengthAwarePaginator
     {
         return ArtistClaim::query()
-            ->when($status, fn (Builder $q, string $status) => $q->where('status', $status))
-            ->when($search, fn (Builder $q, string $search) => $q->where(fn (Builder $q) => $q
+            ->when($status, fn(Builder $q, string $status) => $q->where('status', $status))
+            ->when($search, fn(Builder $q, string $search) => $q->where(fn(Builder $q) => $q
                 ->whereLike('name', "%{$search}%")
                 ->orWhereLike('email', "%{$search}%")
-                ->orWhereHas('artist', fn (Builder $q) => $q
+                ->orWhereHas('artist', fn(Builder $q) => $q
                     ->whereLike('name', "%{$search}%")
                     ->orWhereLike('username', "%{$search}%"))
-                ->orWhereHas('user', fn (Builder $q) => $q
+                ->orWhereHas('user', fn(Builder $q) => $q
                     ->whereLike('username', "%{$search}%")
                     ->orWhereLike('email', "%{$search}%"))))
             ->with([
                 'user',
                 'reviewer',
                 'latestAiReview',
-                'artist' => fn ($q) => $q->withCount([
-                    'releases as unowned_releases_count' => fn (Builder $q) => $q->withoutGlobalScopes()->whereNull('user_id'),
+                'artist' => fn($q) => $q->withCount([
+                    'releases as unowned_releases_count' => fn(Builder $q) => $q->withoutGlobalScopes()->whereNull('user_id'),
                 ]),
             ])
             ->when(
                 $status === ArtistClaim::PENDING,
-                fn (Builder $q) => $q->oldest('id'),
-                fn (Builder $q) => $q->latest('id'),
+                fn(Builder $q) => $q->oldest('id'),
+                fn(Builder $q) => $q->latest('id'),
             )
             ->paginate($perPage);
     }
@@ -148,7 +148,7 @@ class ArtistClaims
     {
         abort_unless($claim->document && Storage::disk($this->disk())->exists($claim->document), 404, 'This claim has no document.');
 
-        return Storage::disk($this->disk())->download($claim->document, 'claim-'.$claim->id.'-proof.'.pathinfo($claim->document, PATHINFO_EXTENSION));
+        return Storage::disk($this->disk())->download($claim->document, 'claim-' . $claim->id . '-proof.' . pathinfo($claim->document, PATHINFO_EXTENSION));
     }
 
     protected function review(ArtistClaim $claim, string $status, ?User $admin, ?string $note): void

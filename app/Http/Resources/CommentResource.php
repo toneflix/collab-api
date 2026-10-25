@@ -21,7 +21,7 @@ class CommentResource extends JsonResource
             'id' => $this->id,
             'cid' => $this->commentable_id,
             'type' => $this->commentable instanceof Comment ? 'reply' : 'comment',
-            'user' => $this->when($with->contains('user'), fn () => new UserResource($this->commentator)),
+            'user' => $this->when($with->contains('user'), fn() => new UserResource($this->commentator)),
             'userId' => $this->user_id,
             'comment' => $this->comment,
             'createdAt' => $this->created_at,

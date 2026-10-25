@@ -25,7 +25,7 @@ class ReleaseController extends Controller
     public function index(Request $request)
     {
         $query = $this->user->releases()->getQuery()
-            ->when($request->filled('project_id'), fn ($q) => $q->where('project_id', $request->input('project_id')))
+            ->when($request->filled('project_id'), fn($q) => $q->where('project_id', $request->input('project_id')))
             ->latest('id');
 
         $releases = $query->paginate($request->perPage(15));
@@ -141,7 +141,7 @@ class ReleaseController extends Controller
     {
         /** @var Release $release */
         $release = $this->user->releases()
-            ->where(fn ($q) => $q->where('slug', $id)->when(is_numeric($id), fn ($q) => $q->orWhere('releases.id', $id)))
+            ->where(fn($q) => $q->where('slug', $id)->when(is_numeric($id), fn($q) => $q->orWhere('releases.id', $id)))
             ->firstOrFail();
 
         $request->merge(['release_date', $request->input('releaseDate', now())]);
@@ -338,7 +338,7 @@ class ReleaseController extends Controller
     {
         /** @var Release $release */
         $release = $this->user->releases()
-            ->where(fn ($q) => $q->where('slug', $id)->when(is_numeric($id), fn ($q) => $q->orWhere('releases.id', $id)))
+            ->where(fn($q) => $q->where('slug', $id)->when(is_numeric($id), fn($q) => $q->orWhere('releases.id', $id)))
             ->firstOrFail();
 
         $this->validate($request, ['retired' => ['required', 'boolean']]);
@@ -361,7 +361,7 @@ class ReleaseController extends Controller
     {
         /** @var Release $release */
         $release = $this->user->releases()
-            ->where(fn ($q) => $q->where('slug', $id)->when(is_numeric($id), fn ($q) => $q->orWhere('releases.id', $id)))
+            ->where(fn($q) => $q->where('slug', $id)->when(is_numeric($id), fn($q) => $q->orWhere('releases.id', $id)))
             ->firstOrFail();
 
         $release->delete();

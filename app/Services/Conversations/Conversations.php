@@ -190,21 +190,21 @@ class Conversations
         $projectIds = Project::query()
             ->withoutGlobalScopes()
             ->select('projects.id')
-            ->where(fn ($q) => $q
+            ->where(fn($q) => $q
                 ->where('user_id', $user->id)
-                ->orWhereHas('collaborators', fn ($q) => $q->where('user_id', $user->id)->where('accepted', true)));
+                ->orWhereHas('collaborators', fn($q) => $q->where('user_id', $user->id)->where('accepted', true)));
         $trackIds = ProjectTrack::query()->withoutGlobalScopes()->select('project_tracks.id')->whereIn('project_id', $projectIds);
 
         $page = Comment::query()
             ->whereNotNull('comments.root_type')
             ->where(function ($q) use ($user, $projectIds, $trackIds) {
-                $q->whereExists(fn ($sub) => $sub->select(DB::raw(1))
+                $q->whereExists(fn($sub) => $sub->select(DB::raw(1))
                     ->from('comments as mine')
                     ->where('mine.user_id', $user->id)
                     ->whereColumn('mine.root_type', 'comments.root_type')
                     ->whereColumn('mine.root_id', 'comments.root_id'))
-                    ->orWhere(fn ($q) => $q->where('comments.root_type', ProjectTrack::class)->whereIn('comments.root_id', $trackIds))
-                    ->orWhere(fn ($q) => $q->where('comments.root_type', Project::class)->whereIn('comments.root_id', $projectIds));
+                    ->orWhere(fn($q) => $q->where('comments.root_type', ProjectTrack::class)->whereIn('comments.root_id', $trackIds))
+                    ->orWhere(fn($q) => $q->where('comments.root_type', Project::class)->whereIn('comments.root_id', $projectIds));
             })
             ->groupBy('comments.root_type', 'comments.root_id')
             ->selectRaw('comments.root_type, comments.root_id, max(comments.id) as last_id')
@@ -216,11 +216,11 @@ class Conversations
         $last = Comment::query()->with('commentator')->whereIn('id', $rows->pluck('last_id'))->get()->keyBy('id');
         $reads = $rows->isEmpty() ? collect() : DB::table('conversation_reads')
             ->where('user_id', $user->id)
-            ->where(fn ($q) => $rows->each(fn ($row) => $q->orWhere(fn ($q) => $q
+            ->where(fn($q) => $rows->each(fn($row) => $q->orWhere(fn($q) => $q
                 ->where('root_type', $row->root_type)
                 ->where('root_id', $row->root_id))))
             ->get()
-            ->keyBy(fn ($r) => $r->root_type.'#'.$r->root_id);
+            ->keyBy(fn($r) => $r->root_type . '#' . $r->root_id);
 
         return $page->setCollection($rows->map(function ($row) use ($user, $last, $reads) {
             $class = $row->root_type;
@@ -229,7 +229,7 @@ class Conversations
                 return null;
             }
 
-            $readAt = $reads->get($class.'#'.$row->root_id)?->read_at;
+            $readAt = $reads->get($class . '#' . $row->root_id)?->read_at;
 
             return $root
                 ->setRelation('latestMessage', $last->get($row->last_id))
@@ -276,7 +276,7 @@ class Conversations
 
         return static::messages($root)
             ->where('user_id', '!=', $user->id)
-            ->when($readAt, fn ($q) => $q->where('created_at', '>', $readAt))
+            ->when($readAt, fn($q) => $q->where('created_at', '>', $readAt))
             ->count();
     }
 
@@ -313,7 +313,7 @@ class Conversations
             $ids->push($root->user_id);
         }
 
-        return $ids->filter()->map(fn ($id) => (int) $id)->unique()->values();
+        return $ids->filter()->map(fn($id) => (int) $id)->unique()->values();
     }
 
     /**
@@ -335,8 +335,8 @@ class Conversations
         $delay = now()->addMinutes(NotifyUnreadMessages::waitMinutes());
 
         static::recipients($root, $comment)
-            ->reject(fn (int $id) => $id === (int) $comment->user_id)
-            ->each(fn (int $id) => NotifyUnreadMessages::dispatch($id, $root::class, $root->getKey())->delay($delay));
+            ->reject(fn(int $id) => $id === (int) $comment->user_id)
+            ->each(fn(int $id) => NotifyUnreadMessages::dispatch($id, $root::class, $root->getKey())->delay($delay));
     }
 
     /**
@@ -373,7 +373,7 @@ class Conversations
             $ids->push(Comment::withoutGlobalScopes()->whereKey($comment->commentable_id)->value('user_id'));
         }
 
-        return $ids->filter()->map(fn ($id) => (int) $id)->unique()->values();
+        return $ids->filter()->map(fn($id) => (int) $id)->unique()->values();
     }
 
     /**
@@ -401,12 +401,12 @@ class Conversations
 
         $sender = (int) $comment->user_id;
         $channels = static::participants($root)
-            ->reject(fn ($id) => $event === 'comment.posted' && $id === $sender)
+            ->reject(fn($id) => $event === 'comment.posted' && $id === $sender)
             ->take(100)
-            ->map(fn ($id) => Channels::user($id))
+            ->map(fn($id) => Channels::user($id))
             ->all();
 
-        Realtime::send($channels, 'conversation.'.str($event)->after('.'), [
+        Realtime::send($channels, 'conversation.' . str($event)->after('.'), [
             'conversation' => static::subject($root),
             'message' => $message,
         ]);

@@ -6,8 +6,6 @@ use App\Models\Project;
 use App\Models\Release;
 use App\Models\Track;
 use App\Services\Reputation;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Queue\InteractsWithQueue;
 use Toneflix\SocialInteractions\Events\SocialInteractionDone;
 
 class SocialInteractionRecieved
@@ -22,8 +20,6 @@ class SocialInteractionRecieved
 
     /**
      * Handle the event.
-     *
-     * @param SocialInteractionDone $event
      */
     public function handle(SocialInteractionDone $event): void
     {
@@ -35,14 +31,14 @@ class SocialInteractionRecieved
                 'liked' => 'track_likes',
                 'saved' => 'track_saves',
             ];
-        } else if ($event->interaction->interactable instanceof Release) {
+        } elseif ($event->interaction->interactable instanceof Release) {
             $owner = $event->interaction->interactable->user;
             $mapActions = [
                 'votes' => null,
                 'liked' => 'release_likes',
                 'saved' => null,
             ];
-        } else if ($event->interaction->interactable instanceof Project) {
+        } elseif ($event->interaction->interactable instanceof Project) {
             $owner = $event->interaction->interactable->user;
             $mapActions = [
                 'votes' => 'project_props',
@@ -52,7 +48,7 @@ class SocialInteractionRecieved
         }
 
         // Add reputation for the owner
-        if (!empty($owner) && !empty($mapActions[$event->action])) {
+        if (! empty($owner) && ! empty($mapActions[$event->action])) {
             (new Reputation($owner, $mapActions[$event->action]))->add();
         }
     }

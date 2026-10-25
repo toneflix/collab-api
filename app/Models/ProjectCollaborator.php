@@ -5,14 +5,12 @@ namespace App\Models;
 use App\Models\Scopes\RestrictBlockedUserScope;
 use Illuminate\Database\Eloquent\Attributes\ScopedBy;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\AsCollection;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
-use Illuminate\Database\Eloquent\Relations\MorphMany;
-use Illuminate\Database\Eloquent\Relations\MorphOne;
-use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Toneflix\ApprovableNotifications\Models\Notification;
 
 #[ScopedBy([RestrictBlockedUserScope::class])]
@@ -50,7 +48,7 @@ class ProjectCollaborator extends Model
     {
         return [
             'accepted' => 'boolean',
-            'meta' => \Illuminate\Database\Eloquent\Casts\AsCollection::class,
+            'meta' => AsCollection::class,
         ];
     }
 
@@ -88,7 +86,7 @@ class ProjectCollaborator extends Model
     public function role(): Attribute
     {
         return new Attribute(
-            get: fn ($value) => strtolower($value === 'custom' ? $this->meta['custom'] : $value),
+            get: fn($value) => strtolower($value === 'custom' ? $this->meta['custom'] : $value),
         );
     }
 

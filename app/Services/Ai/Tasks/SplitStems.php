@@ -28,7 +28,7 @@ class SplitStems implements AiTask
 
     public function describe(array $input): string
     {
-        return 'Split into stems: '.($input['title'] ?? 'stem');
+        return 'Split into stems: ' . ($input['title'] ?? 'stem');
     }
 
     public function handle(AiJob $job): array
@@ -47,7 +47,7 @@ class SplitStems implements AiTask
             @unlink($path);
         }
 
-        return ['stems' => array_map(fn (ProjectTrackStem $s) => $s->id, $stems)];
+        return ['stems' => array_map(fn(ProjectTrackStem $s) => $s->id, $stems)];
     }
 
     /**
@@ -79,14 +79,14 @@ class SplitStems implements AiTask
                 throw new ReplicateException('Stem separation returned no stems.');
             }
 
-            return array_values(array_map(fn (string $part, string $file) => $this->files->addStem(
-                $track, $user, $file, trim("{$title} ".ucfirst($part)), [
+            return array_values(array_map(fn(string $part, string $file) => $this->files->addStem(
+                $track, $user, $file, trim("{$title} " . ucfirst($part)), [
                     ...$meta,
                     'ai' => [...($meta['ai'] ?? []), 'part' => $part, 'model' => $this->model()],
                 ]
             ), array_keys($files), $files));
         } finally {
-            array_map(fn (string $file) => @unlink($file), $files);
+            array_map(fn(string $file) => @unlink($file), $files);
         }
     }
 

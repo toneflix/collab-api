@@ -5,7 +5,11 @@ namespace App\Http\Controllers;
 use App\Enums\HttpStatus;
 use App\Http\Resources\FollowCollection;
 use App\Http\Resources\FollowResource;
+use App\Models\Artist;
+use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Overtrue\LaravelFollow\Followable;
 
 class FollowController extends Controller
 {
@@ -17,10 +21,10 @@ class FollowController extends Controller
         [$followable] = $this->resolver($request, $pid, $follow_id);
 
         if ($request->type === 'followings') {
-            /** @var \Illuminate\Database\Eloquent\Builder $query */
+            /** @var Builder $query */
             $query = $followable->followings();
         } else {
-            /** @var \Illuminate\Database\Eloquent\Builder $query */
+            /** @var Builder $query */
             $query = $followable->followers();
         }
 
@@ -57,8 +61,8 @@ class FollowController extends Controller
      * Resolve the interaction interface
      *
      * @return array{
-     *  0:\App\Models\User|\App\Models\Artist,
-     *  1:\Overtrue\LaravelFollow\Followable|null,
+     *  0:User|Artist,
+     *  1:Followable|null,
      *  2:string
      * }
      */
@@ -74,14 +78,14 @@ class FollowController extends Controller
             ->prepend('\\App\\Models\\')
             ->toString();
 
-        /** @var \App\Models\User|\App\Models\Artist $followable */
-        $followable = (new $className())->resolveRouteBinding($followable_id);
+        /** @var User|Artist $followable */
+        $followable = (new $className)->resolveRouteBinding($followable_id);
 
         $follow = null;
 
         if ($followable) {
             if ($follow_id) {
-                /** @var \Overtrue\LaravelFollow\Followable $follow */
+                /** @var Followable $follow */
                 $follow = $followable->followers()->findOrFail($followable_id);
             }
         }

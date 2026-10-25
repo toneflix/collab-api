@@ -4,6 +4,7 @@ namespace App\Helpers;
 
 use App\Enums\HttpStatus;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Http\Response;
 use Illuminate\Pagination\AbstractPaginator;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
@@ -14,17 +15,17 @@ interface ResponseInterface
         array|Collection|AbstractPaginator|LengthAwarePaginator|JsonResource $data,
         int|HttpStatus $code = 200,
         ?array $extra = []
-    ): \Illuminate\Http\Response;
+    ): Response;
 
     public function error(
         array|Collection|AbstractPaginator|LengthAwarePaginator|JsonResource $data,
         int|HttpStatus $code = 400,
         ?array $extra = []
-    ): \Illuminate\Http\Response;
+    ): Response;
 
     public function success(
         array|Collection|AbstractPaginator|LengthAwarePaginator|JsonResource $data,
         int|HttpStatus $code = 200,
         ?array $extra = []
-    ): \Illuminate\Http\Response;
+    ): Response;
 }

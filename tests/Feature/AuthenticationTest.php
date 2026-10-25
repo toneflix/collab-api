@@ -21,7 +21,7 @@ class AuthenticationTest extends TestCase
         $this->markTestSkipped('all tests in this file are invactive for this server configuration!');
     }
 
-    public function testUnknownUserWillNotBeFound(): void
+    public function test_unknown_user_will_not_be_found(): void
     {
         $response = $this->withCredentials()
             ->post(
@@ -40,7 +40,7 @@ class AuthenticationTest extends TestCase
         $this->assertArrayHasKey('email', $response->collect('errors'));
     }
 
-    public function testUserCanRegister(): void
+    public function test_user_can_register(): void
     {
         $response = $this->withCredentials()
             ->post(
@@ -62,7 +62,7 @@ class AuthenticationTest extends TestCase
         $this->assertArrayHasKey('id', $response->collect());
     }
 
-    public function testUserCanLogin(): void
+    public function test_user_can_login(): void
     {
         $user = User::factory()->create();
 
@@ -83,7 +83,7 @@ class AuthenticationTest extends TestCase
         $this->assertArrayHasKey('id', $response->collect());
     }
 
-    public function testUserCanLogout(): void
+    public function test_user_can_logout(): void
     {
         Sanctum::actingAs(
             User::factory()->create(),
@@ -95,7 +95,7 @@ class AuthenticationTest extends TestCase
         $response->assertStatus(200);
     }
 
-    public function testUserCanRequestPasswordResetCode(): void
+    public function test_user_can_request_password_reset_code(): void
     {
         \Artisan::call('db:seed ConfigurationSeeder');
         $user = User::factory()->create();
@@ -115,7 +115,7 @@ class AuthenticationTest extends TestCase
         $response->assertStatus(201);
     }
 
-    public function testUserCanConfirmPasswordResetCode(): void
+    public function test_user_can_confirm_password_reset_code(): void
     {
         \Artisan::call('db:seed ConfigurationSeeder');
         $user = User::factory()->create();
@@ -149,7 +149,7 @@ class AuthenticationTest extends TestCase
         $response->assertStatus(202);
     }
 
-    public function testUserCanResetPassword(): void
+    public function test_user_can_reset_password(): void
     {
         \Artisan::call('db:seed ConfigurationSeeder');
         $user = User::factory()->create();

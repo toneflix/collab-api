@@ -63,9 +63,9 @@ class File extends Model
             if (! $model->exists || ((bool) Providers::config('allow_file_updates'))) {
                 $meta_type = isset($model->meta['type']) ? ".{$model->meta['type']}" : '';
 
-                $mediaPath = $model->mediaPaths[$model->fileable_type.$meta_type] ?? 'default';
+                $mediaPath = $model->mediaPaths[$model->fileable_type . $meta_type] ?? 'default';
 
-                $model->file = (new Media())->save($mediaPath, 'file', $model->file, $model->fileIndex);
+                $model->file = (new Media)->save($mediaPath, 'file', $model->file, $model->fileIndex);
 
                 if (! $model->file) {
                     unset($model->file);
@@ -80,9 +80,9 @@ class File extends Model
         static::deleted(function (File $file) {
             $meta_type = isset($file->meta['type']) ? ".{$file->meta['type']}" : '';
 
-            $mediaPath = $file->mediaPaths[$file->fileable_type.$meta_type] ?? 'default';
+            $mediaPath = $file->mediaPaths[$file->fileable_type . $meta_type] ?? 'default';
 
-            $file->file = (new Media())->delete($mediaPath, $file->file);
+            $file->file = (new Media)->delete($mediaPath, $file->file);
         });
     }
 
@@ -103,7 +103,7 @@ class File extends Model
             get: function () {
                 $meta_type = isset($this->meta['type']) ? ".{$this->meta['type']}" : '';
 
-                $mediaPath = $this->mediaPaths[$this->fileable_type.$meta_type] ?? 'default';
+                $mediaPath = $this->mediaPaths[$this->fileable_type . $meta_type] ?? 'default';
 
                 $wt = '';
                 if (! str($mediaPath)->exactly('default')) {
@@ -115,18 +115,18 @@ class File extends Model
                     // Check if the user has elevated access and append some random query you
                     // Can use later
                     if ($superLoad) {
-                        $wt = '?preload=true&wt='.(Auth::user()->window_token ?? rand());
+                        $wt = '?preload=true&wt=' . (Auth::user()->window_token ?? rand());
                     } elseif ($this->fileable && $this->fileable->user->id === $uid) {
-                        $wt = '?preload=true&wt='.($this->fileable->user->window_token ?? rand());
+                        $wt = '?preload=true&wt=' . ($this->fileable->user->window_token ?? rand());
                     }
 
                     // Append more queries you can use later
-                    $wt .= '&ctx='.rand();
-                    $wt .= '&mode='.config('app.env');
-                    $wt .= '&pov='.md5($this->file);
+                    $wt .= '&ctx=' . rand();
+                    $wt .= '&mode=' . config('app.env');
+                    $wt .= '&pov=' . md5($this->file);
                 }
 
-                return (new Media())->getMedia($mediaPath, $this->file).$wt;
+                return (new Media)->getMedia($mediaPath, $this->file) . $wt;
             },
         );
     }
@@ -149,7 +149,7 @@ class File extends Model
     public function progressComplete(): Attribute
     {
         return new Attribute(
-            get: fn () => $this->progress >= 100 ? '100% completed!' : "{$this->progress}% processing...",
+            get: fn() => $this->progress >= 100 ? '100% completed!' : "{$this->progress}% processing...",
         );
     }
 
@@ -164,20 +164,20 @@ class File extends Model
             get: function () {
                 $meta_type = isset($this->meta['type']) ? ".{$this->meta['type']}" : '';
 
-                $mediaPath = $this->mediaPaths[$this->fileable_type.$meta_type] ?? 'default';
+                $mediaPath = $this->mediaPaths[$this->fileable_type . $meta_type] ?? 'default';
 
                 $wt = '';
                 if (! str($mediaPath)->exactly('default')) {
                     $window_token = Auth::user() ? Auth::user()->window_token : 0;
 
                     // Append some query params you can use later
-                    $wt = '?preload=true&shared&wt='.$window_token;
-                    $wt .= '&ctx='.rand();
-                    $wt .= '&mode='.config('app.env');
-                    $wt .= '&pov='.md5($this->file);
+                    $wt = '?preload=true&shared&wt=' . $window_token;
+                    $wt .= '&ctx=' . rand();
+                    $wt .= '&mode=' . config('app.env');
+                    $wt .= '&pov=' . md5($this->file);
                 }
 
-                return (new Media())->getMedia($mediaPath, $this->file).$wt;
+                return (new Media)->getMedia($mediaPath, $this->file) . $wt;
             },
         );
     }
@@ -193,9 +193,9 @@ class File extends Model
             get: function () {
                 $meta_type = isset($this->meta['type']) ? ".{$this->meta['type']}" : '';
 
-                $mediaPath = $this->mediaPaths[$this->fileable_type.$meta_type] ?? 'default';
+                $mediaPath = $this->mediaPaths[$this->fileable_type . $meta_type] ?? 'default';
 
-                return (new Media())->mediaInfo($mediaPath, $this->file);
+                return (new Media)->mediaInfo($mediaPath, $this->file);
             },
         );
     }

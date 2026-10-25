@@ -101,9 +101,9 @@ class AudioTagger
         }
 
         $owner->releasedTracks()
-            ->whereHas('release', fn (Builder $q) => $q->where('draft', true))
-            ->where(fn (Builder $q) => $q->whereNull('tags_source')->orWhere('tags_source', '!=', Track::TAGS_MANUAL))
-            ->chunkById(100, fn ($tracks) => $tracks->each(fn (Track $track) => $this->write($track, $bpm, $key, $source)));
+            ->whereHas('release', fn(Builder $q) => $q->where('draft', true))
+            ->where(fn(Builder $q) => $q->whereNull('tags_source')->orWhere('tags_source', '!=', Track::TAGS_MANUAL))
+            ->chunkById(100, fn($tracks) => $tracks->each(fn(Track $track) => $this->write($track, $bpm, $key, $source)));
 
         Realtime::send(Channels::projectTrack($owner), 'tags.updated', [
             'track_id' => $owner->id,

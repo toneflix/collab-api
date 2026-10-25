@@ -52,6 +52,6 @@ class Lyric extends Model
      */
     public function synced(): bool
     {
-        return collect($this->lines)->contains(fn (array $line) => $line['start'] !== null);
+        return collect($this->lines)->contains(fn(array $line) => $line['start'] !== null);
     }
 }

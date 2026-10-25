@@ -96,7 +96,7 @@ class Recommendation
             ->where('liked', true)
             ->pluck('interactable_id');
 
-        return $streamed->merge($liked)->map(fn ($id) => (int) $id)->unique()->values();
+        return $streamed->merge($liked)->map(fn($id) => (int) $id)->unique()->values();
     }
 
     /**
@@ -122,7 +122,7 @@ class Recommendation
         $listened = DB::table('track_artist')->whereIn('track_id', $trackIds)->pluck('artist_id');
 
         return $listened->merge($this->followedIds(Artist::class))
-            ->map(fn ($id) => (int) $id)
+            ->map(fn($id) => (int) $id)
             ->unique()
             ->values();
     }
@@ -155,20 +155,20 @@ class Recommendation
         return Track::query()
             ->with('genre')
             ->whereNotIn('id', $heard)
-            ->whereHas('release', fn (Builder $q) => $q->live())
+            ->whereHas('release', fn(Builder $q) => $q->live())
             ->where(function (Builder $q) use ($genres, $artists) {
                 $q->whereIn('genre_id', $genres)
-                    ->orWhereHas('artists', fn (Builder $q) => $q->whereIn('artists.id', $artists));
+                    ->orWhereHas('artists', fn(Builder $q) => $q->whereIn('artists.id', $artists));
             })
-            ->whereDoesntHave('release', fn (Builder $q) => $q->where('user_id', $this->user->id))
-            ->withCount(['visits as plays' => fn (Builder $q) => $q->where('data->duration', '>', 0)])
+            ->whereDoesntHave('release', fn(Builder $q) => $q->where('user_id', $this->user->id))
+            ->withCount(['visits as plays' => fn(Builder $q) => $q->where('data->duration', '>', 0)])
             ->orderByDesc('plays')
             ->inRandomOrder()
             ->limit($this->limit)
             ->get()
             ->toBase()
-            ->map(fn (Track $track) => $this->item($track, $genres->contains($track->genre_id)
-                ? 'genre:'.$track->genre?->slug
+            ->map(fn(Track $track) => $this->item($track, $genres->contains($track->genre_id)
+                ? 'genre:' . $track->genre?->slug
                 : 'artist'));
     }
 
@@ -188,15 +188,15 @@ class Recommendation
 
         return Artist::query()
             ->whereNotIn('id', $this->followedIds(Artist::class))
-            ->where(fn (Builder $q) => $q->whereNull('user_id')->orWhere('user_id', '!=', $this->user->id))
-            ->whereHas('tracks', fn (Builder $q) => $q->whereIn('genre_id', $genres))
+            ->where(fn(Builder $q) => $q->whereNull('user_id')->orWhere('user_id', '!=', $this->user->id))
+            ->whereHas('tracks', fn(Builder $q) => $q->whereIn('genre_id', $genres))
             ->withCount('followers')
             ->orderByDesc('followers_count')
             ->inRandomOrder()
             ->limit($this->limit)
             ->get()
             ->toBase()
-            ->map(fn (Artist $artist) => $this->item($artist, 'genre'));
+            ->map(fn(Artist $artist) => $this->item($artist, 'genre'));
     }
 
     /**
@@ -211,13 +211,13 @@ class Recommendation
 
         $friendsOfFriends = User::query()
             ->whereNotIn('id', $following)
-            ->whereHas('followers', fn (Builder $q) => $q->whereIn('followables.user_id', $following))
+            ->whereHas('followers', fn(Builder $q) => $q->whereIn('followables.user_id', $following))
             ->withCount('followers')
             ->orderByDesc('followers_count')
             ->limit($this->limit)
             ->get()
             ->toBase()
-            ->map(fn (User $user) => $this->item($user, 'network'));
+            ->map(fn(User $user) => $this->item($user, 'network'));
 
         $remaining = $this->limit - $friendsOfFriends->count();
 
@@ -238,7 +238,7 @@ class Recommendation
             ->limit($remaining)
             ->get()
             ->toBase()
-            ->map(fn (User $user) => $this->item($user, 'location'));
+            ->map(fn(User $user) => $this->item($user, 'location'));
 
         return $friendsOfFriends->merge($nearby);
     }

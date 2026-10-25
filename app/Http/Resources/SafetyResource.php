@@ -2,11 +2,12 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Safety;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
- * @mixin \App\Models\Safety
+ * @mixin Safety
  */
 class SafetyResource extends JsonResource
 {
@@ -24,7 +25,7 @@ class SafetyResource extends JsonResource
             'details' => $this->details,
             'claim' => $this->data,
             'status' => $this->status,
-            'user' => $this->whenLoaded('user', fn () => $this->user ? [
+            'user' => $this->whenLoaded('user', fn() => $this->user ? [
                 'id' => $this->user->id,
                 'name' => $this->user->fullname,
                 'username' => $this->user->username,

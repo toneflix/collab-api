@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Enums\HttpStatus;
-use App\Http\Controllers\Controller;
 use App\Http\Resources\SafetyResource;
 use App\Models\Safety;
 use App\Services\Moderation\Moderation;

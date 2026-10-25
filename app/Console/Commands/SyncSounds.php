@@ -26,7 +26,7 @@ class SyncSounds extends Command
             return self::SUCCESS;
         }
 
-        $result = SoundLibrary::sync(fn (string $line) => $this->line($line));
+        $result = SoundLibrary::sync(fn(string $line) => $this->line($line));
 
         $this->info("Added {$result['added']}, skipped {$result['skipped']}, failed {$result['failed']}.");
         foreach ($result['errors'] as $error) {

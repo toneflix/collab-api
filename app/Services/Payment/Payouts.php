@@ -273,7 +273,7 @@ class Payouts
             }
 
             if ($amount < $this->minimum()) {
-                throw ValidationException::withMessages(['amount' => 'The smallest withdrawal is '.$this->minimum().'.']);
+                throw ValidationException::withMessages(['amount' => 'The smallest withdrawal is ' . $this->minimum() . '.']);
             }
 
             if ($amount > $this->summary($user)['available']) {
@@ -281,7 +281,7 @@ class Payouts
             }
 
             return $user->payouts()->create([
-                'reference' => 'po_'.Random::string(24, true, false, true, false),
+                'reference' => 'po_' . Random::string(24, true, false, true, false),
                 'amount' => $amount,
                 'currency' => $this->currency(),
                 'status' => PayoutStatus::PENDING,
@@ -317,7 +317,7 @@ class Payouts
             }
 
             $transaction = new Transaction([
-                'reference' => 'adj_'.Random::string(24, true, false, true, false),
+                'reference' => 'adj_' . Random::string(24, true, false, true, false),
                 'purpose' => self::ADJUSTMENT,
                 'method' => 'admin',
                 'status' => 'complete',
@@ -432,7 +432,7 @@ class Payouts
                 sourceCurrency: $payout->currency,
                 recipient: (string) $payout->destination->get('recipient_code'),
                 reference: $payout->reference,
-                reason: config('app.name').' earnings withdrawal',
+                reason: config('app.name') . ' earnings withdrawal',
                 country: (string) $payout->destination->get('country'),
                 method: (string) $payout->destination->get('method', 'bank'),
                 destination: $payout->destination->all(),

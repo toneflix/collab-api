@@ -160,7 +160,7 @@ class NotificationsTest extends TestCase
         config(['app.frontend_url' => 'https://app.test']);
 
         $transaction = new Transaction([
-            'reference' => 'TRX-'.uniqid(),
+            'reference' => 'TRX-' . uniqid(),
             'purpose' => 'tip',
             'method' => 'paystack',
             'status' => 'pending',
@@ -192,7 +192,7 @@ class NotificationsTest extends TestCase
         Notification::fake();
 
         $transaction = new Transaction([
-            'reference' => 'TRX-'.uniqid(),
+            'reference' => 'TRX-' . uniqid(),
             'purpose' => 'tip',
             'method' => 'paystack',
             'status' => 'pending',
@@ -219,7 +219,7 @@ class NotificationsTest extends TestCase
         $this->postJson("/api/conversations/project-track/{$track->id}/messages", ['body' => 'New take is up'])->assertSuccessful();
 
         Queue::assertPushed(NotifyUnreadMessages::class, 1);
-        Queue::assertPushed(NotifyUnreadMessages::class, fn (NotifyUnreadMessages $job) => $job->userId === $this->owner->id
+        Queue::assertPushed(NotifyUnreadMessages::class, fn(NotifyUnreadMessages $job) => $job->userId === $this->owner->id
             && $job->rootType === ProjectTrack::class
             && $job->delay !== null);
     }

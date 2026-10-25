@@ -63,6 +63,6 @@ class Payout extends Model
 
     public function scopeStatus(Builder $query, PayoutStatus|string ...$statuses): void
     {
-        $query->whereIn('status', array_map(fn ($s) => $s instanceof PayoutStatus ? $s->value : $s, $statuses));
+        $query->whereIn('status', array_map(fn($s) => $s instanceof PayoutStatus ? $s->value : $s, $statuses));
     }
 }

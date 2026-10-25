@@ -75,8 +75,8 @@ class AiSettings extends SettingsStore
         $price = self::creditPrice();
 
         return collect(explode(',', (string) self::get('ai_credit_packs')))
-            ->map(fn ($pack) => array_map('trim', explode(':', $pack, 2)))
-            ->filter(fn ($pack) => (int) $pack[0] > 0)
+            ->map(fn($pack) => array_map('trim', explode(':', $pack, 2)))
+            ->filter(fn($pack) => (int) $pack[0] > 0)
             ->map(function ($pack) use ($price) {
                 $credits = (int) $pack[0];
                 $discount = min(90, max(0, round((float) ($pack[1] ?? 0), 2)));
@@ -145,7 +145,7 @@ class AiSettings extends SettingsStore
     public static function lyricsWords(string $list): array
     {
         return collect(explode(',', (string) self::get("ai_lyrics_{$list}_words")))
-            ->map(fn (string $word) => mb_strtolower(trim($word)))
+            ->map(fn(string $word) => mb_strtolower(trim($word)))
             ->filter()
             ->values()
             ->all();

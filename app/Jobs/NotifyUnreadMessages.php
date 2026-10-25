@@ -65,10 +65,10 @@ class NotifyUnreadMessages implements ShouldBeUnique, ShouldQueue
 
         $unread = Conversations::messages($root)
             ->where('user_id', '!=', $user->id)
-            ->when($readAt, fn ($q) => $q->where('created_at', '>', $readAt));
+            ->when($readAt, fn($q) => $q->where('created_at', '>', $readAt));
 
         $count = (clone $unread)->count();
-        if ($count === 0 || ! Cache::add('notified-messages:'.$this->uniqueId(), true, max(1, static::waitMinutes()) * 60)) {
+        if ($count === 0 || ! Cache::add('notified-messages:' . $this->uniqueId(), true, max(1, static::waitMinutes()) * 60)) {
             return;
         }
 
@@ -77,7 +77,7 @@ class NotifyUnreadMessages implements ShouldBeUnique, ShouldQueue
             ->whereIn('id', (clone $unread)->select('user_id')->distinct()->limit(5))
             ->limit(5)
             ->get()
-            ->map(fn (User $u) => $u->fullname ?: $u->username)
+            ->map(fn(User $u) => $u->fullname ?: $u->username)
             ->all();
 
         $subject = Conversations::subject($root);

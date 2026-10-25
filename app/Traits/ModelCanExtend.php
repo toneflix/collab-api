@@ -3,13 +3,12 @@
 namespace App\Traits;
 
 use App\Models\Scopes\HideTakenDown;
+use Illuminate\Support\Stringable;
 use Valorin\Random\Random;
 
 trait ModelCanExtend
 {
-    protected static function userNameQuery()
-    {
-    }
+    protected static function userNameQuery() {}
 
     /**
      * Generate a Username for the user.
@@ -18,7 +17,7 @@ trait ModelCanExtend
      * @return string
      */
     protected static function generateUsername(
-        string|\Illuminate\Support\Stringable $string,
+        string|Stringable $string,
         string $field = 'username',
         string $separator = '_',
         ?string $current = null,

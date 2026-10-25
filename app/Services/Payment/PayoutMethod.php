@@ -32,7 +32,7 @@ class PayoutMethod
 
     public function validNumber(string $number): bool
     {
-        return (bool) preg_match('/'.$this->numberPattern.'/', $number);
+        return (bool) preg_match('/' . $this->numberPattern . '/', $number);
     }
 
     /**

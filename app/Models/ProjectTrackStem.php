@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\StemMeta;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -60,7 +61,7 @@ class ProjectTrackStem extends Model
     protected function casts(): array
     {
         return [
-            'meta' => \App\Casts\StemMeta::class,
+            'meta' => StemMeta::class,
         ];
     }
 

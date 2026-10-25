@@ -47,7 +47,7 @@ class PlaylistTest extends TestCase
         // Retire every other release so results only hold this test's tracks.
         Release::query()->whereNotIn('id', $this->releases)->update(['retired_at' => now()]);
 
-        return collect($this->getJson('api/playlist?'.http_build_query($params))->assertOk()->json('data'))->pluck('id');
+        return collect($this->getJson('api/playlist?' . http_build_query($params))->assertOk()->json('data'))->pluck('id');
     }
 
     public function test_tracks_like_the_seed_come_first(): void
@@ -124,7 +124,7 @@ class PlaylistTest extends TestCase
 
     public function test_exclusions_are_bounded(): void
     {
-        $this->getJson('api/playlist?'.http_build_query(['exclude' => range(1, 101)]))
+        $this->getJson('api/playlist?' . http_build_query(['exclude' => range(1, 101)]))
             ->assertUnprocessable();
     }
 }

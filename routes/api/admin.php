@@ -17,8 +17,8 @@ use App\Models\User;
 use Illuminate\Support\Facades\Route;
 
 // Admins see every account, including ones that blocked them
-Route::bind('reviewRelease', fn (string $value) => Release::query()->withoutGlobalScopes()->findOrFail($value));
-Route::bind('managedUser', fn (string $value) => User::query()->withoutGlobalScope(RestrictBlockedUserScope::class)->findOrFail($value));
+Route::bind('reviewRelease', fn(string $value) => Release::query()->withoutGlobalScopes()->findOrFail($value));
+Route::bind('managedUser', fn(string $value) => User::query()->withoutGlobalScope(RestrictBlockedUserScope::class)->findOrFail($value));
 
 Route::middleware(['auth:sanctum'])->prefix('admin')->name('admin.')->group(function () {
     // Numbers for the admin overview

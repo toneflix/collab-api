@@ -49,8 +49,8 @@ trait HasAudioTags
         $column = $this->qualifyColumn('bpm');
 
         $query
-            ->when($min !== null, fn (Builder $q) => $q->where($column, '>=', $min))
-            ->when($max !== null, fn (Builder $q) => $q->where($column, '<=', $max));
+            ->when($min !== null, fn(Builder $q) => $q->where($column, '>=', $min))
+            ->when($max !== null, fn(Builder $q) => $q->where($column, '<=', $max));
     }
 
     /**
@@ -62,7 +62,7 @@ trait HasAudioTags
     public function scopeInKey(Builder $query, array $keys, bool $compatible = false): void
     {
         if ($compatible) {
-            $keys = collect($keys)->flatMap(fn (MusicalKey $key) => $key->compatible())->all();
+            $keys = collect($keys)->flatMap(fn(MusicalKey $key) => $key->compatible())->all();
         }
 
         $query->whereIn($this->qualifyColumn('musical_key'), collect($keys)->map->value->unique()->values());

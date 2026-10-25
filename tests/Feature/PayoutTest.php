@@ -56,7 +56,7 @@ class FakePayoutGateway implements CollectsBankDetails, PayoutGateway
      */
     public function transfers(): array
     {
-        return array_map(fn (PayoutTransfer $t) => $t->reference, $this->sent);
+        return array_map(fn(PayoutTransfer $t) => $t->reference, $this->sent);
     }
 
     public function key(): string
@@ -107,7 +107,7 @@ class FakePayoutGateway implements CollectsBankDetails, PayoutGateway
 
     public function createRecipient(string $country, PayoutMethod $method, string $name, string $bankCode, string $accountNumber): string
     {
-        return 'RCP_'.(++$this->recipients);
+        return 'RCP_' . (++$this->recipients);
     }
 
     public function transfer(PayoutTransfer $transfer): array
@@ -118,14 +118,14 @@ class FakePayoutGateway implements CollectsBankDetails, PayoutGateway
 
         $this->sent[] = $transfer;
 
-        return ['status' => $this->transferStatus, 'transfer_code' => 'TRF_'.$transfer->reference, 'reason' => null, 'raw' => ['reference' => $transfer->reference]];
+        return ['status' => $this->transferStatus, 'transfer_code' => 'TRF_' . $transfer->reference, 'reason' => null, 'raw' => ['reference' => $transfer->reference]];
     }
 
     public function verifyTransfer(string $reference, ?string $transferCode = null): array
     {
         return [
             'status' => $this->verified[$reference] ?? 'processing',
-            'transfer_code' => 'TRF_'.$reference,
+            'transfer_code' => 'TRF_' . $reference,
             'reason' => ($this->verified[$reference] ?? null) === 'failed' ? 'Transfer reversed' : null,
             'raw' => ['reference' => $reference],
         ];
@@ -148,9 +148,9 @@ class FakeHostedGateway extends FakePayoutGateway implements HostsPayoutAccounts
 
     public function onboard(User $user, string $country, ?string $accountId, string $returnUrl): array
     {
-        $accountId ??= 'acct_'.(++$this->accounts);
+        $accountId ??= 'acct_' . (++$this->accounts);
 
-        return ['account_id' => $accountId, 'url' => "https://connect.example.test/{$accountId}?return=".urlencode($returnUrl)];
+        return ['account_id' => $accountId, 'url' => "https://connect.example.test/{$accountId}?return=" . urlencode($returnUrl)];
     }
 
     public function ready(string $accountId): bool
@@ -210,7 +210,7 @@ class PayoutTest extends TestCase
     protected function earn(User $creator, float $share, int $daysAgo = 30): Transaction
     {
         $transaction = new Transaction([
-            'reference' => 'TRX-'.uniqid(),
+            'reference' => 'TRX-' . uniqid(),
             'purpose' => 'tip',
             'method' => 'paystack',
             'status' => 'complete',
@@ -443,7 +443,7 @@ class PayoutTest extends TestCase
         $this->creatorWithAccount(5000);
 
         $reference = $this->postJson('/api/account/payouts', ['amount' => 5000])->json('data.reference');
-        $hook = fn (string $event) => $this->postJson('/api/payments/paystack/webhook', ['event' => $event, 'data' => ['reference' => $reference]], [
+        $hook = fn(string $event) => $this->postJson('/api/payments/paystack/webhook', ['event' => $event, 'data' => ['reference' => $reference]], [
             'x-paystack-signature' => 'unused',
         ]);
 
@@ -506,7 +506,7 @@ class PayoutTest extends TestCase
         Notification::assertSentTo(
             $creator,
             PayoutNotification::class,
-            fn (PayoutNotification $n) => str_contains($n->content($creator)['body'], 'Duplicate request')
+            fn(PayoutNotification $n) => str_contains($n->content($creator)['body'], 'Duplicate request')
         );
     }
 
@@ -622,7 +622,7 @@ class PayoutTest extends TestCase
 
         $this->setting('payout_auto_approve', true);
         $reference = $this->postJson('/api/account/payouts', ['amount' => 2000])->json('data.reference');
-        $flutterwave = fn (?string $hash) => $this->postJson('/api/payouts/flutterwave/webhook', [
+        $flutterwave = fn(?string $hash) => $this->postJson('/api/payouts/flutterwave/webhook', [
             'event' => 'transfer.completed',
             'data' => ['reference' => $reference, 'status' => 'SUCCESSFUL'],
         ], $hash ? ['verif-hash' => $hash] : []);
@@ -643,7 +643,7 @@ class PayoutTest extends TestCase
             'id' => 'tr_1', 'object' => 'transfer', 'transfer_group' => $reference, 'metadata' => ['reference' => $reference],
         ]]]);
         $time = time();
-        $signature = "t={$time},v1=".hash_hmac('sha256', "{$time}.{$payload}", 'whsec_test');
+        $signature = "t={$time},v1=" . hash_hmac('sha256', "{$time}.{$payload}", 'whsec_test');
 
         $this->stripe->verified[$reference] = 'failed';
         $this->call('POST', '/api/payouts/stripe/webhook', [], [], [], ['HTTP_STRIPE_SIGNATURE' => 't=1,v1=bad', 'CONTENT_TYPE' => 'application/json'], $payload)

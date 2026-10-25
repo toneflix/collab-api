@@ -147,8 +147,8 @@ class PayoutAccountController extends Controller
     {
         $host = parse_url($url, PHP_URL_HOST);
         $allowed = collect([config('app.url'), config('app.frontend_url'), ...(array) config('cors.allowed_origins', [])])
-            ->filter(fn ($origin) => is_string($origin) && $origin !== '*')
-            ->map(fn ($origin) => parse_url($origin, PHP_URL_HOST))
+            ->filter(fn($origin) => is_string($origin) && $origin !== '*')
+            ->map(fn($origin) => parse_url($origin, PHP_URL_HOST))
             ->filter();
 
         abort_unless($host && $allowed->contains($host), HttpStatus::UNPROCESSABLE_ENTITY->value, 'That return link is not allowed.');

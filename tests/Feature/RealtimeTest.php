@@ -101,7 +101,7 @@ class RealtimeTest extends TestCase
             }
         };
 
-        app(BroadcastManager::class)->extend('reverb', fn () => $spy);
+        app(BroadcastManager::class)->extend('reverb', fn() => $spy);
         app(BroadcastManager::class)->forgetDrivers();
     }
 
@@ -191,7 +191,7 @@ class RealtimeTest extends TestCase
     {
         $this->useReverb();
 
-        $channel = 'private-project-track.'.$this->track->id;
+        $channel = 'private-project-track.' . $this->track->id;
 
         Sanctum::actingAs($this->collaborator);
         $this->postJson('/api/realtime/auth', ['channel_name' => $channel, 'socket_id' => '1.1'])
@@ -200,8 +200,8 @@ class RealtimeTest extends TestCase
 
         Sanctum::actingAs($this->stranger);
         $this->postJson('/api/realtime/auth', ['channel_name' => $channel, 'socket_id' => '1.1'])->assertForbidden();
-        $this->postJson('/api/realtime/auth', ['channel_name' => 'private-user.'.$this->owner->id, 'socket_id' => '1.1'])->assertForbidden();
-        $this->postJson('/api/realtime/auth', ['channel_name' => 'private-user.'.$this->stranger->id, 'socket_id' => '1.1'])->assertOk();
+        $this->postJson('/api/realtime/auth', ['channel_name' => 'private-user.' . $this->owner->id, 'socket_id' => '1.1'])->assertForbidden();
+        $this->postJson('/api/realtime/auth', ['channel_name' => 'private-user.' . $this->stranger->id, 'socket_id' => '1.1'])->assertOk();
     }
 
     public function test_auth_is_unavailable_when_realtime_is_off(): void
@@ -209,7 +209,7 @@ class RealtimeTest extends TestCase
         RealtimeSettings::update(['realtime_driver' => 'none']);
 
         Sanctum::actingAs($this->owner);
-        $this->postJson('/api/realtime/auth', ['channel_name' => 'private-user.'.$this->owner->id])->assertNotFound();
+        $this->postJson('/api/realtime/auth', ['channel_name' => 'private-user.' . $this->owner->id])->assertNotFound();
     }
 
     public function test_live_edits_reach_the_track_channel_with_the_senders_origin(): void
@@ -225,7 +225,7 @@ class RealtimeTest extends TestCase
         )->assertOk()->assertJsonPath('data.sent', true);
 
         $this->assertCount(1, $this->sent);
-        $this->assertSame(['private-project-track.'.$this->track->id], $this->sent[0]['channels']);
+        $this->assertSame(['private-project-track.' . $this->track->id], $this->sent[0]['channels']);
         $this->assertSame('stems.updated', $this->sent[0]['event']);
         $this->assertSame('tab-abc', $this->sent[0]['payload']['origin']);
         $this->assertSame($this->collaborator->id, $this->sent[0]['payload']['by']['id']);
@@ -257,7 +257,7 @@ class RealtimeTest extends TestCase
         ])->assertCreated();
 
         $this->assertSame('comment.posted', $this->sent[0]['event']);
-        $this->assertSame(['private-conversation.project-track.'.$this->track->id], $this->sent[0]['channels']);
+        $this->assertSame(['private-conversation.project-track.' . $this->track->id], $this->sent[0]['channels']);
         $this->assertSame('Love the bass', $this->sent[0]['payload']['comment']['comment']);
         $this->assertSame($this->owner->id, $this->sent[0]['payload']['comment']['user']['id']);
         $this->assertArrayNotHasKey('email', $this->sent[0]['payload']['comment']['user']);
@@ -266,7 +266,7 @@ class RealtimeTest extends TestCase
     public function test_a_broken_driver_never_fails_the_request(): void
     {
         $this->useSpyDriver();
-        app(BroadcastManager::class)->extend('reverb', fn () => throw new \RuntimeException('down'));
+        app(BroadcastManager::class)->extend('reverb', fn() => throw new \RuntimeException('down'));
         app(BroadcastManager::class)->forgetDrivers();
 
         Sanctum::actingAs($this->owner);
@@ -303,16 +303,16 @@ class RealtimeTest extends TestCase
         $token = $this->createMock(UnencryptedToken::class);
         $token->method('toString')->willReturn('custom-token');
         $auth = $this->createMock(Auth::class);
-        $auth->expects($this->once())->method('createCustomToken')->with('user-'.$this->collaborator->id)->willReturn($token);
+        $auth->expects($this->once())->method('createCustomToken')->with('user-' . $this->collaborator->id)->willReturn($token);
         $firebase->using($this->createMock(Database::class), $auth);
 
         Channels::register($firebase);
-        $request = Request::create('/api/realtime/auth', 'POST', ['channel_name' => 'private-project-track.'.$this->track->id]);
-        $request->setUserResolver(fn () => $this->collaborator);
+        $request = Request::create('/api/realtime/auth', 'POST', ['channel_name' => 'private-project-track.' . $this->track->id]);
+        $request->setUserResolver(fn() => $this->collaborator);
 
         $response = $firebase->auth($request);
 
         $this->assertSame('custom-token', $response['token']);
-        $this->assertArrayHasKey('arkstack/grants/user-'.$this->collaborator->id.'/private-project-track%2E'.$this->track->id, $writes[1]);
+        $this->assertArrayHasKey('arkstack/grants/user-' . $this->collaborator->id . '/private-project-track%2E' . $this->track->id, $writes[1]);
     }
 }

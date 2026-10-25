@@ -21,11 +21,11 @@ class FileResource extends JsonResource
         return [
             'id' => $this->id,
             'url' => $this->when($request->user()?->id === $user?->id, $this->mediaInfo['dynamicLink']),
-            'src' => $this->mediaInfo['dynamicLink'], //secureLink
+            'src' => $this->mediaInfo['dynamicLink'], // secureLink
             'ext' => $this->mediaInfo['ext'],
             'size' => $this->mediaInfo['size'],
             'meta' => $this->meta,
-            'name' => $this->when($with->contains('ext'), $filename->append('.'.$this->mediaInfo['ext']), $filename),
+            'name' => $this->when($with->contains('ext'), $filename->append('.' . $this->mediaInfo['ext']), $filename),
             'model' => $this->model,
             'type' => $this->mediaInfo['type'],
             '_type' => str($this->fileable_type)->afterLast('\\'),

@@ -54,6 +54,6 @@ class PaystackTransfers extends AbstractResource
      */
     public function verify(array $payload): object
     {
-        return $this->client->request('GET', '/transfer/verify/'.rawurlencode($payload['reference']));
+        return $this->client->request('GET', '/transfer/verify/' . rawurlencode($payload['reference']));
     }
 }

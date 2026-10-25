@@ -20,7 +20,7 @@ class RealtimeServiceProvider extends ServiceProvider
         });
 
         $this->callAfterResolving(BroadcastManager::class, function (BroadcastManager $manager) {
-            $manager->extend('firebase', fn ($app, array $config) => new FirebaseBroadcaster($config));
+            $manager->extend('firebase', fn($app, array $config) => new FirebaseBroadcaster($config));
         });
 
         // Apply the admin's driver choice: right away for console commands,
@@ -28,7 +28,7 @@ class RealtimeServiceProvider extends ServiceProvider
         if ($this->app->runningInConsole()) {
             $this->configure();
         } else {
-            $this->callAfterResolving(BroadcastManager::class, fn () => $this->configure());
+            $this->callAfterResolving(BroadcastManager::class, fn() => $this->configure());
         }
     }
 

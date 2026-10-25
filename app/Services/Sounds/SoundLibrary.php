@@ -58,8 +58,8 @@ class SoundLibrary
         $guessed = strtolower((string) $file->extension());
         $ext = in_array($guessed, $known, true) ? $guessed : strtolower($file->getClientOriginalExtension() ?: 'mp3');
 
-        $name = Initiator::generateStringFromPattern(config('toneflix-fileable.file_name_pattern', '000000000-000000000')).'.'.$ext;
-        $dir = $media->getPrefix(Sound::COLLECTION).Arr::get($media->namespaces, Sound::COLLECTION.'.path');
+        $name = Initiator::generateStringFromPattern(config('toneflix-fileable.file_name_pattern', '000000000-000000000')) . '.' . $ext;
+        $dir = $media->getPrefix(Sound::COLLECTION) . Arr::get($media->namespaces, Sound::COLLECTION . '.path');
 
         $media->disk->putFileAs($dir, $file, $name);
 
@@ -75,7 +75,7 @@ class SoundLibrary
     public static function storeDownload(array $download, array $attributes, ?User $owner = null): Sound
     {
         try {
-            $file = new UploadedFile($download['path'], 'sound.'.$download['ext'], $download['mime'], null, true);
+            $file = new UploadedFile($download['path'], 'sound.' . $download['ext'], $download['mime'], null, true);
 
             return self::store($file, ['quality' => $download['quality'], ...$attributes], $owner);
         } finally {
@@ -114,7 +114,7 @@ class SoundLibrary
      */
     public static function sync(?callable $log = null): array
     {
-        $log ??= fn () => null;
+        $log ??= fn() => null;
         $result = ['added' => 0, 'skipped' => 0, 'failed' => 0, 'at' => now()->toIso8601String(), 'errors' => []];
 
         if (! SoundSettings::freesoundConfigured()) {
@@ -139,7 +139,7 @@ class SoundLibrary
                     $found = Freesound::search($query, $page, $size, $maxDuration);
                 } catch (\Throwable $e) {
                     $result['failed']++;
-                    $result['errors'][] = "\"{$query}\": ".$e->getMessage();
+                    $result['errors'][] = "\"{$query}\": " . $e->getMessage();
                     break;
                 }
 
@@ -167,7 +167,7 @@ class SoundLibrary
                         $log("Added \"{$item['name']}\"");
                     } catch (\Throwable $e) {
                         $result['failed']++;
-                        $result['errors'][] = "\"{$item['name']}\": ".$e->getMessage();
+                        $result['errors'][] = "\"{$item['name']}\": " . $e->getMessage();
                         Log::warning('Freesound sync download failed', ['id' => $item['id'], 'error' => $e->getMessage()]);
                     }
 
@@ -218,10 +218,10 @@ class SoundLibrary
         $media = new Media;
         $from = $sound->path();
         $ext = str($sound->file)->afterLast('.')->lower()->toString() ?: 'mp3';
-        $name = Initiator::generateStringFromPattern(config('toneflix-fileable.file_name_pattern', '000000000-000000000')).'.'.$ext;
+        $name = Initiator::generateStringFromPattern(config('toneflix-fileable.file_name_pattern', '000000000-000000000')) . '.' . $ext;
 
         $media->setCollectionDisk('stem_files');
-        $to = $media->getPrefix('stem_files').Arr::get($media->namespaces, 'stem_files.path').$name;
+        $to = $media->getPrefix('stem_files') . Arr::get($media->namespaces, 'stem_files.path') . $name;
         $source = new Media;
         $source->setCollectionDisk(Sound::COLLECTION);
         $stream = $source->disk->readStream($from);

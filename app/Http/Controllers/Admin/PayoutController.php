@@ -39,10 +39,10 @@ class PayoutController extends Controller
         ]);
 
         $list = Payout::with(['user', 'reviewer'])
-            ->when($request->status, fn ($q, $status) => $q->where('status', $status))
-            ->when($request->search, fn ($q, $search) => $q->where(fn ($q) => $q
+            ->when($request->status, fn($q, $status) => $q->where('status', $status))
+            ->when($request->search, fn($q, $search) => $q->where(fn($q) => $q
                 ->where('reference', $search)
-                ->orWhereHas('user', fn ($q) => $q->whereLike('username', "%{$search}%")->orWhereLike('email', "%{$search}%"))))
+                ->orWhereHas('user', fn($q) => $q->whereLike('username', "%{$search}%")->orWhereLike('email', "%{$search}%"))))
             ->latest()
             ->paginate(min((int) $request->input('limit', 20), 50));
 
@@ -68,7 +68,7 @@ class PayoutController extends Controller
 
         return (new PayoutResource($payout))->additional([
             'message' => match ($payout->status) {
-                PayoutStatus::FAILED => 'Paystack did not accept this transfer: '.$payout->failure_reason,
+                PayoutStatus::FAILED => 'Paystack did not accept this transfer: ' . $payout->failure_reason,
                 PayoutStatus::PAID => 'The withdrawal was paid.',
                 default => 'The withdrawal was sent to Paystack.',
             },
@@ -100,7 +100,7 @@ class PayoutController extends Controller
         $payout = $payouts->sync($payout)->load(['user', 'reviewer']);
 
         return (new PayoutResource($payout))->additional([
-            'message' => 'The withdrawal is '.$payout->status->value.'.',
+            'message' => 'The withdrawal is ' . $payout->status->value . '.',
             'status' => 'success',
             'status_code' => HttpStatus::OK,
         ]);

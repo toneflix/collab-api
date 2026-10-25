@@ -7,8 +7,13 @@ use App\Events\PhoneVerified;
 use App\Helpers\Providers as PV;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\UserResource;
+use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Auth\Events\Verified;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Validator;
 
 class VerifyEmailPhoneController extends Controller
@@ -16,11 +21,11 @@ class VerifyEmailPhoneController extends Controller
     /**
      * Send a new email verification notification.
      *
-     * @return \Illuminate\Http\JsonResponse|\Illuminate\Http\RedirectResponse
+     * @return JsonResponse|RedirectResponse
      */
     public function store(Request $request, $type = 'email')
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
 
         $set_type = ($type == 'phone') ? 'phone number' : 'email address';
@@ -41,7 +46,7 @@ class VerifyEmailPhoneController extends Controller
             $user->sendPhoneVerificationNotification();
         }
 
-        /** @var \Carbon\Carbon */
+        /** @var Carbon */
         $datetime = $user->last_attempt ?? now()->subSeconds(PV::config('token_lifespan', 30) + 1);
         $dateAdd = $datetime->addSeconds(PV::config('token_lifespan', 30));
 
@@ -55,16 +60,16 @@ class VerifyEmailPhoneController extends Controller
     /**
      * Ping the verification notification to know the status.
      *
-     * @return \Illuminate\Http\JsonResponse|\Illuminate\Http\RedirectResponse
+     * @return JsonResponse|RedirectResponse
      */
     public function show(Request $request, $type = 'email')
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
 
         $set_type = ($type == 'phone') ? 'phone number' : 'email address';
 
-        /** @var \Carbon\Carbon */
+        /** @var Carbon */
         $datetime = $user->last_attempt ?? now()->subSeconds(PV::config('token_lifespan', 30) + 1);
 
         $dateAdd = $datetime->addSeconds(PV::config('token_lifespan', 30));
@@ -85,11 +90,11 @@ class VerifyEmailPhoneController extends Controller
      * Mark the authenticated user's email address as verified.
      *
      * @param  \Illuminate\Foundation\Auth\Request  $request
-     * @return \Illuminate\Http\Response
+     * @return Response
      */
     public function update(Request $request, $type = 'email')
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
 
         $set_type = ($type == 'phone') ? 'phone number' : 'email address';

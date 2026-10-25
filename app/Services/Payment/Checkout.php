@@ -47,7 +47,7 @@ class Checkout
             default => throw ValidationException::withMessages(['purpose' => 'Unknown payment type.']),
         };
 
-        $reference = Providers::config('reference_prefix', 'TRX-').Random::string(20, false, true, true, false);
+        $reference = Providers::config('reference_prefix', 'TRX-') . Random::string(20, false, true, true, false);
 
         // Start with the gateway first so a failed start leaves no pending transaction behind.
         $session = $this->gateway->initialize($payer->email, $amount, $reference, [
@@ -172,7 +172,7 @@ class Checkout
     {
         /** @var Release $release */
         $release = Release::live()
-            ->where(fn (Builder $q) => $q->where('slug', (string) $id)->when(is_numeric($id), fn ($q) => $q->orWhere('releases.id', $id)))
+            ->where(fn(Builder $q) => $q->where('slug', (string) $id)->when(is_numeric($id), fn($q) => $q->orWhere('releases.id', $id)))
             ->firstOrFail();
 
         if ($release->price <= 0) {
@@ -192,8 +192,8 @@ class Checkout
     protected function forStems(User $payer, string|int|null $id): array
     {
         /** @var Track $track */
-        $track = Track::whereHas('release', fn (Builder $q) => $q->live())
-            ->where(fn (Builder $q) => $q->where('slug', (string) $id)->when(is_numeric($id), fn ($q) => $q->orWhere('tracks.id', $id)))
+        $track = Track::whereHas('release', fn(Builder $q) => $q->live())
+            ->where(fn(Builder $q) => $q->where('slug', (string) $id)->when(is_numeric($id), fn($q) => $q->orWhere('tracks.id', $id)))
             ->firstOrFail();
 
         if (! $track->stemsForSale()) {
@@ -213,7 +213,7 @@ class Checkout
     protected function forTip(User $payer, string|int|null $id, mixed $amount, ?string $message): array
     {
         /** @var User $creator */
-        $creator = User::where(fn (Builder $q) => $q->where('username', (string) $id)->when(is_numeric($id), fn ($q) => $q->orWhere('id', $id)))
+        $creator = User::where(fn(Builder $q) => $q->where('username', (string) $id)->when(is_numeric($id), fn($q) => $q->orWhere('id', $id)))
             ->firstOrFail();
 
         if (! $creator->feature(Feature::RECEIVE_TIPS)) {
@@ -241,7 +241,7 @@ class Checkout
         /** @var Plan|null $model */
         $model = Plan::active()
             ->where('is_default', false)
-            ->where(fn (Builder $q) => $q->where('slug', (string) $plan)->when(is_numeric($plan), fn ($q) => $q->orWhere('id', $plan)))
+            ->where(fn(Builder $q) => $q->where('slug', (string) $plan)->when(is_numeric($plan), fn($q) => $q->orWhere('id', $plan)))
             ->first();
 
         if (! $model) {
@@ -255,7 +255,7 @@ class Checkout
         $option = $model->billingOption((int) ($cycles ?: 1));
 
         if (! $option) {
-            throw ValidationException::withMessages(['cycles' => 'This plan can\'t be paid for that many '.str($model->interval)->plural().' at once.']);
+            throw ValidationException::withMessages(['cycles' => 'This plan can\'t be paid for that many ' . str($model->interval)->plural() . ' at once.']);
         }
 
         return [$option['price'], $payer, null, [

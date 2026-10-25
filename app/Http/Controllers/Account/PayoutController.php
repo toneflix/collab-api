@@ -18,7 +18,7 @@ class PayoutController extends Controller
     public function index(Request $request, Payouts $payouts)
     {
         $list = $this->user->payouts()
-            ->when($request->status, fn ($q, $status) => $q->where('status', $status))
+            ->when($request->status, fn($q, $status) => $q->where('status', $status))
             ->latest()
             ->paginate(min((int) $request->input('limit', 15), 50));
 

@@ -37,7 +37,7 @@ abstract class SettingsStore
             return static::resolve([]);
         }
 
-        return Cache::rememberForever(static::CACHE_KEY, fn () => static::resolve(
+        return Cache::rememberForever(static::CACHE_KEY, fn() => static::resolve(
             Configuration::query()->toBase()->whereIn('key', array_keys(static::FIELDS))->pluck('value', 'key')->all()
         ));
     }
@@ -99,7 +99,7 @@ abstract class SettingsStore
      */
     public static function keys(): array
     {
-        return collect(static::KEYS)->map(fn (array $keys) => collect($keys)->map(fn (array $key, string $env) => [
+        return collect(static::KEYS)->map(fn(array $keys) => collect($keys)->map(fn(array $key, string $env) => [
             'env' => $env,
             'title' => $key[0],
             'required' => $key[2] ?? true,
@@ -115,8 +115,8 @@ abstract class SettingsStore
     public static function missing(string $group): array
     {
         return collect(static::keys()[$group] ?? [])
-            ->filter(fn (array $key) => $key['required'] && ! $key['isSet'])
-            ->map(fn (array $key) => "{$key['title']} ({$key['env']})")
+            ->filter(fn(array $key) => $key['required'] && ! $key['isSet'])
+            ->map(fn(array $key) => "{$key['title']} ({$key['env']})")
             ->values()
             ->all();
     }

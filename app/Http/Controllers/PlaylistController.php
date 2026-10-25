@@ -22,7 +22,7 @@ class PlaylistController extends Controller
 
         $request->validate([
             'similar_to' => ['nullable', 'integer'],
-            'exclude' => ['nullable', 'array', 'max:'.UpNext::MAX_EXCLUDED],
+            'exclude' => ['nullable', 'array', 'max:' . UpNext::MAX_EXCLUDED],
             'exclude.*' => ['integer'],
             'limit' => ['nullable', 'integer', 'min:1'],
         ]);

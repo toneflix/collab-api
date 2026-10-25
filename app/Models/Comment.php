@@ -4,8 +4,8 @@ namespace App\Models;
 
 use App\Contracts\CanBeTakenDown;
 use App\Models\Scopes\HideReportedModels;
-use App\Traits\TakesDown;
 use App\Models\Scopes\RestrictBlockedUserScope;
+use App\Traits\TakesDown;
 use BeyondCode\Comments\Comment as BeyondCodeComment;
 use Illuminate\Database\Eloquent\Attributes\ScopedBy;
 use Illuminate\Database\Eloquent\Builder;

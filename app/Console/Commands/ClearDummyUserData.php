@@ -59,7 +59,7 @@ class ClearDummyUserData extends Command
             'Artist', 'User', 'Transaction', 'Release', 'Track', 'TrackArtist', 'Project', 'ProjectTrack', 'Followable',
             'ProjectCollaborator', 'SocialInteractions', 'SocialInteractionSave', 'ApprovableNotification', 'Laravisit',
             'Recommendation',
-        ])->each(fn (string $t) => $this->resetAutoincrement($t));
+        ])->each(fn(string $t) => $this->resetAutoincrement($t));
     }
 
     protected function resetAutoincrement(string $table): void
@@ -67,7 +67,7 @@ class ClearDummyUserData extends Command
         $table = str($table)->snake()->lower()->when(! in_array(
             $table,
             ['TrackArtist']
-        ), fn ($s) => $s->plural(2))->toString();
+        ), fn($s) => $s->plural(2))->toString();
 
         $max = DB::table($table)->max('id') + 1;
 

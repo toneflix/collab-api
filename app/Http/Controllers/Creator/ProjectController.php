@@ -28,7 +28,7 @@ class ProjectController extends Controller
             $query->collaber($this->user);
         }
 
-        $query->when($filters->contains('latest'), fn ($q) => $q->latest());
+        $query->when($filters->contains('latest'), fn($q) => $q->latest());
 
         $projects = $query->paginate($request->perPage(45));
 
@@ -84,7 +84,7 @@ class ProjectController extends Controller
         $query = Project::query();
         $query->collaber($this->user);
 
-        $project = $query->where(fn ($q) => $q->where('slug', $id)->when(is_numeric($id), fn ($q) => $q->orWhere('projects.id', $id)))->firstOrFail();
+        $project = $query->where(fn($q) => $q->where('slug', $id)->when(is_numeric($id), fn($q) => $q->orWhere('projects.id', $id)))->firstOrFail();
 
         return (new ProjectResource($project))->additional([
             'message' => HttpStatus::message(HttpStatus::OK),
@@ -100,7 +100,7 @@ class ProjectController extends Controller
     {
         $query = Project::query();
         $query->collaber($this->user);
-        $project = $query->where(fn ($q) => $q->where('slug', $id)->when(is_numeric($id), fn ($q) => $q->orWhere('projects.id', $id)))->firstOrFail();
+        $project = $query->where(fn($q) => $q->where('slug', $id)->when(is_numeric($id), fn($q) => $q->orWhere('projects.id', $id)))->firstOrFail();
 
         $this->validate($request, [
             'image' => ['nullable', 'image', 'mimes:png,jpg'],
@@ -129,7 +129,7 @@ class ProjectController extends Controller
     {
         /** @var Project $project */
         $project = $this->user->projects()
-            ->where(fn ($q) => $q->where('slug', $id)->when(is_numeric($id), fn ($q) => $q->orWhere('projects.id', $id)))
+            ->where(fn($q) => $q->where('slug', $id)->when(is_numeric($id), fn($q) => $q->orWhere('projects.id', $id)))
             ->first();
 
         if (! $project) {

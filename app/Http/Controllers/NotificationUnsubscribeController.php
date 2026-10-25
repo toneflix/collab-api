@@ -27,6 +27,6 @@ class NotificationUnsubscribeController extends Controller
             return response()->noContent();
         }
 
-        return redirect()->away(rtrim(config('app.frontend_url'), '/').'/account/notifications?unsubscribed='.$category->value);
+        return redirect()->away(rtrim(config('app.frontend_url'), '/') . '/account/notifications?unsubscribed=' . $category->value);
     }
 }

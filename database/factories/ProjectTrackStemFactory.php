@@ -2,10 +2,11 @@
 
 namespace Database\Factories;
 
+use App\Models\ProjectTrackStem;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\ProjectTrackStem>
+ * @extends Factory<ProjectTrackStem>
  */
 class ProjectTrackStemFactory extends Factory
 {

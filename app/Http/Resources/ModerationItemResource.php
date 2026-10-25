@@ -21,14 +21,14 @@ class ModerationItemResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'key' => $this->model_type.':'.$this->model_id,
+            'key' => $this->model_type . ':' . $this->model_id,
             'item' => app(ModerationQueue::class)->item($this->model_type, $this->model_id),
             'reportsCount' => (int) $this->reports_count,
             'matchesCount' => (int) $this->matches_count,
             'lastReportedAt' => $this->last_reported_at,
             'reasons' => (object) ($this->reason_counts ?? []),
             'reports' => SafetyResource::collection($this->whenLoaded('latestReports')),
-            'takedown' => $this->whenLoaded('activeTakedown', fn () => $this->activeTakedown ? new TakedownResource($this->activeTakedown) : null),
+            'takedown' => $this->whenLoaded('activeTakedown', fn() => $this->activeTakedown ? new TakedownResource($this->activeTakedown) : null),
         ];
     }
 }

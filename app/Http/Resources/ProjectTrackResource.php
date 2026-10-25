@@ -20,10 +20,10 @@ class ProjectTrackResource extends JsonResource
             'id' => $this->id,
             'slug' => $this->slug,
             'title' => $this->title,
-            'genre' => $this->when($with->contains('genre'), fn () => new GenreResource($this->genre), new \stdClass),
+            'genre' => $this->when($with->contains('genre'), fn() => new GenreResource($this->genre), new \stdClass),
             'artist' => $this->when(
                 ($with->contains('artist') || $with->contains('artists')) && $this->artist,
-                fn () => new ArtistResource($this->artist),
+                fn() => new ArtistResource($this->artist),
                 new \stdClass
             ),
             'preview' => $this->mediaFileInfo['preview']['dynamicLink'],

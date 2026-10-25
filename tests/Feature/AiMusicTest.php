@@ -98,7 +98,7 @@ class AiMusicTest extends TestCase
     protected function member(int $credits): User
     {
         $plan = Plan::create([
-            'slug' => 'ai-'.uniqid(), 'name' => 'AI', 'price' => 1000, 'interval' => 'month',
+            'slug' => 'ai-' . uniqid(), 'name' => 'AI', 'price' => 1000, 'interval' => 'month',
             'features' => [Feature::AI_TOOLS->value => true, Feature::AI_CREDITS->value => $credits],
         ]);
 
@@ -121,14 +121,14 @@ class AiMusicTest extends TestCase
      */
     protected function fakeDemucs(): void
     {
-        $stems = collect(['vocals', 'drums', 'bass', 'other'])->mapWithKeys(fn ($part) => [$part => "https://replicate.delivery/out/{$part}.mp3"]);
+        $stems = collect(['vocals', 'drums', 'bass', 'other'])->mapWithKeys(fn($part) => [$part => "https://replicate.delivery/out/{$part}.mp3"]);
 
         Http::fake([
-            self::API.'/files' => Http::response(['urls' => ['get' => self::API.'/files/f1']]),
-            self::API.'/models/ryan5453/demucs/predictions' => Http::response(['detail' => 'version required'], 404),
-            self::API.'/models/ryan5453/demucs' => Http::response(['latest_version' => ['id' => 'v-demucs']]),
-            self::API.'/predictions' => Http::response(['id' => 'p-stems', 'status' => 'starting']),
-            self::API.'/predictions/p-stems' => Http::response(['id' => 'p-stems', 'status' => 'succeeded', 'output' => $stems->all()]),
+            self::API . '/files' => Http::response(['urls' => ['get' => self::API . '/files/f1']]),
+            self::API . '/models/ryan5453/demucs/predictions' => Http::response(['detail' => 'version required'], 404),
+            self::API . '/models/ryan5453/demucs' => Http::response(['latest_version' => ['id' => 'v-demucs']]),
+            self::API . '/predictions' => Http::response(['id' => 'p-stems', 'status' => 'starting']),
+            self::API . '/predictions/p-stems' => Http::response(['id' => 'p-stems', 'status' => 'succeeded', 'output' => $stems->all()]),
             'https://replicate.delivery/*' => Http::response('ID3-audio', 200, ['Content-Type' => 'audio/mpeg']),
         ]);
     }
@@ -143,7 +143,7 @@ class AiMusicTest extends TestCase
             ->assertJsonPath('data.credits', 15)
             ->json('data.id');
 
-        Audio::assertGenerated(fn (AudioPrompt $prompt) => $prompt->text === 'Warm lofi beat with vinyl crackle'
+        Audio::assertGenerated(fn(AudioPrompt $prompt) => $prompt->text === 'Warm lofi beat with vinyl crackle'
             && $prompt->providerOptions === ['music_length_ms' => 30000, 'force_instrumental' => true, 'seed' => 7]);
 
         $job = AiJob::findOrFail($id);
@@ -152,14 +152,14 @@ class AiMusicTest extends TestCase
         $stem = $this->track->stems()->sole();
         $this->assertSame($stem->id, $job->output['stems'][0]);
         $this->assertSame('Warm lofi beat with vinyl crackle', $stem->meta['ai']['prompt']);
-        Storage::disk(config('filesystems.default'))->assertExists('public/media/music/stem/'.$stem->src);
+        Storage::disk(config('filesystems.default'))->assertExists('public/media/music/stem/' . $stem->src);
         $this->assertSame(85, Credits::for($this->owner)->total());
     }
 
     public function test_the_replicate_driver_runs_elevenlabs_music(): void
     {
         Http::fake([
-            self::API.'/models/elevenlabs/music/predictions' => Http::response([
+            self::API . '/models/elevenlabs/music/predictions' => Http::response([
                 'id' => 'p-music', 'status' => 'succeeded', 'output' => 'https://replicate.delivery/out/song.mp3',
             ]),
             'https://replicate.delivery/*' => Http::response('ID3-song', 200, ['Content-Type' => 'audio/mpeg']),
@@ -170,7 +170,7 @@ class AiMusicTest extends TestCase
         $this->assertSame('ID3-song', $audio->content());
         $this->assertSame('elevenlabs/music', $audio->meta->model);
 
-        Http::assertSent(fn (Request $request) => $request->url() === self::API.'/models/elevenlabs/music/predictions'
+        Http::assertSent(fn(Request $request) => $request->url() === self::API . '/models/elevenlabs/music/predictions'
             && $request['input'] === ['prompt' => 'Afrobeats groove', 'music_length_ms' => 10000]
             && $request->hasHeader('Authorization', 'Bearer r8_test')
             && $request->hasHeader('Prefer', 'wait=60'));
@@ -191,9 +191,9 @@ class AiMusicTest extends TestCase
             $this->track->stems()->orderBy('title')->pluck('title')->all()
         );
 
-        Http::assertSent(fn (Request $request) => $request->url() === self::API.'/predictions'
+        Http::assertSent(fn(Request $request) => $request->url() === self::API . '/predictions'
             && $request['version'] === 'v-demucs'
-            && $request['input'] === ['audio' => self::API.'/files/f1', 'output_format' => 'mp3']);
+            && $request['input'] === ['audio' => self::API . '/files/f1', 'output_format' => 'mp3']);
     }
 
     public function test_an_existing_stem_can_be_split(): void
@@ -213,7 +213,7 @@ class AiMusicTest extends TestCase
 
     public function test_failed_jobs_refund_their_credits(): void
     {
-        Audio::fake(fn () => throw new RuntimeException('Model is down'));
+        Audio::fake(fn() => throw new RuntimeException('Model is down'));
         Sanctum::actingAs($this->owner);
 
         $id = $this->postJson($this->url(), ['prompt' => 'Amapiano log drums', 'seconds' => 60])->assertCreated()->json('data.id');
@@ -285,7 +285,7 @@ class AiMusicTest extends TestCase
     protected function fakeElevenLabs(): void
     {
         Http::fake([
-            self::API.'/models/elevenlabs/music/predictions' => Http::response(self::ELEVENLABS_PREDICTION, 201),
+            self::API . '/models/elevenlabs/music/predictions' => Http::response(self::ELEVENLABS_PREDICTION, 201),
             self::ELEVENLABS_PREDICTION['output'] => Http::response(file_get_contents(base_path('tests/fixtures/audio.mp3')), 200, ['Content-Type' => 'audio/mpeg']),
         ]);
     }
@@ -305,16 +305,16 @@ class AiMusicTest extends TestCase
 
         $stem = $this->track->stems()->sole();
         $this->assertSame([$stem->id], $job->output['stems']);
-        Storage::disk(config('filesystems.default'))->assertExists('public/media/music/stem/'.$stem->src);
+        Storage::disk(config('filesystems.default'))->assertExists('public/media/music/stem/' . $stem->src);
 
-        Http::assertSent(fn (Request $request) => $request->url() === self::ELEVENLABS_PREDICTION['output']
+        Http::assertSent(fn(Request $request) => $request->url() === self::ELEVENLABS_PREDICTION['output']
             && ! $request->hasHeader('Authorization'));
     }
 
     public function test_a_song_is_added_whole_when_splitting_it_fails(): void
     {
         $this->fakeElevenLabs();
-        Http::fake([self::API.'/files' => Http::response(['detail' => 'Upload failed'], 500)]);
+        Http::fake([self::API . '/files' => Http::response(['detail' => 'Upload failed'], 500)]);
         Log::spy();
         Sanctum::actingAs($this->owner);
 
@@ -331,7 +331,7 @@ class AiMusicTest extends TestCase
         $this->assertSame([$this->track->stems()->sole()->id], $job->output['stems']);
         $this->assertSame(100 - 43 + 5, Credits::for($this->owner)->total());
 
-        Log::shouldHaveReceived('error')->withArgs(fn ($message, $context) => $message === 'AI job failed'
+        Log::shouldHaveReceived('error')->withArgs(fn($message, $context) => $message === 'AI job failed'
             && $context['step'] === 'Split into stems'
             && $context['exception'] instanceof RequestException);
     }
@@ -352,7 +352,7 @@ class AiMusicTest extends TestCase
         $throttled = ['detail' => 'Request was throttled. Your rate limit for creating predictions is reduced to 6 requests per minute with a burst of 1 requests.', 'status' => 429, 'retry_after' => 7];
 
         Http::fake([
-            self::API.'/models/elevenlabs/music/predictions' => Http::sequence()
+            self::API . '/models/elevenlabs/music/predictions' => Http::sequence()
                 ->push($throttled, 429)
                 ->push(self::ELEVENLABS_PREDICTION, 201),
             self::ELEVENLABS_PREDICTION['output'] => Http::response('ID3-song', 200, ['Content-Type' => 'audio/mpeg']),
@@ -361,7 +361,7 @@ class AiMusicTest extends TestCase
         $audio = Audio::of('Afrobeats groove')->generate('replicate');
 
         $this->assertSame('ID3-song', $audio->content());
-        Sleep::assertSlept(fn ($duration) => $duration->totalSeconds === 7.0, 1);
+        Sleep::assertSlept(fn($duration) => $duration->totalSeconds === 7.0, 1);
     }
 
     public function test_models_known_to_need_a_version_run_by_it_straight_away(): void

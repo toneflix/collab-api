@@ -86,7 +86,7 @@ class TrackHistoryTest extends TestCase
             'title' => $this->track->fresh()->title,
             'genre_id' => (string) $this->genre->id,
             'artist_id' => (string) $this->artist->id,
-            'stems' => collect($metas)->map(fn ($meta, $id) => ['id' => $id, 'meta' => $meta])->values()->all(),
+            'stems' => collect($metas)->map(fn($meta, $id) => ['id' => $id, 'meta' => $meta])->values()->all(),
             ...$extra,
         ]);
     }

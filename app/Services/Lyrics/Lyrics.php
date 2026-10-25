@@ -113,13 +113,13 @@ class Lyrics
     public function normalize(array $lines): array
     {
         return collect($lines)
-            ->map(fn ($line) => is_string($line) ? ['text' => $line] : (array) $line)
-            ->map(fn (array $line) => [
+            ->map(fn($line) => is_string($line) ? ['text' => $line] : (array) $line)
+            ->map(fn(array $line) => [
                 'start' => $this->time($line['start'] ?? null),
                 'end' => $this->time($line['end'] ?? null),
                 'text' => str(preg_replace('/\s+/u', ' ', (string) ($line['text'] ?? '')))->trim()->limit(self::MAX_LINE_LENGTH, '')->toString(),
             ])
-            ->filter(fn (array $line) => $line['text'] !== '')
+            ->filter(fn(array $line) => $line['text'] !== '')
             ->take(self::MAX_LINES)
             ->values()
             ->all();

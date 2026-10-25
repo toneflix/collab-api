@@ -46,7 +46,7 @@ class UserController extends Controller
 
         $users = $directory->query($valid)
             ->withCount(['projects', 'collabProjects', 'releases'])
-            ->with(['roles', 'subscriptions' => fn ($q) => $q->active()->with('planModel')])
+            ->with(['roles', 'subscriptions' => fn($q) => $q->active()->with('planModel')])
             ->paginate($valid['limit'] ?? 20);
 
         return AdminUserResource::collection($users)->additional([
@@ -242,7 +242,7 @@ class UserController extends Controller
      */
     protected function user(Request $request, User $user, string $message, array $extra = [])
     {
-        $user->refresh()->load(['roles', 'subscriptions' => fn ($q) => $q->active()->with('planModel')])->loadCount('releases');
+        $user->refresh()->load(['roles', 'subscriptions' => fn($q) => $q->active()->with('planModel')])->loadCount('releases');
 
         return (new AdminUserResource($user))->additional([
             'can' => $this->manager->abilities($request->user(), $user),

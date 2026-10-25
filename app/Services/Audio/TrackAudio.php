@@ -52,8 +52,8 @@ class TrackAudio
             return false;
         }
 
-        $name = Str::random(40).'.'.(pathinfo($path, PATHINFO_EXTENSION) ?: 'mp3');
-        $media->disk->copy($path, dirname($path).'/'.$name);
+        $name = Str::random(40) . '.' . (pathinfo($path, PATHINFO_EXTENSION) ?: 'mp3');
+        $media->disk->copy($path, dirname($path) . '/' . $name);
 
         $track->audio = $name;
         $track->saveQuietly();
@@ -77,7 +77,7 @@ class TrackAudio
             return null;
         }
 
-        $local = sys_get_temp_dir().'/track-'.Str::random(16).'.'.(pathinfo($path, PATHINFO_EXTENSION) ?: 'mp3');
+        $local = sys_get_temp_dir() . '/track-' . Str::random(16) . '.' . (pathinfo($path, PATHINFO_EXTENSION) ?: 'mp3');
         file_put_contents($local, $stream);
         fclose($stream);
 

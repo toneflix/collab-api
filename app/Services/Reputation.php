@@ -8,7 +8,7 @@ use App\Models\User;
 class Reputation
 {
     /**
-     * @var integer $amount
+     * @var int
      */
     public $amount = 0;
 
@@ -22,13 +22,13 @@ class Reputation
         $this->amount = config("settings.reputation.$type");
 
         if ($this->amount === null) {
-            throw new \Exception("Invalid reputation signature", 1);
-        };
+            throw new \Exception('Invalid reputation signature', 1);
+        }
     }
 
     public function add(?int $requirement = null): void
     {
-        if ($requirement === null || $requirement >= config("settings.delete_reputation_cost", 0)) {
+        if ($requirement === null || $requirement >= config('settings.delete_reputation_cost', 0)) {
             $this->user->increment('reputation', $this->amount);
         }
     }

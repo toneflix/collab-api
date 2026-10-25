@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Casts\ConfigValue;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 
 class Configuration extends Model
@@ -66,9 +67,9 @@ class Configuration extends Model
             });
         }
 
-        /** @var \Illuminate\Support\Collection<TMapWithKeysKey, TMapWithKeysValue> $config */
+        /** @var Collection<TMapWithKeysKey, TMapWithKeysValue> $config */
         $config = Cache::remember('configuration::build', null, function () {
-            return Configuration::all()->filter(fn ($conf) => ! $conf->secret)->mapWithKeys(function ($item) {
+            return Configuration::all()->filter(fn($conf) => ! $conf->secret)->mapWithKeys(function ($item) {
                 return [$item->key => $item->value];
             });
         });

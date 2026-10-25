@@ -70,7 +70,7 @@ class PayoutSettingsController extends Controller
                     'stripe' => route('payouts.webhook.stripe'),
                 ],
                 // Which provider pays each country with the current settings
-                'countries' => collect($payouts->countries())->map(fn ($c) => [
+                'countries' => collect($payouts->countries())->map(fn($c) => [
                     'code' => $c['code'],
                     'name' => $c['name'],
                     'provider' => $c['provider'],

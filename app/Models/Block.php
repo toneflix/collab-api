@@ -31,16 +31,16 @@ class Block extends Model
     ];
 
     public static $allowedReasons = [
-        "dmca",
-        "spam",
-        "hate",
-        "abuse",
-        "violent",
-        "privacy",
-        "sensitive",
-        "self-harm",
-        "copyright",
-        "child-safety",
+        'dmca',
+        'spam',
+        'hate',
+        'abuse',
+        'violent',
+        'privacy',
+        'sensitive',
+        'self-harm',
+        'copyright',
+        'child-safety',
     ];
 
     public static function boot(): void
@@ -66,7 +66,7 @@ class Block extends Model
     public function name(): Attribute
     {
         return Attribute::make(
-            fn () => $this->blockable->fullname ?? $this->blockable->name ?? $this->blockable->title ?? 'This user'
+            fn() => $this->blockable->fullname ?? $this->blockable->name ?? $this->blockable->title ?? 'This user'
         );
     }
 

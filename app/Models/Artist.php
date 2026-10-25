@@ -132,7 +132,7 @@ class Artist extends Model
      */
     public function user(): BelongsTo
     {
-        return $this->belongsTo(User::class)->withDefault(fn () => User::firstWhere('curator', true));
+        return $this->belongsTo(User::class)->withDefault(fn() => User::firstWhere('curator', true));
     }
 
     /**
@@ -160,11 +160,11 @@ class Artist extends Model
     {
         $query->whereHas('releases', function (Builder $q) use ($genre) {
             $q->whereHas('genre', function (Builder $q) use ($genre) {
-                $q->where('slug', $genre)->when(is_numeric($genre), fn ($q) => $q->orWhere('id', $genre));
+                $q->where('slug', $genre)->when(is_numeric($genre), fn($q) => $q->orWhere('id', $genre));
             });
             $q->orWhereHas('tracks', function (Builder $qx) use ($genre) {
                 $qx->whereHas('genre', function (Builder $q) use ($genre) {
-                    $q->where('slug', $genre)->when(is_numeric($genre), fn ($q) => $q->orWhere('id', $genre));
+                    $q->where('slug', $genre)->when(is_numeric($genre), fn($q) => $q->orWhere('id', $genre));
                 });
             });
         });
@@ -188,7 +188,7 @@ class Artist extends Model
     {
         $days = Freq::period($period);
 
-        $scope = fn (Builder $q) => $q
+        $scope = fn(Builder $q) => $q
             ->where('data->duration', '>', 0)
             ->whereBetween('laravisits.created_at', [now()->subDays($days), now()]);
 

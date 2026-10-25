@@ -11,7 +11,6 @@ use Tests\TestCase;
 
 class FileTest extends TestCase
 {
-
     protected function setUp(): void
     {
         parent::setUp();
@@ -19,7 +18,7 @@ class FileTest extends TestCase
         $this->markTestSkipped('all tests in this file are invactive for this server configuration!');
     }
 
-    public function testFileUpload(): void
+    public function test_file_upload(): void
     {
         Route::post('/test/file/upload', function (Request $request) {
             $file = File::make();
@@ -35,7 +34,7 @@ class FileTest extends TestCase
         $this->assertTrue(File::whereJsonContains('meta->test', '/test/file/upload')->exists());
     }
 
-    public function testCreateConfigurationWithFileValue(): void
+    public function test_create_configuration_with_file_value(): void
     {
         $time = (string) time();
         Route::post('/test/file/config/upload', function (Request $request) use ($time) {
@@ -64,7 +63,7 @@ class FileTest extends TestCase
         $this->assertStringContainsString('.jpg', $conf->value);
     }
 
-    public function testCreateConfigurationWithMultipleFilesValue(): void
+    public function test_create_configuration_with_multiple_files_value(): void
     {
         $time = (string) time();
         Route::post('/test/file/config/upload', function (Request $request) use ($time) {

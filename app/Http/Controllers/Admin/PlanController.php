@@ -174,16 +174,16 @@ class PlanController extends Controller
         return DB::transaction(function () use ($plan, $data, $features, $isDefault, $request, $creating) {
             if (array_key_exists('billing_options', $data)) {
                 $data['billing_options'] = collect($data['billing_options'] ?? [])
-                    ->map(fn ($option) => ['cycles' => (int) $option['cycles'], 'discount' => round((float) $option['discount'], 2)])
+                    ->map(fn($option) => ['cycles' => (int) $option['cycles'], 'discount' => round((float) $option['discount'], 2)])
                     ->sortBy('cycles')->values()->all();
                 $plan->billing_options = $data['billing_options'];
             }
-            $plan->fill(collect($data)->except(['features', 'is_default', 'slug', 'billing_options'])->reject(fn ($value) => $value === null)->all());
+            $plan->fill(collect($data)->except(['features', 'is_default', 'slug', 'billing_options'])->reject(fn($value) => $value === null)->all());
             if (array_key_exists('description', $data)) {
                 $plan->description = $data['description'];
             }
             $plan->features = $creating
-                ? [...collect(Feature::cases())->mapWithKeys(fn (Feature $f) => [$f->value => $f->fallback()])->all(), ...$features]
+                ? [...collect(Feature::cases())->mapWithKeys(fn(Feature $f) => [$f->value => $f->fallback()])->all(), ...$features]
                 : $features;
             $plan->is_default = $isDefault;
 
@@ -209,7 +209,7 @@ class PlanController extends Controller
         $i = 1;
 
         while (Plan::where('slug', $slug)->exists()) {
-            $slug = $base.'-'.(++$i);
+            $slug = $base . '-' . (++$i);
         }
 
         return $slug;

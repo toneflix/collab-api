@@ -3,11 +3,11 @@
 namespace App\Models\Scopes;
 
 use App\Models\Artist;
+use App\Models\Comment;
 use App\Models\Project;
 use App\Models\ProjectCollaborator;
 use App\Models\Release;
 use App\Models\User;
-use App\Models\Comment;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Scope;

@@ -55,9 +55,9 @@ return new class extends Migration
     protected function seedPlans(): void
     {
         $old = DB::table('configurations')->whereIn('key', $this->oldSettings)->pluck('value', 'key');
-        $setting = fn (string $key, int $fallback) => isset($old[$key]) ? (int) $old[$key] : $fallback;
+        $setting = fn(string $key, int $fallback) => isset($old[$key]) ? (int) $old[$key] : $fallback;
 
-        $free = collect(Feature::cases())->mapWithKeys(fn (Feature $f) => [$f->value => $f->fallback()])->all();
+        $free = collect(Feature::cases())->mapWithKeys(fn(Feature $f) => [$f->value => $f->fallback()])->all();
         $free[Feature::MAX_PROJECTS->value] = $setting('free_max_projects', 10);
         $free[Feature::MAX_COLLABORATORS->value] = $setting('free_max_collaborators', 5);
         $free[Feature::MAX_STEM_SIZE->value] = $setting('free_max_stem_size', 50);

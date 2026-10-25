@@ -100,7 +100,7 @@ class ConversationTest extends TestCase
             }
         };
 
-        app(BroadcastManager::class)->extend('reverb', fn () => $spy);
+        app(BroadcastManager::class)->extend('reverb', fn() => $spy);
         app(BroadcastManager::class)->forgetDrivers();
     }
 
@@ -125,14 +125,14 @@ class ConversationTest extends TestCase
 
     public function test_messages_page_backwards(): void
     {
-        collect(range(1, 5))->map(fn ($i) => $this->send($this->owner, "Message {$i}"));
+        collect(range(1, 5))->map(fn($i) => $this->send($this->owner, "Message {$i}"));
 
         Sanctum::actingAs($this->owner);
         $newest = $this->getJson($this->url('/messages?limit=2'))->assertOk();
         $this->assertSame(['Message 4', 'Message 5'], array_column($newest->json('data'), 'body'));
         $this->assertNotNull($cursor = $newest->json('meta.next_cursor'));
 
-        $older = $this->getJson($this->url('/messages?limit=3&cursor='.$cursor))->assertOk();
+        $older = $this->getJson($this->url('/messages?limit=3&cursor=' . $cursor))->assertOk();
         $this->assertSame(['Message 1', 'Message 2', 'Message 3'], array_column($older->json('data'), 'body'));
         $this->assertNull($older->json('meta.next_cursor'));
     }

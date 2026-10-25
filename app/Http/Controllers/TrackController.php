@@ -25,45 +25,45 @@ class TrackController extends Controller
     {
         $query = $release
             ? $release->tracks()->getQuery()
-            : Track::query()->whereHas('release', fn (Builder $q) => $q->live());
+            : Track::query()->whereHas('release', fn(Builder $q) => $q->live());
 
         $filters = str($request->filters)->remove(' ')->explode(',');
 
         $query
-            ->when($request->filled('search'), fn (Builder $q) => $q->search((string) $request->search)->with('lyric'))
-            ->when($request->has('genre'), fn (Builder $q) => $q->genre($request->genre))
+            ->when($request->filled('search'), fn(Builder $q) => $q->search((string) $request->search)->with('lyric'))
+            ->when($request->has('genre'), fn(Builder $q) => $q->genre($request->genre))
             ->when(
                 $request->filled('bpm_min') || $request->filled('bpm_max'),
-                fn (Builder $q) => $q->bpmBetween(
+                fn(Builder $q) => $q->bpmBetween(
                     $request->filled('bpm_min') ? (float) $request->bpm_min : null,
                     $request->filled('bpm_max') ? (float) $request->bpm_max : null,
                 )
             )
-            ->when($request->filled('key'), fn (Builder $q) => $q->inKey(
-                str($request->key)->explode(',')->map(fn ($key) => MusicalKey::parse($key))->filter()->values()->all(),
+            ->when($request->filled('key'), fn(Builder $q) => $q->inKey(
+                str($request->key)->explode(',')->map(fn($key) => MusicalKey::parse($key))->filter()->values()->all(),
                 $request->boolean('compatible'),
             ))
-            ->when($filters->contains('latest'), fn (Builder $q) => $q->latestInPeriod($request->period))
+            ->when($filters->contains('latest'), fn(Builder $q) => $q->latestInPeriod($request->period))
             ->when(
                 $filters->contains('liked') && $request->user('sanctum'),
-                fn (Builder $q) => $q->likedBy($request->user('sanctum'))
+                fn(Builder $q) => $q->likedBy($request->user('sanctum'))
             )
             ->when(
                 $filters->contains('own_collabs') && $request->user('sanctum'),
-                fn (Builder $q) => $q->userCollabs($request->user('sanctum'), $request->period)
+                fn(Builder $q) => $q->userCollabs($request->user('sanctum'), $request->period)
             )
             ->when(
                 $filters->contains('recently_played') && $request->user('sanctum'),
-                fn (Builder $q) => $q->recentlyPlayed($request->user('sanctum'), 3)
+                fn(Builder $q) => $q->recentlyPlayed($request->user('sanctum'), 3)
             )->when(
                 $filters->contains('trending'),
-                fn (Builder $q) => $q->popular('top', $request->period)
+                fn(Builder $q) => $q->popular('top', $request->period)
             )->when(
                 $request->has('artist_id') && ! $filters->contains('features'),
-                fn (Builder $q) => $q->forArtist($request->artist_id)
+                fn(Builder $q) => $q->forArtist($request->artist_id)
             )->when(
                 $filters->contains('features') && $request->has('artist_id'),
-                fn (Builder $q) => $q->forFeaturedArtist($request->artist_id)
+                fn(Builder $q) => $q->forFeaturedArtist($request->artist_id)
             );
 
         $tracks = $query->paginate($request->perPage(15));

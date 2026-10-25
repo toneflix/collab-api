@@ -5,6 +5,7 @@ namespace App\Helpers;
 use App\Enums\HttpStatus;
 use App\Models\Configuration;
 use App\Models\PasswordCodeResets;
+use Carbon\Carbon;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
@@ -143,13 +144,13 @@ class Providers
      */
     public static function messageParser(string $config, ...$params)
     {
-        $params = collect($params)->map(fn ($val) => $val instanceof Model ? $val->toArray() : $val)
-            ->filter(fn ($item) => is_array($item))
+        $params = collect($params)->map(fn($val) => $val instanceof Model ? $val->toArray() : $val)
+            ->filter(fn($item) => is_array($item))
             ->collapse()
-            ->filter(fn ($item) => is_scalar($item))
+            ->filter(fn($item) => is_scalar($item))
             ->all();
 
-        $output = new \stdClass();
+        $output = new \stdClass;
 
         $lines = collect(config("messages.$config.lines", []));
         // Parse the message lines
@@ -184,14 +185,14 @@ class Providers
 
                 $action = 'activate your account';
 
-                /** @var \Carbon\Carbon */
+                /** @var Carbon */
                 $datetime = $check->last_attempt;
             } else {
                 $check = PasswordCodeResets::whereEmail($request?->email)->first();
 
                 $action = 'reset your password';
 
-                /** @var \Carbon\Carbon */
+                /** @var Carbon */
                 $datetime = $check->created_at ?? null;
             }
 
@@ -215,7 +216,7 @@ class Providers
     public static function paginator(LengthAwarePaginator $data, $keys = [], $exclude = []): array
     {
         if ($data instanceof LengthAwarePaginator) {
-            $links = $data->linkCollection()->filter(fn ($link) => is_numeric($link['label']));
+            $links = $data->linkCollection()->filter(fn($link) => is_numeric($link['label']));
 
             $output = [];
 
@@ -224,7 +225,7 @@ class Providers
 
                 $output[$key] = count(static::$responseKeys)
                     ? collect($data->items())
-                        ->map(fn ($e) => collect($e)->filter(fn ($k, $v) => in_array($v, static::$responseKeys)))
+                        ->map(fn($e) => collect($e)->filter(fn($k, $v) => in_array($v, static::$responseKeys)))
                     : $data->items();
             }
 
@@ -240,7 +241,7 @@ class Providers
                     'per_page' => $data->perPage(),
                     'to' => $data->lastItem(),
                     'total' => $data->total(),
-                ], fn ($key) => ! in_array($key, $exclude['meta'] ?? []), ARRAY_FILTER_USE_KEY);
+                ], fn($key) => ! in_array($key, $exclude['meta'] ?? []), ARRAY_FILTER_USE_KEY);
             }
 
             if (! in_array('links', $exclude) || isset($exclude['links'])) {
@@ -251,7 +252,7 @@ class Providers
                     'last' => $links->last()['url'] ?? null,
                     'prev' => $data->previousPageUrl(),
                     'next' => $data->nextPageUrl(),
-                ], fn ($key) => ! in_array($key, $exclude['meta'] ?? []), ARRAY_FILTER_USE_KEY);
+                ], fn($key) => ! in_array($key, $exclude['meta'] ?? []), ARRAY_FILTER_USE_KEY);
             }
 
             return $output;
@@ -285,7 +286,7 @@ class Providers
      */
     public static function money($number, $abbrev = false)
     {
-        return static::config('currency_symbol').(
+        return static::config('currency_symbol') . (
             $abbrev === false
             ? number_format($number, 2)
             : static::numberAbbr($number)
@@ -329,10 +330,10 @@ class Providers
         // Remove unecessary zeroes after decimal. "1.0" -> "1"; "1.00" -> "1"
         // Intentionally does not affect partials, eg "1.50" -> "1.50"
         if ($precision > 0) {
-            $dotzero = '.'.str_repeat('0', $precision);
+            $dotzero = '.' . str_repeat('0', $precision);
             $n_format = str_replace($dotzero, '', $n_format);
         }
 
-        return $n_format.$suffix;
+        return $n_format . $suffix;
     }
 }

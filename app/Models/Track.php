@@ -171,8 +171,8 @@ class Track extends Model implements CanBeTakenDown
         });
 
         static::addGlobalScopes([
-            fn (Builder $query) => $query->withCount([
-                'visits as streams' => fn ($q) => $q->where('data->duration', '>', 0),
+            fn(Builder $query) => $query->withCount([
+                'visits as streams' => fn($q) => $q->where('data->duration', '>', 0),
             ]),
         ]);
     }
@@ -220,7 +220,7 @@ class Track extends Model implements CanBeTakenDown
      */
     public function genre(): BelongsTo
     {
-        return $this->belongsTo(Genre::class)->withDefault(fn () => Genre::first() ?? [
+        return $this->belongsTo(Genre::class)->withDefault(fn() => Genre::first() ?? [
             'id' => null,
             'title' => 'Unknown',
             'description' => 'Unknown',
@@ -232,7 +232,7 @@ class Track extends Model implements CanBeTakenDown
      */
     public function release(): BelongsTo
     {
-        return $this->belongsTo(Release::class)->withDefault(fn () => [
+        return $this->belongsTo(Release::class)->withDefault(fn() => [
             'title' => 'Unknown',
         ]);
     }
@@ -257,7 +257,7 @@ class Track extends Model implements CanBeTakenDown
      */
     public function user(): HasOneThrough
     {
-        return $this->hasOneThrough(User::class, Release::class)->withDefault(fn () => User::firstWhere('curator', true));
+        return $this->hasOneThrough(User::class, Release::class)->withDefault(fn() => User::firstWhere('curator', true));
     }
 
     /**
@@ -303,7 +303,7 @@ class Track extends Model implements CanBeTakenDown
 
                 if ($user) {
                     $q->orWhere('releases.user_id', $user->id)
-                        ->orWhereHas('transactions', fn (Builder $t) => $t
+                        ->orWhereHas('transactions', fn(Builder $t) => $t
                             ->where('user_id', $user->id)
                             ->where('purpose', 'release')
                             ->where('status', 'complete'));
@@ -314,7 +314,7 @@ class Track extends Model implements CanBeTakenDown
 
     public function whereOwnedBy(Builder $query, int $userId): void
     {
-        $query->whereIn('tracks.release_id', fn ($releases) => $releases
+        $query->whereIn('tracks.release_id', fn($releases) => $releases
             ->select('id')
             ->from('releases')
             ->where('user_id', $userId));
@@ -345,7 +345,7 @@ class Track extends Model implements CanBeTakenDown
         $query->whereHas('artists', function (Builder $q) use ($id) {
             $q->whereNot('track_artist.type', 'primary');
             $q->where(function (Builder $qx) use ($id) {
-                $qx->where('artists.username', $id)->when(is_numeric($id), fn ($q) => $q->orWhere('artists.id', $id));
+                $qx->where('artists.username', $id)->when(is_numeric($id), fn($q) => $q->orWhere('artists.id', $id));
             });
         });
     }
@@ -354,7 +354,7 @@ class Track extends Model implements CanBeTakenDown
     {
         $id = is_string($artist) ? $artist : $artist->id;
         $query->whereHas('artists', function (Builder $q) use ($id) {
-            $q->where('artists.username', $id)->when(is_numeric($id), fn ($q) => $q->orWhere('artists.id', $id));
+            $q->where('artists.username', $id)->when(is_numeric($id), fn($q) => $q->orWhere('artists.id', $id));
         });
     }
 
@@ -365,15 +365,15 @@ class Track extends Model implements CanBeTakenDown
     {
         $terms = trim($terms);
 
-        $query->where(fn (Builder $q) => $q
+        $query->where(fn(Builder $q) => $q
             ->whereLike('tracks.title', "%{$terms}%")
-            ->orWhereHas('lyric', fn (Builder $lyric) => $lyric->whereFullText('text', $terms)));
+            ->orWhereHas('lyric', fn(Builder $lyric) => $lyric->whereFullText('text', $terms)));
     }
 
     public function scopeGenre(Builder $query, string $genre): void
     {
         $query->whereHas('genre', function (Builder $q) use ($genre) {
-            $q->where('slug', $genre)->when(is_numeric($genre), fn ($q) => $q->orWhere('id', $genre));
+            $q->where('slug', $genre)->when(is_numeric($genre), fn($q) => $q->orWhere('id', $genre));
         });
     }
 

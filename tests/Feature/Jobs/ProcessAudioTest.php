@@ -21,7 +21,7 @@ class ProcessAudioTest extends TestCase
     /**
      * A basic feature test example.
      */
-    public function testAudioGetsProcessedSuccessfully(): void
+    public function test_audio_gets_processed_successfully(): void
     {
         Storage::fake('default');
 
@@ -37,7 +37,7 @@ class ProcessAudioTest extends TestCase
         $image = UploadedFile::fake()->image('image.jpg', 640, 640);
 
         // Work on a copy so the upload does not move the fixture away
-        $path = tempnam(sys_get_temp_dir(), 'audio').'.mp3';
+        $path = tempnam(sys_get_temp_dir(), 'audio') . '.mp3';
         copy(base_path('tests/fixtures/audio.mp3'), $path);
 
         $audio = new UploadedFile(

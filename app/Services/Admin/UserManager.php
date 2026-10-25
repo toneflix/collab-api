@@ -48,7 +48,7 @@ class UserManager
     {
         $permissions = ['manage-users', ...(self::ABILITIES[$ability] ?? ['-'])];
 
-        if (! collect($permissions)->every(fn ($p) => $admin->checkPermissionTo($p))) {
+        if (! collect($permissions)->every(fn($p) => $admin->checkPermissionTo($p))) {
             return false;
         }
 
@@ -73,7 +73,7 @@ class UserManager
      */
     public function abilities(User $admin, User $user): array
     {
-        return collect(array_keys(self::ABILITIES))->mapWithKeys(fn ($ability) => [$ability => $this->can($admin, $ability, $user)])->all();
+        return collect(array_keys(self::ABILITIES))->mapWithKeys(fn($ability) => [$ability => $this->can($admin, $ability, $user)])->all();
     }
 
     public function authorize(User $admin, string $ability, User $user): void
@@ -98,7 +98,7 @@ class UserManager
         return DB::transaction(function () use ($admin, $user, $data) {
             $user->fill($data);
             $changes = collect($user->getDirty())
-                ->map(fn ($value, $field) => ['from' => $user->getOriginal($field), 'to' => $value])
+                ->map(fn($value, $field) => ['from' => $user->getOriginal($field), 'to' => $value])
                 ->all();
 
             if (! $changes) {
@@ -320,7 +320,7 @@ class UserManager
             'user_id' => $user->id,
             'action' => $action,
             'reason' => $reason,
-            'details' => array_filter($details, fn ($value) => $value !== null) ?: null,
+            'details' => array_filter($details, fn($value) => $value !== null) ?: null,
         ]);
     }
 }

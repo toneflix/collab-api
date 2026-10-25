@@ -4,10 +4,13 @@ namespace App\Notifications;
 
 use App\Enums\SmsProvider;
 use App\Helpers\Providers;
+use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use NotificationChannels\Twilio\TwilioSmsMessage;
+use Toneflix\KudiSmsNotification\KudiSmsMessage;
 
 class SendCode extends Notification implements ShouldQueue
 {
@@ -47,13 +50,13 @@ class SendCode extends Notification implements ShouldQueue
                 : Providers::config('prefered_notification_channels', ['mail', 'sms'])
             );
 
-        return collect($channels)->map(fn ($ch) => $ch == 'sms' ? SmsProvider::getChannel() : $ch)->toArray();
+        return collect($channels)->map(fn($ch) => $ch == 'sms' ? SmsProvider::getChannel() : $ch)->toArray();
     }
 
     /**
      * Get the mail representation of the notification.
      *
-     * @return \Illuminate\Notifications\Messages\MailMessage
+     * @return MailMessage
      */
     public function toMail($notifiable)
     {
@@ -61,7 +64,7 @@ class SendCode extends Notification implements ShouldQueue
         $this->token ??= $notifiable->token;
         $notifiable = $notifiable->user ?? $notifiable;
 
-        /** @var \Carbon\Carbon */
+        /** @var Carbon */
         $datetime = $notifiable->last_attempt;
 
         $dateAdd = $datetime?->addSeconds(Providers::config('token_lifespan', 30));
@@ -77,7 +80,7 @@ class SendCode extends Notification implements ShouldQueue
             ]
         );
 
-        return (new MailMessage())
+        return (new MailMessage)
             ->subject($message->subject)
             ->view(['email', 'email-plain'], [
                 'subject' => $message->subject,
@@ -96,7 +99,7 @@ class SendCode extends Notification implements ShouldQueue
         $this->token ??= $n->token;
         $n ??= $n->user ?? $n;
 
-        /** @var \Carbon\Carbon */
+        /** @var Carbon */
         $datetime = $n->last_attempt;
         $dateAdd = $datetime?->addSeconds(Providers::config('token_lifespan', 30));
 
@@ -118,18 +121,18 @@ class SendCode extends Notification implements ShouldQueue
         ];
 
         if (isset($message[$this->type])) {
-            $message = __('Hi :0, ', [$n->firstname]).$message[$this->type];
+            $message = __('Hi :0, ', [$n->firstname]) . $message[$this->type];
 
             return SmsProvider::getMessage($message);
         }
     }
 
-    public function toTwilio($n): \NotificationChannels\Twilio\TwilioSmsMessage
+    public function toTwilio($n): TwilioSmsMessage
     {
         return $this->toSms($n);
     }
 
-    public function toKudiSms($n): \Toneflix\KudiSmsNotification\KudiSmsMessage
+    public function toKudiSms($n): KudiSmsMessage
     {
         return $this->toSms($n);
     }

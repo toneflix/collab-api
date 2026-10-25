@@ -23,7 +23,7 @@ class ProjectCollaboratorController extends Controller
     public function index(Request $request, Project $project)
     {
         $query = $project->collaborators()->getQuery()
-            ->when($request->has('accepted'), fn (Builder $q) => $q->whereAccepted(true));
+            ->when($request->has('accepted'), fn(Builder $q) => $q->whereAccepted(true));
 
         $collaborators = $query->paginate($request->perPage(45));
 

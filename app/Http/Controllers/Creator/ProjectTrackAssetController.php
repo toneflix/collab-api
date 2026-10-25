@@ -93,7 +93,7 @@ class ProjectTrackAssetController extends Controller
             'description' => ['nullable', 'string'],
         ]);
 
-        if (!collect(Providers::config('allow_file_updates', false))) {
+        if (! collect(Providers::config('allow_file_updates', false))) {
             unset($valid['file']);
         }
 

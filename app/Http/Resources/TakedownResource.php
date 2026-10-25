@@ -28,7 +28,7 @@ class TakedownResource extends JsonResource
             'canAppeal' => $this->status === 'active' && ! $this->appealed_at,
             'resolution' => $this->resolution,
             'resolvedAt' => $this->resolved_at,
-            'moderator' => $this->whenLoaded('moderator', fn () => $this->moderator ? [
+            'moderator' => $this->whenLoaded('moderator', fn() => $this->moderator ? [
                 'id' => $this->moderator->id,
                 'name' => $this->moderator->fullname,
             ] : null),

@@ -45,7 +45,7 @@ class AudioMatcher
             DB::table('audio_fingerprint_keys')->where('audio_fingerprint_id', $fingerprint->id)->delete();
 
             foreach (array_chunk(array_values(array_unique($codes)), 500) as $chunk) {
-                DB::table('audio_fingerprint_keys')->insert(array_map(fn (int $code) => [
+                DB::table('audio_fingerprint_keys')->insert(array_map(fn(int $code) => [
                     'audio_fingerprint_id' => $fingerprint->id,
                     'code' => $code,
                 ], $chunk));
@@ -70,7 +70,7 @@ class AudioMatcher
             ->oldest('id')
             ->limit(self::CANDIDATES)
             ->get()
-            ->map(fn (AudioFingerprint $match) => ['fingerprint' => $match, 'score' => 1.0, 'kind' => 'exact']);
+            ->map(fn(AudioFingerprint $match) => ['fingerprint' => $match, 'score' => 1.0, 'kind' => 'exact']);
 
         $codes = $fingerprint->codeList();
         if (count($codes) < self::MIN_OVERLAP) {
@@ -84,12 +84,12 @@ class AudioMatcher
             ->get();
 
         $acoustic = $candidates
-            ->map(fn (AudioFingerprint $match) => [
+            ->map(fn(AudioFingerprint $match) => [
                 'fingerprint' => $match,
                 'score' => $this->similarity($codes, $match->codeList()),
                 'kind' => 'acoustic',
             ])
-            ->filter(fn (array $match) => $match['score'] >= self::THRESHOLD);
+            ->filter(fn(array $match) => $match['score'] >= self::THRESHOLD);
 
         return $exact->concat($acoustic)->sortByDesc('score')->values();
     }

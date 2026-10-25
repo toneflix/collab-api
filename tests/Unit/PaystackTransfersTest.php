@@ -57,7 +57,7 @@ class PaystackTransfersTest extends TestCase
             ['POST', 'https://api.paystack.co/transferrecipient'],
             ['POST', 'https://api.paystack.co/transfer'],
             ['GET', 'https://api.paystack.co/transfer/verify/PO%2F1'],
-        ], array_map(fn ($request) => [$request[0], $request[1]], $transport->sent));
+        ], array_map(fn($request) => [$request[0], $request[1]], $transport->sent));
     }
 
     public function test_a_refusal_throws_with_paystacks_message(): void

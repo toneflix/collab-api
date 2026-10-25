@@ -14,15 +14,13 @@ class StemMeta implements Castable
     /**
      * Get the caster class to use when casting from / to this cast target.
      *
-     * @return \Illuminate\Contracts\Database\Eloquent\CastsAttributes<\Illuminate\Support\Collection<array-key, mixed>, iterable>
+     * @return CastsAttributes<Collection<array-key, mixed>, iterable>
      */
     public static function castUsing(array $arguments)
     {
         return new class($arguments) implements CastsAttributes
         {
-            public function __construct(protected array $arguments)
-            {
-            }
+            public function __construct(protected array $arguments) {}
 
             public function get(Model $model, $key, $value, $attributes)
             {
@@ -35,7 +33,7 @@ class StemMeta implements Castable
                 $collectionClass = $this->arguments[0] ?? Collection::class;
 
                 if (! is_a($collectionClass, Collection::class, true)) {
-                    throw new InvalidArgumentException('The provided class must extend ['.Collection::class.'].');
+                    throw new InvalidArgumentException('The provided class must extend [' . Collection::class . '].');
                 }
 
                 $output = is_array($data) ? new $collectionClass($data) : null;
@@ -53,7 +51,7 @@ class StemMeta implements Castable
                         'soloed' => isset($output['soloed']) ? filter_var($output['soloed'], FILTER_VALIDATE_BOOL) : null,
                         'duration' => isset($output['duration']) ? (float) $output['duration'] : null,
                         'stereoPan' => isset($output['stereoPan']) ? (float) $output['stereoPan'] : null,
-                    ])->filter(fn ($v, $k) => ! str($k)->startsWith(':') && $v !== null);
+                    ])->filter(fn($v, $k) => ! str($k)->startsWith(':') && $v !== null);
 
                     if (isset($output['fadeIn']['duration'])) {
                         $output = $output->merge([
@@ -76,7 +74,7 @@ class StemMeta implements Castable
                     if (isset($output['enabledStates'])) {
                         $output = $output->merge([
                             'enabledStates' => collect($output['enabledStates'])
-                                ->map(fn ($state) => filter_var($state, FILTER_VALIDATE_BOOL))
+                                ->map(fn($state) => filter_var($state, FILTER_VALIDATE_BOOL))
                                 ->toArray(),
                         ]);
                     }
@@ -104,6 +102,6 @@ class StemMeta implements Castable
      */
     public static function using($class)
     {
-        return static::class.':'.$class;
+        return static::class . ':' . $class;
     }
 }

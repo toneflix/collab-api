@@ -116,9 +116,9 @@ class Sound extends Model implements CanBeTakenDown
             return $query;
         }
 
-        $like = '%'.str_replace(['%', '_'], ['\%', '\_'], mb_strtolower($term)).'%';
+        $like = '%' . str_replace(['%', '_'], ['\%', '\_'], mb_strtolower($term)) . '%';
 
-        return $query->where(fn (Builder $q) => $q
+        return $query->where(fn(Builder $q) => $q
             ->whereRaw('LOWER(name) LIKE ?', [$like])
             ->orWhereRaw('LOWER(category) LIKE ?', [$like])
             ->orWhereRaw('LOWER(author) LIKE ?', [$like])

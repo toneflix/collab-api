@@ -70,7 +70,7 @@ class ProjectTrack extends Model
     protected function duration(): Attribute
     {
         return Attribute::make(
-            get: fn () => (int) round($this->stems->map(function (ProjectTrackStem $stem) {
+            get: fn() => (int) round($this->stems->map(function (ProjectTrackStem $stem) {
                 $meta = json_decode($stem->getRawOriginal('meta') ?? '', true) ?: [];
                 $start = (float) ($meta['start'] ?? 0);
                 $end = (float) ($meta['end'] ?? 0);
@@ -111,7 +111,7 @@ class ProjectTrack extends Model
         // Published versions keep their details; only draft releases follow the studio.
         static::updated(function (self $model) {
             $model->releasedTracks()
-                ->whereHas('release', fn (Builder $q) => $q->where('draft', true))
+                ->whereHas('release', fn(Builder $q) => $q->where('draft', true))
                 ->chunkById(100, function ($tracks) use ($model) {
                     foreach ($tracks as $track) {
                         $track->title = $model->title;
@@ -147,7 +147,7 @@ class ProjectTrack extends Model
      */
     public function genre(): BelongsTo
     {
-        return $this->belongsTo(Genre::class)->withDefault(fn () => Genre::first() ?? [
+        return $this->belongsTo(Genre::class)->withDefault(fn() => Genre::first() ?? [
             'id' => null,
             'title' => 'Unknown',
             'description' => 'Unknown',
@@ -201,16 +201,16 @@ class ProjectTrack extends Model
             $query->where('project_tracks.privacy', 'public');
 
             if ($user) {
-                $query->orWhereHas('project', fn (Builder $q) => $q->where(fn (Builder $q) => $q
+                $query->orWhereHas('project', fn(Builder $q) => $q->where(fn(Builder $q) => $q
                     ->where('projects.user_id', $user->id)
-                    ->orWhereHas('collaborators', fn (Builder $c) => $c->where('user_id', $user->id)->where('accepted', true))));
+                    ->orWhereHas('collaborators', fn(Builder $c) => $c->where('user_id', $user->id)->where('accepted', true))));
             }
         });
     }
 
     public function scopeReady(Builder $query): void
     {
-        $query->whereHas('stems', fn (Builder $q) => $q->whereNotNull('src'));
+        $query->whereHas('stems', fn(Builder $q) => $q->whereNotNull('src'));
     }
 
     /**

@@ -41,7 +41,7 @@ class NewMessagesNotification extends ActivityNotification
         return [
             'title' => $this->title,
             'count' => $this->count,
-            'senders' => $names->join(', ', ' and ').($others > 0 ? __(' and :0 more', [$others]) : ''),
+            'senders' => $names->join(', ', ' and ') . ($others > 0 ? __(' and :0 more', [$others]) : ''),
             'preview' => $this->preview,
         ];
     }

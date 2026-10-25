@@ -11,14 +11,16 @@ use App\Http\Resources\UserResource;
 use App\Models\User;
 use DeviceDetector\DeviceDetector;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Broadcast;
+use Illuminate\Validation\ValidationException;
 
 class AuthenticatedSessionController extends Controller
 {
     /**
      * Handle an incoming authentication request.
      *
-     * @return \Illuminate\Http\Response
+     * @return Response
      */
     public function store(LoginRequest $request)
     {
@@ -27,7 +29,7 @@ class AuthenticatedSessionController extends Controller
             $user = $request->user();
 
             return $this->setUserData($request, $user);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return PV::response()->error([
                 'message' => $e->getMessage(),
                 'errors' => [
@@ -70,7 +72,7 @@ class AuthenticatedSessionController extends Controller
     /**
      * Destroy an authenticated session.
      *
-     * @return \Illuminate\Http\Response
+     * @return Response
      */
     public function destroy(Request $request)
     {
@@ -94,7 +96,7 @@ class AuthenticatedSessionController extends Controller
     /**
      * Destroy all selected authenticated sessions.
      *
-     * @return \Illuminate\Http\Response
+     * @return Response
      */
     public function destroyTokens(Request $request)
     {
@@ -138,7 +140,7 @@ class AuthenticatedSessionController extends Controller
     /**
      * Authenticate the request for channel access.
      *
-     * @return \Illuminate\Http\Response
+     * @return Response
      */
     public function broadcastingAuth(Request $request)
     {

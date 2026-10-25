@@ -67,7 +67,7 @@ return new class extends Migration
             $table->dropColumn(['purpose', 'recipient_share', 'meta', 'paid_at']);
         });
 
-        Schema::table('tracks', fn (Blueprint $table) => $table->dropColumn('stems_price'));
-        Schema::table('releases', fn (Blueprint $table) => $table->dropColumn('price'));
+        Schema::table('tracks', fn(Blueprint $table) => $table->dropColumn('stems_price'));
+        Schema::table('releases', fn(Blueprint $table) => $table->dropColumn('price'));
     }
 };

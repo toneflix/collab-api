@@ -44,7 +44,7 @@ class RealtimeController extends Controller
 
         // validate() would keep only the listed keys, so read the stems whole.
         $input = (array) $request->input('stems');
-        $known = $track->stems()->whereIn('id', array_keys($input))->pluck('id')->map(fn ($id) => (string) $id);
+        $known = $track->stems()->whereIn('id', array_keys($input))->pluck('id')->map(fn($id) => (string) $id);
         $stems = collect($input)->only($known->all());
 
         // Keep within what every driver can carry in one message (Pusher: 10 KB).

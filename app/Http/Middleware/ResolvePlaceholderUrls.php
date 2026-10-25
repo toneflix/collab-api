@@ -17,7 +17,7 @@ class ResolvePlaceholderUrls
     public function handle(Request $request, Closure $next): Response
     {
         $collections = collect(config('toneflix-fileable.collections', []))
-            ->map(fn (array $collection) => $this->resolve($collection));
+            ->map(fn(array $collection) => $this->resolve($collection));
 
         config(['toneflix-fileable.collections' => $collections->all()]);
 
@@ -28,8 +28,8 @@ class ResolvePlaceholderUrls
     {
         $default = $collection['default'] ?? null;
 
-        if (is_string($default) && str_contains($default, '/'.self::DIRECTORY)) {
-            $collection['default'] = asset(self::DIRECTORY.basename($default));
+        if (is_string($default) && str_contains($default, '/' . self::DIRECTORY)) {
+            $collection['default'] = asset(self::DIRECTORY . basename($default));
         }
 
         return $collection;

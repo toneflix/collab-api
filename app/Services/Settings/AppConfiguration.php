@@ -86,7 +86,7 @@ class AppConfiguration
     public static function rules(): array
     {
         return collect(self::FIELDS)->map(function (array $field, string $key) {
-            $rules = array_map(fn (string $rule) => $rule === 'in:' ? 'in:'.implode(',', self::CURRENCIES) : $rule, $field[2]);
+            $rules = array_map(fn(string $rule) => $rule === 'in:' ? 'in:' . implode(',', self::CURRENCIES) : $rule, $field[2]);
 
             // Every field is optional on update; only the ones sent are saved.
             return ['sometimes', ...$rules];

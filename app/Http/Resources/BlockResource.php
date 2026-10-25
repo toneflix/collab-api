@@ -2,7 +2,6 @@
 
 namespace App\Http\Resources;
 
-use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -22,8 +21,8 @@ class BlockResource extends JsonResource
             'id' => $this->id,
             'reason' => $this->reason,
             'user_id' => $this->user_id,
-            'user' => $this->when($with->contains('user'), fn () => new UserResource($this->user)),
-            'model' => $this->when($with->contains('model'), fn () => $this->res($this->blockable)),
+            'user' => $this->when($with->contains('user'), fn() => new UserResource($this->user)),
+            'model' => $this->when($with->contains('model'), fn() => $this->res($this->blockable)),
         ];
     }
 

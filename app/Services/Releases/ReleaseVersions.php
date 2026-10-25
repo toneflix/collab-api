@@ -32,7 +32,7 @@ class ReleaseVersions
     public function published(Release $release, array $retire = []): void
     {
         $release->tracks()->whereNull('audio')->whereNotNull('project_track_id')
-            ->chunkById(50, fn ($tracks) => $tracks->each(fn ($track) => $this->audio->freeze($track)));
+            ->chunkById(50, fn($tracks) => $tracks->each(fn($track) => $this->audio->freeze($track)));
 
         if (static::reviewsEnabled()) {
             $release->forceFill([

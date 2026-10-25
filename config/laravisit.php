@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\User;
+
 return [
     /*
     |--------------------------------------------------------------------------
@@ -12,5 +14,5 @@ return [
     | by default.
     |
     */
-    'user_namespace' => \App\Models\User::class,
+    'user_namespace' => User::class,
 ];
