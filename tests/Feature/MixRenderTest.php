@@ -150,6 +150,16 @@ class MixRenderTest extends TestCase
             ['type' => 'native-compressor', 'params' => ['threshold' => -20, 'ratio' => 4, 'knee' => 30, 'attack' => 0.003, 'release' => 0.25]],
             ['type' => 'native-filter', 'params' => ['frequency' => 5000, 'q' => 2]],
             ['type' => 'native-filter', 'params' => ['frequency' => 200], 'bypassed' => 'true'],
+            ['type' => 'tf-highpass', 'params' => ['frequency' => 80, 'q' => 3]],
+            ['type' => 'tf-saturation', 'params' => ['drive' => 18, 'mix' => 0.7]],
+            ['type' => 'tf-crusher', 'params' => ['bits' => 4, 'mix' => 0.5]],
+            ['type' => 'tf-tremolo', 'params' => ['rate' => 6, 'depth' => 0.6]],
+            ['type' => 'tf-chorus', 'params' => ['rate' => 0.8, 'depth' => 0.5, 'mix' => 0.5]],
+            ['type' => 'tf-flanger', 'params' => ['rate' => 0.3, 'depth' => 0.7, 'feedback' => 0.5, 'mix' => 0.5]],
+            ['type' => 'tf-phaser', 'params' => ['rate' => 0.5, 'depth' => 0.6, 'feedback' => 0.4, 'mix' => 0.5]],
+            ['type' => 'tf-width', 'params' => ['width' => 1.6]],
+            ['type' => 'tf-autopan', 'params' => ['rate' => 0.5, 'depth' => 0.8]],
+            ['type' => 'tf-limiter', 'params' => ['ceiling' => -3, 'release' => 0.1]],
         ];
 
         $this->stem($this->tone(2, 440, 0.5), ['effects' => json_encode($effects), 'stereoPan' => 0.4]);
@@ -157,6 +167,22 @@ class MixRenderTest extends TestCase
         $this->save();
 
         $this->assertSame(MixPreview::READY, $this->track->fresh()->meta['mix']['status']);
+    }
+
+    public function test_master_effects_are_saved_and_rendered_after_the_mix(): void
+    {
+        $chain = json_encode([
+            ['type' => 'tf-eq', 'params' => ['low' => 2, 'mid' => 0, 'midFrequency' => 1000, 'high' => 1]],
+            ['type' => 'tf-limiter', 'params' => ['ceiling' => -6, 'release' => 0.1]],
+        ]);
+
+        $this->stem($this->tone(2, 440, 0.9));
+        $this->save(['master_effects' => $chain]);
+
+        $track = $this->track->fresh();
+
+        $this->assertSame($chain, $track->meta['masterEffects']);
+        $this->assertSame(MixPreview::READY, $track->meta['mix']['status']);
     }
 
     public function test_only_the_newest_render_is_kept(): void

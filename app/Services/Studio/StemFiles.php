@@ -76,6 +76,32 @@ class StemFiles
         return $stem->refresh();
     }
 
+    /**
+     * Copy a stem, audio included, onto the same track.
+     *
+     * @param  array<string, mixed>  $meta  Settings for the copy, over the original's
+     */
+    public function duplicate(ProjectTrackStem $stem, User $user, array $meta = []): ProjectTrackStem
+    {
+        $media = $this->media();
+        $directory = $this->directory($media);
+        $name = Initiator::generateStringFromPattern(config('toneflix-fileable.file_name_pattern', '000000000-000000000'))
+            . '.' . (pathinfo((string) $stem->src, PATHINFO_EXTENSION) ?: 'mp3');
+
+        abort_unless($stem->src && $media->disk->exists($directory . $stem->src), 404, 'The stem has no audio to copy.');
+
+        $media->disk->copy($directory . $stem->src, $directory . $name);
+
+        $copy = $stem->replicate(['src']);
+        $copy->user_id = $user->id;
+        $copy->title = str(($stem->title ?: 'Stem') . ' copy')->limit(180, '')->toString();
+        $copy->src = $name;
+        $copy->meta = [...collect($stem->meta)->except('src')->all(), ...$meta];
+        $copy->saveQuietly();
+
+        return $copy->refresh();
+    }
+
     protected function media(): Media
     {
         $media = new Media;

@@ -5,6 +5,7 @@ namespace App\Services\Studio\Mix;
 use App\Models\ProjectTrack;
 use App\Models\ProjectTrackStem;
 use App\Services\Audio\StemAudio;
+use App\Services\Studio\Mix\Effects\MixEffect;
 use App\Services\Studio\StemFiles;
 
 /**
@@ -62,7 +63,13 @@ class MixRenderer
             $master = count($pads) > 1
                 ? $graph->chain($pads, 'amix=inputs=' . count($pads) . ':normalize=0:duration=longest', 'mix')
                 : $pads[0];
-            $master = $graph->chain($master, sprintf('volume=%s,atrim=end=%s', round(self::masterVolume($track), 4), round($length, 4)), 'out');
+            $master = $graph->chain($master, 'volume=' . round(self::masterVolume($track), 4), 'vol');
+
+            foreach ($this->masterEffects($track) as $effect) {
+                $master = $effect->apply($graph, $master);
+            }
+
+            $master = $graph->chain($master, 'atrim=end=' . round($length, 4), 'out');
 
             $wav = $graph->own($this->audio->wav($graph->arguments($master)));
             $peak = $this->audio->peak($wav);
@@ -81,6 +88,16 @@ class MixRenderer
         $volume = $track->meta['mixVolume'] ?? 1;
 
         return is_numeric($volume) ? max(0, min(1, (float) $volume)) : 1.0;
+    }
+
+    /**
+     * The effects on the master bus, after the master volume as in the studio.
+     *
+     * @return list<MixEffect>
+     */
+    protected function masterEffects(ProjectTrack $track): array
+    {
+        return MixStem::fromMeta(['effects' => $track->meta['masterEffects'] ?? null])->mixEffects(2);
     }
 
     /**
@@ -113,7 +130,15 @@ class MixRenderer
             ? $graph->chain($pads, 'amix=inputs=' . count($pads) . ':normalize=0:duration=longest', 'stem')
             : $pads[0];
 
-        foreach ($mix->mixEffects($channels) as $effect) {
+        $effects = $mix->mixEffects($channels);
+
+        if ($channels === 1 && collect($effects)->contains(fn($effect) => $effect->stereo())) {
+            $pad = $graph->chain($pad, 'pan=stereo|c0=c0|c1=c0', 'up');
+            $channels = 2;
+            $effects = $mix->mixEffects($channels);
+        }
+
+        foreach ($effects as $effect) {
             $pad = $effect->apply($graph, $pad);
         }
 

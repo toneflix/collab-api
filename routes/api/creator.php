@@ -28,6 +28,7 @@ Route::middleware(['auth:sanctum'])
         Route::scopeBindings()->group(function () {
             Route::apiResource('projects/{project}/tracks', ProjectTrackController::class)->names('projects.tracks');
             Route::apiResource('projects/{project}/tracks/{track}/stems', ProjectTrackStemController::class);
+            Route::post('projects/{project}/tracks/{track}/stems/{stem}/duplicate', [ProjectTrackStemController::class, 'duplicate'])->name('projects.tracks.stems.duplicate');
 
             // AI tools
             Route::get('projects/{project}/tracks/{track}/ai/jobs', [AiController::class, 'jobs'])->name('projects.tracks.ai.jobs');

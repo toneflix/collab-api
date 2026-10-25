@@ -15,6 +15,7 @@ use App\Models\ProjectTrackVersion;
 use App\Services\Limits;
 use App\Services\Realtime\Realtime;
 use App\Services\Reputation;
+use App\Services\Studio\StemFiles;
 use App\Services\Studio\TrackHistory;
 use Illuminate\Http\Request;
 
@@ -83,6 +84,39 @@ class ProjectTrackStemController extends Controller
         return (new ProjectTrackStemResource($stem))
             ->additional([
                 'message' => 'Track stem created successfully.',
+                'status' => 'success',
+                'status_code' => HttpStatus::CREATED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::CREATED->value);
+    }
+
+    /**
+     * Copy a stem, audio included, onto its track.
+     */
+    public function duplicate(Request $request, Project $project, ProjectTrack $track, ProjectTrackStem $stem, StemFiles $files)
+    {
+        $this->authorize('update', $track);
+
+        $meta = $this->validate($request, [
+            'meta' => ['nullable', 'array'],
+        ])['meta'] ?? [];
+
+        $history = TrackHistory::for($track);
+        $history->baseline();
+
+        $copy = $files->duplicate($stem, $request->user(), $meta);
+
+        $history->record($request->user(), ProjectTrackVersion::ADDED);
+
+        Realtime::send(Channels::projectTrack($track), 'stem.added', [
+            'track_id' => $track->id,
+            'stem_id' => $copy->id,
+        ]);
+
+        return (new ProjectTrackStemResource($copy))
+            ->additional([
+                'message' => 'Stem duplicated.',
                 'status' => 'success',
                 'status_code' => HttpStatus::CREATED,
             ])

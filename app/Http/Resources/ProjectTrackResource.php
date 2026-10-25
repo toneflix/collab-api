@@ -45,6 +45,8 @@ class ProjectTrackResource extends JsonResource
             'tags' => $this->audioTags(),
             // The studio's master volume, 0 to 1, and where the server is with the preview mix.
             'mixVolume' => MixRenderer::masterVolume($this->resource),
+            // The master bus effect chain, as JSON text like a stem's `meta.effects`.
+            'masterEffects' => (string) ($this->meta['masterEffects'] ?? ''),
             'mix' => MixPreview::state($this->resource),
             // The Composer song the track came from, for prefilling AI music; loaded for editors only.
             'song' => $this->when(

@@ -124,6 +124,7 @@ class ProjectTrackController extends Controller
             'bpm' => ['nullable', 'numeric', 'between:20,300'],
             'time_signature' => ['nullable', 'string', 'in:' . implode(',', ProjectTrack::TIME_SIGNATURES)],
             'mix_volume' => ['nullable', 'numeric', 'between:0,1'],
+            'master_effects' => ['nullable', 'string', 'max:20000'],
             'render' => ['nullable', 'boolean'],
         ]);
 
@@ -138,8 +139,11 @@ class ProjectTrackController extends Controller
         if ($request->filled('mix_volume')) {
             $meta['mixVolume'] = round((float) $valid['mix_volume'], 4);
         }
+        if ($request->has('master_effects')) {
+            $meta['masterEffects'] = (string) ($valid['master_effects'] ?? '');
+        }
         $valid['meta'] = $meta->all();
-        unset($valid['bpm'], $valid['time_signature'], $valid['mix_volume'], $valid['render']);
+        unset($valid['bpm'], $valid['time_signature'], $valid['mix_volume'], $valid['master_effects'], $valid['render']);
 
         if (isset($valid['preview'])) {
             unset($valid['preview']);
