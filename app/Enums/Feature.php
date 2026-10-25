@@ -59,7 +59,7 @@ enum Feature: string
             self::MAX_STEM_SIZE => 'The largest stem file you can upload.',
             self::MAX_STORAGE => 'Space for your own sounds, uploaded or imported from Freesound.',
             self::HISTORY_DAYS => 'How long earlier versions of your project tracks are kept.',
-            self::AI_TOOLS => 'Generate music and split tracks into stems with AI.',
+            self::AI_TOOLS => 'Generate music, split tracks into stems and get lyric suggestions in Composer with AI.',
             self::AI_CREDITS => 'Credits for AI tools each month. Bought credits come on top and never expire.',
         };
     }

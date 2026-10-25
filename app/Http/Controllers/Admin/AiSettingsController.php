@@ -65,7 +65,19 @@ class AiSettingsController extends Controller
             'ai_moderator_claims_auto' => ['nullable', 'boolean'],
             'ai_moderator_releases_auto' => ['nullable', 'boolean'],
             'ai_moderator_confidence' => ['nullable', 'integer', 'between:0,100'],
+            'ai_composer_model' => ['nullable', 'string', 'max:150', 'regex:/^[\w.-]+\/[\w.-]+(:[\w]+)?$/'],
+            'ai_composer_line_credits' => ['nullable', 'integer', 'between:1,1000'],
+            'ai_composer_block_credits' => ['nullable', 'integer', 'between:1,1000'],
+            'ai_composer_verse_credits' => ['nullable', 'integer', 'between:1,1000'],
+            'ai_composer_rewrite_credits' => ['nullable', 'integer', 'between:1,1000'],
+            'ai_composer_music_model' => [
+                'nullable',
+                'string',
+                Rule::in(array_map(fn(MusicModel $model) => $model::ID, AiSettings::lyricMusicModels())),
+            ],
         ], [
+            'ai_composer_model.regex' => 'Use a Replicate model name like anthropic/claude-4.5-haiku.',
+            'ai_composer_music_model.in' => 'Pick a music model that sings lyrics.',
             'ai_credit_packs.regex' => 'List pack sizes like "100, 500:10, 2000:20".',
         ]);
 
@@ -99,6 +111,7 @@ class AiSettingsController extends Controller
             'options' => [
                 'sunoVersions' => SunoMusic::VERSIONS,
                 'sunoStemTypes' => AiSettings::SUNO_STEM_TYPES,
+                'composerMusicModels' => array_map(fn(MusicModel $model) => $model::ID, AiSettings::lyricMusicModels()),
                 'engines' => collect(AiEngine::cases())
                     ->mapWithKeys(fn(AiEngine $engine) => [$engine->value => $engine->label()])
                     ->all(),

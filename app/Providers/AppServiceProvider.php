@@ -5,6 +5,8 @@ namespace App\Providers;
 use App\Helpers\Providers;
 use App\Notifications\Channels\PushChannel;
 use App\Services\Ai\Replicate\ReplicateProvider;
+use App\Services\Composer\Ai\LyricModel;
+use App\Services\Composer\Ai\ReplicateLyricModel;
 use App\Services\Moderation\Ai\ModeratorModel;
 use App\Services\Moderation\Ai\ReplicateModeratorModel;
 use App\Services\Notifications\WebPush;
@@ -36,6 +38,7 @@ class AppServiceProvider extends ServiceProvider
         );
 
         $this->app->bind(ModeratorModel::class, ReplicateModeratorModel::class);
+        $this->app->bind(LyricModel::class, ReplicateLyricModel::class);
 
         $this->app->singleton(PayoutProviders::class, fn($app) => new PayoutProviders([
             $app->make(PaystackGateway::class),

@@ -152,6 +152,7 @@ See [Payment providers](../guide/payments) for webhooks and dashboard settings.
 | `REPLICATE_STEMS_VARIANT` | `htdemucs_ft` | Demucs weights. `htdemucs` is about four times faster but less clean. |
 | `REPLICATE_LYRICS_MODEL` | `openai/whisper` | Model for lyrics transcription. |
 | `REPLICATE_MODERATOR_MODEL` | `anthropic/claude-4.5-haiku` | Model behind the AI moderator. A larger Claude model judges harder cases better at a higher cost per review. |
+| `REPLICATE_COMPOSER_MODEL` | `anthropic/claude-4.5-haiku` | Model that suggests lyrics in Composer, until an admin picks one on `/admin/ai`. |
 | `REPLICATE_TIMEOUT` | `600` | Seconds to wait for one prediction. |
 | `SUNO_API_KEY` | | From [sunoapi.org/api-key](https://sunoapi.org/api-key). Needed only when admins pick Suno for music or stems. |
 | `SUNO_URL` | `https://api.sunoapi.org` | Suno API base URL. |
