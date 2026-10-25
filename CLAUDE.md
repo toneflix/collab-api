@@ -19,12 +19,12 @@ Laravel 13 API for Toneflix Collab. Tests run on PostgreSQL (`php artisan test`,
   ```
 
   For a non-200 code chain `->response()->setStatusCode(code)`. A model created in the request makes Laravel answer 201, so chain `setStatusCode(HttpStatus::OK->value)` when that is not what you mean.
-- Lists are paginated with `->paginate($request->perPage(20))` (or `->cursorPaginate()` for chat-style feeds) and returned as `new SoundCollection($sounds)`. The body is `{ data, links, meta: { current_page, last_page, per_page, total, ... }, message, status, status_code }`, which the frontend's `ResponseBody`/`PageMeta` types read. Extra counts for a list go beside `data` as their own key (`stats`, `summary`, `unread`), never inside `meta`.
+- Lists are paginated with `->paginate($request->perPage(20))` (or `->cursorPaginate()` for chat-style feeds) and returned as `new SoundCollection($sounds)`. The body is `{ data, meta: { currentPage, lastPage, perPage, total }, message, status, status_code }` (set in `config/resource-modifier.php`, no `links`), which the frontend's `ResponseBody`/`PageMeta` types read. Cursor pages carry `meta: { perPage, nextCursor, prevCursor }`. Extra counts for a list go beside `data` as their own key (`stats`, `summary`, `unread`), never inside `meta`.
 - `$request->perPage($default, $max = 100)` reads `limit` and keeps it between 1 and `$max`. Never pass `$request->input('limit')` to `paginate()` directly.
 - Every potentially unbounded result is paginated or processed in bounded batches. No `->get()` on a list that can grow with users or content.
 - Errors are thrown, not returned: `abort_unless(...)`, `abort(HttpStatus::BAD_GATEWAY->value, $message)` or `ValidationException::withMessages([...])`. `App\Services\ExceptionHandler` renders them in the error envelope.
 - `Providers::response()` is for the exception handler and middleware only, not controllers.
-- Resource keys for new resources are camelCase. Older resources keep their snake_case keys because the frontend reads them.
+- Resource keys are camelCase. `prefer_camel_casing` camelizes each resource's top-level keys, but write them camelCase in `toArray()` anyway so the code reads like the response. Nested plain arrays are not converted. The envelope keys (`status_code`) and request fields stay snake_case.
 
 ## Models and migrations
 
