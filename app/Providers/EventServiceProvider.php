@@ -2,9 +2,11 @@
 
 namespace App\Providers;
 
+use App\Events\AwaitingReview;
 use App\Listeners\ApprovableNotificationListener;
 use App\Listeners\Follows;
 use App\Listeners\NotificationSentToApp;
+use App\Listeners\SendToAiModerator;
 use App\Listeners\SocialInteractionRecieved;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 use Illuminate\Notifications\Events\NotificationSent;
@@ -23,14 +25,13 @@ class EventServiceProvider extends ServiceProvider
         Unfollowed::class => [Follows::class],
         Followed::class => [Follows::class],
         NotificationSent::class => [NotificationSentToApp::class],
+        AwaitingReview::class => [SendToAiModerator::class],
     ];
 
     /**
      * Bootstrap services.
      */
-    public function boot(): void
-    {
-    }
+    public function boot(): void {}
 
     /**
      * Determine if events and listeners should be automatically discovered.

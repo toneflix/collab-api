@@ -114,7 +114,7 @@ class ModerationQueue
                     ->whereLike('username', "%{$search}%")
                     ->orWhereLike('firstname', "%{$search}%")
                     ->orWhereLike('lastname', "%{$search}%")))))
-            ->with(['user', 'artist', 'project'])
+            ->with(['user', 'artist', 'project', 'latestAiReview'])
             ->oldest('updated_at')
             ->paginate($perPage);
     }

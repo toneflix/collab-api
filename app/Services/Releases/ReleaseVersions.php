@@ -2,6 +2,7 @@
 
 namespace App\Services\Releases;
 
+use App\Events\AwaitingReview;
 use App\Helpers\Providers;
 use App\Models\Release;
 use App\Models\User;
@@ -42,6 +43,8 @@ class ReleaseVersions
                 'retire_on_approval' => array_values(array_map('intval', $retire)),
             ])->saveQuietly();
 
+            AwaitingReview::dispatch($release);
+
             return;
         }
 
@@ -53,12 +56,12 @@ class ReleaseVersions
     /**
      * Puts a release live and retires the versions its owner chose to replace.
      */
-    public function approve(Release $release, User $admin): void
+    public function approve(Release $release, ?User $admin): void
     {
         $release->forceFill([
             'review_status' => Release::REVIEW_APPROVED,
             'reviewed_at' => now(),
-            'reviewed_by' => $admin->id,
+            'reviewed_by' => $admin?->id,
         ])->saveQuietly();
 
         $this->retireSiblings($release, $release->retire_on_approval ?? []);
@@ -71,14 +74,14 @@ class ReleaseVersions
     /**
      * Sends a release back to its owner as a draft, with the reason.
      */
-    public function reject(Release $release, User $admin, string $note): void
+    public function reject(Release $release, ?User $admin, string $note): void
     {
         $release->forceFill([
             'draft' => true,
             'review_status' => Release::REVIEW_REJECTED,
             'review_note' => $note,
             'reviewed_at' => now(),
-            'reviewed_by' => $admin->id,
+            'reviewed_by' => $admin?->id,
             'retire_on_approval' => null,
         ])->saveQuietly();
 

@@ -3,6 +3,8 @@
 namespace App\Services\Ai;
 
 use App\Helpers\Providers;
+use App\Models\ArtistClaim;
+use App\Models\Release;
 use App\Services\Settings\SettingsStore;
 
 /**
@@ -39,6 +41,9 @@ class AiSettings extends SettingsStore
         'ai_lyrics_explicit_words' => ['More Explicit Words', null, 'Comma separated words that mark a track explicit, on top of the built-in list.'],
         'ai_lyrics_review_words' => ['More Words to Review', null, 'Comma separated words or phrases that send a track to the moderation queue, on top of the built-in list.'],
         'ai_tags_auto' => ['Detect Tempo and Key', '1', 'Tag new tracks and studio mixes with their BPM and key. This runs on your own server and uses no credits.'],
+        'ai_moderator_claims_auto' => ['Review Artist Claims Automatically', '0', 'Send every new artist claim to the AI moderator. Claims it isn\'t confident about are flagged for a person.'],
+        'ai_moderator_releases_auto' => ['Review Releases Automatically', '0', 'Send every release waiting for approval to the AI moderator. Releases it isn\'t confident about are flagged for a person.'],
+        'ai_moderator_confidence' => ['Confidence Needed', '80', 'How sure (0 to 100) the AI moderator must be to decide an automatic review on its own.'],
     ];
 
     public const KEYS = [
@@ -144,6 +149,21 @@ class AiSettings extends SettingsStore
             ->filter()
             ->values()
             ->all();
+    }
+
+    /**
+     * Whether new items of this kind go to the AI moderator on their own.
+     */
+    public static function autoModerates(ArtistClaim|Release $subject): bool
+    {
+        $key = $subject instanceof ArtistClaim ? 'ai_moderator_claims_auto' : 'ai_moderator_releases_auto';
+
+        return filter_var(self::get($key), FILTER_VALIDATE_BOOL);
+    }
+
+    public static function moderatorConfidence(): int
+    {
+        return min(100, max(0, (int) self::get('ai_moderator_confidence')));
     }
 
     public static function musicMaxSeconds(): int

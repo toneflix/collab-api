@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\HasAiReviews;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -15,6 +16,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class ArtistClaim extends Model
 {
+    use HasAiReviews;
+
     public const PENDING = 'pending';
 
     public const APPROVED = 'approved';

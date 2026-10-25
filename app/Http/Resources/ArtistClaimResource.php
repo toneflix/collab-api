@@ -43,7 +43,11 @@ class ArtistClaimResource extends JsonResource
                 'email' => $this->user->email,
                 'imageUrl' => $this->user->images['image'],
             ] : null),
-            'reviewer' => $this->whenLoaded('reviewer', fn () => $this->reviewer?->fullname),
+            'reviewer' => $this->when(
+                $this->relationLoaded('reviewer'),
+                fn () => $this->reviewer?->fullname ?? ($this->reviewed_at ? 'AI moderator' : null),
+            ),
+            'aiReview' => $this->whenLoaded('latestAiReview', fn () => $this->latestAiReview ? (new AiReviewResource($this->latestAiReview))->resolve($request) : null),
         ];
     }
 }

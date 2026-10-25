@@ -51,9 +51,19 @@ Claims wait on the **Artist claims** tab of `/admin/moderation`. Approving one:
 
 Declining needs a note, which the claimant sees. Claimants are notified either way. `App\Services\Artists\ArtistClaims` makes every change to claims.
 
+## AI moderator
+
+The AI moderator reviews artist claims and releases waiting for approval. It runs on a Claude model through Replicate (`REPLICATE_MODERATOR_MODEL`), with the same `REPLICATE_API_TOKEN` as the AI tools, and needs a queue worker.
+
+- **Sent by an admin.** Each claim and release in the queue has a **Send to AI moderator** button. These reviews always end in a decision: approved, or declined or sent back with a note to the submitter. If the model can't decide, it declines, since that grants nothing.
+- **Sent automatically.** On `/admin/ai`, admins can send every new artist claim, every release waiting for approval, or both to the moderator. An automatic review only acts when the moderator is at least as confident as **Confidence Needed** (80 by default). Otherwise the item stays in the queue, flagged for a person with the moderator's reasoning.
+
+The moderator sees the case as text: for claims, the artist, its latest releases and labels, the claimant's details, links and note (it can't open the links or the document); for releases, the details, tracks, lyrics, open copy flags and the creator's takedowns, plus public artwork. Every review is kept in `ai_reviews` with its decision, confidence and reasoning, and decided items show "AI moderator" as the reviewer. A review that fails, for example when Replicate is down, can be sent again.
+
 ## In code
 
 - `App\Services\Moderation\Moderation` is the only place moderation state changes: `report`, `flagMatches`, `flagLyrics`, `takeDown`, `dismiss`, `resolve`, `appeal`, `restore`, `uphold`.
 - `ModerationQueue` builds the admin views.
 - `Reportables` maps API type names to models. Reportable models implement `App\Contracts\Reportable` or `CanBeTakenDown`.
+- `App\Services\Moderation\Ai\AiModerator` sends and runs AI reviews. `ReviewCases` builds a case (`ArtistClaimCase`, `ReleaseCase`) that describes the item and carries out the decision through `ArtistClaims` or `ReleaseVersions`. The model sits behind `ModeratorModel`.
 - In the app: `ReportDialog`, `/admin/moderation` and `/studio/takedowns`.
