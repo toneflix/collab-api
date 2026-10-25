@@ -18,6 +18,7 @@ Features are listed in `App\Enums\Feature`. Each has a type:
 | `sell_stems` Sell stems | toggle | on |
 | `receive_tips` Receive tips | toggle | on |
 | `max_projects` Projects | limit | 10 |
+| `max_songs` Composer songs | limit | 10 |
 | `max_collaborators` Collaborators per project | limit | 5 |
 | `max_stem_size` Largest stem upload (MB) | limit | 50 |
 | `max_storage` Sound storage (MB) | limit | 200 |
