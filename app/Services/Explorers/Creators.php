@@ -2,7 +2,6 @@
 
 namespace App\Services\Explorers;
 
-use App\Helpers\Providers;
 use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -25,7 +24,7 @@ class Creators
 
             $this->instance->put(
                 'top_creators',
-                Providers::paginator($resource->resource, ['data' => 'list'], ['links', 'meta' => ['links', 'path']])
+                Section::from($resource)
             );
         }
 
@@ -38,7 +37,7 @@ class Creators
 
             $this->instance->put(
                 'new_creators',
-                Providers::paginator($resource->resource, ['data' => 'list'], ['links', 'meta' => ['links', 'path']])
+                Section::from($resource)
             );
         }
 
@@ -50,7 +49,7 @@ class Creators
 
             $this->instance->put(
                 'random_creators',
-                Providers::paginator($resource->resource, ['data' => 'list'], ['links', 'meta' => ['links', 'path']])
+                Section::from($resource)
             );
         }
     }

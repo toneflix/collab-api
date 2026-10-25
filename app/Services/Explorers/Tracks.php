@@ -2,7 +2,6 @@
 
 namespace App\Services\Explorers;
 
-use App\Helpers\Providers;
 use App\Http\Controllers\TrackController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -24,7 +23,7 @@ class Tracks
 
             $this->instance->put(
                 'recently_played',
-                Providers::paginator($resource->resource, ['data' => 'list'], ['links', 'meta' => ['links', 'path']])
+                Section::from($resource)
             );
         }
 
@@ -37,7 +36,7 @@ class Tracks
 
             $this->instance->put(
                 'trending',
-                Providers::paginator($resource->resource, ['data' => 'list'], ['links', 'meta' => ['links', 'path']])
+                Section::from($resource)
             );
         }
 
@@ -50,7 +49,7 @@ class Tracks
 
             $this->instance->put(
                 'latest_tracks',
-                Providers::paginator($resource->resource, ['data' => 'list'], ['links', 'meta' => ['links', 'path']])
+                Section::from($resource)
             );
         }
 
@@ -63,7 +62,7 @@ class Tracks
 
             $this->instance->put(
                 'liked_tracks',
-                Providers::paginator($resource->resource, ['data' => 'list'], ['links', 'meta' => ['links', 'path']])
+                Section::from($resource)
             );
         }
 
@@ -76,7 +75,7 @@ class Tracks
 
             $this->instance->put(
                 'own_collab_tracks',
-                Providers::paginator($resource->resource, ['data' => 'list'], ['links', 'meta' => ['links', 'path']])
+                Section::from($resource)
             );
         }
     }

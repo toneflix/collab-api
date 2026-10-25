@@ -121,8 +121,9 @@ class ProjectVisibilityTest extends TestCase
         $feed = $this
             ->as($this->owner, '/api/explore?active_projects=50')
             ->assertOk()
-            ->json('data.active_projects.list');
+            ->json('data.activeProjects.list');
 
+        $this->assertIsArray($feed);
         $this->assertNotContains($this->private->id, collect($feed)->pluck('id')->all());
     }
 }

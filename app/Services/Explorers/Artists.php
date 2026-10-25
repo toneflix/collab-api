@@ -2,7 +2,6 @@
 
 namespace App\Services\Explorers;
 
-use App\Helpers\Providers;
 use App\Http\Controllers\ArtistController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -24,7 +23,7 @@ class Artists
 
             $this->instance->put(
                 'latest_artists',
-                Providers::paginator($resource->resource, ['data' => 'list'], ['links', 'meta' => ['links', 'path']])
+                Section::from($resource)
             );
         }
 
@@ -37,7 +36,7 @@ class Artists
 
             $this->instance->put(
                 'trending_artists',
-                Providers::paginator($resource->resource, ['data' => 'list'], ['links', 'meta' => ['links', 'path']])
+                Section::from($resource)
             );
         }
 
@@ -50,7 +49,7 @@ class Artists
 
             $this->instance->put(
                 'recently_played_artists',
-                Providers::paginator($resource->resource, ['data' => 'list'], ['links', 'meta' => ['links', 'path']])
+                Section::from($resource)
             );
         }
 
@@ -62,7 +61,7 @@ class Artists
 
             $this->instance->put(
                 'random_artists',
-                Providers::paginator($resource->resource, ['data' => 'list'], ['links', 'meta' => ['links', 'path']])
+                Section::from($resource)
             );
         }
 
@@ -74,7 +73,7 @@ class Artists
 
             $this->instance->put(
                 'recommended_artists',
-                Providers::paginator($resource->resource, ['data' => 'list'], ['links', 'meta' => ['links', 'path']])
+                Section::from($resource)
             );
         }
     }

@@ -2,7 +2,6 @@
 
 namespace App\Services\Explorers;
 
-use App\Helpers\Providers;
 use App\Http\Controllers\ReleaseController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -25,7 +24,7 @@ class Albums
 
             $this->instance->put(
                 'top_albums',
-                Providers::paginator($resource->resource, ['data' => 'list'], ['links', 'meta' => ['links', 'path']])
+                Section::from($resource)
             );
         }
 
@@ -38,7 +37,7 @@ class Albums
 
             $this->instance->put(
                 'latest_albums',
-                Providers::paginator($resource->resource, ['data' => 'list'], ['links', 'meta' => ['links', 'path']])
+                Section::from($resource)
             );
         }
 
@@ -51,7 +50,7 @@ class Albums
 
             $this->instance->put(
                 'recently_played_albums',
-                Providers::paginator($resource->resource, ['data' => 'list'], ['links', 'meta' => ['links', 'path']])
+                Section::from($resource)
             );
         }
 
@@ -64,7 +63,7 @@ class Albums
 
             $this->instance->put(
                 'random_albums',
-                Providers::paginator($resource->resource, ['data' => 'list'], ['links', 'meta' => ['links', 'path']])
+                Section::from($resource)
             );
         }
 
@@ -77,7 +76,7 @@ class Albums
 
             $this->instance->put(
                 'liked_albums',
-                Providers::paginator($resource->resource, ['data' => 'list'], ['links', 'meta' => ['links', 'path']])
+                Section::from($resource)
             );
         }
         if ($this->request->has('own_collab_albums')) {
@@ -89,7 +88,7 @@ class Albums
 
             $this->instance->put(
                 'own_collab_albums',
-                Providers::paginator($resource->resource, ['data' => 'list'], ['links', 'meta' => ['links', 'path']])
+                Section::from($resource)
             );
         }
     }
