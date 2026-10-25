@@ -4,7 +4,7 @@ namespace App\Http\Resources;
 
 use App\Models\ProjectTrackStem;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
+use Toneflix\ResourceModifier\Services\Json\JsonResource;
 
 /**
  * A download link for a stem of a released track.

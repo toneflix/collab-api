@@ -2,7 +2,7 @@
 
 namespace App\Http\Resources;
 
-use Illuminate\Http\Resources\Json\ResourceCollection;
+use Toneflix\ResourceModifier\Services\Json\ResourceCollection;
 
 class TransactionCollection extends ResourceCollection
 {

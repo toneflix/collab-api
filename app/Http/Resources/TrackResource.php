@@ -4,7 +4,7 @@ namespace App\Http\Resources;
 
 use App\Services\Lyrics\LyricMatch;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
+use Toneflix\ResourceModifier\Services\Json\JsonResource;
 
 class TrackResource extends JsonResource
 {

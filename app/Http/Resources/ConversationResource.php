@@ -5,7 +5,7 @@ namespace App\Http\Resources;
 use App\Services\Conversations\Conversations;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
+use Toneflix\ResourceModifier\Services\Json\JsonResource;
 
 /**
  * A conversation, read from the project, project track, track or release it

@@ -4,8 +4,8 @@ namespace App\Http\Resources;
 
 use DeviceDetector\DeviceDetector;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
 use Laravel\Sanctum\PersonalAccessToken;
+use Toneflix\ResourceModifier\Services\Json\JsonResource;
 
 /**
  * A device the user is signed in on, read from its access token.

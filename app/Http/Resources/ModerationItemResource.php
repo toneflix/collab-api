@@ -5,7 +5,7 @@ namespace App\Http\Resources;
 use App\Models\Safety;
 use App\Services\Moderation\ModerationQueue;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
+use Toneflix\ResourceModifier\Services\Json\JsonResource;
 
 /**
  * A piece of content in the moderation queue with its pending reports,

@@ -3,7 +3,7 @@
 namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\ResourceCollection;
+use Toneflix\ResourceModifier\Services\Json\ResourceCollection;
 
 /**
  * A page of a conversation's messages. Pages run newest first, and each
@@ -19,5 +19,24 @@ class ConversationMessageCollection extends ResourceCollection
     public function toArray(Request $request): array
     {
         return $this->collection->reverse()->values()->map->toArray($request)->all();
+    }
+
+    /**
+     * Cursor pages carry their cursors in `meta`.
+     *
+     * @param  array<string, mixed>  $paginated
+     * @param  array<string, mixed>  $default
+     * @return array<string, mixed>
+     */
+    public function paginationInformation(Request $request, array $paginated, array $default): array
+    {
+        $default['meta'] = [
+            'path' => $paginated['path'] ?? null,
+            'per_page' => $paginated['per_page'] ?? null,
+            'next_cursor' => $paginated['next_cursor'] ?? null,
+            'prev_cursor' => $paginated['prev_cursor'] ?? null,
+        ];
+
+        return $default;
     }
 }

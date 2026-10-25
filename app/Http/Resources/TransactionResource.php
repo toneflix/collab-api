@@ -7,7 +7,7 @@ use App\Models\Track;
 use App\Models\Transaction;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
+use Toneflix\ResourceModifier\Services\Json\JsonResource;
 
 /**
  * @mixin Transaction

@@ -4,7 +4,7 @@ namespace App\Http\Resources;
 
 use App\Models\Lyric;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
+use Toneflix\ResourceModifier\Services\Json\JsonResource;
 
 /**
  * Lyrics as the player and studio show them.

@@ -5,7 +5,7 @@ namespace App\Http\Resources;
 use App\Models\Comment;
 use App\Services\Conversations\Conversations;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
+use Toneflix\ResourceModifier\Services\Json\JsonResource;
 
 /**
  * A message in a conversation. Also carries the fields the older comment

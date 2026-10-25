@@ -3,7 +3,7 @@
 namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\ResourceCollection;
+use Toneflix\ResourceModifier\Services\Json\ResourceCollection;
 
 class ProjectTrackCollection extends ResourceCollection
 {
