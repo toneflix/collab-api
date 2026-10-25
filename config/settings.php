@@ -96,11 +96,27 @@ return [
         |
         */
         'formats' => [
-            'mp3',
             'wav',
             'flac',
             'aiff',
             'alac',
+        ],
+
+        /*
+        |--------------------------------------------------------------------------
+        | Lossy Formats
+        |--------------------------------------------------------------------------
+        |
+        | Audio of these formats is kept as uploaded and only has its length read,
+        | since encoding lossy audio again loses quality.
+        |
+        */
+        'keep' => [
+            'mp3',
+            'aac',
+            'm4a',
+            'ogg',
+            'opus',
         ],
 
         /*

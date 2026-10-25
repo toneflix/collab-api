@@ -38,7 +38,13 @@ class ProcessAudio implements ShouldQueue
      */
     public function handle(): void
     {
-        if ($this->check()) {
+        if ($this->check(config('settings.encoding.keep', []))) {
+            $this->keep();
+
+            return;
+        }
+
+        if ($this->check(config('settings.encoding.formats', []))) {
             $format = static::$outputMap[config('settings.encoding.output')] ?? null;
 
             if (!class_exists($format)) {
@@ -114,7 +120,30 @@ class ProcessAudio implements ShouldQueue
         }
     }
 
-    protected function check(): bool
+    /**
+     * Keep lossy audio as uploaded, reading only its length.
+     */
+    protected function keep(): void
+    {
+        $path = $this->track->get_files['audio']['path'];
+
+        try {
+            $this->track->duration = FFMpeg::open($path)->getDurationInSeconds();
+        } catch (\Throwable) {
+            // The length the uploader sent stays.
+        }
+
+        $this->track->meta['processed'] = true;
+        $this->track->meta['format'] = pathinfo($path, PATHINFO_EXTENSION);
+        $this->track->saveQuietly();
+    }
+
+    /**
+     * Whether the track's audio is unprocessed and of one of these formats.
+     *
+     * @param  array<int, string>  $formats
+     */
+    protected function check(array $formats): bool
     {
         $processed = $this->track->meta['processed'] ?? false;
         $path = $this->track->get_files['audio']['path'];
@@ -123,7 +152,7 @@ class ProcessAudio implements ShouldQueue
         if (
             !$processed &&
             config('settings.encoding.enabled', false) &&
-            in_array($ext, config('settings.encoding.formats', [])) &&
+            in_array(strtolower($ext), $formats) &&
             Storage::exists($this->track->get_files['audio']['path'])
         ) {
             return true;

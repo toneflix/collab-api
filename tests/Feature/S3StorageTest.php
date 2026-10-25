@@ -218,12 +218,13 @@ class S3StorageTest extends TestCase
         $artist = Artist::factory()->create();
         $release = Release::factory()->create(['user_id' => $owner->id, 'genre_id' => $genre->id, 'artist_id' => $artist->id]);
 
-        $path = tempnam(sys_get_temp_dir(), 'audio').'.mp3';
-        copy(base_path('tests/fixtures/audio.mp3'), $path);
+        // MP3 uploads are kept as they are, so upload WAV to have it encoded.
+        $path = tempnam(sys_get_temp_dir(), 'audio').'.wav';
+        exec('ffmpeg -loglevel error -y -i '.escapeshellarg(base_path('tests/fixtures/audio.mp3')).' '.escapeshellarg($path));
 
         $id = $this->post("/api/creator/releases/{$release->id}/tracks", [
             'title' => 'On S3',
-            'audio' => new UploadedFile($path, 'audio.mp3', 'audio/mp3', null, true),
+            'audio' => new UploadedFile($path, 'audio.wav', 'audio/wav', null, true),
             'image' => UploadedFile::fake()->image('cover.jpg', 800, 800),
             'privacy' => 'public',
             'genre_id' => (string) $genre->id,

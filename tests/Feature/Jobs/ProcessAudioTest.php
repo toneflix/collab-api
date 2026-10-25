@@ -5,6 +5,7 @@ namespace Tests\Feature\Jobs;
 use App\Models\Artist;
 use App\Models\Genre;
 use App\Models\Release;
+use App\Models\Track;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Foundation\Testing\WithFaker;
@@ -18,10 +19,29 @@ class ProcessAudioTest extends TestCase
     use DatabaseTransactions;
     use WithFaker;
 
-    /**
-     * A basic feature test example.
-     */
-    public function testAudioGetsProcessedSuccessfully(): void
+    public function test_mp3_uploads_are_kept_as_uploaded(): void
+    {
+        $track = $this->upload(base_path('tests/fixtures/audio.mp3'), 'mp3');
+
+        $this->assertTrue($track->meta['processed']);
+        $this->assertSame('mp3', $track->meta['format']);
+        $this->assertStringEndsWith('.mp3', $track->audio);
+        $this->assertTrue($track->duration > 0);
+    }
+
+    public function test_lossless_uploads_are_encoded(): void
+    {
+        $wav = tempnam(sys_get_temp_dir(), 'audio').'.wav';
+        exec('ffmpeg -loglevel error -y -i '.escapeshellarg(base_path('tests/fixtures/audio.mp3')).' '.escapeshellarg($wav));
+
+        $track = $this->upload($wav, 'wav');
+
+        $this->assertTrue($track->meta['processed']);
+        $this->assertSame('aac', $track->meta['format']);
+        $this->assertTrue($track->duration > 0);
+    }
+
+    protected function upload(string $source, string $ext): Track
     {
         Storage::fake('default');
 
@@ -30,27 +50,17 @@ class ProcessAudioTest extends TestCase
         $genre = Genre::factory()->create();
         $artist = Artist::factory()->create();
         $user = User::factory()->create();
-        Release::factory()->create(['user_id' => $user->id, 'genre_id' => $genre->id, 'artist_id' => $artist->id]);
+        $release = Release::factory()->create(['user_id' => $user->id, 'genre_id' => $genre->id, 'artist_id' => $artist->id]);
 
         Sanctum::actingAs($user, ['*']);
 
-        $image = UploadedFile::fake()->image('image.jpg', 640, 640);
+        // Work on a copy so the upload does not move the source away
+        $path = tempnam(sys_get_temp_dir(), 'audio').".{$ext}";
+        copy($source, $path);
 
-        // Work on a copy so the upload does not move the fixture away
-        $path = tempnam(sys_get_temp_dir(), 'audio').'.mp3';
-        copy(base_path('tests/fixtures/audio.mp3'), $path);
-
-        $audio = new UploadedFile(
-            $path,
-            'audio.mp3',
-            'audio/mp3',
-            null,
-            true
-        );
-
-        $response = $this->post("api/creator/releases/{$user->releases[0]->id}/tracks?with=streamUrl", [
-            'image' => $image,
-            'audio' => $audio,
+        $response = $this->post("api/creator/releases/{$release->id}/tracks", [
+            'image' => UploadedFile::fake()->image('image.jpg', 640, 640),
+            'audio' => new UploadedFile($path, "audio.{$ext}", $ext === 'mp3' ? 'audio/mpeg' : 'audio/wav', null, true),
             'title' => $this->faker->words(4, true),
             'description' => $this->faker->sentence(6, true),
             'privacy' => 'public',
@@ -58,11 +68,8 @@ class ProcessAudioTest extends TestCase
             'artist_id' => (string) $artist->id,
         ]);
 
-        $id = $response->json('data.id');
-        $data = $user->releases[0]->tracks()->find($id);
-
         $response->assertCreated();
-        $this->assertTrue($data->meta['processed']);
-        $this->assertTrue($data->duration > 0);
+
+        return Track::query()->findOrFail($response->json('data.id'));
     }
 }
