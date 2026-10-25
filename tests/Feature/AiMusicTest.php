@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\Feature;
+use App\Http\Resources\AiJobResource;
 use App\Models\AiCreditEntry;
 use App\Models\AiJob;
 use App\Models\Plan;
@@ -325,7 +326,7 @@ class AiMusicTest extends TestCase
         $job = AiJob::findOrFail($id);
         $this->assertSame(AiJob::SUCCEEDED, $job->status);
         $this->assertSame('Split into stems: HTTP 500: Upload failed', $job->failure);
-        $this->assertSame($job->output['notice'], $job->present()['notice']);
+        $this->assertSame($job->output['notice'], (new AiJobResource($job))->resolve()['notice']);
 
         $this->assertSame([$this->track->stems()->sole()->id], $job->output['stems']);
         $this->assertSame(100 - 43 + 5, Credits::for($this->owner)->total());

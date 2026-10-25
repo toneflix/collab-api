@@ -6,6 +6,7 @@ use App\Enums\Feature;
 use App\Enums\HttpStatus;
 use App\Helpers\Providers;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\AiCreditEntryResource;
 use App\Models\AiCreditEntry;
 use App\Services\Ai\AiSettings;
 use App\Services\Ai\Credits;
@@ -40,16 +41,10 @@ class AiCreditsController extends Controller
             ->latest('id')
             ->paginate((int) $request->input('limit', 20));
 
-        return Providers::response()->success([
-            'data' => collect($entries->items())->map(fn (AiCreditEntry $entry) => [
-                'id' => $entry->id,
-                'type' => $entry->type,
-                'credits' => $entry->credits,
-                'description' => $entry->description,
-                'createdAt' => $entry->created_at,
-            ])->all(),
-            'meta' => ['total' => $entries->total(), 'page' => $entries->currentPage(), 'lastPage' => $entries->lastPage()],
+        return AiCreditEntryResource::collection($entries)->additional([
             'message' => HttpStatus::message(HttpStatus::OK),
+            'status' => 'success',
+            'status_code' => HttpStatus::OK,
         ]);
     }
 }

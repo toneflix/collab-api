@@ -3,6 +3,7 @@
 namespace App\Services\Ai;
 
 use App\Broadcasting\Channels;
+use App\Http\Resources\AiJobResource;
 use App\Jobs\RunAiJob;
 use App\Models\AiCreditEntry;
 use App\Models\AiJob;
@@ -165,7 +166,7 @@ class AiStudio
         Realtime::send(
             [Channels::projectTrack($job->project_track_id), Channels::user($job->user_id)],
             'ai.job',
-            $job->present(),
+            (new AiJobResource($job))->resolve(),
             $job->user,
         );
     }

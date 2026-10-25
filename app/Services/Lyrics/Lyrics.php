@@ -3,6 +3,7 @@
 namespace App\Services\Lyrics;
 
 use App\Broadcasting\Channels;
+use App\Http\Resources\LyricResource;
 use App\Models\Lyric;
 use App\Models\ProjectTrack;
 use App\Models\Track;
@@ -76,7 +77,7 @@ class Lyrics
 
             Realtime::send(Channels::projectTrack($owner), 'lyrics.updated', [
                 'track_id' => $owner->id,
-                'lyrics' => $lyric?->present(),
+                'lyrics' => $lyric ? (new LyricResource($lyric))->resolve() : null,
             ], $by);
         }
 

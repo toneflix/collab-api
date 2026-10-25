@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Creator;
 
 use App\Enums\HttpStatus;
-use App\Helpers\Providers;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\AiJobResource;
 use App\Models\AiJob;
 use App\Models\Project;
 use App\Models\ProjectTrack;
@@ -60,11 +60,17 @@ class AiController extends Controller
     {
         $this->authorize('update', $track);
 
-        $jobs = AiJob::query()->where('project_track_id', $track->id)->latest('id')->limit(20)->get();
+        $request->validate(['limit' => ['nullable', 'integer', 'between:1,50']]);
 
-        return Providers::response()->success([
-            'data' => $jobs->map(fn (AiJob $job) => $job->present())->all(),
+        $jobs = AiJob::query()
+            ->where('project_track_id', $track->id)
+            ->latest('id')
+            ->paginate((int) $request->input('limit', 20));
+
+        return AiJobResource::collection($jobs)->additional([
             'message' => HttpStatus::message(HttpStatus::OK),
+            'status' => 'success',
+            'status_code' => HttpStatus::OK,
         ]);
     }
 
@@ -72,17 +78,19 @@ class AiController extends Controller
     {
         abort_unless((int) $job->user_id === (int) $request->user()->id, HttpStatus::NOT_FOUND->value, 'Job not found.');
 
-        return Providers::response()->success([
-            'data' => $job->present(),
+        return (new AiJobResource($job))->additional([
             'message' => HttpStatus::message(HttpStatus::OK),
+            'status' => 'success',
+            'status_code' => HttpStatus::OK,
         ]);
     }
 
     protected function started(AiJob $job, string $message)
     {
-        return Providers::response()->success([
-            'data' => $job->present(),
+        return (new AiJobResource($job))->additional([
             'message' => $message,
-        ], HttpStatus::CREATED);
+            'status' => 'success',
+            'status_code' => HttpStatus::CREATED,
+        ])->response()->setStatusCode(HttpStatus::CREATED->value);
     }
 }

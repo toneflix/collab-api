@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Creator;
 use App\Enums\HttpStatus;
 use App\Helpers\Providers;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\AiJobResource;
+use App\Http\Resources\LyricResource;
 use App\Models\Lyric;
 use App\Models\Project;
 use App\Models\ProjectTrack;
@@ -48,10 +50,11 @@ class LyricsController extends Controller
             'title' => (string) $stem->title,
         ]);
 
-        return Providers::response()->success([
-            'data' => $job->present(),
+        return (new AiJobResource($job))->additional([
             'message' => 'Writing out the lyrics. They show up on the lyric sheet when they\'re ready.',
-        ], HttpStatus::CREATED);
+            'status' => 'success',
+            'status_code' => HttpStatus::CREATED,
+        ])->response()->setStatusCode(HttpStatus::CREATED->value);
     }
 
     /**
@@ -83,9 +86,16 @@ class LyricsController extends Controller
 
     protected function lyrics(?Lyric $lyric, ?string $message = null, HttpStatus $status = HttpStatus::OK)
     {
-        return Providers::response()->success([
-            'data' => $lyric?->present(),
-            'message' => $message ?? HttpStatus::message(HttpStatus::OK),
-        ], $status);
+        $message ??= HttpStatus::message(HttpStatus::OK);
+
+        if (! $lyric) {
+            return Providers::response()->success(['data' => null, 'message' => $message], $status);
+        }
+
+        return (new LyricResource($lyric))->additional([
+            'message' => $message,
+            'status' => 'success',
+            'status_code' => $status,
+        ])->response()->setStatusCode($status->value);
     }
 }

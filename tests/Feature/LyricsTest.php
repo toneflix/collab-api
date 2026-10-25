@@ -162,7 +162,7 @@ class LyricsTest extends TestCase
 
         $job = AiJob::findOrFail($id);
         $this->assertSame(AiJob::SUCCEEDED, $job->status);
-        $this->assertSame(2, $job->present()['lines']);
+        $this->assertSame(2, $job->output['lines']);
         $this->assertSame(8, Credits::for($this->owner)->total());
 
         $this->getJson($this->url())
