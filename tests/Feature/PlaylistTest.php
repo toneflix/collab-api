@@ -97,6 +97,28 @@ class PlaylistTest extends TestCase
         $this->assertSame($byArtist->id, $this->playlist(['similar_to' => $seed->id])->first());
     }
 
+    public function test_tracks_are_picked_by_relation_then_album_artist_and_label(): void
+    {
+        $genre = Genre::factory()
+            ->create();
+        $other = Genre::factory()
+            ->create();
+
+        $album = $this->makeRelease($genre, 2, ['record_label' => 'Seed Records']);
+        [$seed, $albumMate] = $album->tracks->all();
+        $albumMate->updateQuietly(['genre_id' => $other->id]);
+
+        $rest = $this->makeRelease($other, 1, ['record_label' => 'Other Records'])->tracks->first();
+        $label = $this->makeRelease($other, 1, ['record_label' => 'Seed Records'])->tracks->first();
+        $artist = $this->makeRelease($other, 1, ['record_label' => 'Other Records'])->tracks->first();
+        $artist->artists()->attach($seed->artists()->pluck('artists.id'));
+        $related = $this->makeRelease($genre, 1, ['record_label' => 'Other Records'])->tracks->first();
+
+        $ids = $this->playlist(['similar_to' => $seed->id]);
+
+        $this->assertEquals([$related->id, $albumMate->id, $artist->id, $label->id, $rest->id], $ids->all());
+    }
+
     public function test_queued_tracks_are_skipped_until_nothing_else_is_left(): void
     {
         $genre = Genre::factory()

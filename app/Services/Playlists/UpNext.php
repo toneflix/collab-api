@@ -11,10 +11,10 @@ use Illuminate\Support\Collection;
 /**
  * Tracks to play once the player's queue runs out, so playback never stops.
  *
- * Only playable tracks from live releases are picked. Tracks like the seed
- * (same genre, artists or tempo) come first, then the listener's recommendations, then
- * the rest. When the exclusions leave nothing, they are dropped, so the only
- * track that is never returned is the seed.
+ * Only playable tracks from live releases are picked: related tracks first,
+ * then ones from the seed's album, artists and label, then the rest. When the
+ * exclusions leave nothing, they are dropped, so the only track that is never
+ * returned is the seed.
  */
 class UpNext
 {
@@ -86,44 +86,79 @@ class UpNext
     }
 
     /**
-     * Order tracks by how well they follow the seed and suit the listener.
+     * Order tracks by tier: related to the seed, then from its album, its
+     * artists, its label, and finally everything else.
      */
     protected function rank(Builder $query): void
     {
-        $scores = [];
+        $tiers = collect([
+            $this->related(),
+            $this->seed?->release_id ? ['tracks.release_id = ?', [$this->seed->release_id]] : null,
+            $this->sameArtists(),
+            $this->seed?->release?->record_label
+                ? ['exists (select 1 from releases where releases.id = tracks.release_id and releases.record_label = ?)', [$this->seed->release->record_label]]
+                : null,
+        ])->filter()->values();
+
+        if ($tiers->isEmpty()) {
+            return;
+        }
+
+        $cases = $tiers
+            ->map(fn(array $tier, int $rank) => "when {$tier[0]} then {$rank}")
+            ->implode(' ');
+
+        $query->orderByRaw("case {$cases} else {$tiers->count()} end", $tiers->flatMap(fn(array $tier) => $tier[1])->all());
+    }
+
+    /**
+     * Tracks recommended to the listener, or in the seed's genre at a close tempo.
+     *
+     * @return array{0: string, 1: list<mixed>}|null
+     */
+    protected function related(): ?array
+    {
+        $conditions = [];
         $bindings = [];
 
-        if ($this->seed?->genre_id) {
-            $scores[] = 'case when tracks.genre_id = ? then 3 else 0 end';
-            $bindings[] = $this->seed->genre_id;
-        }
-
-        $artists = $this->seed?->artists()->pluck('artists.id') ?? collect();
-
-        if ($artists->isNotEmpty()) {
-            $marks = $artists
-                ->map(fn() => '?')
-                ->implode(', ');
-            $scores[] = "case when exists (select 1 from track_artist where track_artist.track_id = tracks.id and track_artist.artist_id in ({$marks})) then 3 else 0 end";
-            array_push($bindings, ...$artists->all());
-        }
-
-        if ($this->seed?->bpm) {
-            $scores[] = 'case when tracks.bpm between ? and ? then 1 else 0 end';
+        if ($this->seed?->genre_id && $this->seed->bpm) {
+            $conditions[] = '(tracks.genre_id = ? and tracks.bpm between ? and ?)';
             array_push(
                 $bindings,
+                $this->seed->genre_id,
                 $this->seed->bpm * (1 - self::TEMPO_RANGE),
                 $this->seed->bpm * (1 + self::TEMPO_RANGE),
             );
+        } elseif ($this->seed?->genre_id) {
+            $conditions[] = 'tracks.genre_id = ?';
+            $bindings[] = $this->seed->genre_id;
         }
 
         if ($this->user) {
-            $scores[] = 'case when exists (select 1 from recommendations where recommendations.recommendable_id = tracks.id and recommendations.recommendable_type = ? and recommendations.user_id = ?) then 2 else 0 end';
+            $conditions[] = 'exists (select 1 from recommendations where recommendations.recommendable_id = tracks.id and recommendations.recommendable_type = ? and recommendations.user_id = ?)';
             array_push($bindings, (new Track)->getMorphClass(), $this->user->id);
         }
 
-        if ($scores) {
-            $query->orderByRaw('(' . implode(' + ', $scores) . ') desc', $bindings);
+        return $conditions ? ['(' . implode(' or ', $conditions) . ')', $bindings] : null;
+    }
+
+    /**
+     * Tracks sharing an artist with the seed.
+     *
+     * @return array{0: string, 1: list<int>}|null
+     */
+    protected function sameArtists(): ?array
+    {
+        $artists = $this->seed?->artists()->pluck('artists.id') ?? collect();
+
+        if ($artists->isEmpty()) {
+            return null;
         }
+
+        $marks = $artists
+            ->map(fn() => '?')
+            ->implode(', ');
+
+        return ["exists (select 1 from track_artist where track_artist.track_id = tracks.id and track_artist.artist_id in ({$marks}))", $artists->all()];
     }
 }
