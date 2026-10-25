@@ -8,6 +8,11 @@ use Illuminate\Http\Resources\Json\JsonResource;
 class ProjectResource extends JsonResource
 {
     /**
+     * The most tracks or collaborators embedded with a project.
+     */
+    public const LIST_LIMIT = 45;
+
+    /**
      * Transform the resource into an array.
      *
      * @return array<string, mixed>
@@ -28,7 +33,18 @@ class ProjectResource extends JsonResource
             'tracks' => $this->when(
                 $with->contains('tracks'),
                 fn () => new ProjectTrackCollection(
-                    $this->tracks()->visibleTo($user)->when($with->contains('ready'), fn ($q) => $q->ready())->get()
+                    $this->tracks()
+                        ->visibleTo($user)
+                        ->when($with->contains('ready'), fn ($q) => $q->ready())
+                        ->with(['stems', ...$with->intersect(['genre', 'artist'])->all()])
+                        ->limit(self::LIST_LIMIT)
+                        ->get()
+                )
+            ),
+            'collaborators' => $this->when(
+                $with->contains('collaborators') && $user?->can('update', $this->resource),
+                fn () => new ProjectCollaboratorCollection(
+                    $this->collaborators()->with('user')->limit(self::LIST_LIMIT)->get()
                 )
             ),
             'isCollaber' => $this->when($user, fn () => $this->isCollaber($user), false),
