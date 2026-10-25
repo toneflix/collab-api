@@ -342,6 +342,50 @@ class SoundsTest extends TestCase
         $this->assertSame(2, Sound::query()->library()->count());
     }
 
+    public function test_a_paused_sync_does_not_start(): void
+    {
+        $this->configureFreesound([
+            'freesound_sync_queries' => 'kick',
+            'sounds_library_enabled' => '1',
+            'freesound_sync_paused' => '1',
+        ]);
+        $this->fakeFreesound([$this->fsResult(1)]);
+
+        Sanctum::actingAs($this->admin());
+        $this
+            ->postJson('/api/admin/sounds/sync')
+            ->assertUnprocessable()
+            ->assertJsonPath('message', 'Library sync is paused.');
+
+        $this
+            ->artisan('sounds:sync')
+            ->expectsOutput('Library sync is paused.')
+            ->assertSuccessful();
+
+        $this->assertSame(0, Sound::query()->library()->count());
+    }
+
+    public function test_pausing_stops_a_running_sync_after_the_current_sound(): void
+    {
+        $this->configureFreesound(['freesound_sync_queries' => 'kick']);
+
+        Http::fake([
+            'https://cdn.freesound.test/*' => function () {
+                SoundSettings::update(['freesound_sync_paused' => '1']);
+
+                return Http::response('PREVIEW-AUDIO', 200, ['Content-Type' => 'audio/mpeg']);
+            },
+        ]);
+        $this->fakeFreesound([$this->fsResult(1), $this->fsResult(2), $this->fsResult(3)]);
+
+        $result = SoundLibrary::sync();
+
+        $this->assertTrue($result['paused']);
+        $this->assertSame(1, $result['added']);
+        $this->assertSame(1, Sound::query()->library()->count());
+        $this->assertFalse(Cache::has('sounds::sync-running'));
+    }
+
     public function test_sync_downloads_originals_with_the_chosen_admin_account(): void
     {
         $admin = $this->admin();
