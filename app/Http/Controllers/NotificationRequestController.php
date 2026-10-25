@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Enums\HttpStatus;
-use App\Helpers\Providers;
 use App\Http\Resources\NotificationRequestCollection;
 use App\Http\Resources\NotificationRequestResource;
 use App\Models\User;
@@ -26,14 +25,20 @@ class NotificationRequestController extends Controller
             fn() => $query->{$request->status}()
         );
 
-        $notifications = $query->paginate($request->perPage(30))->onEachSide(0)->withQueryString();
+        $notifications = $query
+            ->paginate($request->perPage(30))
+            ->onEachSide(0)
+            ->withQueryString();
 
-        return (new NotificationRequestCollection($notifications))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::ACCEPTED,
-            'pending_count' => $user->approvableNotifications()->pending()->count(),
-        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
+        return (new NotificationRequestCollection($notifications))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+                'pending_count' => $user->approvableNotifications()->pending()->count(),
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 
     /**
@@ -48,12 +53,15 @@ class NotificationRequestController extends Controller
         $notification = $user->approvableNotifications()->findOrFail($id);
         $notification->markAsRead();
 
-        return (new NotificationRequestResource($notification))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-            'pending_count' => $user->approvableNotifications()->pending()->count(),
-        ])->response()->setStatusCode(HttpStatus::OK->value);
+        return (new NotificationRequestResource($notification))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+                'pending_count' => $user->approvableNotifications()->pending()->count(),
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::OK->value);
     }
 
     /**
@@ -78,12 +86,15 @@ class NotificationRequestController extends Controller
             $notification->markAsApproved();
         }
 
-        return (new NotificationRequestResource($notification))->additional([
-            'message' => __('Notification :0 successfully', [$notification->approved ? 'approved' : 'rejected']),
-            'status' => 'success',
-            'status_code' => HttpStatus::ACCEPTED,
-            'pending_count' => $user->approvableNotifications()->pending()->count(),
-        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
+        return (new NotificationRequestResource($notification))
+            ->additional([
+                'message' => __('Notification :0 successfully', [$notification->approved ? 'approved' : 'rejected']),
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+                'pending_count' => $user->approvableNotifications()->pending()->count(),
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 
     /**
@@ -94,12 +105,23 @@ class NotificationRequestController extends Controller
         /** @var User $user */
         $user = $request->user();
 
-        $user->approvableNotifications()->whereId($id)->delete();
+        /** @var Notification $notification */
+        $notification = $user->approvableNotifications()->findOrFail($id);
+        $notification->delete();
 
-        return Providers::response()->success([
-            'message' => 'Notifcation deleted successfully.',
-            'pending_count' => $user->approvableNotifications()->pending()->count(),
-            'status_code' => HttpStatus::ACCEPTED,
-        ]);
+        $pending = $user
+            ->approvableNotifications()
+            ->pending()
+            ->count();
+
+        return (new NotificationRequestResource($notification))
+            ->additional([
+                'message' => 'Notifcation deleted successfully.',
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+                'pending_count' => $pending,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 }

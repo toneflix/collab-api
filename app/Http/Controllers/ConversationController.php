@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\HttpStatus;
-use App\Helpers\Providers;
+use App\Http\Resources\ConversationCollection;
 use App\Http\Resources\ConversationMessageCollection;
 use App\Http\Resources\ConversationMessageResource;
 use App\Http\Resources\ConversationResource;
@@ -29,10 +29,11 @@ class ConversationController extends Controller
     {
         $request->validate(['limit' => ['nullable', 'integer', 'between:1,50']]);
 
-        $list = Conversations::forUser($request->user(), (int) $request->input('limit', 50));
+        $conversations = Conversations::forUser($request->user(), $request->perPage(50, 50));
+        $unread = $conversations->getCollection()->sum('unread_count');
 
-        return ConversationResource::collection($list)->additional([
-            'unread' => $list->getCollection()->sum('unread_count'),
+        return (new ConversationCollection($conversations))->additional([
+            'unread' => $unread,
             'message' => HttpStatus::message(HttpStatus::OK),
             'status' => 'success',
             'status_code' => HttpStatus::OK,
@@ -46,11 +47,12 @@ class ConversationController extends Controller
     {
         $root = Conversations::find($type, $id, $request->user());
 
-        return (new ConversationResource($root))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new ConversationResource($root))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -131,7 +133,9 @@ class ConversationController extends Controller
             'message' => 'Message sent.',
             'status' => 'success',
             'status_code' => HttpStatus::CREATED,
-        ])->response()->setStatusCode(HttpStatus::CREATED->value);
+        ])
+            ->response()
+            ->setStatusCode(HttpStatus::CREATED->value);
     }
 
     /**
@@ -193,6 +197,7 @@ class ConversationController extends Controller
 
         /** @var Comment|null $comment */
         $comment = Conversations::messages($root)->find($message);
+
         abort_unless($comment, HttpStatus::NOT_FOUND->value, 'This message no longer exists.');
         abort_unless(
             (int) $comment->user_id === (int) $request->user()->id || Conversations::ownedBy($root, $request->user()),
@@ -204,10 +209,14 @@ class ConversationController extends Controller
         Conversations::forgetVoice($comment);
         $comment->delete();
 
-        return Providers::response()->success([
-            'data' => ['id' => (int) $message],
-            'message' => 'Message deleted.',
-        ], HttpStatus::ACCEPTED);
+        return (new ConversationMessageResource($comment))
+            ->additional([
+                'message' => 'Message deleted.',
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 
     /**
@@ -216,11 +225,13 @@ class ConversationController extends Controller
     public function read(Request $request, string $type, string $id)
     {
         $root = Conversations::find($type, $id, $request->user());
+
         Conversations::markRead($root, $request->user());
 
-        return Providers::response()->success([
-            'data' => ['unread' => 0],
+        return (new ConversationResource($root))->additional([
             'message' => HttpStatus::message(HttpStatus::OK),
+            'status' => 'success',
+            'status_code' => HttpStatus::OK,
         ]);
     }
 }

@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Enums\HttpStatus;
-use App\Helpers\Providers;
 use App\Http\Resources\CommentCollection;
 use App\Http\Resources\CommentResource;
 use App\Models\Comment;
@@ -103,10 +102,14 @@ class CommentController extends Controller
 
         $comment->delete();
 
-        return Providers::response()->success([
-            'data' => [],
-            'message' => 'Comment Deleted Successfully',
-        ], HttpStatus::ACCEPTED);
+        return (new CommentResource($comment))
+            ->additional([
+                'message' => 'Comment Deleted Successfully',
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 
     /**

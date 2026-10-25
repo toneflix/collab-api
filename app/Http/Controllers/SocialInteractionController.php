@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Enums\HttpStatus;
-use App\Helpers\Providers;
 use App\Http\Resources\InteractionCollection;
+use App\Http\Resources\InteractionStateResource;
 use App\Models\Project;
 use App\Models\Release;
 use App\Models\Track;
@@ -71,11 +71,15 @@ class SocialInteractionController extends Controller
 
         $action = $interaction->interactionData["{$request->interaction}d"];
 
-        return Providers::response()->success([
-            'interaction_id' => $interaction->id,
-            'data' => $interaction->interactionData,
-            'message' => __("You have :0{$request->interaction}d this $name", [! $action ? 'un' : '']),
-        ], HttpStatus::ACCEPTED);
+        return (new InteractionStateResource($interaction))
+            ->additional([
+                'interaction_id' => $interaction->id,
+                'message' => __("You have :0{$request->interaction}d this $name", [! $action ? 'un' : '']),
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 
     /**
