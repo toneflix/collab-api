@@ -30,7 +30,7 @@ class ProjectController extends Controller
             ->when($filters->contains('active'), fn ($q) => $q->released(false)->latest())
             ->when($request->has('creator_id'), fn ($q) => $q->collaber($request->creator_id)->latest());
 
-        $projects = $query->paginate($request->input('limit', 45));
+        $projects = $query->paginate($request->perPage(45));
 
         return (new ProjectCollection($projects))->additional([
             'message' => HttpStatus::message(HttpStatus::OK),

@@ -30,7 +30,7 @@ class ProjectController extends Controller
 
         $query->when($filters->contains('latest'), fn ($q) => $q->latest());
 
-        $projects = $query->paginate($request->input('limit', 45));
+        $projects = $query->paginate($request->perPage(45));
 
         return (new ProjectCollection($projects))->additional([
             'message' => HttpStatus::message(HttpStatus::OK),

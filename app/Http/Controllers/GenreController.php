@@ -17,7 +17,7 @@ class GenreController extends Controller
     {
         $query = Genre::query();
 
-        $genres = $query->paginate($request->input('limit', 15));
+        $genres = $query->paginate($request->perPage(15));
 
         return (new GenreCollection($genres))->additional([
             'message' => HttpStatus::message(HttpStatus::OK),

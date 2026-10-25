@@ -25,7 +25,7 @@ class ProjectCollaboratorController extends Controller
         $query = $project->collaborators()->getQuery()
             ->when($request->has('accepted'), fn (Builder $q) => $q->whereAccepted(true));
 
-        $collaborators = $query->paginate($request->input('limit', 45));
+        $collaborators = $query->paginate($request->perPage(45));
 
         return (new ProjectCollaboratorCollection($collaborators))->additional([
             'message' => HttpStatus::message(HttpStatus::OK),

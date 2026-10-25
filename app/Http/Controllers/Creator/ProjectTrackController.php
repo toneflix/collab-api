@@ -28,7 +28,7 @@ class ProjectTrackController extends Controller
 
         $query = $project->tracks()->visibleTo($request->user())->getQuery();
 
-        $tracks = $query->paginate($request->input('limit', 45));
+        $tracks = $query->paginate($request->perPage(45));
 
         return (new ProjectTrackCollection($tracks))->additional([
             'message' => HttpStatus::message(HttpStatus::OK),

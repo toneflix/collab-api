@@ -57,7 +57,7 @@ class ArtistController extends Controller
                 )
             );
 
-        $artists = $query->paginate($request->input('limit', 15));
+        $artists = $query->paginate($request->perPage(15));
 
         return (new ArtistCollection($artists))->additional([
             'message' => HttpStatus::message(HttpStatus::OK),

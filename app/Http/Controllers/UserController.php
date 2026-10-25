@@ -78,7 +78,7 @@ class UserController extends Controller
                 }
             );
 
-        $users = $query->paginate($request->input('limit', 15));
+        $users = $query->paginate($request->perPage(15));
 
         return (new UserCollection($users))->additional([
             'message' => HttpStatus::message(HttpStatus::OK),

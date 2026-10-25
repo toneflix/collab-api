@@ -22,7 +22,7 @@ class PaymentsController extends Controller
             ->whereNotNull('purpose')
             ->when($request->purpose, fn ($q, $purpose) => $q->where('purpose', $purpose))
             ->latest('paid_at')
-            ->paginate($request->input('limit', 15));
+            ->paginate($request->perPage(15));
 
         return (new TransactionCollection($purchases))->additional([
             'message' => HttpStatus::message(HttpStatus::OK),
@@ -52,7 +52,7 @@ class PaymentsController extends Controller
         $list = $earnings
             ->when($request->purpose, fn ($q, $purpose) => $q->where('purpose', $purpose))
             ->latest('paid_at')
-            ->paginate($request->input('limit', 15));
+            ->paginate($request->perPage(15));
 
         return (new TransactionCollection($list))->additional([
             'summary' => [

@@ -25,7 +25,7 @@ class SocialInteractionController extends Controller
             $query->where($request->interaction === 'save' ? 'saved' : 'liked', true);
         }
 
-        $interactions = $query->paginate($request->input('limit', 45));
+        $interactions = $query->paginate($request->perPage(45));
 
         return (new InteractionCollection($interactions))->additional([
             'message' => HttpStatus::message(HttpStatus::OK),

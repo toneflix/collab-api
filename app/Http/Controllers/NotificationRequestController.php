@@ -24,7 +24,7 @@ class NotificationRequestController extends Controller
             fn () => $query->{$request->status}()
         );
 
-        $notifications = $query->paginate($request->input('limit', 30))->onEachSide(0)->withQueryString();
+        $notifications = $query->paginate($request->perPage(30))->onEachSide(0)->withQueryString();
 
         return (new NotificationRequestCollection($notifications))->additional([
             'message' => HttpStatus::message(HttpStatus::OK),

@@ -48,7 +48,7 @@ class ReleaseController extends Controller
                     ->havingRaw('count(*) > 1'));
             });
 
-        $releases = $query->paginate($request->input('limit', 15));
+        $releases = $query->paginate($request->perPage(15));
 
         return (new ReleaseCollection($releases))->additional([
             'message' => HttpStatus::message(HttpStatus::OK),

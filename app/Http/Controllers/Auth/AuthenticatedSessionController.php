@@ -6,6 +6,7 @@ use App\Enums\HttpStatus;
 use App\Helpers\Providers as PV;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\LoginRequest;
+use App\Http\Resources\DeviceResource;
 use App\Http\Resources\UserResource;
 use App\Models\User;
 use DeviceDetector\DeviceDetector;
@@ -53,43 +54,17 @@ class AuthenticatedSessionController extends Controller
 
     public function getTokens(Request $request)
     {
+        $request->validate(['limit' => ['nullable', 'integer', 'between:1,50']]);
+
         $tokens = $request->user()->tokens()
-            ->get();
+            ->latest('last_used_at')
+            ->paginate((int) $request->input('limit', 20));
 
-        $data = $tokens->map(function ($token) use ($request) {
-            $dev = new DeviceDetector($token->name);
-            $dev->parse();
-            $os = $dev->getOs();
-            $name = $os['name'] ?? 'Unknown Device';
-            $version = $os['version'] ?? '0.00';
-            $platform = in_array($dev->getBrandName(), ['Apple', 'Microsoft'])
-                ? $dev->getBrandName()
-                : (
-                    in_array($dev->getOs('name'), ['Android', 'Ubuntu', 'Windows'])
-                    ? $dev->getOs('name')
-                    : (
-                        $dev->getClient('type') === 'browser'
-                        ? $dev->getClient('family')
-                        : $dev->getBrandName()
-                    )
-                );
-
-            return (object) [
-                'id' => $token->id,
-                'name' => collect([$dev->getBrandName(), $name, "(v{$version})"])->implode(' '),
-                'platform' => $platform ?: 'Unknown Platform',
-                'platform_id' => str($platform ?: 'question')->slug('-')->toString(),
-                'current' => $token->id === $request->user()->currentAccessToken()->id,
-                'last_used' => $token->last_used_at?->diffInHours() > 24
-                    ? $token->last_used_at?->format('d M Y')
-                    : $token->last_used_at?->diffForHumans(),
-            ];
-        });
-
-        return PV::response()->success([
+        return DeviceResource::collection($tokens)->additional([
             'message' => 'Tokens retrieved successfully',
-            'data' => $data,
-        ], HttpStatus::OK);
+            'status' => 'success',
+            'status_code' => HttpStatus::OK,
+        ]);
     }
 
     /**
@@ -124,7 +99,7 @@ class AuthenticatedSessionController extends Controller
     public function destroyTokens(Request $request)
     {
         $request->validate([
-            'token_ids' => 'required|array',
+            'token_ids' => 'required|array|max:100',
         ], [
             'token_ids.required' => __('Please select at least one device to logout'),
         ]);

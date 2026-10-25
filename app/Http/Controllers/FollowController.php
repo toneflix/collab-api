@@ -24,7 +24,7 @@ class FollowController extends Controller
             $query = $followable->followers();
         }
 
-        $follows = $query->paginate($request->input('limit', 45));
+        $follows = $query->paginate($request->perPage(45));
 
         return (new FollowCollection($follows))->additional([
             'message' => HttpStatus::message(HttpStatus::OK),

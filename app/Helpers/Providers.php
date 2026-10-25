@@ -62,6 +62,12 @@ class Providers
      */
     public static function buildResponseMacros(): void
     {
+        // The page size a list request asked for, kept between 1 and $max
+        Request::macro('perPage', function (int $default, int $max = 100): int {
+            /** @var Request $this */
+            return max(1, min((int) $this->input('limit', $default), $max));
+        });
+
         // Create a successfull response
         Response::macro(
             'success',

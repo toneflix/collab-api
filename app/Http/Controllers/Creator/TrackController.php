@@ -27,7 +27,7 @@ class TrackController extends Controller
 
         $query = $release->tracks()->getQuery();
 
-        $tracks = $query->paginate($request->input('limit', 15));
+        $tracks = $query->paginate($request->perPage(15));
 
         return (new TrackCollection($tracks))->additional([
             'message' => HttpStatus::message(HttpStatus::OK),

@@ -6,6 +6,7 @@ use App\Enums\Feature;
 use App\Enums\HttpStatus;
 use App\Enums\MusicalKey;
 use App\Helpers\Providers;
+use App\Http\Resources\StemDownloadResource;
 use App\Http\Resources\TrackCollection;
 use App\Http\Resources\TrackResource;
 use App\Models\ProjectTrackStem;
@@ -65,7 +66,7 @@ class TrackController extends Controller
                 fn (Builder $q) => $q->forFeaturedArtist($request->artist_id)
             );
 
-        $tracks = $query->paginate($request->input('limit', 15));
+        $tracks = $query->paginate($request->perPage(15));
 
         return (new TrackCollection($tracks))->additional([
             'message' => HttpStatus::message(HttpStatus::OK),
@@ -121,16 +122,17 @@ class TrackController extends Controller
     {
         abort_unless($track->stemsUnlockedFor($request->user()), HttpStatus::PAYMENT_REQUIRED->value, 'Buy the stems to download them.');
 
-        $stems = $track->projectTrack?->stems()->whereNotNull('src')->get() ?? collect();
+        $request->validate(['limit' => ['nullable', 'integer', 'between:1,100']]);
 
-        return Providers::response()->success([
-            'data' => $stems->map(fn (ProjectTrackStem $stem) => [
-                'id' => $stem->id,
-                'title' => $stem->title ?: $stem->meta['name'] ?? 'Stem',
-                'size' => $stem->mediaFileInfo['src']['size'] ?? null,
-                'url' => $stem->mediaFileInfo['src']['dynamicLink'] ?? null,
-            ])->values(),
+        $stems = ($track->projectTrack?->stems() ?? ProjectTrackStem::query()->whereKey([]))
+            ->whereNotNull('src')
+            ->oldest('id')
+            ->paginate((int) $request->input('limit', 50));
+
+        return StemDownloadResource::collection($stems)->additional([
             'message' => HttpStatus::message(HttpStatus::OK),
+            'status' => 'success',
+            'status_code' => HttpStatus::OK,
         ]);
     }
 

@@ -25,7 +25,7 @@ class ProjectCollaboratorController extends Controller
             ->when($request->boolean('accepted'), fn (Builder $q) => $q->whereAccepted(true))
             ->when($request->boolean('pending'), fn (Builder $q) => $q->whereAccepted(false));
 
-        $collaborators = $query->paginate($request->input('limit', 45));
+        $collaborators = $query->paginate($request->perPage(45));
 
         return (new ProjectCollaboratorCollection($collaborators))->additional([
             'message' => HttpStatus::message(HttpStatus::OK),

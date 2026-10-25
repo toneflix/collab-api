@@ -31,7 +31,7 @@ class CommentController extends Controller
             $query = $commentable->comments();
         }
 
-        $comments = $query->paginate($request->input('limit', 45));
+        $comments = $query->paginate($request->perPage(45));
 
         return (new CommentCollection($comments))->additional([
             'message' => HttpStatus::message(HttpStatus::OK),

@@ -11,6 +11,9 @@ use Illuminate\Http\Request;
 
 class NotificationController extends Controller
 {
+    /** Unread important notifications pinned above the list */
+    public const IMPORTANT_LIMIT = 20;
+
     /**
      * Display a listing of the resource.
      */
@@ -44,8 +47,8 @@ class NotificationController extends Controller
         if ($request->boolean('statsOnly')) {
             $additional['stats'] = $stats;
         } else {
-            $notifications = $query->paginate($request->input('limit', 30));
-            $important = $user->notifications()->unread()->whereJsonContains('data->important', true)->get();
+            $notifications = $query->paginate($request->perPage(30));
+            $important = $user->notifications()->unread()->whereJsonContains('data->important', true)->latest()->limit(self::IMPORTANT_LIMIT)->get();
 
             if ($request->boolean('withStats')) {
                 $additional['stats'] = $stats;
