@@ -164,7 +164,9 @@ class Release extends Model implements CanBeTakenDown, CanVisit
         });
 
         static::addGlobalScopes([
-            fn(Builder $query) => $query->withCount(['tracks']),
+            fn(Builder $query) => $query
+                ->withCount(['tracks'])
+                ->withSum('tracks', 'duration'),
         ]);
     }
 
