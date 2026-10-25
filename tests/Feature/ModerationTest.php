@@ -145,6 +145,30 @@ class ModerationTest extends TestCase
             ->assertJsonCount(2, 'data.0.reports');
     }
 
+    public function test_moderators_can_search_the_queue_and_takedowns(): void
+    {
+        $this->release->forceFill(['title' => 'Midnight Harbour'])->saveQuietly();
+        $user = User::factory()->create(['username' => 'loudneighbour']);
+
+        $this->report('release', $this->release->id)->assertCreated();
+        $this->report('user', $user->id)->assertCreated();
+
+        Sanctum::actingAs($this->moderator);
+        $this->getJson('/api/admin/moderation/queue?search=harb')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.item.id', $this->release->id);
+
+        $this->getJson('/api/admin/moderation/queue?search=LOUDNEIGH')
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.item.type', 'user');
+
+        $this->postJson("/api/admin/moderation/items/release/{$this->release->id}/takedown", ['reason' => 'spam'])->assertCreated();
+
+        $this->getJson('/api/admin/moderation/takedowns?search=midnight')->assertJsonCount(1, 'data');
+        $this->getJson('/api/admin/moderation/takedowns?search=nothing-like-this')->assertJsonCount(0, 'data');
+    }
+
     public function test_taking_down_a_release_hides_it_and_its_tracks_from_everyone_but_the_owner(): void
     {
         $this->report('release', $this->release->id, $this->copyrightClaim())->assertCreated();

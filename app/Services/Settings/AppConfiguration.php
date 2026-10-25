@@ -25,6 +25,7 @@ class AppConfiguration
         'min_payout_amount' => ['Minimum Withdrawal', 'number', ['required', 'integer', 'min:0'], 'Smallest withdrawal, in the app currency.'],
         'payout_hold_days' => ['Earnings Clearing Days', 'number', ['required', 'integer', 'between:0,90'], 'Days before earnings can be withdrawn.'],
         'payout_auto_approve' => ['Send Withdrawals Automatically', 'boolean', ['required', 'boolean'], 'Send withdrawals without an admin approving each one.'],
+        'review_releases' => ['Review Releases', 'boolean', ['required', 'boolean'], 'Hold published releases in a review queue until an admin approves them.'],
         'verify_email' => ['Verify Email', 'boolean', ['required', 'boolean'], 'Ask new users to confirm their email.'],
         'verify_phone' => ['Verify Phone', 'boolean', ['required', 'boolean'], 'Ask new users to confirm their phone number.'],
         'reference_prefix' => ['Payment Reference Prefix', 'string', ['required', 'string', 'max:10', 'regex:/^[A-Za-z0-9_-]+$/'], 'Starts every payment reference.'],

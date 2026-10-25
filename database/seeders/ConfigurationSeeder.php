@@ -261,6 +261,18 @@ class ConfigurationSeeder extends Seeder
                 'hint' => 'Send withdrawals to Paystack as soon as creators ask, instead of waiting for an admin to approve them.',
                 'secret' => false,
             ],
+            [
+                'key' => 'review_releases',
+                'title' => 'Review Releases',
+                'value' => false,
+                'type' => 'boolean',
+                'count' => null,
+                'max' => null,
+                'col' => 6,
+                'autogrow' => false,
+                'hint' => 'Hold published releases in a review queue until an admin approves them.',
+                'secret' => false,
+            ],
         ]);
     }
 }

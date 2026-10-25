@@ -8,6 +8,7 @@ use App\Models\Release;
 use App\Models\Sound;
 use App\Models\Track;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -25,6 +26,44 @@ class Reportables
         'comment' => Comment::class,
         'user' => User::class,
     ];
+
+    /**
+     * The columns moderators can search each kind of content by.
+     *
+     * @var array<string, list<string>>
+     */
+    public const SEARCH_COLUMNS = [
+        'release' => ['title', 'version'],
+        'track' => ['title'],
+        'sound' => ['name'],
+        'comment' => ['comment'],
+        'user' => ['firstname', 'lastname', 'username', 'email'],
+    ];
+
+    /**
+     * Limit rows that point at content (model_type, model_id) to content
+     * whose text matches the search.
+     */
+    public function whereContentMatches(Builder $query, string $search): Builder
+    {
+        return $query->where(function (Builder $query) use ($search) {
+            foreach (self::TYPES as $name => $class) {
+                $model = new $class;
+                $ids = $class::query()
+                    ->withoutGlobalScopes()
+                    ->select($model->qualifyColumn($model->getKeyName()))
+                    ->where(function (Builder $q) use ($name, $model, $search) {
+                        foreach (self::SEARCH_COLUMNS[$name] as $column) {
+                            $q->orWhereLike($model->qualifyColumn($column), "%{$search}%");
+                        }
+                    });
+
+                $query->orWhere(fn (Builder $q) => $q
+                    ->where('model_type', $model->getMorphClass())
+                    ->whereIn('model_id', $ids));
+            }
+        });
+    }
 
     /**
      * @return array<int, string>

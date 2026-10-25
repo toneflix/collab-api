@@ -6,12 +6,15 @@ use App\Contracts\CanBeTakenDown;
 use App\Enums\HttpStatus;
 use App\Helpers\Providers;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\ReleaseResource;
 use App\Http\Resources\TakedownResource;
+use App\Models\Release;
 use App\Models\Safety;
 use App\Models\Takedown;
 use App\Services\Moderation\Moderation;
 use App\Services\Moderation\ModerationQueue;
 use App\Services\Moderation\Reportables;
+use App\Services\Releases\ReleaseVersions;
 use Closure;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Model;
@@ -50,6 +53,7 @@ class ModerationController extends Controller
             'type' => ['nullable', Rule::in($this->reportables->names())],
             'reason' => ['nullable', Rule::in(Safety::$allowedReasons)],
             'source' => ['nullable', Rule::in([Safety::TYPE_REPORT, Safety::TYPE_MATCH, Safety::TYPE_LYRICS])],
+            'search' => ['nullable', 'string', 'max:100'],
             'limit' => ['nullable', 'integer', 'between:1,50'],
         ]);
 
@@ -60,12 +64,59 @@ class ModerationController extends Controller
     {
         $valid = $request->validate([
             'status' => ['nullable', Rule::in([Takedown::ACTIVE, Takedown::APPEALED, Takedown::RESTORED])],
+            'search' => ['nullable', 'string', 'max:100'],
             'limit' => ['nullable', 'integer', 'between:1,50'],
         ]);
 
-        $page = $this->queue->takedowns($valid['status'] ?? null, (int) ($valid['limit'] ?? 20));
+        $page = $this->queue->takedowns($valid['status'] ?? null, $valid['search'] ?? null, (int) ($valid['limit'] ?? 20));
 
         return $this->page($page, TakedownResource::collection($page->items())->resolve());
+    }
+
+    /**
+     * Releases waiting for approval, when release reviews are on.
+     */
+    public function releases(Request $request)
+    {
+        $valid = $request->validate([
+            'search' => ['nullable', 'string', 'max:100'],
+            'limit' => ['nullable', 'integer', 'between:1,50'],
+        ]);
+
+        $page = $this->queue->releases($valid['search'] ?? null, (int) ($valid['limit'] ?? 20));
+
+        return $this->page($page, collect($page->items())->map(fn (Release $release) => [
+            ...(new ReleaseResource($release))->resolve($request),
+            'owner' => $release->user ? ['id' => $release->user->id, 'name' => $release->user->fullname, 'username' => $release->user->username] : null,
+            'versionOf' => $release->project?->title,
+            'submittedAt' => $release->updated_at,
+        ])->all());
+    }
+
+    public function approveRelease(Request $request, Release $reviewRelease, ReleaseVersions $versions)
+    {
+        abort_unless($reviewRelease->isInReview(), HttpStatus::UNPROCESSABLE_ENTITY->value, 'This release is not waiting for review.');
+
+        $versions->approve($reviewRelease, $request->user());
+
+        return Providers::response()->success([
+            'data' => ['id' => $reviewRelease->id],
+            'message' => 'Approved. The release is live and its owner was told.',
+        ], HttpStatus::ACCEPTED);
+    }
+
+    public function rejectRelease(Request $request, Release $reviewRelease, ReleaseVersions $versions)
+    {
+        $valid = $request->validate(['note' => ['required', 'string', 'max:2000']]);
+
+        abort_unless($reviewRelease->isInReview(), HttpStatus::UNPROCESSABLE_ENTITY->value, 'This release is not waiting for review.');
+
+        $versions->reject($reviewRelease, $request->user(), $valid['note']);
+
+        return Providers::response()->success([
+            'data' => ['id' => $reviewRelease->id],
+            'message' => 'Sent back to its owner with your note.',
+        ], HttpStatus::ACCEPTED);
     }
 
     public function takeDown(Request $request, string $type, int $id)

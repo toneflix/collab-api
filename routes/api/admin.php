@@ -11,11 +11,13 @@ use App\Http\Controllers\Admin\RealtimeSettingsController;
 use App\Http\Controllers\Admin\SoundSettingsController;
 use App\Http\Controllers\Admin\StatsController;
 use App\Http\Controllers\Admin\UserController;
+use App\Models\Release;
 use App\Models\Scopes\RestrictBlockedUserScope;
 use App\Models\User;
 use Illuminate\Support\Facades\Route;
 
 // Admins see every account, including ones that blocked them
+Route::bind('reviewRelease', fn (string $value) => Release::query()->withoutGlobalScopes()->findOrFail($value));
 Route::bind('managedUser', fn (string $value) => User::query()->withoutGlobalScope(RestrictBlockedUserScope::class)->findOrFail($value));
 
 Route::middleware(['auth:sanctum'])->prefix('admin')->name('admin.')->group(function () {
@@ -68,6 +70,9 @@ Route::middleware(['auth:sanctum'])->prefix('admin')->name('admin.')->group(func
         Route::post('items/{type}/{id}/resolve', [ModerationController::class, 'resolve'])->whereNumber('id')->name('resolve');
         Route::post('takedowns/{takedown}/restore', [ModerationController::class, 'restore'])->name('restore');
         Route::post('takedowns/{takedown}/uphold', [ModerationController::class, 'uphold'])->name('uphold');
+        Route::get('releases', [ModerationController::class, 'releases'])->name('releases');
+        Route::post('releases/{reviewRelease}/approve', [ModerationController::class, 'approveRelease'])->whereNumber('reviewRelease')->name('releases.approve');
+        Route::post('releases/{reviewRelease}/reject', [ModerationController::class, 'rejectRelease'])->whereNumber('reviewRelease')->name('releases.reject');
     });
 
     // User accounts, their numbers, and what admins do to them
