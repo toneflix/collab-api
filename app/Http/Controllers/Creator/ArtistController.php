@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Creator;
 use App\Enums\HttpStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ArtistResource;
+use App\Models\Artist;
 use Illuminate\Http\Request;
 
 class ArtistController extends Controller
@@ -15,9 +16,10 @@ class ArtistController extends Controller
     public function store(Request $request)
     {
         $this->validate($request, [
-            'name' => ['required', 'string'],
-            'about' => ['nullable', 'string'],
-            'image' => ['nullable', 'image', 'mimes:png,jpg'],
+            'name' => ['required', 'string', 'max:100'],
+            'about' => ['nullable', 'string', 'max:2000'],
+            'image' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:5120'],
+            'cover' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:8192'],
         ]);
 
         $artist = $this->user->artists()->make();
@@ -33,16 +35,32 @@ class ArtistController extends Controller
     }
 
     /**
-     * Update the specified resource in storage.
+     * Update the artist's profile details and photos. New photos are picked
+     * up from the request when the artist is saved.
      */
-    public function update(Request $request, string $id)
+    public function update(Request $request, Artist $artist)
     {
-        $artist = $this->user->artists()
-            ->where(fn ($q) => $q->whereUsername($id)->when(is_numeric($id), fn ($q) => $q->orWhere('id', $id)))
-            ->firstOrFail();
+        $this->authorize('update', $artist);
 
-        return (new ArtistResource($artist))->additional([
-            'message' => 'Artist updated successfully.',
+        $valid = $this->validate($request, [
+            'name' => ['required', 'string', 'max:100'],
+            'about' => ['nullable', 'string', 'max:2000'],
+            'image' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:5120'],
+            'cover' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:8192'],
+            'verified' => ['nullable', 'boolean'],
+        ]);
+
+        $artist->name = $valid['name'];
+        $artist->about = $valid['about'] ?? null;
+
+        if ($request->has('verified') && $this->user->can('verify', $artist)) {
+            $artist->verified = $request->boolean('verified');
+        }
+
+        $artist->save();
+
+        return (new ArtistResource($artist->refresh()))->additional([
+            'message' => 'Artist profile updated.',
             'status' => 'success',
             'status_code' => HttpStatus::ACCEPTED,
         ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);

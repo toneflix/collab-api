@@ -14,6 +14,8 @@ class ArtistResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $viewer = $request->user('sanctum');
+
         return [
             'id' => $this->id,
             'name' => $this->name,
@@ -23,16 +25,19 @@ class ArtistResource extends JsonResource
             'verified' => $this->verified,
             'username' => $this->username,
             'imageUrl' => $this->images['image'],
+            'coverUrl' => $this->cover ? $this->images['cover'] : null,
             'followers' => $this->whenLoaded(
                 'followers',
                 fn () => $this->followers->count(),
                 fn () => $this->followers()->count(),
             ),
             'following' => 0,
-            'youFollow' => $request->user('sanctum') ? $this->isFollowedBy($request->user('sanctum')) : false,
+            'youFollow' => $viewer ? $this->isFollowedBy($viewer) : false,
             'followsYou' => false,
             'reputation' => $this->reputation,
             'projectsCount' => 0,
+            'canEdit' => (bool) $viewer?->can('update', $this->resource),
+            'canVerify' => (bool) $viewer?->can('verify', $this->resource),
         ];
     }
 }
