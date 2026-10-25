@@ -37,9 +37,10 @@ class PlanController extends Controller
 
     public function index()
     {
-        return Providers::response()->success([
-            'data' => PlanResource::collection(Plan::ordered()->get()),
+        return PlanResource::collection(Plan::ordered()->get())->additional([
             'message' => HttpStatus::message(HttpStatus::OK),
+            'status' => 'success',
+            'status_code' => HttpStatus::OK,
         ]);
     }
 
@@ -98,10 +99,11 @@ class PlanController extends Controller
         if ($plan->subscriptions()->exists()) {
             $plan->update(['active' => false]);
 
-            return Providers::response()->success([
-                'data' => new PlanResource($plan),
+            return (new PlanResource($plan))->additional([
                 'message' => __(':name has subscribers, so it was deactivated instead of deleted.', ['name' => $plan->name]),
-            ], HttpStatus::ACCEPTED);
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
         }
 
         $plan->delete();

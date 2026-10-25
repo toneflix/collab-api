@@ -103,12 +103,12 @@ class AdminUsersTest extends TestCase
 
         $this->getJson("/api/admin/users/{$user->id}")
             ->assertOk()
-            ->assertJsonPath('data.user.id', $user->id)
-            ->assertJsonPath('data.stats.earnings.available', 500)
-            ->assertJsonPath('data.can.suspend', true)
-            ->assertJsonPath('data.can.funds', false)
-            ->assertJsonPath('data.can.plan', false)
-            ->assertJsonStructure(['data' => ['stats' => ['content', 'plan', 'earnings', 'spend', 'ai' => ['balance', 'used'], 'storage']]]);
+            ->assertJsonPath('data.id', $user->id)
+            ->assertJsonPath('stats.earnings.available', 500)
+            ->assertJsonPath('can.suspend', true)
+            ->assertJsonPath('can.funds', false)
+            ->assertJsonPath('can.plan', false)
+            ->assertJsonStructure(['stats' => ['content', 'plan', 'earnings', 'spend', 'ai' => ['balance', 'used'], 'storage']]);
     }
 
     public function test_a_suspended_user_is_signed_out_and_cant_sign_in(): void
@@ -119,7 +119,7 @@ class AdminUsersTest extends TestCase
         $admin = $this->adminWith('manage-users');
         $this->postJson("/api/admin/users/{$user->id}/suspend", ['days' => 7, 'reason' => 'Spam'])
             ->assertOk()
-            ->assertJsonPath('data.user.suspended', true);
+            ->assertJsonPath('data.suspended', true);
 
         $this->assertSame(0, $user->tokens()->count());
         $this->assertTrue(AdminAction::where('user_id', $user->id)->where('action', 'account.suspended')->where('admin_id', $admin->id)->exists());
@@ -133,7 +133,7 @@ class AdminUsersTest extends TestCase
             ->assertUnprocessable();
 
         $this->actingAsFresh($admin);
-        $this->postJson("/api/admin/users/{$user->id}/unsuspend")->assertOk()->assertJsonPath('data.user.suspended', false);
+        $this->postJson("/api/admin/users/{$user->id}/unsuspend")->assertOk()->assertJsonPath('data.suspended', false);
     }
 
     public function test_admins_cant_suspend_themselves_or_other_staff_without_managing_admins(): void
@@ -153,7 +153,7 @@ class AdminUsersTest extends TestCase
 
         $this->putJson("/api/admin/users/{$user->id}/roles", ['roles' => ['admin']])
             ->assertOk()
-            ->assertJsonPath('data.user.roles', ['admin']);
+            ->assertJsonPath('data.roles', ['admin']);
 
         $this->putJson("/api/admin/users/{$user->id}/roles", ['roles' => ['super-admin']])->assertUnprocessable();
 
@@ -170,7 +170,7 @@ class AdminUsersTest extends TestCase
 
         $this->postJson("/api/admin/users/{$user->id}/plan", ['plan_id' => $plan->id, 'cycles' => 3])
             ->assertOk()
-            ->assertJsonPath('data.user.plan.id', $plan->id);
+            ->assertJsonPath('data.plan.id', $plan->id);
 
         $subscription = $user->subscriptions()->active()->first();
         $this->assertSame(0.0, $subscription->amount);
@@ -224,8 +224,8 @@ class AdminUsersTest extends TestCase
         $this->adminWith('manage-users');
         $user = User::factory()->create(['firstname' => 'Old', 'verified' => false]);
 
-        $this->putJson("/api/admin/users/{$user->id}", ['firstname' => 'New'])->assertOk()->assertJsonPath('data.user.firstname', 'New');
-        $this->postJson("/api/admin/users/{$user->id}/verify", ['verified' => true])->assertOk()->assertJsonPath('data.user.verified', true);
+        $this->putJson("/api/admin/users/{$user->id}", ['firstname' => 'New'])->assertOk()->assertJsonPath('data.firstname', 'New');
+        $this->postJson("/api/admin/users/{$user->id}/verify", ['verified' => true])->assertOk()->assertJsonPath('data.verified', true);
 
         $this->getJson("/api/admin/users/{$user->id}/activity")
             ->assertJsonPath('data.1.details.changes.firstname', ['from' => 'Old', 'to' => 'New'])

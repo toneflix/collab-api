@@ -42,9 +42,14 @@ class PayoutAccountController extends Controller
     {
         $account = $payouts->account($this->user);
 
-        return Providers::response()->success([
-            'data' => $account ? new PayoutAccountResource($account) : null,
+        if (! $account) {
+            return Providers::response()->success(['data' => null, 'message' => HttpStatus::message(HttpStatus::OK)]);
+        }
+
+        return (new PayoutAccountResource($account))->additional([
             'message' => HttpStatus::message(HttpStatus::OK),
+            'status' => 'success',
+            'status_code' => HttpStatus::OK,
         ]);
     }
 
@@ -67,10 +72,11 @@ class PayoutAccountController extends Controller
 
         $account = $payouts->saveAccount($this->user, $valid['country'], $valid['method'], $valid['bank_code'], $valid['account_number'], $valid['details']);
 
-        return Providers::response()->success([
-            'data' => new PayoutAccountResource($account),
+        return (new PayoutAccountResource($account))->additional([
             'message' => 'Your payout account was saved.',
-        ]);
+            'status' => 'success',
+            'status_code' => HttpStatus::OK,
+        ])->response()->setStatusCode(HttpStatus::OK->value);
     }
 
     /**

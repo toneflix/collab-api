@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Enums\HttpStatus;
-use App\Helpers\Providers;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\AdminActionResource;
 use App\Http\Resources\AdminUserResource;
@@ -245,14 +244,13 @@ class UserController extends Controller
     {
         $user->refresh()->load(['roles', 'subscriptions' => fn ($q) => $q->active()->with('planModel')])->loadCount('releases');
 
-        return Providers::response()->success([
-            'data' => [
-                'user' => new AdminUserResource($user),
-                'can' => $this->manager->abilities($request->user(), $user),
-                'roles' => config('permission-defs.roles', []),
-                ...$extra,
-            ],
+        return (new AdminUserResource($user))->additional([
+            'can' => $this->manager->abilities($request->user(), $user),
+            'roles' => config('permission-defs.roles', []),
+            ...$extra,
             'message' => $message,
+            'status' => 'success',
+            'status_code' => HttpStatus::OK,
         ]);
     }
 }
