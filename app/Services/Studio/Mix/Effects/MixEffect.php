@@ -2,6 +2,7 @@
 
 namespace App\Services\Studio\Mix\Effects;
 
+use App\Services\Studio\Faust\FaustLibrary;
 use App\Services\Studio\Mix\MixGraph;
 
 /**
@@ -56,10 +57,12 @@ abstract class MixEffect
      */
     public static function from(array $effect, int $channels = 2): ?self
     {
-        $class = self::TYPES[$effect['type'] ?? ''] ?? null;
+        $type = (string) ($effect['type'] ?? '');
+        $class = self::TYPES[$type] ?? null;
+        $faust = str_starts_with($type, FaustLibrary::PREFIX);
         $bypassed = filter_var($effect['bypassed'] ?? false, FILTER_VALIDATE_BOOL);
 
-        if (! $class || $bypassed) {
+        if ((! $class && ! $faust) || $bypassed) {
             return null;
         }
 
@@ -67,6 +70,10 @@ abstract class MixEffect
             (array) ($effect['params'] ?? []),
             fn($value) => is_numeric($value),
         ));
+
+        if ($faust) {
+            return new FaustEffect($type, $params, $channels);
+        }
 
         return new $class([...$class::DEFAULTS, ...$params], $channels);
     }

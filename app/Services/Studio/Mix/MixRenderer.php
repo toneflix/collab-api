@@ -11,7 +11,8 @@ use App\Services\Studio\StemFiles;
 /**
  * Mixes a project track's stems with FFmpeg, the way they sound in the
  * studio: clips, clip gain and fades, effects, volume, pan, mute, solo and
- * the master volume. The mix is turned down to just under full scale when
+ * the master volume. A stem with a plugin FFmpeg can't run plays from the
+ * audio the studio printed through it. The mix is turned down to just under full scale when
  * it would clip, and encoded once as a 320 kbps MP3.
  */
 class MixRenderer
@@ -42,7 +43,9 @@ class MixRenderer
 
         try {
             foreach ($audible as [$stem, $mix]) {
-                $path = $this->files->local($stem);
+                $printed = $mix->print ? $this->files->localFile($mix->print['file']) : null;
+                $path = $printed ?? $this->files->local($stem);
+                $mix = $printed ? $mix->printed() : $mix;
 
                 if (! $path) {
                     continue;

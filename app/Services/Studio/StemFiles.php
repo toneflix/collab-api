@@ -36,10 +36,18 @@ class StemFiles
      */
     public function local(ProjectTrackStem $stem): ?string
     {
-        $media = $this->media();
-        $path = $this->directory($media) . $stem->src;
+        return $this->localFile($stem->src);
+    }
 
-        if (! $stem->src || ! $media->disk->exists($path)) {
+    /**
+     * Copy a file on the stems disk to a local temporary file.
+     */
+    public function localFile(?string $name): ?string
+    {
+        $media = $this->media();
+        $path = $this->directory($media) . $name;
+
+        if (! $name || ! $media->disk->exists($path)) {
             return null;
         }
 
@@ -54,6 +62,41 @@ class StemFiles
         fclose($stream);
 
         return $local;
+    }
+
+    /**
+     * Remove a file from the stems disk.
+     */
+    public function delete(?string $name): void
+    {
+        $media = $this->media();
+
+        if ($name && $media->disk->exists($this->directory($media) . $name)) {
+            $media->disk->delete($this->directory($media) . $name);
+        }
+    }
+
+    /**
+     * Save a stem's printed audio: the stem as heard through its plugins,
+     * which FFmpeg can't run. The mix uses it in place of the stem.
+     */
+    public function print(ProjectTrackStem $stem, string $path, string $ext, float $start, string $key): ProjectTrackStem
+    {
+        $old = $stem->meta['print']['file'] ?? null;
+        $name = $this->put($path, $ext);
+        $meta = collect($stem->meta)
+            ->except('src')
+            ->all();
+
+        $stem->meta = [
+            ...$meta,
+            'print' => ['file' => $name, 'start' => $start, 'key' => $key],
+        ];
+        $stem->saveQuietly();
+
+        $this->delete(is_string($old) ? $old : null);
+
+        return $stem;
     }
 
     /**
@@ -96,7 +139,7 @@ class StemFiles
         $copy->user_id = $user->id;
         $copy->title = str(($stem->title ?: 'Stem') . ' copy')->limit(180, '')->toString();
         $copy->src = $name;
-        $copy->meta = [...collect($stem->meta)->except('src')->all(), ...$meta];
+        $copy->meta = [...collect($stem->meta)->except(['src', 'print'])->all(), ...$meta];
         $copy->saveQuietly();
 
         return $copy->refresh();

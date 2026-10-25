@@ -12,7 +12,10 @@
   },
   "deploy": {
     "aptPackages": [
-      "ffmpeg"
+      "ffmpeg",
+      "faust",
+      "ladspa-sdk",
+      "g++"
     ],
     "variables": {
       "AUDIO_ENCODING_CODEC": "aac",

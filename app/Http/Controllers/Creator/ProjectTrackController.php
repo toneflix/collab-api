@@ -224,6 +224,7 @@ class ProjectTrackController extends Controller
 
                 if ($stem) {
                     $form['src'] = (new Media)->save('stem_files', 'stems.*.src', $stem->src, $i);
+                    $form['meta'] = $stem->withPrint($form['meta']);
                     $stem->updateQuietly($form);
                 }
             });

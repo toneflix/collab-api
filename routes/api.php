@@ -6,6 +6,7 @@ use App\Http\Controllers\ArtistController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\Creator\AiController;
 use App\Http\Controllers\ExploreController;
+use App\Http\Controllers\FaustEffectController;
 use App\Http\Controllers\FollowController;
 use App\Http\Controllers\GenreController;
 use App\Http\Controllers\LyricsController;
@@ -96,6 +97,9 @@ Route::post('payouts/stripe/webhook', [PayoutWebhookController::class, 'stripe']
 // Suno needs a callback for every task; jobs poll for results, so it's ignored.
 Route::post('ai/suno/callback', SunoCallbackController::class)
     ->name('ai.suno.callback');
+
+// Studio effects written in Faust
+Route::get('studio/faust-effects', [FaustEffectController::class, 'index'])->name('studio.faust-effects');
 
 // A version of a generated song, from the signed link on its AI job
 Route::get('ai/jobs/{job}/versions/{version}/audio', [AiController::class, 'version'])

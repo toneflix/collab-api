@@ -64,3 +64,33 @@ php artisan cache:forget audio::chromaprint
 php artisan queue:restart
 ```
 :::
+
+## Faust effects
+
+Studio effects written in [Faust](https://faust.grame.fr) live in `resources/faust/*.dsp`. The studio compiles each one in the browser. To render the same effect in the preview mix, the API builds the source into a LADSPA plugin with `faust2ladspa` and runs it through FFmpeg's `ladspa` filter. That needs:
+
+- the `faust` compiler, plus `ladspa-sdk` and `g++` for `faust2ladspa`
+- an FFmpeg with the `ladspa` filter (Ubuntu's and Debian's builds have it)
+
+```bash
+sudo apt-get install faust ladspa-sdk g++
+ffmpeg -hide_banner -filters | grep ladspa
+```
+
+Plugins are built the first time a mix uses them and kept in `storage/app/faust`. These variables change the defaults:
+
+```dotenv
+FAUST_BINARY=faust
+FAUST2LADSPA_BINARY=faust2ladspa
+FAUST_PLUGIN_PATH=/var/lib/toneflix/faust
+```
+
+Without the compiler, the studio offers no Faust effects, and a mix leaves out any it finds. Each new `.dsp` file needs the `tf_label`, `tf_group` and `tf_description` declarations. Its sliders become the effect's settings.
+
+## Plugins the server can't run
+
+Creators can also add any Web Audio Module (WAM) plugin to a stem by its URL. FFmpeg can't run those, so when the studio saves, it renders the stem through its whole chain in the browser and uploads the result as FLAC (`POST creator/projects/{project}/tracks/{track}/stems/{stem}/print`). The stem keeps its own audio and the plugin's settings, so it can be printed again after any change.
+
+The mix plays the printed audio in place of the stem while at least one plugin in its chain is switched on. Volume, pan, mute and solo still apply on the server. The print is saved under `meta.print` and is left out of copies of the stem.
+
+Prints are 16-bit FLAC, about 5 MB a minute (WAV is accepted too). `STUDIO_PRINT_MAX_MB` caps them (100 by default), and PHP's `upload_max_filesize` and `post_max_size` must allow that size too.

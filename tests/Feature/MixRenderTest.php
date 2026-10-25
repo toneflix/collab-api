@@ -9,6 +9,7 @@ use App\Models\Project;
 use App\Models\ProjectTrack;
 use App\Models\User;
 use App\Services\Audio\StemAudio;
+use App\Services\Studio\Faust\FaustLibrary;
 use App\Services\Studio\MixPreview;
 use App\Services\Studio\StemFiles;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -167,6 +168,31 @@ class MixRenderTest extends TestCase
         $this->save();
 
         $this->assertSame(MixPreview::READY, $this->track->fresh()->meta['mix']['status']);
+    }
+
+    public function test_faust_effects_render_through_their_ladspa_plugins(): void
+    {
+        $library = app(FaustLibrary::class);
+
+        if (! $library->available()) {
+            $this->markTestSkipped('The Faust compiler is not installed.');
+        }
+
+        $effects = collect($library->all())
+            ->map(fn(array $effect) => [
+                'type' => $effect['type'],
+                'params' => collect($effect['params'])->mapWithKeys(fn(array $p) => [$p['key'] => $p['init']])->all(),
+            ])
+            ->all();
+
+        $this->assertNotEmpty($effects);
+
+        $this->stem($this->tone(2, 440, 0.5, 'mono'), ['effects' => json_encode(array_slice($effects, 0, 4))]);
+        $this->stem($this->tone(2, 330, 0.5), ['effects' => json_encode(array_slice($effects, 4))]);
+        $this->save();
+
+        $this->assertSame(MixPreview::READY, $this->track->fresh()->meta['mix']['status']);
+        $this->assertNotNull($library->plugin($effects[0]['type']));
     }
 
     public function test_master_effects_are_saved_and_rendered_after_the_mix(): void
