@@ -3,17 +3,16 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Enums\HttpStatus;
-use App\Helpers\Providers as PV;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\LoginRequest;
-use App\Http\Resources\DeviceResource;
+use App\Http\Resources\ActionResource;
+use App\Http\Resources\DeviceCollection;
 use App\Http\Resources\UserResource;
 use App\Models\User;
 use DeviceDetector\DeviceDetector;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Broadcast;
-use Illuminate\Validation\ValidationException;
 
 class AuthenticatedSessionController extends Controller
 {
@@ -24,19 +23,11 @@ class AuthenticatedSessionController extends Controller
      */
     public function store(LoginRequest $request)
     {
-        try {
-            $request->authenticate();
-            $user = $request->user();
+        $request->authenticate();
 
-            return $this->setUserData($request, $user);
-        } catch (ValidationException $e) {
-            return PV::response()->error([
-                'message' => $e->getMessage(),
-                'errors' => [
-                    'email' => $e->getMessage(),
-                ],
-            ], HttpStatus::UNPROCESSABLE_ENTITY);
-        }
+        $user = $request->user();
+
+        return $this->setUserData($request, $user);
     }
 
     public function setUserData(Request|LoginRequest $request, User $user)
@@ -47,26 +38,34 @@ class AuthenticatedSessionController extends Controller
 
         $user->save();
 
-        return PV::response()->success(new UserResource($user), HttpStatus::OK, [
-            'message' => 'Login was successfull',
-            'token' => $token->plainTextToken,
-            'abilities' => $token->accessToken->abilities,
-        ]);
+        return (new UserResource($user))
+            ->additional([
+                'message' => 'Login was successfull',
+                'token' => $token->plainTextToken,
+                'abilities' => $token->accessToken->abilities,
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::OK->value);
     }
 
     public function getTokens(Request $request)
     {
         $request->validate(['limit' => ['nullable', 'integer', 'between:1,50']]);
 
-        $tokens = $request->user()->tokens()
+        $tokens = $request
+            ->user()
+            ->tokens()
             ->latest('last_used_at')
-            ->paginate((int) $request->input('limit', 20));
+            ->paginate($request->perPage(20, 50));
 
-        return DeviceResource::collection($tokens)->additional([
-            'message' => 'Tokens retrieved successfully',
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new DeviceCollection($tokens))
+            ->additional([
+                'message' => 'Tokens retrieved successfully',
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -88,9 +87,14 @@ class AuthenticatedSessionController extends Controller
             return response()->redirectToRoute('web.login');
         }
 
-        return PV::response()->success([
-            'message' => 'You have been successfully logged out',
-        ], HttpStatus::OK);
+        $result = ['loggedOut' => true];
+
+        return (new ActionResource($result))
+            ->additional([
+                'message' => 'You have been successfully logged out',
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -106,15 +110,22 @@ class AuthenticatedSessionController extends Controller
             'token_ids.required' => __('Please select at least one device to logout'),
         ]);
 
-        $tokens = $request->user()->tokens()
+        $tokens = $request
+            ->user()
+            ->tokens()
             ->whereIn('id', $request->token_ids)
             ->whereNot('id', $request->user()->currentAccessToken()->id)
             ->get();
 
-        $names = [];
+        abort_if(
+            $tokens->isEmpty(),
+            HttpStatus::UNPROCESSABLE_ENTITY->value,
+            __('You are no longer logged in on any of the selected devices'),
+        );
 
-        if ($tokens->count() > 0) {
-            $names = $tokens->pluck('name')->map(function ($name) {
+        $names = $tokens
+            ->pluck('name')
+            ->map(function ($name) {
                 $dev = new DeviceDetector($name);
                 $dev->parse();
                 $os = $dev->getOs();
@@ -123,18 +134,19 @@ class AuthenticatedSessionController extends Controller
                 $osversion = $os['version'] ?? '0.00';
 
                 return collect([$dev->getBrandName(), $osname, "(v{$osversion})"])->implode(' ');
-            })->implode(', ');
+            })
+            ->implode(', ');
 
-            $tokens->each->delete();
-        } else {
-            return PV::response()->error([
-                'message' => __('You are no longer logged in on any of the selected devices'),
-            ], HttpStatus::UNPROCESSABLE_ENTITY);
-        }
+        $tokens->each->delete();
 
-        return PV::response()->success([
-            'message' => __('You have been successfully logged out of :0', [$names]),
-        ], HttpStatus::OK);
+        $result = ['loggedOut' => $tokens->pluck('id')->all()];
+
+        return (new ActionResource($result))
+            ->additional([
+                'message' => __('You have been successfully logged out of :0', [$names]),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**

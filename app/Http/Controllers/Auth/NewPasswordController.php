@@ -5,11 +5,11 @@ namespace App\Http\Controllers\Auth;
 use App\Enums\HttpStatus;
 use App\Helpers\Providers as PV;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\ActionResource;
 use App\Models\PasswordCodeResets;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rules;
 use Illuminate\Validation\ValidationException;
 
@@ -36,12 +36,9 @@ class NewPasswordController extends Controller
         if (! $code || $code->created_at->diffInSeconds(now()) >= PV::config('token_lifespan', 30)) {
             $code && $code->delete();
 
-            return PV::response()->error([
-                'message' => 'An error occured.',
-                'errors' => [
-                    'code' => __('The code you provided has expired or does not exist.'),
-                ],
-            ], HttpStatus::ACCEPTED);
+            throw ValidationException::withMessages([
+                'code' => __('The code you provided has expired or does not exist.'),
+            ]);
         }
 
         // find user's email
@@ -53,9 +50,16 @@ class NewPasswordController extends Controller
         // delete current code
         $code->delete();
 
-        return PV::response()->success([
-            'message' => __('Your password has successfully been changed.'),
-        ], HttpStatus::ACCEPTED);
+        $result = ['changed' => true];
+
+        return (new ActionResource($result))
+            ->additional([
+                'message' => __('Your password has successfully been changed.'),
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 
     /**
@@ -67,16 +71,9 @@ class NewPasswordController extends Controller
      */
     public function check(Request $request)
     {
-        $validator = Validator::make($request->all(), [
+        $this->validate($request, [
             'code' => ['required'],
         ]);
-
-        if ($validator->fails()) {
-            return PV::response()->error([
-                'message' => $validator->errors()->first() ?: 'Your input has a few errors',
-                'errors' => $validator->errors(),
-            ], HttpStatus::UNPROCESSABLE_ENTITY);
-        }
 
         // find the code
         $code = PasswordCodeResets::firstWhere('code', $request->code);
@@ -85,16 +82,20 @@ class NewPasswordController extends Controller
         if (! $code || $code->created_at->diffInSeconds(now()) >= PV::config('token_lifespan', 30)) {
             $code && $code->delete();
 
-            return PV::response()->error([
-                'message' => 'An error occured.',
-                'errors' => [
-                    'code' => __('The code you provided has expired or does not exist.'),
-                ],
-            ], HttpStatus::UNPROCESSABLE_ENTITY);
+            throw ValidationException::withMessages([
+                'code' => __('The code you provided has expired or does not exist.'),
+            ]);
         }
 
-        return PV::response()->success([
-            'message' => 'Your reset code is valid, you can change your password now.',
-        ], HttpStatus::ACCEPTED);
+        $result = ['valid' => true];
+
+        return (new ActionResource($result))
+            ->additional([
+                'message' => 'Your reset code is valid, you can change your password now.',
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 }

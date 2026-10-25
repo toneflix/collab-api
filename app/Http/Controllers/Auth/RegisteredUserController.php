@@ -115,11 +115,16 @@ class RegisteredUserController extends Controller
         $dateAdd = $datetime->addSeconds(PV::config('token_lifespan', 30));
         // dd($dateAdd->format('H:i:s'));
 
-        return PV::response()->success(new UserResource($user), HttpStatus::CREATED, [
-            'message' => 'Registration was successfull',
-            'token' => $token,
-            'time_left' => $dateAdd->shortAbsoluteDiffForHumans(),
-            'try_at' => $dateAdd->toDateTimeLocalString(),
-        ]);
+        return (new UserResource($user))
+            ->additional([
+                'message' => 'Registration was successfull',
+                'token' => $token,
+                'time_left' => $dateAdd->shortAbsoluteDiffForHumans(),
+                'try_at' => $dateAdd->toDateTimeLocalString(),
+                'status' => 'success',
+                'status_code' => HttpStatus::CREATED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::CREATED->value);
     }
 }

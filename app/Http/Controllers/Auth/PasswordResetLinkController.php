@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Enums\HttpStatus;
-use App\Helpers\Providers as PV;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\ActionResource;
 use App\Models\PasswordCodeResets;
 use App\Notifications\SendCode;
 use Carbon\Carbon;
@@ -45,10 +45,19 @@ class PasswordResetLinkController extends Controller
         $dateAdd = $reset->created_at->addSeconds(config('settings.token_lifespan', 30));
 
         // And finally return a response
-        return PV::response()->success([
-            'message' => __('We have sent you a message to help with recovering your password.'),
+        $retry = [
             'try_at' => $dateAdd->toDateTimeLocalString(),
             'time_left' => $dateAdd->shortAbsoluteDiffForHumans(),
-        ], HttpStatus::CREATED);
+        ];
+
+        return (new ActionResource($retry))
+            ->additional([
+                ...$retry,
+                'message' => __('We have sent you a message to help with recovering your password.'),
+                'status' => 'success',
+                'status_code' => HttpStatus::CREATED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::CREATED->value);
     }
 }

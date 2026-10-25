@@ -15,6 +15,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 
 class VerifyEmailPhoneController extends Controller
 {
@@ -32,10 +33,15 @@ class VerifyEmailPhoneController extends Controller
         $hasVerified = ($type == 'phone') ? $user->hasVerifiedPhone() : $user->hasVerifiedEmail();
 
         if ($hasVerified) {
-            return PV::response()->info(new UserResource($user), HttpStatus::OK, [
-                'reboot' => true,
-                'message' => "Your $set_type is already verified.",
-            ]);
+            return (new UserResource($user))
+                ->additional([
+                    'reboot' => true,
+                    'message' => "Your $set_type is already verified.",
+                    'status' => 'info',
+                    'status_code' => HttpStatus::OK,
+                ])
+                ->response()
+                ->setStatusCode(HttpStatus::OK->value);
         }
 
         if ($type === 'email') {
@@ -50,11 +56,16 @@ class VerifyEmailPhoneController extends Controller
         $datetime = $user->last_attempt ?? now()->subSeconds(PV::config('token_lifespan', 30) + 1);
         $dateAdd = $datetime->addSeconds(PV::config('token_lifespan', 30));
 
-        return PV::response()->success(new UserResource($user), HttpStatus::CREATED, [
-            'message' => "Verification code has been sent to your {$set_type}.",
-            'time_left' => $dateAdd->shortAbsoluteDiffForHumans(),
-            'try_at' => $dateAdd->toDateTimeLocalString(),
-        ]);
+        return (new UserResource($user))
+            ->additional([
+                'message' => "Verification code has been sent to your {$set_type}.",
+                'time_left' => $dateAdd->shortAbsoluteDiffForHumans(),
+                'try_at' => $dateAdd->toDateTimeLocalString(),
+                'status' => 'success',
+                'status_code' => HttpStatus::CREATED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::CREATED->value);
     }
 
     /**
@@ -75,15 +86,20 @@ class VerifyEmailPhoneController extends Controller
         $dateAdd = $datetime->addSeconds(PV::config('token_lifespan', 30));
         $hasVerified = ($type == 'phone') ? $user->hasVerifiedPhone() : $user->hasVerifiedEmail();
 
-        return PV::response()->success(new UserResource($user), HttpStatus::OK, [
-            'reboot' => (bool) $hasVerified,
-            'message' => $hasVerified
-                ? "We have successfully verified your $set_type, welcome to our community."
-                : "Your $set_type is not yet verified.",
-            'time_left' => $dateAdd->shortAbsoluteDiffForHumans(),
-            'try_at' => $dateAdd->toDateTimeLocalString(),
-            'verified' => $hasVerified,
-        ]);
+        return (new UserResource($user))
+            ->additional([
+                'reboot' => (bool) $hasVerified,
+                'message' => $hasVerified
+                    ? "We have successfully verified your $set_type, welcome to our community."
+                    : "Your $set_type is not yet verified.",
+                'time_left' => $dateAdd->shortAbsoluteDiffForHumans(),
+                'try_at' => $dateAdd->toDateTimeLocalString(),
+                'verified' => $hasVerified,
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::OK->value);
     }
 
     /**
@@ -104,10 +120,15 @@ class VerifyEmailPhoneController extends Controller
             : $user->hasVerifiedEmail();
 
         if ($hasVerified) {
-            return PV::response()->info(new UserResource($user), HttpStatus::OK, [
-                'reboot' => true,
-                'message' => "Your $set_type is already verified.",
-            ]);
+            return (new UserResource($user))
+                ->additional([
+                    'reboot' => true,
+                    'message' => "Your $set_type is already verified.",
+                    'status' => 'info',
+                    'status_code' => HttpStatus::OK,
+                ])
+                ->response()
+                ->setStatusCode(HttpStatus::OK->value);
         }
 
         Validator::make($request->all(), [
@@ -128,11 +149,9 @@ class VerifyEmailPhoneController extends Controller
             : $user->last_attempt;
 
         if ($request->code !== $code || $last_attempt->diffInMinutes(now()) >= PV::config('token_lifespan', 30)) {
-            return PV::response()->error([
-                'errors' => [
-                    'code' => __('The code you provided has expired or does not exist.'),
-                ],
-            ], HttpStatus::UNPROCESSABLE_ENTITY);
+            throw ValidationException::withMessages([
+                'code' => __('The code you provided has expired or does not exist.'),
+            ]);
         }
 
         if ($type == 'email' && $user->markEmailAsVerified()) {
@@ -143,9 +162,14 @@ class VerifyEmailPhoneController extends Controller
             event(new PhoneVerified($user));
         }
 
-        return PV::response()->success(new UserResource($user), HttpStatus::OK, [
-            'reboot' => true,
-            'message' => "We have successfully verified your $set_type, welcome to our community.",
-        ]);
+        return (new UserResource($user))
+            ->additional([
+                'reboot' => true,
+                'message' => "We have successfully verified your $set_type, welcome to our community.",
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::OK->value);
     }
 }
