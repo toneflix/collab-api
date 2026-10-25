@@ -61,6 +61,7 @@ git pull
 composer update --no-dev --optimize-autoloader
 php artisan migrate --force
 php artisan app:sync-roles      # adds permissions new features need
+php artisan words:import --if-empty  # loads the Composer dictionary once
 php artisan config:cache
 php artisan route:cache
 php artisan event:cache

@@ -1,0 +1,19 @@
+;;; a comment line is skipped too
+touch T AH1 CH
+touch(2) T AO1 CH
+much M AH1 CH
+clutch K L AH1 CH
+such S AH1 CH
+hutch HH AH1 CH
+hot HH AA1 T
+got G AA1 T
+spot S P AA1 T
+rock R AA1 K
+top T AA1 P
+me M IY1
+lovely L AH1 V L IY0
+buddy B AH1 D IY0
+money M AH1 N IY0
+tomorrow T AH0 M AA1 R OW2
+table T EY1 B AH0 L
+touching T AH1 CH IH0 NG # comment after a word

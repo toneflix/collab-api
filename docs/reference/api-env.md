@@ -135,6 +135,13 @@ See [Payment providers](../guide/payments) for webhooks and dashboard settings.
 | `FREESOUND_DOWNLOAD_DELAY` | `2` | Seconds between library downloads, to stay under Freesound's limits. |
 | `FREESOUND_BASE_URL` | `https://freesound.org/apiv2` | Only for testing against a stand-in API. |
 
+## Composer
+
+| Key | Default | What it does |
+| --- | --- | --- |
+| `DATAMUSE_API_KEY` | | Optional until January 2027, when Datamuse starts requiring a key. Sent with every Datamuse request when set. |
+| `DATAMUSE_BASE_URL` | `https://api.datamuse.com` | Only for testing against a stand-in API. |
+
 ## AI
 
 | Key | Default | What it does |
