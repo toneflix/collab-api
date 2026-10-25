@@ -4,7 +4,7 @@ The studio's AI panel can **generate music** from a prompt and **split a track i
 
 ## Setup
 
-1. Set `REPLICATE_API_TOKEN` in the API's `.env`.
+1. Set `REPLICATE_API_TOKEN` in the API's `.env`. Replicate allows only 6 new predictions a minute with a burst of 1 while the account has under $5 of credit or no payment method, which throttles the split that follows a song. Add a payment method and turn on auto-reload. Throttled requests wait and are tried again up to 3 times.
 2. Keep a queue worker running. Each AI request is a queued `RunAiJob` that can take up to 25 minutes.
 3. Keep the scheduler running. `ai:sweep` refunds jobs that stopped without finishing.
 4. On `/admin/ai` (needs `manage-configuration`), check that AI Tools is on and set prices.

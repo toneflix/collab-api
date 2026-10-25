@@ -11,6 +11,7 @@ use App\Models\ProjectTrackVersion;
 use App\Models\User;
 use App\Services\Realtime\Realtime;
 use App\Services\Studio\TrackHistory;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
@@ -147,9 +148,11 @@ class AiStudio
 
     protected function reason(Throwable|string $error): string
     {
-        $reason = $error instanceof Throwable
-            ? class_basename($error).': '.$error->getMessage()
-            : $error;
+        $reason = match (true) {
+            $error instanceof RequestException => "HTTP {$error->response->status()}: ".($error->response->json('detail') ?? $error->response->body()),
+            $error instanceof Throwable => class_basename($error).': '.$error->getMessage(),
+            default => $error,
+        };
 
         return str($reason)->limit(2000)->toString();
     }
