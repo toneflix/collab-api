@@ -401,6 +401,11 @@ class User extends Authenticatable implements Commentator, Reportable
     /**
      * Get all of the interaction recieved by the User's projects
      */
+    public function songs(): HasMany
+    {
+        return $this->hasMany(Song::class);
+    }
+
     public function projects(): HasMany
     {
         return $this->hasMany(Project::class);
