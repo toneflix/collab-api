@@ -33,7 +33,10 @@ class AuthenticatedSessionController extends Controller
     public function setUserData(Request|LoginRequest $request, User $user)
     {
         $device = $request->userAgent();
-        $user->tokens()->where('name', $device)->delete();
+        $user
+            ->tokens()
+            ->where('name', $device)
+            ->delete();
         $token = $user->createToken($device, ['user:access']);
 
         $user->save();
@@ -75,16 +78,23 @@ class AuthenticatedSessionController extends Controller
      */
     public function destroy(Request $request)
     {
-        $request->user()->update([
-            'last_seen' => now(),
-        ]);
+        $request
+            ->user()
+            ->update([
+                'last_seen' => now(),
+            ]);
 
-        $request->user()->currentAccessToken()->delete();
+        $request
+            ->user()
+            ->currentAccessToken()
+            ->delete();
 
         if (! $request->isXmlHttpRequest()) {
-            session()->flush();
+            session()
+                ->flush();
 
-            return response()->redirectToRoute('web.login');
+            return response()
+                ->redirectToRoute('web.login');
         }
 
         $result = ['loggedOut' => true];

@@ -30,14 +30,15 @@ class SoundLibrary
     {
         $name = self::put($file);
 
-        $sound = Sound::query()->create([
-            'source' => 'upload',
-            ...$attributes,
-            'user_id' => $owner?->id,
-            'file' => $name,
-            'mime' => $file->getMimeType(),
-            'size' => (int) $file->getSize(),
-        ]);
+        $sound = Sound::query()
+            ->create([
+                'source' => 'upload',
+                ...$attributes,
+                'user_id' => $owner?->id,
+                'file' => $name,
+                'mime' => $file->getMimeType(),
+                'size' => (int) $file->getSize(),
+            ]);
 
         self::forgetSize();
 
@@ -229,10 +230,12 @@ class SoundLibrary
         $media->disk->writeStream($to, $stream);
         fclose($stream);
 
-        $stem = $track->stems()->make([
-            'title' => $sound->name,
-            'user_id' => $user->id,
-        ]);
+        $stem = $track
+            ->stems()
+            ->make([
+                'title' => $sound->name,
+                'user_id' => $user->id,
+            ]);
         $stem->src = $name;
         $stem->meta = [
             'gain' => 1,

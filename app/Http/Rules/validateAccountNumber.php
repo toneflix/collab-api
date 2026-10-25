@@ -35,7 +35,10 @@ class validateAccountNumber implements DataAwareRule, ValidationRule
 
         $paystack = new Paystack((string) config('services.paystack.secret_key'));
 
-        $key = str($attribute)->beforeLast('.')->append('.bank_code')->toString();
+        $key = str($attribute)
+            ->beforeLast('.')
+            ->append('.bank_code')
+            ->toString();
 
         try {
             (new PaystackTransfers($paystack))->resolveAccount([

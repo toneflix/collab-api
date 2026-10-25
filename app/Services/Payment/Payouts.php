@@ -50,7 +50,8 @@ class Payouts
      */
     public function summary(User $user): array
     {
-        $cutoff = now()->subDays($this->holdDays());
+        $cutoff = now()
+            ->subDays($this->holdDays());
 
         $earnings = $user->earnings()
             ->toBase()
@@ -144,7 +145,8 @@ class Payouts
             throw ValidationException::withMessages(['account_name' => 'Enter the name on the account.']);
         }
 
-        $bank = collect($this->banks($country, $method))->firstWhere('code', $bankCode);
+        $bank = collect($this->banks($country, $method))
+            ->firstWhere('code', $bankCode);
 
         if (! $bank) {
             throw ValidationException::withMessages(['bank_code' => 'Choose from the list.']);
@@ -169,7 +171,9 @@ class Payouts
     {
         $gateway = $this->providers->forCountry($country);
         $resolved = $this->resolve($country, $method, $bankCode, $accountNumber, $details);
-        $current = $user->payoutAccount()->first();
+        $current = $user
+            ->payoutAccount()
+            ->first();
 
         $unchanged = $current
             && $current->recipient_code
@@ -184,15 +188,17 @@ class Payouts
             ? $current->recipient_code
             : $gateway->createRecipient($country, $this->providers->method($country, $method), $resolved['account_name'], $bankCode, $accountNumber);
 
-        return $user->payoutAccount()->updateOrCreate([], [
-            ...$resolved,
-            'provider' => $gateway->key(),
-            'country' => $country,
-            'method' => $method,
-            'currency' => $gateway->currencyFor($country),
-            'recipient_code' => $recipient,
-            'status' => 'active',
-        ]);
+        return $user
+            ->payoutAccount()
+            ->updateOrCreate([], [
+                ...$resolved,
+                'provider' => $gateway->key(),
+                'country' => $country,
+                'method' => $method,
+                'currency' => $gateway->currencyFor($country),
+                'recipient_code' => $recipient,
+                'status' => 'active',
+            ]);
     }
 
     /**
@@ -206,23 +212,27 @@ class Payouts
             throw ValidationException::withMessages(['country' => 'Add your account details here instead.']);
         }
 
-        $current = $user->payoutAccount()->first();
+        $current = $user
+            ->payoutAccount()
+            ->first();
         $existing = $current?->provider === $gateway->key() && $current->country === $country ? $current->recipient_code : null;
 
         $link = $gateway->onboard($user, $country, $existing, $returnUrl);
 
-        $user->payoutAccount()->updateOrCreate([], [
-            'provider' => $gateway->key(),
-            'country' => $country,
-            'method' => 'hosted',
-            'currency' => $gateway->currencyFor($country),
-            'recipient_code' => $link['account_id'],
-            'status' => $existing && $current->status === 'active' ? 'active' : 'pending',
-            'bank_code' => null,
-            'bank_name' => null,
-            'account_number' => null,
-            'account_name' => $user->fullname ?: $user->username,
-        ]);
+        $user
+            ->payoutAccount()
+            ->updateOrCreate([], [
+                'provider' => $gateway->key(),
+                'country' => $country,
+                'method' => 'hosted',
+                'currency' => $gateway->currencyFor($country),
+                'recipient_code' => $link['account_id'],
+                'status' => $existing && $current->status === 'active' ? 'active' : 'pending',
+                'bank_code' => null,
+                'bank_name' => null,
+                'account_number' => null,
+                'account_name' => $user->fullname ?: $user->username,
+            ]);
 
         return $link['url'];
     }
@@ -232,7 +242,9 @@ class Payouts
      */
     public function account(User $user): ?PayoutAccount
     {
-        $account = $user->payoutAccount()->first();
+        $account = $user
+            ->payoutAccount()
+            ->first();
 
         if ($account?->status !== 'pending' || ! $account->recipient_code) {
             return $account;
@@ -260,9 +272,13 @@ class Payouts
 
         $payout = DB::transaction(function () use ($user, $amount) {
             // One request at a time per creator, so two at once can't both spend the same balance
-            User::whereKey($user->id)->lockForUpdate()->first();
+            User::whereKey($user->id)
+                ->lockForUpdate()
+                ->first();
 
-            $account = $user->payoutAccount()->first();
+            $account = $user
+                ->payoutAccount()
+                ->first();
 
             if (! $account?->recipient_code) {
                 throw ValidationException::withMessages(['account' => 'Add the account to pay into first.']);
@@ -280,14 +296,16 @@ class Payouts
                 throw ValidationException::withMessages(['amount' => 'That is more than your available balance.']);
             }
 
-            return $user->payouts()->create([
-                'reference' => 'po_' . Random::string(24, true, false, true, false),
-                'amount' => $amount,
-                'currency' => $this->currency(),
-                'status' => PayoutStatus::PENDING,
-                'provider' => $account->provider,
-                'destination' => $account->snapshot(),
-            ]);
+            return $user
+                ->payouts()
+                ->create([
+                    'reference' => 'po_' . Random::string(24, true, false, true, false),
+                    'amount' => $amount,
+                    'currency' => $this->currency(),
+                    'status' => PayoutStatus::PENDING,
+                    'provider' => $account->provider,
+                    'destination' => $account->snapshot(),
+                ]);
         });
 
         if (Providers::config('payout_auto_approve', false)) {
@@ -310,7 +328,9 @@ class Payouts
         }
 
         return DB::transaction(function () use ($user, $amount, $note, $admin) {
-            User::whereKey($user->id)->lockForUpdate()->first();
+            User::whereKey($user->id)
+                ->lockForUpdate()
+                ->first();
 
             if ($amount < 0 && -$amount > $this->summary($user)['available']) {
                 throw ValidationException::withMessages(['amount' => 'That is more than the available balance.']);
@@ -328,7 +348,9 @@ class Payouts
                 'meta' => ['message' => $note, 'admin_id' => $admin->id],
                 'paid_at' => now(),
             ]);
-            $transaction->transactable()->associate($user);
+            $transaction
+                ->transactable()
+                ->associate($user);
             $transaction->save();
 
             return $transaction;
@@ -379,7 +401,9 @@ class Payouts
             return $payout;
         }
 
-        $result = $this->providers->get($payout->provider)->verifyTransfer($payout->reference, $payout->transfer_code);
+        $result = $this->providers
+            ->get($payout->provider)
+            ->verifyTransfer($payout->reference, $payout->transfer_code);
 
         // The first attempt never reached the provider. The reference stays the same, so this can't pay twice.
         if ($result['status'] === 'missing') {
@@ -396,7 +420,9 @@ class Payouts
     {
         $payout = DB::transaction(function () use ($payout, $status, $admin, $refusal, $reason) {
             /** @var Payout $locked */
-            $locked = Payout::whereKey($payout->id)->lockForUpdate()->firstOrFail();
+            $locked = Payout::whereKey($payout->id)
+                ->lockForUpdate()
+                ->firstOrFail();
 
             if ($locked->status !== PayoutStatus::PENDING) {
                 throw ValidationException::withMessages(['payout' => $refusal]);
@@ -483,7 +509,9 @@ class Payouts
 
         $payout = DB::transaction(function () use ($payout, $status, $result, &$changed) {
             /** @var Payout $locked */
-            $locked = Payout::whereKey($payout->id)->lockForUpdate()->firstOrFail();
+            $locked = Payout::whereKey($payout->id)
+                ->lockForUpdate()
+                ->firstOrFail();
 
             // Processing can end either way; a paid transfer can still be reversed by the bank.
             $allowed = match ($locked->status) {
@@ -533,7 +561,8 @@ class Payouts
         ]);
 
         if (PayoutNotification::covers($payout->status)) {
-            $payout->user?->notify(new PayoutNotification($payout));
+            $payout->user
+                ?->notify(new PayoutNotification($payout));
         }
     }
 }

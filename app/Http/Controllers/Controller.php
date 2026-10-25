@@ -25,7 +25,8 @@ abstract class Controller extends BaseController
 
     public function __construct()
     {
-        $this->user = auth('sanctum')->user();
+        $this->user = auth('sanctum')
+            ->user();
         // $this->user = fn () => auth('sanctum')->user();
     }
 }

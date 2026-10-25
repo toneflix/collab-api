@@ -27,13 +27,15 @@ class PaystackGateway implements CollectsBankDetails, PaymentGateway, PayoutGate
     public function initialize(string $email, float $amount, string $reference, array $metadata = []): array
     {
         try {
-            $response = $this->client()->transaction->initialize([
-                'email' => $email,
-                'amount' => (int) round($amount * 100), // kobo
-                'reference' => $reference,
-                'currency' => Providers::config('app_currency', 'NGN'),
-                'metadata' => $metadata,
-            ]);
+            $response = $this
+                ->client()->transaction
+                ->initialize([
+                    'email' => $email,
+                    'amount' => (int) round($amount * 100), // kobo
+                    'reference' => $reference,
+                    'currency' => Providers::config('app_currency', 'NGN'),
+                    'metadata' => $metadata,
+                ]);
         } catch (ApiException $e) {
             throw ValidationException::withMessages(['payment' => $e->getMessage()]);
         } catch (ValidationException $e) {
@@ -53,7 +55,9 @@ class PaystackGateway implements CollectsBankDetails, PaymentGateway, PayoutGate
     public function verify(string $reference): array
     {
         try {
-            $response = $this->client()->transaction->verify(['reference' => $reference]);
+            $response = $this
+                ->client()->transaction
+                ->verify(['reference' => $reference]);
         } catch (\Throwable $e) {
             // Leave the payment pending so a later check or the webhook can settle it.
             return ['paid' => false, 'final' => false, 'amount' => 0, 'currency' => null, 'raw' => ['message' => $e->getMessage()]];
@@ -221,14 +225,16 @@ class PaystackGateway implements CollectsBankDetails, PaymentGateway, PayoutGate
     public function transfer(PayoutTransfer $transfer): array
     {
         try {
-            $response = $this->transfers()->initiate([
-                'source' => 'balance',
-                'amount' => (int) round($transfer->amount * 100), // kobo
-                'currency' => $transfer->currency,
-                'recipient' => $transfer->recipient,
-                'reference' => $transfer->reference,
-                'reason' => $transfer->reason,
-            ]);
+            $response = $this
+                ->transfers()
+                ->initiate([
+                    'source' => 'balance',
+                    'amount' => (int) round($transfer->amount * 100), // kobo
+                    'currency' => $transfer->currency,
+                    'recipient' => $transfer->recipient,
+                    'reference' => $transfer->reference,
+                    'reason' => $transfer->reason,
+                ]);
         } catch (ApiException $e) {
             throw ValidationException::withMessages(['payout' => $e->getMessage()]);
         } catch (ValidationException $e) {
@@ -246,7 +252,9 @@ class PaystackGateway implements CollectsBankDetails, PaymentGateway, PayoutGate
     public function verifyTransfer(string $reference, ?string $transferCode = null): array
     {
         try {
-            $response = $this->transfers()->verify(['reference' => $reference]);
+            $response = $this
+                ->transfers()
+                ->verify(['reference' => $reference]);
         } catch (ApiException $e) {
             $missing = str_contains(strtolower($e->getMessage()), 'not found');
 

@@ -22,7 +22,9 @@ class ArtistController extends Controller
             'cover' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:8192'],
         ]);
 
-        $artist = $this->user->artists()->make();
+        $artist = $this->user
+            ->artists()
+            ->make();
         $artist->name = $request->input('name');
         $artist->about = $request->input('about');
         $artist->save();

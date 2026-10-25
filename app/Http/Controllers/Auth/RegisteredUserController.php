@@ -56,8 +56,12 @@ class RegisteredUserController extends Controller
      */
     public function createUser(Request $request)
     {
-        $firstname = str($request->get('name'))->explode(' ')->first(null, $request->firstname);
-        $lastname = str($request->get('name'))->explode(' ')->last(fn($n) => $n !== $firstname, $request->lastname);
+        $firstname = str($request->get('name'))
+            ->explode(' ')
+            ->first(null, $request->firstname);
+        $lastname = str($request->get('name'))
+            ->explode(' ')
+            ->last(fn($n) => $n !== $firstname, $request->lastname);
 
         $user = User::create([
             'role' => 'user',
@@ -101,7 +105,9 @@ class RegisteredUserController extends Controller
     {
         [$id, $user_token] = explode('|', $token, 2);
 
-        $token_data = DB::table('personal_access_tokens')->where('token', hash('sha256', $user_token))->first();
+        $token_data = DB::table('personal_access_tokens')
+            ->where('token', hash('sha256', $user_token))
+            ->first();
 
         $user_id = $token_data->tokenable_id;
 

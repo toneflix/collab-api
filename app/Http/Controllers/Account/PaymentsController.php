@@ -23,11 +23,12 @@ class PaymentsController extends Controller
             ->latest('paid_at')
             ->paginate($request->perPage(15));
 
-        return (new TransactionCollection($purchases))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new TransactionCollection($purchases))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -53,16 +54,17 @@ class PaymentsController extends Controller
             ->latest('paid_at')
             ->paginate($request->perPage(15));
 
-        return (new TransactionCollection($list))->additional([
-            'summary' => [
-                'earned' => (float) $totals->sum('earned'),
-                'currency' => Providers::config('app_currency', 'NGN'),
-                'byPurpose' => $totals,
-            ],
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new TransactionCollection($list))
+            ->additional([
+                'summary' => [
+                    'earned' => (float) $totals->sum('earned'),
+                    'currency' => Providers::config('app_currency', 'NGN'),
+                    'byPurpose' => $totals,
+                ],
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**

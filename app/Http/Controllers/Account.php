@@ -53,9 +53,10 @@ class Account extends Controller
 
     public function ping()
     {
-        return response()->json([
-            'message' => 'PONG',
-        ], HttpStatus::OK->value);
+        return response()
+            ->json([
+                'message' => 'PONG',
+            ], HttpStatus::OK->value);
     }
 
     /**
@@ -87,7 +88,9 @@ class Account extends Controller
         $user = $request->user();
 
         $filled = collect($request->all());
-        $fields = collect($request->all())->only(array_keys($this->fillable))->keys();
+        $fields = collect($request->all())
+            ->only(array_keys($this->fillable))
+            ->keys();
 
         $updated = [];
 
@@ -173,7 +176,8 @@ class Account extends Controller
         $this->validate($request, $valid, [], $fields->filter(function ($k) use ($filled) {
             return is_array($filled[$k]);
         })->mapWithKeys(function ($field, $value) use ($filled) {
-            return collect(array_keys((array) $filled[$field]))->mapWithKeys(fn($k) => ["$field.$k" => "$field $k"]);
+            return collect(array_keys((array) $filled[$field]))
+                ->mapWithKeys(fn($k) => ["$field.$k" => "$field $k"]);
         })->all());
 
         $fields = $fields->filter(function ($k) {
@@ -220,30 +224,32 @@ class Account extends Controller
 
         // Check if the user data needs to be updated
         foreach ([$request->user_data, $request->settings] as $index => $dataSet) {
-            collect((array) $dataSet)->map(function ($val, $key) use ($user, $index) {
-                $data = $user->{$index == 0 ? 'data' : 'settings'};
-                // Check if the user data attribute is allowed to be modified
-                if (in_array($key, array_keys($this->fillableData))) {
-                    $value = match ($this->fillableData[$key]) {
-                        'boolean' => filter_var($val, FILTER_VALIDATE_BOOL),
-                        'array' => (array) $val,
-                        default => $val
-                    };
-                    $data[$key] = $value;
-                    $user->{$index == 0 ? 'data' : 'settings'} = $data;
-                }
-            });
+            collect((array) $dataSet)
+                ->map(function ($val, $key) use ($user, $index) {
+                    $data = $user->{$index == 0 ? 'data' : 'settings'};
+                    // Check if the user data attribute is allowed to be modified
+                    if (in_array($key, array_keys($this->fillableData))) {
+                        $value = match ($this->fillableData[$key]) {
+                            'boolean' => filter_var($val, FILTER_VALIDATE_BOOL),
+                            'array' => (array) $val,
+                            default => $val
+                        };
+                        $data[$key] = $value;
+                        $user->{$index == 0 ? 'data' : 'settings'} = $data;
+                    }
+                });
         }
 
-        $fields = collect($request->keys())->filter(
-            fn($k) => ! in_array($k, [
-                'otp',
-                '_method',
-                'new_password_confirmation',
-                'password',
-                'transaction_pin_confirmation',
-            ])
-        );
+        $fields = collect($request->keys())
+            ->filter(
+                fn($k) => ! in_array($k, [
+                    'otp',
+                    '_method',
+                    'new_password_confirmation',
+                    'password',
+                    'transaction_pin_confirmation',
+                ])
+            );
 
         $msg = $fields->count() > 1 && empty($this->fillable[$identifier])
             ? 'Your profile has been updated successfully.'

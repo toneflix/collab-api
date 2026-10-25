@@ -23,7 +23,9 @@ class NotificationController extends Controller
         /** @var User $user */
         $user = $request->user();
 
-        $query = $user->notifications()->getQuery();
+        $query = $user
+            ->notifications()
+            ->getQuery();
 
         $query
             ->where(function (Builder $q) {
@@ -49,7 +51,13 @@ class NotificationController extends Controller
             $additional['stats'] = $stats;
         } else {
             $notifications = $query->paginate($request->perPage(30));
-            $important = $user->notifications()->unread()->whereJsonContains('data->important', true)->latest()->limit(self::IMPORTANT_LIMIT)->get();
+            $important = $user
+                ->notifications()
+                ->unread()
+                ->whereJsonContains('data->important', true)
+                ->latest()
+                ->limit(self::IMPORTANT_LIMIT)
+                ->get();
 
             if ($request->boolean('withStats')) {
                 $additional['stats'] = $stats;
@@ -65,7 +73,11 @@ class NotificationController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        $request->user()->notifications()->findOrFail($id)->markAsRead();
+        $request
+            ->user()
+            ->notifications()
+            ->findOrFail($id)
+            ->markAsRead();
 
         return $this->stats($request, 'Notification marked as read.');
     }
@@ -75,7 +87,10 @@ class NotificationController extends Controller
      */
     public function readAll(Request $request)
     {
-        $request->user()->unreadNotifications()->update(['read_at' => now()]);
+        $request
+            ->user()
+            ->unreadNotifications()
+            ->update(['read_at' => now()]);
 
         return $this->stats($request, 'All notifications marked as read.');
     }
@@ -105,7 +120,11 @@ class NotificationController extends Controller
      */
     public function destroy(Request $request, string $id)
     {
-        $request->user()->notifications()->findOrFail($id)->delete();
+        $request
+            ->user()
+            ->notifications()
+            ->findOrFail($id)
+            ->delete();
 
         return (new NotificationCollection([]))
             ->additional([

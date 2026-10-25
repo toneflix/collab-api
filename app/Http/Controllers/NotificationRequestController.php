@@ -19,7 +19,9 @@ class NotificationRequestController extends Controller
         /** @var User $user */
         $user = $request->user();
 
-        $query = $user->approvableNotifications()->getQuery();
+        $query = $user
+            ->approvableNotifications()
+            ->getQuery();
         $query->when(
             in_array($request->status, ['pending', 'unread', 'approved', 'rejected']),
             fn() => $query->{$request->status}()
@@ -50,7 +52,9 @@ class NotificationRequestController extends Controller
         $user = $request->user();
 
         /** @var Notification $notification */
-        $notification = $user->approvableNotifications()->findOrFail($id);
+        $notification = $user
+            ->approvableNotifications()
+            ->findOrFail($id);
         $notification->markAsRead();
 
         return (new NotificationRequestResource($notification))
@@ -73,7 +77,9 @@ class NotificationRequestController extends Controller
         $user = $request->user();
 
         /** @var Notification $notification */
-        $notification = $user->approvableNotifications()->findOrFail($id);
+        $notification = $user
+            ->approvableNotifications()
+            ->findOrFail($id);
         $notification->markAsRead();
 
         $this->validate($request, [
@@ -106,7 +112,9 @@ class NotificationRequestController extends Controller
         $user = $request->user();
 
         /** @var Notification $notification */
-        $notification = $user->approvableNotifications()->findOrFail($id);
+        $notification = $user
+            ->approvableNotifications()
+            ->findOrFail($id);
         $notification->delete();
 
         $pending = $user

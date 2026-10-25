@@ -53,10 +53,14 @@ class UpNext
     {
         $perPage = max(1, min($perPage, self::MAX_PER_PAGE));
 
-        $page = $this->query($this->excluded)->paginate($perPage);
+        $page = $this
+            ->query($this->excluded)
+            ->paginate($perPage);
 
         if ($page->isEmpty() && $page->currentPage() === 1 && $this->excluded->isNotEmpty()) {
-            return $this->query(collect())->paginate($perPage);
+            return $this
+                ->query(collect())
+                ->paginate($perPage);
         }
 
         return $page;
@@ -98,7 +102,9 @@ class UpNext
         $artists = $this->seed?->artists()->pluck('artists.id') ?? collect();
 
         if ($artists->isNotEmpty()) {
-            $marks = $artists->map(fn() => '?')->implode(', ');
+            $marks = $artists
+                ->map(fn() => '?')
+                ->implode(', ');
             $scores[] = "case when exists (select 1 from track_artist where track_artist.track_id = tracks.id and track_artist.artist_id in ({$marks})) then 3 else 0 end";
             array_push($bindings, ...$artists->all());
         }

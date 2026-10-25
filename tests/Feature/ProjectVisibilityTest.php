@@ -32,26 +32,35 @@ class ProjectVisibilityTest extends TestCase
 
         $this->seed(ConfigurationSeeder::class);
 
-        $this->owner = User::factory()->create();
-        $this->collaborator = User::factory()->create();
-        $this->pending = User::factory()->create();
-        $this->stranger = User::factory()->create();
+        $this->owner = User::factory()
+            ->create();
+        $this->collaborator = User::factory()
+            ->create();
+        $this->pending = User::factory()
+            ->create();
+        $this->stranger = User::factory()
+            ->create();
 
         $this->private = $this->project('private');
         $this->public = $this->project('public');
         $this->preview = $this->project('public_preview');
 
-        $this->private->collaborators()->forceCreate(['user_id' => $this->collaborator->id, 'role' => 'keys', 'accepted' => true]);
-        $this->private->collaborators()->forceCreate(['user_id' => $this->pending->id, 'role' => 'bass', 'accepted' => false]);
+        $this->private
+            ->collaborators()
+            ->forceCreate(['user_id' => $this->collaborator->id, 'role' => 'keys', 'accepted' => true]);
+        $this->private
+            ->collaborators()
+            ->forceCreate(['user_id' => $this->pending->id, 'role' => 'bass', 'accepted' => false]);
     }
 
     protected function project(string $privacy): Project
     {
-        return Project::query()->forceCreate([
-            'user_id' => $this->owner->id,
-            'title' => "Visibility {$privacy}",
-            'privacy' => $privacy,
-        ]);
+        return Project::query()
+            ->forceCreate([
+                'user_id' => $this->owner->id,
+                'title' => "Visibility {$privacy}",
+                'privacy' => $privacy,
+            ]);
     }
 
     /**
@@ -77,11 +86,15 @@ class ProjectVisibilityTest extends TestCase
     public function test_people_on_a_private_project_can_open_it_with_a_token(): void
     {
         foreach ([$this->owner, $this->collaborator] as $user) {
-            $this->as($user, "/api/projects/{$this->private->id}")->assertOk();
+            $this
+                ->as($user, "/api/projects/{$this->private->id}")
+                ->assertOk();
         }
 
         foreach ([null, $this->stranger, $this->pending] as $user) {
-            $this->as($user, "/api/projects/{$this->private->id}")->assertNotFound();
+            $this
+                ->as($user, "/api/projects/{$this->private->id}")
+                ->assertNotFound();
         }
     }
 
@@ -105,7 +118,10 @@ class ProjectVisibilityTest extends TestCase
             $this->listed($this->owner, '&filters=open')
         );
 
-        $feed = $this->as($this->owner, '/api/explore?active_projects=50')->assertOk()->json('data.active_projects.list');
+        $feed = $this
+            ->as($this->owner, '/api/explore?active_projects=50')
+            ->assertOk()
+            ->json('data.active_projects.list');
 
         $this->assertNotContains($this->private->id, collect($feed)->pluck('id')->all());
     }

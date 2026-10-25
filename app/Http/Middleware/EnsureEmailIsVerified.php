@@ -23,9 +23,10 @@ class EnsureEmailIsVerified
             ($request->user() instanceof MustVerifyEmail &&
             ! $request->user()->hasVerifiedEmail())
         ) {
-            return Providers::response()->error([
-                'message' => 'Your email address is not verified.',
-            ], HttpStatus::FORBIDDEN);
+            return Providers::response()
+                ->error([
+                    'message' => 'Your email address is not verified.',
+                ], HttpStatus::FORBIDDEN);
         }
 
         return $next($request);

@@ -70,7 +70,10 @@ class PayoutProviders
             }
         }
 
-        return collect($out)->sortBy('name')->values()->all();
+        return collect($out)
+            ->sortBy('name')
+            ->values()
+            ->all();
     }
 
     /**

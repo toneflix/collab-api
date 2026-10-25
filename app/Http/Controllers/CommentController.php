@@ -32,11 +32,12 @@ class CommentController extends Controller
 
         $comments = $query->paginate($request->perPage(45));
 
-        return (new CommentCollection($comments))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new CommentCollection($comments))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -54,11 +55,12 @@ class CommentController extends Controller
 
         Conversations::posted($comment);
 
-        return (new CommentResource($comment))->additional([
-            'message' => 'Comment posted.',
-            'status' => 'success',
-            'status_code' => HttpStatus::CREATED,
-        ]);
+        return (new CommentResource($comment))
+            ->additional([
+                'message' => 'Comment posted.',
+                'status' => 'success',
+                'status_code' => HttpStatus::CREATED,
+            ]);
     }
 
     /**
@@ -84,11 +86,12 @@ class CommentController extends Controller
 
         Conversations::posted($comment);
 
-        return (new CommentResource($comment))->additional([
-            'message' => 'Reply sent.',
-            'status' => 'success',
-            'status_code' => HttpStatus::CREATED,
-        ]);
+        return (new CommentResource($comment))
+            ->additional([
+                'message' => 'Reply sent.',
+                'status' => 'success',
+                'status_code' => HttpStatus::CREATED,
+            ]);
     }
 
     /**
@@ -135,7 +138,9 @@ class CommentController extends Controller
 
         if ($request->has('track_id') && method_exists($commentable, 'tracks')) {
             /** @var Track $commentable */
-            $commentable = $commentable->tracks()->findOrFail($request->track_id);
+            $commentable = $commentable
+                ->tracks()
+                ->findOrFail($request->track_id);
         }
 
         $comment = null;
@@ -143,7 +148,9 @@ class CommentController extends Controller
         if ($commentable) {
             if ($comment_id) {
                 /** @var Comment $comment */
-                $comment = $commentable->comments()->findOrFail($comment_id);
+                $comment = $commentable
+                    ->comments()
+                    ->findOrFail($comment_id);
             }
         }
 

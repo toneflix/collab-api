@@ -61,7 +61,11 @@ class ArtistClaimCase extends ReviewCase
             $release->user_id ? 'uploaded by another account' : 'owned by no account',
         ))->join("\n") ?: '- (no releases)';
 
-        $others = ArtistClaim::query()->pending()->where('artist_id', $artist->id)->whereKeyNot($claim->id)->count();
+        $others = ArtistClaim::query()
+            ->pending()
+            ->where('artist_id', $artist->id)
+            ->whereKeyNot($claim->id)
+            ->count();
 
         return implode("\n", [
             'ARTIST',

@@ -23,7 +23,8 @@ class AdminUsersTest extends TestCase
     {
         parent::setUp();
 
-        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        app(PermissionRegistrar::class)
+            ->forgetCachedPermissions();
         foreach (['manage-users', 'manage-admins', 'manage-configuration', 'manage-plans', 'manage-payouts', 'manage-content'] as $name) {
             Permission::findOrCreate($name, 'web');
         }
@@ -46,7 +47,8 @@ class AdminUsersTest extends TestCase
 
     protected function adminWith(string ...$permissions): User
     {
-        $admin = User::factory()->create();
+        $admin = User::factory()
+            ->create();
         $admin->givePermissionTo($permissions);
 
         return $this->actingAsFresh($admin);
@@ -54,7 +56,8 @@ class AdminUsersTest extends TestCase
 
     protected function earning(User $creator, float $share): Transaction
     {
-        $payer = User::factory()->create();
+        $payer = User::factory()
+            ->create();
         $transaction = new Transaction([
             'reference' => 'TRX-' . uniqid(),
             'purpose' => 'tip',
@@ -67,7 +70,9 @@ class AdminUsersTest extends TestCase
             'paid_at' => now()->subDays(30),
         ]);
         $transaction->user_id = $payer->id;
-        $transaction->transactable()->associate($creator);
+        $transaction
+            ->transactable()
+            ->associate($creator);
         $transaction->save();
 
         return $transaction;
@@ -77,13 +82,16 @@ class AdminUsersTest extends TestCase
     {
         $this->adminWith('manage-content');
 
-        $this->getJson('/api/admin/users')->assertForbidden();
+        $this
+            ->getJson('/api/admin/users')
+            ->assertForbidden();
     }
 
     public function test_the_list_is_paginated_and_searchable(): void
     {
         $this->adminWith('manage-users');
-        $match = User::factory()->create(['username' => 'findme_' . uniqid()]);
+        $match = User::factory()
+            ->create(['username' => 'findme_' . uniqid()]);
 
         $this->getJson('/api/admin/users?limit=2')
             ->assertOk()
@@ -98,7 +106,8 @@ class AdminUsersTest extends TestCase
     public function test_the_user_page_shows_stats_and_what_the_admin_can_do(): void
     {
         $this->adminWith('manage-users');
-        $user = User::factory()->create();
+        $user = User::factory()
+            ->create();
         $this->earning($user, 500);
 
         $this->getJson("/api/admin/users/{$user->id}")
@@ -113,7 +122,8 @@ class AdminUsersTest extends TestCase
 
     public function test_a_suspended_user_is_signed_out_and_cant_sign_in(): void
     {
-        $user = User::factory()->create(['password' => 'secret-pass']);
+        $user = User::factory()
+            ->create(['password' => 'secret-pass']);
         $user->createToken('device');
 
         $admin = $this->adminWith('manage-users');
@@ -125,7 +135,9 @@ class AdminUsersTest extends TestCase
         $this->assertTrue(AdminAction::where('user_id', $user->id)->where('action', 'account.suspended')->where('admin_id', $admin->id)->exists());
 
         $this->actingAsFresh($user);
-        $this->getJson('/api/account')->assertForbidden();
+        $this
+            ->getJson('/api/account')
+            ->assertForbidden();
 
         $this->app['auth']->forgetGuards();
         $this->app['auth']->shouldUse('web');
@@ -133,50 +145,69 @@ class AdminUsersTest extends TestCase
             ->assertUnprocessable();
 
         $this->actingAsFresh($admin);
-        $this->postJson("/api/admin/users/{$user->id}/unsuspend")->assertOk()->assertJsonPath('data.suspended', false);
+        $this
+            ->postJson("/api/admin/users/{$user->id}/unsuspend")
+            ->assertOk()
+            ->assertJsonPath('data.suspended', false);
     }
 
     public function test_admins_cant_suspend_themselves_or_other_staff_without_managing_admins(): void
     {
         $admin = $this->adminWith('manage-users');
-        $staff = User::factory()->create();
+        $staff = User::factory()
+            ->create();
         $staff->givePermissionTo('manage-content');
 
-        $this->postJson("/api/admin/users/{$admin->id}/suspend", ['reason' => 'x'])->assertForbidden();
-        $this->postJson("/api/admin/users/{$staff->id}/suspend", ['reason' => 'x'])->assertForbidden();
+        $this
+            ->postJson("/api/admin/users/{$admin->id}/suspend", ['reason' => 'x'])
+            ->assertForbidden();
+        $this
+            ->postJson("/api/admin/users/{$staff->id}/suspend", ['reason' => 'x'])
+            ->assertForbidden();
     }
 
     public function test_only_super_admins_give_the_super_admin_role(): void
     {
         $admin = $this->adminWith('manage-users', 'manage-admins');
-        $user = User::factory()->create();
+        $user = User::factory()
+            ->create();
 
         $this->putJson("/api/admin/users/{$user->id}/roles", ['roles' => ['admin']])
             ->assertOk()
             ->assertJsonPath('data.roles', ['admin']);
 
-        $this->putJson("/api/admin/users/{$user->id}/roles", ['roles' => ['super-admin']])->assertUnprocessable();
+        $this
+            ->putJson("/api/admin/users/{$user->id}/roles", ['roles' => ['super-admin']])
+            ->assertUnprocessable();
 
         $admin->assignRole('super-admin');
         $this->actingAsFresh($admin);
-        $this->putJson("/api/admin/users/{$user->id}/roles", ['roles' => ['super-admin']])->assertOk();
+        $this
+            ->putJson("/api/admin/users/{$user->id}/roles", ['roles' => ['super-admin']])
+            ->assertOk();
     }
 
     public function test_an_admin_puts_a_user_on_a_plan_and_takes_it_away(): void
     {
         $this->adminWith('manage-users', 'manage-plans');
-        $user = User::factory()->create();
+        $user = User::factory()
+            ->create();
         $plan = Plan::create(['name' => 'Gift', 'slug' => 'gift-' . uniqid(), 'price' => 1000, 'interval' => 'month']);
 
         $this->postJson("/api/admin/users/{$user->id}/plan", ['plan_id' => $plan->id, 'cycles' => 3])
             ->assertOk()
             ->assertJsonPath('data.plan.id', $plan->id);
 
-        $subscription = $user->subscriptions()->active()->first();
+        $subscription = $user
+            ->subscriptions()
+            ->active()
+            ->first();
         $this->assertSame(0.0, $subscription->amount);
         $this->assertTrue($subscription->ends_at->between(now()->addMonths(3)->subMinute(), now()->addMonths(3)->addMinute()));
 
-        $this->deleteJson("/api/admin/users/{$user->id}/plan")->assertOk();
+        $this
+            ->deleteJson("/api/admin/users/{$user->id}/plan")
+            ->assertOk();
         $this->assertFalse($user->subscriptions()->active()->exists());
         $this->assertSame(['plan.assigned', 'plan.removed'], $user->adminActions()->reorder('id')->pluck('action')->all());
     }
@@ -184,14 +215,21 @@ class AdminUsersTest extends TestCase
     public function test_funds_change_the_withdrawable_balance_but_not_revenue(): void
     {
         $this->adminWith('manage-users', 'manage-payouts');
-        $user = User::factory()->create();
+        $user = User::factory()
+            ->create();
         $this->earning($user, 100);
 
-        $this->postJson("/api/admin/users/{$user->id}/funds", ['amount' => 250, 'reason' => 'Contest prize'])->assertOk();
+        $this
+            ->postJson("/api/admin/users/{$user->id}/funds", ['amount' => 250, 'reason' => 'Contest prize'])
+            ->assertOk();
         $this->assertSame(350.0, app(Payouts::class)->summary($user)['available']);
 
-        $this->postJson("/api/admin/users/{$user->id}/funds", ['amount' => -1000, 'reason' => 'Too much'])->assertUnprocessable();
-        $this->postJson("/api/admin/users/{$user->id}/funds", ['amount' => -50, 'reason' => 'Correction'])->assertOk();
+        $this
+            ->postJson("/api/admin/users/{$user->id}/funds", ['amount' => -1000, 'reason' => 'Too much'])
+            ->assertUnprocessable();
+        $this
+            ->postJson("/api/admin/users/{$user->id}/funds", ['amount' => -50, 'reason' => 'Correction'])
+            ->assertOk();
         $this->assertSame(300.0, app(Payouts::class)->summary($user)['available']);
 
         $this->getJson("/api/admin/users/{$user->id}/transactions?side=earnings")
@@ -203,13 +241,20 @@ class AdminUsersTest extends TestCase
     public function test_credits_are_granted_and_taken_back(): void
     {
         $this->adminWith('manage-users');
-        $user = User::factory()->create();
+        $user = User::factory()
+            ->create();
 
-        $this->postJson("/api/admin/users/{$user->id}/credits", ['credits' => 40, 'reason' => 'Beta tester'])->assertOk();
+        $this
+            ->postJson("/api/admin/users/{$user->id}/credits", ['credits' => 40, 'reason' => 'Beta tester'])
+            ->assertOk();
         $this->assertSame(40, Credits::for($user)->balance()['purchased']);
 
-        $this->postJson("/api/admin/users/{$user->id}/credits", ['credits' => -50, 'reason' => 'Oops'])->assertUnprocessable();
-        $this->postJson("/api/admin/users/{$user->id}/credits", ['credits' => -15, 'reason' => 'Oops'])->assertOk();
+        $this
+            ->postJson("/api/admin/users/{$user->id}/credits", ['credits' => -50, 'reason' => 'Oops'])
+            ->assertUnprocessable();
+        $this
+            ->postJson("/api/admin/users/{$user->id}/credits", ['credits' => -15, 'reason' => 'Oops'])
+            ->assertOk();
         $this->assertSame(25, Credits::for($user)->balance()['purchased']);
 
         $this->getJson("/api/admin/users/{$user->id}/activity")
@@ -222,10 +267,17 @@ class AdminUsersTest extends TestCase
     public function test_profile_changes_are_recorded(): void
     {
         $this->adminWith('manage-users');
-        $user = User::factory()->create(['firstname' => 'Old', 'verified' => false]);
+        $user = User::factory()
+            ->create(['firstname' => 'Old', 'verified' => false]);
 
-        $this->putJson("/api/admin/users/{$user->id}", ['firstname' => 'New'])->assertOk()->assertJsonPath('data.firstname', 'New');
-        $this->postJson("/api/admin/users/{$user->id}/verify", ['verified' => true])->assertOk()->assertJsonPath('data.verified', true);
+        $this
+            ->putJson("/api/admin/users/{$user->id}", ['firstname' => 'New'])
+            ->assertOk()
+            ->assertJsonPath('data.firstname', 'New');
+        $this
+            ->postJson("/api/admin/users/{$user->id}/verify", ['verified' => true])
+            ->assertOk()
+            ->assertJsonPath('data.verified', true);
 
         $this->getJson("/api/admin/users/{$user->id}/activity")
             ->assertJsonPath('data.1.details.changes.firstname', ['from' => 'Old', 'to' => 'New'])

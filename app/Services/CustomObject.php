@@ -42,7 +42,9 @@ class CustomObject implements \ArrayAccess
      */
     public function toArray(): array
     {
-        return $this->get()->getArrayCopy();
+        return $this
+            ->get()
+            ->getArrayCopy();
     }
 
     /**

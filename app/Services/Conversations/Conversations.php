@@ -50,7 +50,8 @@ class Conversations
         $class = static::classFor($type);
         abort_unless($class, 404, 'There is no such conversation.');
 
-        $model = $class::query()->find($id);
+        $model = $class::query()
+            ->find($id);
         abort_unless($model, 404, 'This conversation no longer exists.');
         abort_unless(Channels::canView($user, $model), 403, 'You can\'t see this conversation.');
 
@@ -122,7 +123,9 @@ class Conversations
             $text = sprintf('Voice note (%d:%02d)', intdiv($seconds, 60), $seconds % 60);
         }
 
-        return str($text)->limit($limit)->toString();
+        return str($text)
+            ->limit($limit)
+            ->toString();
     }
 
     /**
@@ -193,7 +196,10 @@ class Conversations
             ->where(fn($q) => $q
                 ->where('user_id', $user->id)
                 ->orWhereHas('collaborators', fn($q) => $q->where('user_id', $user->id)->where('accepted', true)));
-        $trackIds = ProjectTrack::query()->withoutGlobalScopes()->select('project_tracks.id')->whereIn('project_id', $projectIds);
+        $trackIds = ProjectTrack::query()
+            ->withoutGlobalScopes()
+            ->select('project_tracks.id')
+            ->whereIn('project_id', $projectIds);
 
         $page = Comment::query()
             ->whereNotNull('comments.root_type')
@@ -213,7 +219,11 @@ class Conversations
             ->paginate($perPage);
 
         $rows = $page->getCollection();
-        $last = Comment::query()->with('commentator')->whereIn('id', $rows->pluck('last_id'))->get()->keyBy('id');
+        $last = Comment::query()
+            ->with('commentator')
+            ->whereIn('id', $rows->pluck('last_id'))
+            ->get()
+            ->keyBy('id');
         $reads = $rows->isEmpty() ? collect() : DB::table('conversation_reads')
             ->where('user_id', $user->id)
             ->where(fn($q) => $rows->each(fn($row) => $q->orWhere(fn($q) => $q
@@ -282,10 +292,11 @@ class Conversations
 
     public static function markRead(Model $root, User $user): void
     {
-        DB::table('conversation_reads')->updateOrInsert(
-            ['user_id' => $user->id, 'root_type' => $root::class, 'root_id' => $root->getKey()],
-            ['read_at' => now()],
-        );
+        DB::table('conversation_reads')
+            ->updateOrInsert(
+                ['user_id' => $user->id, 'root_type' => $root::class, 'root_id' => $root->getKey()],
+                ['read_at' => now()],
+            );
     }
 
     /**
@@ -296,7 +307,11 @@ class Conversations
      */
     public static function participants(Model $root): Collection
     {
-        $ids = static::messages($root)->withoutGlobalScopes()->whereNotNull('user_id')->distinct()->pluck('user_id');
+        $ids = static::messages($root)
+            ->withoutGlobalScopes()
+            ->whereNotNull('user_id')
+            ->distinct()
+            ->pluck('user_id');
 
         $project = match (true) {
             $root instanceof ProjectTrack => $root->project,
@@ -313,7 +328,11 @@ class Conversations
             $ids->push($root->user_id);
         }
 
-        return $ids->filter()->map(fn($id) => (int) $id)->unique()->values();
+        return $ids
+            ->filter()
+            ->map(fn($id) => (int) $id)
+            ->unique()
+            ->values();
     }
 
     /**
@@ -332,7 +351,8 @@ class Conversations
             return;
         }
 
-        $delay = now()->addMinutes(NotifyUnreadMessages::waitMinutes());
+        $delay = now()
+            ->addMinutes(NotifyUnreadMessages::waitMinutes());
 
         static::recipients($root, $comment)
             ->reject(fn(int $id) => $id === (int) $comment->user_id)
@@ -373,7 +393,11 @@ class Conversations
             $ids->push(Comment::withoutGlobalScopes()->whereKey($comment->commentable_id)->value('user_id'));
         }
 
-        return $ids->filter()->map(fn($id) => (int) $id)->unique()->values();
+        return $ids
+            ->filter()
+            ->map(fn($id) => (int) $id)
+            ->unique()
+            ->values();
     }
 
     /**

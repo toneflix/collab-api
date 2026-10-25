@@ -29,10 +29,12 @@ class ConfigurationTest extends TestCase
 
     protected function admin(): User
     {
-        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        app(PermissionRegistrar::class)
+            ->forgetCachedPermissions();
         Permission::findOrCreate('manage-configuration', 'web');
 
-        $admin = User::factory()->create();
+        $admin = User::factory()
+            ->create();
         $admin->givePermissionTo('manage-configuration');
 
         return $admin;
@@ -41,7 +43,9 @@ class ConfigurationTest extends TestCase
     public function test_only_admins_see_the_configuration(): void
     {
         $this->actingAsFresh(User::factory()->create());
-        $this->getJson('/api/admin/configuration')->assertForbidden();
+        $this
+            ->getJson('/api/admin/configuration')
+            ->assertForbidden();
 
         $this->actingAsFresh($this->admin());
         $this->getJson('/api/admin/configuration')
@@ -83,12 +87,16 @@ class ConfigurationTest extends TestCase
 
     public function test_a_missing_setting_is_created_with_its_type(): void
     {
-        Configuration::where('key', 'payout_hold_days')->delete();
+        Configuration::where('key', 'payout_hold_days')
+            ->delete();
         $this->actingAsFresh($this->admin());
 
-        $this->putJson('/api/admin/configuration', ['payout_hold_days' => 3])->assertAccepted();
+        $this
+            ->putJson('/api/admin/configuration', ['payout_hold_days' => 3])
+            ->assertAccepted();
 
-        $row = Configuration::where('key', 'payout_hold_days')->first();
+        $row = Configuration::where('key', 'payout_hold_days')
+            ->first();
         $this->assertSame('number', $row->type);
         $this->assertSame(3, $row->value);
     }

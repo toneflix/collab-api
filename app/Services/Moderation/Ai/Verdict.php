@@ -22,7 +22,11 @@ final class Verdict
      */
     public static function parse(string $text, bool $mustDecide): self
     {
-        $json = str($text)->after('```json')->before('```')->trim()->toString();
+        $json = str($text)
+            ->after('```json')
+            ->before('```')
+            ->trim()
+            ->toString();
         $start = strpos($json, '{');
         $end = strrpos($json, '}');
         $data = $start !== false && $end !== false ? json_decode(substr($json, $start, $end - $start + 1), true) : null;

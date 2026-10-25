@@ -32,11 +32,12 @@ class SocialInteractionController extends Controller
 
         $interactions = $query->paginate($request->perPage(45));
 
-        return (new InteractionCollection($interactions))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new InteractionCollection($interactions))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -111,7 +112,9 @@ class SocialInteractionController extends Controller
         if ($interactable) {
             if ($interaction_id) {
                 /** @var SocialInteraction $interaction */
-                $interaction = $interactable->socialInteractions()->findOrFail($interaction_id);
+                $interaction = $interactable
+                    ->socialInteractions()
+                    ->findOrFail($interaction_id);
             }
         }
 

@@ -149,13 +149,16 @@ class AiModerator
 
     protected function queue(Model $subject, string $mode, ?User $admin = null): AiReview
     {
-        $review = $subject->aiReviews()->create([
-            'mode' => $mode,
-            'requested_by' => $admin?->id,
-            'model' => $this->model->name(),
-        ]);
+        $review = $subject
+            ->aiReviews()
+            ->create([
+                'mode' => $mode,
+                'requested_by' => $admin?->id,
+                'model' => $this->model->name(),
+            ]);
 
-        RunAiReview::dispatch($review->id)->afterCommit();
+        RunAiReview::dispatch($review->id)
+            ->afterCommit();
 
         return $review;
     }
@@ -165,7 +168,9 @@ class AiModerator
      */
     protected function finish(AiReview $review, array $attributes): AiReview
     {
-        $review->fill($attributes)->save();
+        $review
+            ->fill($attributes)
+            ->save();
 
         return $review;
     }

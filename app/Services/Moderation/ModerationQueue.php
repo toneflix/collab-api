@@ -47,25 +47,27 @@ class ModerationQueue
 
         $reasons = $this->reasonCounts($page->getCollection());
 
-        $page->getCollection()->each(function (Safety $row) use ($reasons) {
-            $row->setAttribute('reason_counts', $reasons[$row->model_type . ':' . $row->model_id] ?? []);
+        $page
+            ->getCollection()
+            ->each(function (Safety $row) use ($reasons) {
+                $row->setAttribute('reason_counts', $reasons[$row->model_type . ':' . $row->model_id] ?? []);
 
-            $row->setRelation('latestReports', Safety::query()
-                ->pending()
-                ->where('model_type', $row->model_type)
-                ->where('model_id', $row->model_id)
-                ->with('user')
-                ->latest('id')
-                ->limit(self::REPORTS_PER_ITEM)
-                ->get());
+                $row->setRelation('latestReports', Safety::query()
+                    ->pending()
+                    ->where('model_type', $row->model_type)
+                    ->where('model_id', $row->model_id)
+                    ->with('user')
+                    ->latest('id')
+                    ->limit(self::REPORTS_PER_ITEM)
+                    ->get());
 
-            $row->setRelation('activeTakedown', Takedown::query()
-                ->where('model_type', $row->model_type)
-                ->where('model_id', $row->model_id)
-                ->inForce()
-                ->latest('id')
-                ->first());
-        });
+                $row->setRelation('activeTakedown', Takedown::query()
+                    ->where('model_type', $row->model_type)
+                    ->where('model_id', $row->model_id)
+                    ->inForce()
+                    ->latest('id')
+                    ->first());
+            });
 
         return $page;
     }

@@ -19,7 +19,9 @@ trait Metricable
 
     public function recommendations(): MorphMany
     {
-        return $this->morphMany(Recommendation::class, 'recommendable')->latest();
+        return $this
+            ->morphMany(Recommendation::class, 'recommendable')
+            ->latest();
     }
 
     /**
@@ -63,7 +65,8 @@ trait Metricable
      */
     public function scopeFavorite(Builder $query, $limit = 10)
     {
-        $user = auth()->user('sanctum');
+        $user = auth()
+            ->user('sanctum');
 
         if (! $user) {
             return $query->whereNull('id');

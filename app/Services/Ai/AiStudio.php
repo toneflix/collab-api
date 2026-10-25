@@ -53,7 +53,8 @@ class AiStudio
             return $job;
         });
 
-        RunAiJob::dispatch($job)->afterCommit();
+        RunAiJob::dispatch($job)
+            ->afterCommit();
 
         $this->announce($job);
 
@@ -66,19 +67,25 @@ class AiStudio
             return $job;
         }
 
-        $job->forceFill(['status' => AiJob::RUNNING, 'started_at' => now()])->save();
+        $job
+            ->forceFill(['status' => AiJob::RUNNING, 'started_at' => now()])
+            ->save();
         $this->announce($job);
 
         $history = TrackHistory::for($job->track);
         $history->baseline();
 
         try {
-            $output = $job->task()->handle($job);
+            $output = $job
+                ->task()
+                ->handle($job);
         } catch (Throwable $e) {
             return $this->fail($job, $e);
         }
 
-        $job->forceFill(['status' => AiJob::SUCCEEDED, 'output' => $output, 'finished_at' => now()])->save();
+        $job
+            ->forceFill(['status' => AiJob::SUCCEEDED, 'output' => $output, 'finished_at' => now()])
+            ->save();
 
         $history->record($job->user, ProjectTrackVersion::ADDED);
 
@@ -108,7 +115,10 @@ class AiStudio
             'finished_at' => now(),
         ])->save();
 
-        $spend = $job->creditEntries()->where('type', AiCreditEntry::SPEND)->first();
+        $spend = $job
+            ->creditEntries()
+            ->where('type', AiCreditEntry::SPEND)
+            ->first();
 
         if ($spend) {
             Credits::for($job->user)->refund($spend, 'Refund: ' . $job->task()->describe($job->input ?? []));
@@ -127,9 +137,14 @@ class AiStudio
     {
         $this->log($job, $error, $step);
 
-        $job->forceFill(['failure' => "{$step}: " . $this->reason($error)])->save();
+        $job
+            ->forceFill(['failure' => "{$step}: " . $this->reason($error)])
+            ->save();
 
-        $spend = $job->creditEntries()->where('type', AiCreditEntry::SPEND)->first();
+        $spend = $job
+            ->creditEntries()
+            ->where('type', AiCreditEntry::SPEND)
+            ->first();
 
         if ($spend && $credits > 0) {
             Credits::for($job->user)->refund($spend, "Refund: {$step}", $credits);
@@ -155,7 +170,9 @@ class AiStudio
             default => $error,
         };
 
-        return str($reason)->limit(2000)->toString();
+        return str($reason)
+            ->limit(2000)
+            ->toString();
     }
 
     /**

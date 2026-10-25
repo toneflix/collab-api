@@ -27,13 +27,14 @@ class PayoutController extends Controller
         $account = $payouts->account($this->user);
         $summary = $payouts->summary($this->user);
 
-        return (new PayoutCollection($payoutList))->additional([
-            'summary' => $summary,
-            'account' => $account ? new PayoutAccountResource($account) : null,
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new PayoutCollection($payoutList))
+            ->additional([
+                'summary' => $summary,
+                'account' => $account ? new PayoutAccountResource($account) : null,
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     public function store(Request $request, Payouts $payouts)
@@ -66,11 +67,12 @@ class PayoutController extends Controller
         $payout = $payouts->cancel($payout);
         $summary = $payouts->summary($this->user);
 
-        return (new PayoutResource($payout))->additional([
-            'summary' => $summary,
-            'message' => 'Your withdrawal was cancelled.',
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new PayoutResource($payout))
+            ->additional([
+                'summary' => $summary,
+                'message' => 'Your withdrawal was cancelled.',
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 }

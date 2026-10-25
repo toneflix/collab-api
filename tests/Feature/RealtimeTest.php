@@ -41,20 +41,30 @@ class RealtimeTest extends TestCase
 
         RealtimeSettings::flush();
 
-        $this->owner = User::factory()->create();
-        $this->collaborator = User::factory()->create();
-        $this->stranger = User::factory()->create();
+        $this->owner = User::factory()
+            ->create();
+        $this->collaborator = User::factory()
+            ->create();
+        $this->stranger = User::factory()
+            ->create();
 
-        $project = Project::query()->forceCreate([
-            'user_id' => $this->owner->id,
-            'title' => 'Realtime test',
-            'privacy' => 'private',
-        ]);
+        $project = Project::query()
+            ->forceCreate([
+                'user_id' => $this->owner->id,
+                'title' => 'Realtime test',
+                'privacy' => 'private',
+            ]);
 
-        $project->collaborators()->forceCreate(['user_id' => $this->collaborator->id, 'role' => 'vocals', 'accepted' => true]);
+        $project
+            ->collaborators()
+            ->forceCreate(['user_id' => $this->collaborator->id, 'role' => 'vocals', 'accepted' => true]);
 
-        $this->track = $project->tracks()->forceCreate(['title' => 'Realtime track', 'privacy' => 'private']);
-        $this->track->stems()->forceCreate(['user_id' => $this->owner->id, 'meta' => ['name' => 'Drums']]);
+        $this->track = $project
+            ->tracks()
+            ->forceCreate(['title' => 'Realtime track', 'privacy' => 'private']);
+        $this->track
+            ->stems()
+            ->forceCreate(['user_id' => $this->owner->id, 'meta' => ['name' => 'Drums']]);
     }
 
     protected function tearDown(): void
@@ -101,14 +111,17 @@ class RealtimeTest extends TestCase
             }
         };
 
-        app(BroadcastManager::class)->extend('reverb', fn() => $spy);
-        app(BroadcastManager::class)->forgetDrivers();
+        app(BroadcastManager::class)
+            ->extend('reverb', fn() => $spy);
+        app(BroadcastManager::class)
+            ->forgetDrivers();
     }
 
     protected function admin(): User
     {
         Permission::findOrCreate('manage-configuration', 'web');
-        $admin = User::factory()->create();
+        $admin = User::factory()
+            ->create();
         $admin->givePermissionTo('manage-configuration');
 
         return $admin;
@@ -117,7 +130,9 @@ class RealtimeTest extends TestCase
     public function test_only_admins_can_see_realtime_settings(): void
     {
         Sanctum::actingAs($this->stranger);
-        $this->getJson('/api/admin/realtime')->assertForbidden();
+        $this
+            ->getJson('/api/admin/realtime')
+            ->assertForbidden();
 
         Sanctum::actingAs($this->admin());
         $this->getJson('/api/admin/realtime')
@@ -164,14 +179,18 @@ class RealtimeTest extends TestCase
             ->assertStatus(202)
             ->assertJsonPath('data.missing', ['Ably API Key (ABLY_KEY)']);
 
-        $this->postJson('/api/admin/realtime/test')->assertUnprocessable();
+        $this
+            ->postJson('/api/admin/realtime/test')
+            ->assertUnprocessable();
     }
 
     public function test_settings_are_validated(): void
     {
         Sanctum::actingAs($this->admin());
 
-        $this->putJson('/api/admin/realtime', ['realtime_driver' => 'carrier-pigeon'])->assertUnprocessable();
+        $this
+            ->putJson('/api/admin/realtime', ['realtime_driver' => 'carrier-pigeon'])
+            ->assertUnprocessable();
     }
 
     public function test_ably_uses_the_pusher_protocol_without_leaking_the_secret(): void
@@ -199,9 +218,15 @@ class RealtimeTest extends TestCase
             ->assertJsonStructure(['auth']);
 
         Sanctum::actingAs($this->stranger);
-        $this->postJson('/api/realtime/auth', ['channel_name' => $channel, 'socket_id' => '1.1'])->assertForbidden();
-        $this->postJson('/api/realtime/auth', ['channel_name' => 'private-user.' . $this->owner->id, 'socket_id' => '1.1'])->assertForbidden();
-        $this->postJson('/api/realtime/auth', ['channel_name' => 'private-user.' . $this->stranger->id, 'socket_id' => '1.1'])->assertOk();
+        $this
+            ->postJson('/api/realtime/auth', ['channel_name' => $channel, 'socket_id' => '1.1'])
+            ->assertForbidden();
+        $this
+            ->postJson('/api/realtime/auth', ['channel_name' => 'private-user.' . $this->owner->id, 'socket_id' => '1.1'])
+            ->assertForbidden();
+        $this
+            ->postJson('/api/realtime/auth', ['channel_name' => 'private-user.' . $this->stranger->id, 'socket_id' => '1.1'])
+            ->assertOk();
     }
 
     public function test_auth_is_unavailable_when_realtime_is_off(): void
@@ -209,13 +234,17 @@ class RealtimeTest extends TestCase
         RealtimeSettings::update(['realtime_driver' => 'none']);
 
         Sanctum::actingAs($this->owner);
-        $this->postJson('/api/realtime/auth', ['channel_name' => 'private-user.' . $this->owner->id])->assertNotFound();
+        $this
+            ->postJson('/api/realtime/auth', ['channel_name' => 'private-user.' . $this->owner->id])
+            ->assertNotFound();
     }
 
     public function test_live_edits_reach_the_track_channel_with_the_senders_origin(): void
     {
         $this->useSpyDriver();
-        $stem = $this->track->stems()->first();
+        $stem = $this->track
+            ->stems()
+            ->first();
 
         Sanctum::actingAs($this->collaborator);
         $this->postJson(
@@ -236,7 +265,9 @@ class RealtimeTest extends TestCase
     public function test_only_collaborators_can_send_live_edits(): void
     {
         $this->useSpyDriver();
-        $stem = $this->track->stems()->first();
+        $stem = $this->track
+            ->stems()
+            ->first();
 
         Sanctum::actingAs($this->stranger);
         $this->postJson(
@@ -266,8 +297,10 @@ class RealtimeTest extends TestCase
     public function test_a_broken_driver_never_fails_the_request(): void
     {
         $this->useSpyDriver();
-        app(BroadcastManager::class)->extend('reverb', fn() => throw new \RuntimeException('down'));
-        app(BroadcastManager::class)->forgetDrivers();
+        app(BroadcastManager::class)
+            ->extend('reverb', fn() => throw new \RuntimeException('down'));
+        app(BroadcastManager::class)
+            ->forgetDrivers();
 
         Sanctum::actingAs($this->owner);
         $this->postJson("/api/projects/{$this->track->project_id}/comments?track_id={$this->track->id}", [
@@ -301,9 +334,15 @@ class RealtimeTest extends TestCase
 
         // Authorizing writes a grant and returns a custom token for the user.
         $token = $this->createMock(UnencryptedToken::class);
-        $token->method('toString')->willReturn('custom-token');
+        $token
+            ->method('toString')
+            ->willReturn('custom-token');
         $auth = $this->createMock(Auth::class);
-        $auth->expects($this->once())->method('createCustomToken')->with('user-' . $this->collaborator->id)->willReturn($token);
+        $auth
+            ->expects($this->once())
+            ->method('createCustomToken')
+            ->with('user-' . $this->collaborator->id)
+            ->willReturn($token);
         $firebase->using($this->createMock(Database::class), $auth);
 
         Channels::register($firebase);

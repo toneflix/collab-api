@@ -22,10 +22,12 @@ class PlanTest extends TestCase
 
     protected function admin(): User
     {
-        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        app(PermissionRegistrar::class)
+            ->forgetCachedPermissions();
         Permission::findOrCreate('manage-plans', 'web');
 
-        $admin = User::factory()->create();
+        $admin = User::factory()
+            ->create();
         $admin->givePermissionTo('manage-plans');
 
         return $this->actingAsFresh($admin);
@@ -67,20 +69,32 @@ class PlanTest extends TestCase
 
         $this->actingAsFresh(User::factory()->create());
 
-        $this->getJson('/api/plans')->assertOk()->assertJsonPath('current.slug', Plan::default()->slug);
+        $this
+            ->getJson('/api/plans')
+            ->assertOk()
+            ->assertJsonPath('current.slug', Plan::default()->slug);
     }
 
     public function test_only_plan_managers_can_manage_plans(): void
     {
         $this->actingAsFresh(User::factory()->create());
 
-        $this->getJson('/api/admin/plans')->assertForbidden();
-        $this->postJson('/api/admin/plans', ['name' => 'Pro'])->assertForbidden();
+        $this
+            ->getJson('/api/admin/plans')
+            ->assertForbidden();
+        $this
+            ->postJson('/api/admin/plans', ['name' => 'Pro'])
+            ->assertForbidden();
 
         $this->admin();
 
-        $this->getJson('/api/admin/plans')->assertOk();
-        $this->getJson('/api/admin/plans/features')->assertOk()->assertJsonPath('data.0.key', 'downloads');
+        $this
+            ->getJson('/api/admin/plans')
+            ->assertOk();
+        $this
+            ->getJson('/api/admin/plans/features')
+            ->assertOk()
+            ->assertJsonPath('data.0.key', 'downloads');
     }
 
     public function test_admins_create_plans_that_choose_their_features(): void
@@ -118,7 +132,8 @@ class PlanTest extends TestCase
     {
         $this->admin();
 
-        $plan = Plan::where('slug', 'premium')->firstOrFail();
+        $plan = Plan::where('slug', 'premium')
+            ->firstOrFail();
         $plan->update(['price' => 1000, 'interval' => 'month']);
 
         $this->putJson("/api/admin/plans/{$plan->id}", [
@@ -147,20 +162,24 @@ class PlanTest extends TestCase
 
     public function test_plans_list_every_billing_period_on_offer(): void
     {
-        Plan::where('slug', 'premium')->update([
-            'price' => 1000, 'interval' => 'month', 'active' => true,
-            'billing_options' => json_encode([['cycles' => 6, 'discount' => 10], ['cycles' => 12, 'discount' => 20]]),
-        ]);
+        Plan::where('slug', 'premium')
+            ->update([
+                'price' => 1000, 'interval' => 'month', 'active' => true,
+                'billing_options' => json_encode([['cycles' => 6, 'discount' => 10], ['cycles' => 12, 'discount' => 20]]),
+            ]);
         // A yearly plan shares the Annual period with Premium's 12 months.
         Plan::create(['slug' => 'label', 'name' => 'Label', 'price' => 90000, 'interval' => 'year', 'features' => []]);
         Plan::create(['slug' => 'weekly', 'name' => 'Weekly', 'price' => 300, 'interval' => 'week', 'features' => []]);
 
-        $response = $this->getJson('/api/plans')->assertOk();
+        $response = $this
+            ->getJson('/api/plans')
+            ->assertOk();
 
         $this->assertSame(['1-week', '1-month', '6-month', '1-year'], array_column($response->json('periods'), 'key'));
         $this->assertSame(['Weekly', 'Monthly', '6 months', 'Annual'], array_column($response->json('periods'), 'label'));
 
-        $premium = collect($response->json('data'))->firstWhere('slug', 'premium');
+        $premium = collect($response->json('data'))
+            ->firstWhere('slug', 'premium');
         $this->assertSame(['1-month', '6-month', '1-year'], array_column($premium['billingOptions'], 'period'));
     }
 
@@ -172,8 +191,12 @@ class PlanTest extends TestCase
         $this->postJson('/api/admin/plans', ['name' => 'Paid default', 'price' => 100, 'interval' => 'month', 'is_default' => true])
             ->assertJsonValidationErrors('is_default');
 
-        $this->putJson("/api/admin/plans/{$free->id}", ['is_default' => false])->assertJsonValidationErrors('is_default');
-        $this->deleteJson("/api/admin/plans/{$free->id}")->assertJsonValidationErrors('plan');
+        $this
+            ->putJson("/api/admin/plans/{$free->id}", ['is_default' => false])
+            ->assertJsonValidationErrors('is_default');
+        $this
+            ->deleteJson("/api/admin/plans/{$free->id}")
+            ->assertJsonValidationErrors('plan');
 
         $this->postJson('/api/admin/plans', ['name' => 'Starter', 'price' => 0, 'interval' => 'month', 'is_default' => true])
             ->assertCreated();
@@ -187,7 +210,9 @@ class PlanTest extends TestCase
         $this->admin();
 
         $unused = Plan::create(['slug' => 'unused', 'name' => 'Unused', 'price' => 10, 'interval' => 'month']);
-        $this->deleteJson("/api/admin/plans/{$unused->id}")->assertAccepted();
+        $this
+            ->deleteJson("/api/admin/plans/{$unused->id}")
+            ->assertAccepted();
         $this->assertModelMissing($unused);
 
         $used = Plan::create(['slug' => 'used', 'name' => 'Used', 'price' => 10, 'interval' => 'month']);
@@ -200,7 +225,9 @@ class PlanTest extends TestCase
             'ends_at' => now()->addMonth(),
         ]);
 
-        $this->deleteJson("/api/admin/plans/{$used->id}")->assertAccepted();
+        $this
+            ->deleteJson("/api/admin/plans/{$used->id}")
+            ->assertAccepted();
         $this->assertFalse($used->fresh()->active);
 
         // Inactive plans are hidden from the public list.
@@ -214,35 +241,45 @@ class PlanTest extends TestCase
             'features' => ['downloads' => true, 'badge' => false],
         ]);
 
-        $user = User::factory()->create();
+        $user = User::factory()
+            ->create();
         $this->assertFalse((bool) $user->feature(Feature::DOWNLOADS));
 
-        $user->subscriptions()->create([
-            'plan' => $plan->slug, 'plan_id' => $plan->id, 'amount' => 500,
-            'starts_at' => now()->subDay(), 'ends_at' => now()->addMonth(),
-        ]);
+        $user
+            ->subscriptions()
+            ->create([
+                'plan' => $plan->slug, 'plan_id' => $plan->id, 'amount' => 500,
+                'starts_at' => now()->subDay(), 'ends_at' => now()->addMonth(),
+            ]);
 
         $user = $user->fresh();
         $this->assertSame('listener', $user->current_plan->slug);
         $this->assertTrue($user->feature(Feature::DOWNLOADS));
 
         $this->actingAsFresh($user);
-        $this->getJson('/api/account')->assertOk()->assertJsonPath('data.badge', false);
+        $this
+            ->getJson('/api/account')
+            ->assertOk()
+            ->assertJsonPath('data.badge', false);
     }
 
     public function test_creators_on_a_plan_without_selling_cannot_set_a_price(): void
     {
         $this->setFeatures(Plan::default(), ['sell_releases' => false, 'receive_tips' => false]);
 
-        $creator = User::factory()->create();
-        $genre = Genre::factory()->create();
-        $release = Release::factory()->create([
-            'user_id' => $creator->id,
-            'genre_id' => $genre->id,
-            'artist_id' => Artist::factory()->create()->id,
-            'price' => 0,
-        ]);
-        Track::factory()->create(['release_id' => $release->id, 'genre_id' => $genre->id]);
+        $creator = User::factory()
+            ->create();
+        $genre = Genre::factory()
+            ->create();
+        $release = Release::factory()
+            ->create([
+                'user_id' => $creator->id,
+                'genre_id' => $genre->id,
+                'artist_id' => Artist::factory()->create()->id,
+                'price' => 0,
+            ]);
+        Track::factory()
+            ->create(['release_id' => $release->id, 'genre_id' => $genre->id]);
 
         $this->actingAsFresh($creator);
 

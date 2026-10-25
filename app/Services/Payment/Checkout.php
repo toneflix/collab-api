@@ -68,7 +68,9 @@ class Checkout
             'meta' => $meta,
         ]);
         $transaction->user_id = $payer->id;
-        $transaction->transactable()->associate($item);
+        $transaction
+            ->transactable()
+            ->associate($item);
         $transaction->save();
 
         return [
@@ -105,7 +107,9 @@ class Checkout
     {
         return DB::transaction(function () use ($transaction, $paid, $amountPaid, $raw) {
             /** @var Transaction $locked */
-            $locked = Transaction::whereKey($transaction->id)->lockForUpdate()->firstOrFail();
+            $locked = Transaction::whereKey($transaction->id)
+                ->lockForUpdate()
+                ->firstOrFail();
 
             if ($locked->status !== 'pending') {
                 return $locked;
@@ -140,7 +144,9 @@ class Checkout
             }
 
             if ($locked->recipient_id) {
-                User::query()->find($locked->recipient_id)?->notify(new SaleNotification($locked));
+                User::query()
+                    ->find($locked->recipient_id)
+                    ?->notify(new SaleNotification($locked));
             }
 
             return $locked;
@@ -155,14 +161,15 @@ class Checkout
         $plan = Plan::find($transaction->meta['plan_id'] ?? null)
             ?? Plan::where('slug', $transaction->meta['plan'] ?? null)->first();
 
-        return app(Subscriptions::class)->extend(
-            $transaction->user,
-            $plan,
-            (int) ($transaction->meta['cycles'] ?? 1),
-            (float) $transaction->amount,
-            $transaction,
-            $transaction->meta['plan'] ?? null,
-        );
+        return app(Subscriptions::class)
+            ->extend(
+                $transaction->user,
+                $plan,
+                (int) ($transaction->meta['cycles'] ?? 1),
+                (float) $transaction->amount,
+                $transaction,
+                $transaction->meta['plan'] ?? null,
+            );
     }
 
     /**

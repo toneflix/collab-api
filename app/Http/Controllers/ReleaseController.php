@@ -16,9 +16,12 @@ class ReleaseController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Release::query()->live();
+        $query = Release::query()
+            ->live();
 
-        $filters = str($request->filters)->remove(' ')->explode(',');
+        $filters = str($request->filters)
+            ->remove(' ')
+            ->explode(',');
 
         $base = fn($query) => $query
             ->when(
@@ -50,11 +53,12 @@ class ReleaseController extends Controller
 
         $releases = $query->paginate($request->perPage(15));
 
-        return (new ReleaseCollection($releases))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new ReleaseCollection($releases))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -69,11 +73,12 @@ class ReleaseController extends Controller
     {
         $release->stream(0, $request->user('sanctum'));
 
-        return (new ReleaseResource($release))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new ReleaseResource($release))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**

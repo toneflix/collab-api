@@ -93,23 +93,25 @@ class ExceptionHandler // extends Handler
         } elseif (static::isHttpException($e) && $e->getStatusCode() !== 401) {
             static::registerErrorViewPaths();
 
-            return response()->view(
-                'errors.generic',
-                [
-                    'message' => $e->getMessage(),
-                    'code' => $e->getStatusCode(),
-                ],
-                $e->getStatusCode()
-            );
+            return response()
+                ->view(
+                    'errors.generic',
+                    [
+                        'message' => $e->getMessage(),
+                        'code' => $e->getStatusCode(),
+                    ],
+                    $e->getStatusCode()
+                );
         }
     }
 
     protected static function renderException(string $msg, $code = 404, array $misc = [])
     {
-        return Providers::response()->error([
-            'message' => static::$message ?? $msg,
-            ...array_merge($misc, ['data' => new \stdClass]),
-        ], $code);
+        return Providers::response()
+            ->error([
+                'message' => static::$message ?? $msg,
+                ...array_merge($misc, ['data' => new \stdClass]),
+            ], $code);
     }
 
     /**

@@ -18,7 +18,11 @@ class ConversationMessageCollection extends ResourceCollection
      */
     public function toArray(Request $request): array
     {
-        return $this->collection->reverse()->values()->map->toArray($request)->all();
+        return $this->collection
+            ->reverse()
+            ->values()->map
+            ->toArray($request)
+            ->all();
     }
 
     /**

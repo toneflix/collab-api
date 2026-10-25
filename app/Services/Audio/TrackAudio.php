@@ -19,7 +19,10 @@ class TrackAudio
         $file = $track->audio;
 
         if (! $file && $withPreview) {
-            $file = $track->projectTrack()->withoutGlobalScopes()->value('preview');
+            $file = $track
+                ->projectTrack()
+                ->withoutGlobalScopes()
+                ->value('preview');
         }
 
         return $file ? $this->copy($file) : null;
@@ -43,7 +46,10 @@ class TrackAudio
             return false;
         }
 
-        $preview = $track->projectTrack()->withoutGlobalScopes()->value('preview');
+        $preview = $track
+            ->projectTrack()
+            ->withoutGlobalScopes()
+            ->value('preview');
 
         $media = new Media;
         $path = $preview ? ($media->mediaInfo('music_tracks', $preview)['path'] ?? null) : null;

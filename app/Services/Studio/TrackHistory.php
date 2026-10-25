@@ -58,7 +58,10 @@ class TrackHistory
 
     public function latest(): ?ProjectTrackVersion
     {
-        return $this->track->versions()->latest('id')->first();
+        return $this->track
+            ->versions()
+            ->latest('id')
+            ->first();
     }
 
     /**
@@ -73,13 +76,15 @@ class TrackHistory
 
         $snapshot = $this->snapshot();
 
-        $this->track->versions()->create([
-            'action' => ProjectTrackVersion::ORIGINAL,
-            'summary' => 'the track before version history',
-            'changes' => [],
-            'snapshot' => $snapshot,
-            'stem_ids' => $this->stemIds($snapshot),
-        ]);
+        $this->track
+            ->versions()
+            ->create([
+                'action' => ProjectTrackVersion::ORIGINAL,
+                'summary' => 'the track before version history',
+                'changes' => [],
+                'snapshot' => $snapshot,
+                'stem_ids' => $this->stemIds($snapshot),
+            ]);
     }
 
     /**
@@ -93,7 +98,11 @@ class TrackHistory
         $latest = $this->latest();
 
         if ($latest && $this->merges($latest, $user, $action)) {
-            $before = $this->track->versions()->where('id', '<', $latest->id)->latest('id')->first();
+            $before = $this->track
+                ->versions()
+                ->where('id', '<', $latest->id)
+                ->latest('id')
+                ->first();
             $diff = ArrangementDiff::between($before?->snapshot, $snapshot);
 
             if ($diff->isEmpty()) {
@@ -118,15 +127,17 @@ class TrackHistory
             return null;
         }
 
-        return $this->track->versions()->create([
-            ...$attributes,
-            'user_id' => $user?->id,
-            'action' => $action,
-            'summary' => $diff->summary(),
-            'changes' => $diff->changes(),
-            'snapshot' => $snapshot,
-            'stem_ids' => $this->stemIds($snapshot),
-        ]);
+        return $this->track
+            ->versions()
+            ->create([
+                ...$attributes,
+                'user_id' => $user?->id,
+                'action' => $action,
+                'summary' => $diff->summary(),
+                'changes' => $diff->changes(),
+                'snapshot' => $snapshot,
+                'stem_ids' => $this->stemIds($snapshot),
+            ]);
     }
 
     /**
@@ -139,13 +150,23 @@ class TrackHistory
     public function restore(ProjectTrackVersion $version, User $user): array
     {
         return DB::transaction(function () use ($version, $user) {
-            $target = collect($version->snapshot['stems'] ?? [])->keyBy('id');
+            $target = collect($version->snapshot['stems'] ?? [])
+                ->keyBy('id');
             $missing = [];
             $keptAudio = [];
 
-            $this->track->stems()->whereNotIn('id', $target->keys())->get()->each->delete();
+            $this->track
+                ->stems()
+                ->whereNotIn('id', $target->keys())
+                ->get()->each
+                ->delete();
 
-            $stems = $this->track->stems()->withTrashed()->whereIn('id', $target->keys())->get()->keyBy('id');
+            $stems = $this->track
+                ->stems()
+                ->withTrashed()
+                ->whereIn('id', $target->keys())
+                ->get()
+                ->keyBy('id');
 
             foreach ($target as $id => $data) {
                 /** @var ProjectTrackStem|null $stem */
@@ -199,22 +220,27 @@ class TrackHistory
      */
     public function prune(Carbon $cutoff): int
     {
-        $latestId = $this->track->versions()->max('id');
+        $latestId = $this->track
+            ->versions()
+            ->max('id');
 
         $pruned = $this->track->versions()
             ->where('created_at', '<', $cutoff)
             ->where('id', '<', $latestId)
             ->delete();
 
-        $this->track->stems()->onlyTrashed()->chunkById(100, function ($stems) {
-            $stems->each(function (ProjectTrackStem $stem) {
-                $needed = $this->track->versions()->whereJsonContains('stem_ids', $stem->id)->exists();
+        $this->track
+            ->stems()
+            ->onlyTrashed()
+            ->chunkById(100, function ($stems) {
+                $stems->each(function (ProjectTrackStem $stem) {
+                    $needed = $this->track->versions()->whereJsonContains('stem_ids', $stem->id)->exists();
 
-                if (! $needed) {
-                    $stem->forceDelete();
-                }
+                    if (! $needed) {
+                        $stem->forceDelete();
+                    }
+                });
             });
-        });
 
         return $pruned;
     }

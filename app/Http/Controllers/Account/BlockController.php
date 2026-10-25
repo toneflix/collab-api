@@ -69,15 +69,18 @@ class BlockController extends Controller
         $user = $request->user();
 
         /** @var User|Project $model */
-        $model = app(str($request->type)->ucfirst()->prepend('\\App\\Models\\')->toString())->find($request->id);
+        $model = app(str($request->type)->ucfirst()->prepend('\\App\\Models\\')->toString())
+            ->find($request->id);
 
         if ($model) {
-            $item = $user->blocklist()->firstOrNew([
-                'blockable_type' => $model->getMorphClass(),
-                'blockable_id' => $model->id,
-            ], [
-                'reason' => $request->reason,
-            ]);
+            $item = $user
+                ->blocklist()
+                ->firstOrNew([
+                    'blockable_type' => $model->getMorphClass(),
+                    'blockable_id' => $model->id,
+                ], [
+                    'reason' => $request->reason,
+                ]);
 
             $item->save();
 
@@ -103,10 +106,19 @@ class BlockController extends Controller
         $user = $request->user();
 
         if ($request->type) {
-            $type = str($request->type)->ucfirst()->prepend('App\\Models\\')->toString();
-            $item = $user->blocklist()->whereBlockableType($type)->whereBlockableId($id)->firstOrFail();
+            $type = str($request->type)
+                ->ucfirst()
+                ->prepend('App\\Models\\')
+                ->toString();
+            $item = $user
+                ->blocklist()
+                ->whereBlockableType($type)
+                ->whereBlockableId($id)
+                ->firstOrFail();
         } else {
-            $item = $user->blocklist()->findOrFail($id);
+            $item = $user
+                ->blocklist()
+                ->findOrFail($id);
         }
 
         $item->delete();

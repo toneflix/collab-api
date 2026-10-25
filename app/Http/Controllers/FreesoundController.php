@@ -57,11 +57,12 @@ class FreesoundController extends Controller
 
         $result = ['url' => Freesound::authorizeUrl($state)];
 
-        return (new ActionResource($result))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new ActionResource($result))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -101,8 +102,12 @@ class FreesoundController extends Controller
 
     public function disconnect(Request $request)
     {
-        $connection = $request->user()->freesound()->first();
-        $connection?->delete();
+        $connection = $request
+            ->user()
+            ->freesound()
+            ->first();
+        $connection
+            ?->delete();
 
         return (new FreesoundConnectionResource($connection))
             ->additional([
@@ -133,7 +138,8 @@ class FreesoundController extends Controller
             abort(HttpStatus::BAD_GATEWAY->value, $e->getMessage());
         }
 
-        $ids = collect($found['results'])->pluck('id');
+        $ids = collect($found['results'])
+            ->pluck('id');
 
         $imported = Sound::query()
             ->where('user_id', $request->user()->id)
@@ -146,12 +152,13 @@ class FreesoundController extends Controller
             ->map(fn($s) => [...$s, 'imported' => in_array($s['id'], $imported, true)])
             ->all();
 
-        return (new FreesoundSoundCollection($results))->additional([
-            'meta' => ['total' => $found['count'], 'page' => $page],
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new FreesoundSoundCollection($results))
+            ->additional([
+                'meta' => ['total' => $found['count'], 'page' => $page],
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -169,15 +176,18 @@ class FreesoundController extends Controller
             ->first();
 
         if ($existing) {
-            return (new SoundResource($existing))->additional([
-                'storage' => Limits::for($user)->storage(),
-                'message' => 'That sound is already in My sounds.',
-                'status' => 'success',
-                'status_code' => HttpStatus::OK,
-            ]);
+            return (new SoundResource($existing))
+                ->additional([
+                    'storage' => Limits::for($user)->storage(),
+                    'message' => 'That sound is already in My sounds.',
+                    'status' => 'success',
+                    'status_code' => HttpStatus::OK,
+                ]);
         }
 
-        $connection = $user->freesound()->first();
+        $connection = $user
+            ->freesound()
+            ->first();
 
         if (! $connection) {
             throw ValidationException::withMessages(['connect' => 'Connect Freesound first.']);

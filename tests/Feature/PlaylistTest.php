@@ -45,18 +45,27 @@ class PlaylistTest extends TestCase
     protected function playlist(array $params = [])
     {
         // Retire every other release so results only hold this test's tracks.
-        Release::query()->whereNotIn('id', $this->releases)->update(['retired_at' => now()]);
+        Release::query()
+            ->whereNotIn('id', $this->releases)
+            ->update(['retired_at' => now()]);
 
-        return collect($this->getJson('api/playlist?' . http_build_query($params))->assertOk()->json('data'))->pluck('id');
+        return collect($this->getJson('api/playlist?' . http_build_query($params))->assertOk()->json('data'))
+            ->pluck('id');
     }
 
     public function test_tracks_like_the_seed_come_first(): void
     {
-        $genre = Genre::factory()->create();
-        $other = Genre::factory()->create();
+        $genre = Genre::factory()
+            ->create();
+        $other = Genre::factory()
+            ->create();
 
-        $seed = $this->makeRelease($genre)->tracks->first();
-        $alike = $this->makeRelease($genre, 2)->tracks->pluck('id');
+        $seed = $this
+            ->makeRelease($genre)->tracks
+            ->first();
+        $alike = $this
+            ->makeRelease($genre, 2)->tracks
+            ->pluck('id');
         $this->makeRelease($other, 3);
 
         $ids = $this->playlist(['similar_to' => $seed->id, 'limit' => 10]);
@@ -68,22 +77,36 @@ class PlaylistTest extends TestCase
 
     public function test_shared_artists_count_as_alike(): void
     {
-        $artist = Artist::factory()->create();
-        $seed = $this->makeRelease(Genre::factory()->create())->tracks->first();
-        $seed->artists()->attach($artist);
+        $artist = Artist::factory()
+            ->create();
+        $seed = $this
+            ->makeRelease(Genre::factory()->create())->tracks
+            ->first();
+        $seed
+            ->artists()
+            ->attach($artist);
 
         $this->makeRelease(Genre::factory()->create(), 3);
-        $byArtist = $this->makeRelease(Genre::factory()->create())->tracks->first();
-        $byArtist->artists()->attach($artist);
+        $byArtist = $this
+            ->makeRelease(Genre::factory()->create())->tracks
+            ->first();
+        $byArtist
+            ->artists()
+            ->attach($artist);
 
         $this->assertSame($byArtist->id, $this->playlist(['similar_to' => $seed->id])->first());
     }
 
     public function test_queued_tracks_are_skipped_until_nothing_else_is_left(): void
     {
-        $genre = Genre::factory()->create();
-        $seed = $this->makeRelease($genre)->tracks->first();
-        $tracks = $this->makeRelease($genre, 3)->tracks->pluck('id');
+        $genre = Genre::factory()
+            ->create();
+        $seed = $this
+            ->makeRelease($genre)->tracks
+            ->first();
+        $tracks = $this
+            ->makeRelease($genre, 3)->tracks
+            ->pluck('id');
 
         $this->assertEquals(
             [$tracks->last()],
@@ -97,21 +120,36 @@ class PlaylistTest extends TestCase
 
     public function test_the_only_track_is_never_returned_for_itself(): void
     {
-        $seed = $this->makeRelease(Genre::factory()->create())->tracks->first();
+        $seed = $this
+            ->makeRelease(Genre::factory()->create())->tracks
+            ->first();
 
         $this->assertEmpty($this->playlist(['similar_to' => $seed->id, 'exclude' => [$seed->id]]));
     }
 
     public function test_only_public_free_tracks_from_live_releases_are_picked(): void
     {
-        $genre = Genre::factory()->create();
-        $seed = $this->makeRelease($genre)->tracks->first();
-        $draft = $this->makeRelease($genre, 1, ['draft' => true])->tracks->first();
-        $retired = $this->makeRelease($genre, 1, ['retired_at' => now()])->tracks->first();
-        $paid = $this->makeRelease($genre, 1, ['price' => 500])->tracks->first();
-        $private = $this->makeRelease($genre)->tracks->first();
+        $genre = Genre::factory()
+            ->create();
+        $seed = $this
+            ->makeRelease($genre)->tracks
+            ->first();
+        $draft = $this
+            ->makeRelease($genre, 1, ['draft' => true])->tracks
+            ->first();
+        $retired = $this
+            ->makeRelease($genre, 1, ['retired_at' => now()])->tracks
+            ->first();
+        $paid = $this
+            ->makeRelease($genre, 1, ['price' => 500])->tracks
+            ->first();
+        $private = $this
+            ->makeRelease($genre)->tracks
+            ->first();
         $private->update(['privacy' => 'private']);
-        $live = $this->makeRelease($genre)->tracks->first();
+        $live = $this
+            ->makeRelease($genre)->tracks
+            ->first();
 
         $ids = $this->playlist(['similar_to' => $seed->id]);
 

@@ -25,38 +25,54 @@ class PaymentTest extends TestCase
     public function test_temp_user_can_initialize_payment(): void
     {
         $request = new FormRequest;
-        $user = TempUser::factory()->create();
+        $user = TempUser::factory()
+            ->create();
 
-        $pay = $this->payWith('paystack')->makePayment($request, $user, 1000);
+        $pay = $this
+            ->payWith('paystack')
+            ->makePayment($request, $user, 1000);
         $this->assertEquals(HttpStatus::OK, $pay['status_code'] ?? null);
     }
 
     public function test_user_can_initialize_payment(): void
     {
         $request = new FormRequest;
-        $user = User::factory()->create();
+        $user = User::factory()
+            ->create();
 
-        $pay = $this->payWith('paystack')->makePayment($request, $user, 1000);
+        $pay = $this
+            ->payWith('paystack')
+            ->makePayment($request, $user, 1000);
         $this->assertEquals(HttpStatus::OK, $pay['status_code'] ?? null);
     }
 
     public function test_user_can_initialize_and_verify_payment(): void
     {
         $request = new FormRequest;
-        $user = User::factory()->create();
+        $user = User::factory()
+            ->create();
 
-        $pay = $this->payWith('paystack')->makePayment($request, $user, 1000);
-        $verify = $this->payWith('paystack')->verifyPayment($request, $user, $pay['reference'] ?? null);
+        $pay = $this
+            ->payWith('paystack')
+            ->makePayment($request, $user, 1000);
+        $verify = $this
+            ->payWith('paystack')
+            ->verifyPayment($request, $user, $pay['reference'] ?? null);
         $this->assertEquals(HttpStatus::OK, $verify['status_code'] ?? null);
     }
 
     public function test_temp_user_can_initialize_and_verify_payment(): void
     {
         $request = new FormRequest;
-        $user = TempUser::factory()->create();
+        $user = TempUser::factory()
+            ->create();
 
-        $pay = $this->payWith('paystack')->makePayment($request, $user, 1000);
-        $verify = $this->payWith('paystack')->verifyPayment($request, $user, $pay['reference'] ?? null);
+        $pay = $this
+            ->payWith('paystack')
+            ->makePayment($request, $user, 1000);
+        $verify = $this
+            ->payWith('paystack')
+            ->verifyPayment($request, $user, $pay['reference'] ?? null);
         $this->assertEquals(HttpStatus::OK, $verify['status_code'] ?? null);
     }
 }

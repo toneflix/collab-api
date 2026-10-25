@@ -35,7 +35,8 @@ class SafetyController extends Controller
         ]);
 
         $class = $reportables->classFor($valid['type']);
-        $item = $class::query()->findOrFail($valid['id']);
+        $item = $class::query()
+            ->findOrFail($valid['id']);
 
         $claim = $copyright ? array_filter([
             'original_url' => $valid['claim']['original_url'] ?? null,

@@ -15,7 +15,9 @@ class BlockResource extends JsonResource
     public function toArray(Request $request): array
     {
 
-        $with = str($request->with)->remove(' ')->explode(',');
+        $with = str($request->with)
+            ->remove(' ')
+            ->explode(',');
 
         return [
             'id' => $this->id,

@@ -63,10 +63,12 @@ class StemFiles
      */
     public function addStem(ProjectTrack $track, User $user, string $path, string $title, array $meta = [], string $ext = 'mp3'): ProjectTrackStem
     {
-        $stem = $track->stems()->make([
-            'title' => str($title)->limit(180, '')->toString(),
-            'user_id' => $user->id,
-        ]);
+        $stem = $track
+            ->stems()
+            ->make([
+                'title' => str($title)->limit(180, '')->toString(),
+                'user_id' => $user->id,
+            ]);
         $stem->src = $this->put($path, $ext);
         $stem->meta = ['gain' => 1, 'start' => 0, ...$meta];
         $stem->save();

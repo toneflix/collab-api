@@ -43,17 +43,22 @@ class ClearDummyUserData extends Command
         //        SocialInteractions
         //        SocialInteractionSave
 
-        User::whereJsonContains('data->fake', true)->each(function (User $user) {
-            $user->delete();
-        });
+        User::whereJsonContains('data->fake', true)
+            ->each(function (User $user) {
+                $user->delete();
+            });
 
-        Release::whereNull('user_id')->where('image', 'like', '%via.placeholder.com%')->each(function (Release $model) {
-            $model->delete();
-        });
+        Release::whereNull('user_id')
+            ->where('image', 'like', '%via.placeholder.com%')
+            ->each(function (Release $model) {
+                $model->delete();
+            });
 
-        Artist::whereNull('user_id')->where('image', 'like', '%via.placeholder.com%')->each(function (Artist $model) {
-            $model->delete();
-        });
+        Artist::whereNull('user_id')
+            ->where('image', 'like', '%via.placeholder.com%')
+            ->each(function (Artist $model) {
+                $model->delete();
+            });
 
         collect([
             'Artist', 'User', 'Transaction', 'Release', 'Track', 'TrackArtist', 'Project', 'ProjectTrack', 'Followable',

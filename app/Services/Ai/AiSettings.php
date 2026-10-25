@@ -99,7 +99,8 @@ class AiSettings extends SettingsStore
      */
     public static function pack(int $credits): ?array
     {
-        return collect(self::packs())->firstWhere('credits', $credits);
+        return collect(self::packs())
+            ->firstWhere('credits', $credits);
     }
 
     /**

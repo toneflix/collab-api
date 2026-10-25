@@ -67,8 +67,11 @@ class LyricsTest extends TestCase
         AiSettings::update(['ai_enabled' => true, 'ai_lyrics_credits' => 2, 'ai_lyrics_auto' => true]);
 
         $this->owner = $this->member(10);
-        $this->project = Project::query()->forceCreate(['user_id' => $this->owner->id, 'title' => 'Lyrics test', 'privacy' => 'private']);
-        $this->track = $this->project->tracks()->forceCreate(['title' => 'Lagos Morning', 'privacy' => 'private']);
+        $this->project = Project::query()
+            ->forceCreate(['user_id' => $this->owner->id, 'title' => 'Lyrics test', 'privacy' => 'private']);
+        $this->track = $this->project
+            ->tracks()
+            ->forceCreate(['title' => 'Lagos Morning', 'privacy' => 'private']);
     }
 
     protected function tearDown(): void
@@ -85,11 +88,14 @@ class LyricsTest extends TestCase
             'features' => [Feature::AI_TOOLS->value => true, Feature::AI_CREDITS->value => $credits],
         ]);
 
-        $user = User::factory()->create();
-        $user->subscriptions()->create([
-            'plan' => $plan->slug, 'plan_id' => $plan->id, 'amount' => 1000,
-            'starts_at' => now()->subDay(), 'ends_at' => now()->addYear(),
-        ]);
+        $user = User::factory()
+            ->create();
+        $user
+            ->subscriptions()
+            ->create([
+                'plan' => $plan->slug, 'plan_id' => $plan->id, 'amount' => 1000,
+                'starts_at' => now()->subDay(), 'ends_at' => now()->addYear(),
+            ]);
 
         return $user->fresh();
     }
@@ -121,14 +127,16 @@ class LyricsTest extends TestCase
 
     protected function transcribe(Track $track): void
     {
-        app()->call([new TranscribeTrack($track), 'handle']);
+        app()
+            ->call([new TranscribeTrack($track), 'handle']);
     }
 
     protected function stem(array $meta = []): int
     {
         $file = tempnam(sys_get_temp_dir(), 'test-');
         file_put_contents($file, 'ID3-vocals');
-        $stem = app(StemFiles::class)->addStem($this->track, $this->owner, $file, 'Lead vocals', $meta);
+        $stem = app(StemFiles::class)
+            ->addStem($this->track, $this->owner, $file, 'Lead vocals', $meta);
         @unlink($file);
 
         return $stem->id;
@@ -136,16 +144,19 @@ class LyricsTest extends TestCase
 
     protected function release(User $owner, array $track = []): Track
     {
-        $genre = Genre::factory()->create();
-        $release = Release::factory()->create([
-            'draft' => false,
-            'price' => 0,
-            'genre_id' => $genre->id,
-            'user_id' => $owner->id,
-            'artist_id' => Artist::factory()->create()->id,
-        ]);
+        $genre = Genre::factory()
+            ->create();
+        $release = Release::factory()
+            ->create([
+                'draft' => false,
+                'price' => 0,
+                'genre_id' => $genre->id,
+                'user_id' => $owner->id,
+                'artist_id' => Artist::factory()->create()->id,
+            ]);
 
-        return Track::factory()->create(['release_id' => $release->id, 'genre_id' => $genre->id, 'audio' => null, ...$track]);
+        return Track::factory()
+            ->create(['release_id' => $release->id, 'genre_id' => $genre->id, 'audio' => null, ...$track]);
     }
 
     public function test_a_stem_is_transcribed_into_the_lyric_sheet_at_its_place_on_the_track(): void
@@ -187,7 +198,9 @@ class LyricsTest extends TestCase
         $stem = $this->stem(['start' => 2, 'cuein' => 4.5]);
         Sanctum::actingAs($this->owner);
 
-        $this->postJson($this->url("stems/{$stem}/lyrics"))->assertCreated();
+        $this
+            ->postJson($this->url("stems/{$stem}/lyrics"))
+            ->assertCreated();
 
         $this->assertSame(
             [['start' => 2, 'end' => 5.75, 'text' => 'We dey shine, we dey shine']],
@@ -217,7 +230,9 @@ class LyricsTest extends TestCase
             ->assertJsonPath('data.lines.0.text', 'First line');
 
         Sanctum::actingAs(User::factory()->create());
-        $this->putJson($this->url(), ['lines' => [['text' => 'Not mine']]])->assertForbidden();
+        $this
+            ->putJson($this->url(), ['lines' => [['text' => 'Not mine']]])
+            ->assertForbidden();
     }
 
     public function test_clearing_the_sheet_removes_the_lyrics(): void
@@ -225,10 +240,15 @@ class LyricsTest extends TestCase
         $released = $this->release($this->owner, ['project_track_id' => $this->track->id]);
         Sanctum::actingAs($this->owner);
 
-        $this->putJson($this->url(), ['lines' => [['text' => 'Shit happens']]])->assertAccepted();
+        $this
+            ->putJson($this->url(), ['lines' => [['text' => 'Shit happens']]])
+            ->assertAccepted();
         $this->assertTrue($released->fresh()->explicit);
 
-        $this->putJson($this->url(), ['lines' => []])->assertAccepted()->assertJsonPath('data', []);
+        $this
+            ->putJson($this->url(), ['lines' => []])
+            ->assertAccepted()
+            ->assertJsonPath('data', []);
 
         $this->assertNull(app(Lyrics::class)->for($released));
         $this->assertFalse($released->fresh()->explicit);
@@ -246,12 +266,15 @@ class LyricsTest extends TestCase
         Bus::assertDispatched(TranscribeTrack::class, fn(TranscribeTrack $job) => $job->track->is($track));
         $this->transcribe($track);
 
-        $lyric = app(Lyrics::class)->for($track);
+        $lyric = app(Lyrics::class)
+            ->for($track);
         $this->assertSame(Lyric::TRANSCRIBED, $lyric->source);
         $this->assertSame(['fuckin'], $lyric->flagged['explicit']);
         $this->assertTrue($track->fresh()->explicit);
 
-        $this->getJson("/api/tracks/{$track->id}?with=artist")->assertJsonPath('data.explicit', true);
+        $this
+            ->getJson("/api/tracks/{$track->id}?with=artist")
+            ->assertJsonPath('data.explicit', true);
     }
 
     public function test_released_tracks_keep_lyrics_their_creator_wrote_and_skip_when_turned_off(): void
@@ -262,7 +285,9 @@ class LyricsTest extends TestCase
         $track = $this->release($owner = User::factory()->create(), ['audio' => $name]);
 
         Sanctum::actingAs($owner);
-        $this->putJson("/api/creator/tracks/{$track->id}/lyrics", ['lines' => [['text' => 'My own words']]])->assertAccepted();
+        $this
+            ->putJson("/api/creator/tracks/{$track->id}/lyrics", ['lines' => [['text' => 'My own words']]])
+            ->assertAccepted();
 
         $this->transcribe($track);
         $this->assertSame('My own words', app(Lyrics::class)->for($track)->text);
@@ -275,13 +300,16 @@ class LyricsTest extends TestCase
         Http::assertNothingSent();
 
         Sanctum::actingAs(User::factory()->create());
-        $this->putJson("/api/creator/tracks/{$track->id}/lyrics", ['lines' => [['text' => 'Not mine']]])->assertNotFound();
+        $this
+            ->putJson("/api/creator/tracks/{$track->id}/lyrics", ['lines' => [['text' => 'Not mine']]])
+            ->assertNotFound();
     }
 
     public function test_a_track_released_from_the_studio_takes_its_lyric_sheet(): void
     {
         Http::fake();
-        app(Lyrics::class)->save($this->track, [['start' => 1, 'end' => 2, 'text' => 'From the studio']], Lyric::WRITTEN, $this->owner);
+        app(Lyrics::class)
+            ->save($this->track, [['start' => 1, 'end' => 2, 'text' => 'From the studio']], Lyric::WRITTEN, $this->owner);
 
         $track = $this->release($this->owner, ['project_track_id' => $this->track->id]);
         $this->transcribe($track);
@@ -293,19 +321,22 @@ class LyricsTest extends TestCase
     public function test_tracks_can_be_found_by_their_lyrics(): void
     {
         $track = $this->release($this->owner, ['title' => 'Untitled Groove']);
-        app(Lyrics::class)->save($track, [
-            ['start' => 0, 'end' => 2, 'text' => 'Walking down the street'],
-            ['start' => 2, 'end' => 4, 'text' => 'Dancing under neon moonlight'],
-        ], Lyric::WRITTEN, $this->owner);
+        app(Lyrics::class)
+            ->save($track, [
+                ['start' => 0, 'end' => 2, 'text' => 'Walking down the street'],
+                ['start' => 2, 'end' => 4, 'text' => 'Dancing under neon moonlight'],
+            ], Lyric::WRITTEN, $this->owner);
 
         $found = collect($this->getJson('/api/tracks?limit=50&search=' . urlencode('neon moonlight'))->assertOk()->json('data'));
 
         $this->assertSame('Dancing under neon moonlight', $found->firstWhere('id', $track->id)['lyricMatch'] ?? null);
 
-        $byTitle = collect($this->getJson('/api/tracks?limit=50&search=untitled')->json('data'))->pluck('id');
+        $byTitle = collect($this->getJson('/api/tracks?limit=50&search=untitled')->json('data'))
+            ->pluck('id');
         $this->assertContains($track->id, $byTitle->all());
 
-        $none = collect($this->getJson('/api/tracks?limit=50&search=zyxwvut')->json('data'))->pluck('id');
+        $none = collect($this->getJson('/api/tracks?limit=50&search=zyxwvut')->json('data'))
+            ->pluck('id');
         $this->assertNotContains($track->id, $none->all());
     }
 
@@ -317,17 +348,23 @@ class LyricsTest extends TestCase
         $lyrics->save($track, [['text' => 'You should kill yourself']], Lyric::WRITTEN, $this->owner);
         $lyrics->save($track, [['text' => 'You should kill yourself, I said']], Lyric::WRITTEN, $this->owner);
 
-        $flag = Safety::query()->forItem($track)->where('type', Safety::TYPE_LYRICS)->sole();
+        $flag = Safety::query()
+            ->forItem($track)
+            ->where('type', Safety::TYPE_LYRICS)
+            ->sole();
         $this->assertSame(['kill yourself'], $flag->data['words']);
         $this->assertSame(Safety::PENDING, $flag->status);
 
-        $moderator = User::factory()->create();
+        $moderator = User::factory()
+            ->create();
         $moderator->givePermissionTo(Permission::findOrCreate('manage-content'));
         Sanctum::actingAs($moderator);
         $queued = collect($this->getJson('/api/admin/moderation/queue?source=lyrics')->assertOk()->json('data'));
         $this->assertTrue($queued->contains(fn($row) => collect($row['reports'])->contains('id', $flag->id)));
 
-        $flag->forceFill(['status' => Safety::DISMISSED])->save();
+        $flag
+            ->forceFill(['status' => Safety::DISMISSED])
+            ->save();
         $lyrics->save($track, [['text' => 'Kill yourself, again']], Lyric::WRITTEN, $this->owner);
 
         $this->assertSame(1, Safety::query()->forItem($track)->where('type', Safety::TYPE_LYRICS)->count());
@@ -351,9 +388,13 @@ class LyricsTest extends TestCase
     {
         $stem = $this->stem();
 
-        $this->project->forceFill(['user_id' => $poor = $this->member(1)->id])->save();
+        $this->project
+            ->forceFill(['user_id' => $poor = $this->member(1)->id])
+            ->save();
         Sanctum::actingAs(User::find($poor));
-        $this->postJson($this->url("stems/{$stem}/lyrics"))->assertJsonValidationErrors('credits');
+        $this
+            ->postJson($this->url("stems/{$stem}/lyrics"))
+            ->assertJsonValidationErrors('credits');
 
         $this->assertSame(2, AiSettings::clientConfig()['costs']['lyrics']);
     }

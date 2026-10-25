@@ -27,7 +27,8 @@ class MetricSeeder extends Seeder
 
         /** @var Release $model */
         foreach ($releases as $model) {
-            $xuser = User::inRandomOrder()->first();
+            $xuser = User::inRandomOrder()
+                ->first();
             User::inRandomOrder()
                 ->where('data->fake', true)
                 ->limit(rand(1, 10))
@@ -48,7 +49,8 @@ class MetricSeeder extends Seeder
 
         /** @var Track $model */
         foreach ($tracks as $model) {
-            $xuser = User::inRandomOrder()->first();
+            $xuser = User::inRandomOrder()
+                ->first();
             User::inRandomOrder()
                 ->where('data->fake', true)
                 ->limit(rand(1, 10))
@@ -69,7 +71,8 @@ class MetricSeeder extends Seeder
 
         /** @var Project $model */
         foreach ($projects as $model) {
-            $xuser = User::inRandomOrder()->first();
+            $xuser = User::inRandomOrder()
+                ->first();
             User::inRandomOrder()
                 ->where('data->fake', true)
                 ->limit(rand(1, 10))

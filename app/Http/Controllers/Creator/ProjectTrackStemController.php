@@ -27,7 +27,9 @@ class ProjectTrackStemController extends Controller
     {
         $this->authorize('view', $track);
 
-        $query = $track->stems()->getQuery();
+        $query = $track
+            ->stems()
+            ->getQuery();
 
         $stems = $query->get();
 
@@ -63,7 +65,9 @@ class ProjectTrackStemController extends Controller
         $history = TrackHistory::for($track);
         $history->baseline();
 
-        $stem = $track->stems()->create($valid);
+        $stem = $track
+            ->stems()
+            ->create($valid);
 
         $history->record($request->user(), ProjectTrackVersion::ADDED);
 
@@ -76,11 +80,12 @@ class ProjectTrackStemController extends Controller
             'stem_id' => $stem->id,
         ]);
 
-        return (new ProjectTrackStemResource($stem))->additional([
-            'message' => 'Track stem created successfully.',
-            'status' => 'success',
-            'status_code' => HttpStatus::CREATED,
-        ])
+        return (new ProjectTrackStemResource($stem))
+            ->additional([
+                'message' => 'Track stem created successfully.',
+                'status' => 'success',
+                'status_code' => HttpStatus::CREATED,
+            ])
             ->response()
             ->setStatusCode(HttpStatus::CREATED->value);
     }
@@ -135,11 +140,12 @@ class ProjectTrackStemController extends Controller
             'meta' => collect($stem->meta)->except('src')->all(),
         ]);
 
-        return (new ProjectTrackStemResource($stem))->additional([
-            'message' => 'Track stem updated successfully.',
-            'status' => 'success',
-            'status_code' => HttpStatus::ACCEPTED,
-        ])
+        return (new ProjectTrackStemResource($stem))
+            ->additional([
+                'message' => 'Track stem updated successfully.',
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
             ->response()
             ->setStatusCode(HttpStatus::ACCEPTED->value);
     }

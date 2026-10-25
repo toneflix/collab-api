@@ -33,22 +33,26 @@ class AudioMatcher
         $codes = $this->fingerprinter->codes($path);
 
         return DB::transaction(function () use ($model, $path, $duration, $codes) {
-            $fingerprint = AudioFingerprint::query()->updateOrCreate([
-                'model_type' => $model->getMorphClass(),
-                'model_id' => $model->getKey(),
-            ], [
-                'hash' => $this->fingerprinter->hash($path),
-                'duration' => $duration,
-                'codes' => AudioFingerprint::packCodes($codes),
-            ]);
+            $fingerprint = AudioFingerprint::query()
+                ->updateOrCreate([
+                    'model_type' => $model->getMorphClass(),
+                    'model_id' => $model->getKey(),
+                ], [
+                    'hash' => $this->fingerprinter->hash($path),
+                    'duration' => $duration,
+                    'codes' => AudioFingerprint::packCodes($codes),
+                ]);
 
-            DB::table('audio_fingerprint_keys')->where('audio_fingerprint_id', $fingerprint->id)->delete();
+            DB::table('audio_fingerprint_keys')
+                ->where('audio_fingerprint_id', $fingerprint->id)
+                ->delete();
 
             foreach (array_chunk(array_values(array_unique($codes)), 500) as $chunk) {
-                DB::table('audio_fingerprint_keys')->insert(array_map(fn(int $code) => [
-                    'audio_fingerprint_id' => $fingerprint->id,
-                    'code' => $code,
-                ], $chunk));
+                DB::table('audio_fingerprint_keys')
+                    ->insert(array_map(fn(int $code) => [
+                        'audio_fingerprint_id' => $fingerprint->id,
+                        'code' => $code,
+                    ], $chunk));
             }
 
             return $fingerprint;
@@ -77,7 +81,10 @@ class AudioMatcher
             return $exact->values();
         }
 
-        $skip = $exact->pluck('fingerprint.id')->push($fingerprint->id)->all();
+        $skip = $exact
+            ->pluck('fingerprint.id')
+            ->push($fingerprint->id)
+            ->all();
 
         $candidates = AudioFingerprint::query()
             ->whereIn('id', $this->candidateIds($fingerprint, $codes, $skip))
@@ -91,7 +98,10 @@ class AudioMatcher
             ])
             ->filter(fn(array $match) => $match['score'] >= self::THRESHOLD);
 
-        return $exact->concat($acoustic)->sortByDesc('score')->values();
+        return $exact
+            ->concat($acoustic)
+            ->sortByDesc('score')
+            ->values();
     }
 
     /**

@@ -53,15 +53,16 @@ class PayoutController extends Controller
             ->selectRaw('count(*) as count, coalesce(sum(amount), 0) as amount')
             ->first();
 
-        return (new PayoutCollection($payoutList))->additional([
-            'summary' => [
-                'pendingCount' => (int) $pending->count,
-                'pendingAmount' => (float) $pending->amount,
-            ],
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new PayoutCollection($payoutList))
+            ->additional([
+                'summary' => [
+                    'pendingCount' => (int) $pending->count,
+                    'pendingAmount' => (float) $pending->amount,
+                ],
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     public function approve(Request $request, Payouts $payouts, Payout $payout)
@@ -69,15 +70,16 @@ class PayoutController extends Controller
         $payout = $payouts->approve($payout, $request->user());
         $payout->load(['user', 'reviewer']);
 
-        return (new PayoutResource($payout))->additional([
-            'message' => match ($payout->status) {
-                PayoutStatus::FAILED => 'Paystack did not accept this transfer: ' . $payout->failure_reason,
-                PayoutStatus::PAID => 'The withdrawal was paid.',
-                default => 'The withdrawal was sent to Paystack.',
-            },
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new PayoutResource($payout))
+            ->additional([
+                'message' => match ($payout->status) {
+                    PayoutStatus::FAILED => 'Paystack did not accept this transfer: ' . $payout->failure_reason,
+                    PayoutStatus::PAID => 'The withdrawal was paid.',
+                    default => 'The withdrawal was sent to Paystack.',
+                },
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     public function reject(Request $request, Payouts $payouts, Payout $payout)
@@ -89,11 +91,12 @@ class PayoutController extends Controller
         $payout = $payouts->reject($payout, $request->user(), $valid['reason'] ?? null);
         $payout->load(['user', 'reviewer']);
 
-        return (new PayoutResource($payout))->additional([
-            'message' => 'The withdrawal was rejected.',
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new PayoutResource($payout))
+            ->additional([
+                'message' => 'The withdrawal was rejected.',
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -101,12 +104,15 @@ class PayoutController extends Controller
      */
     public function sync(Payouts $payouts, Payout $payout)
     {
-        $payout = $payouts->sync($payout)->load(['user', 'reviewer']);
+        $payout = $payouts
+            ->sync($payout)
+            ->load(['user', 'reviewer']);
 
-        return (new PayoutResource($payout))->additional([
-            'message' => 'The withdrawal is ' . $payout->status->value . '.',
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new PayoutResource($payout))
+            ->additional([
+                'message' => 'The withdrawal is ' . $payout->status->value . '.',
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 }

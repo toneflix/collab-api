@@ -36,7 +36,10 @@ class AppConfiguration
      */
     public static function forAdmin(): array
     {
-        $stored = Configuration::query()->whereIn('key', array_keys(self::FIELDS))->get()->keyBy('key');
+        $stored = Configuration::query()
+            ->whereIn('key', array_keys(self::FIELDS))
+            ->get()
+            ->keyBy('key');
 
         return collect(self::FIELDS)->map(function (array $field, string $key) use ($stored) {
             $out = [
@@ -61,10 +64,12 @@ class AppConfiguration
      */
     public static function update(array $input): void
     {
-        $valid = Validator::make($input, self::rules())->validate();
+        $valid = Validator::make($input, self::rules())
+            ->validate();
 
         foreach ($valid as $key => $value) {
-            $configuration = Configuration::query()->firstOrNew(['key' => $key]);
+            $configuration = Configuration::query()
+                ->firstOrNew(['key' => $key]);
 
             // The type is set before the value, because it decides how the value is stored.
             if (! $configuration->exists) {

@@ -42,11 +42,12 @@ class PlanController extends Controller
             ->ordered()
             ->get();
 
-        return (new PlanCollection($plans))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new PlanCollection($plans))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -56,11 +57,12 @@ class PlanController extends Controller
     {
         $features = Feature::catalogue();
 
-        return (new FeatureCollection($features))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new FeatureCollection($features))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     public function show(Plan $plan)
@@ -77,11 +79,12 @@ class PlanController extends Controller
     {
         $plan = $this->save($request, new Plan);
 
-        return (new PlanResource($plan))->additional([
-            'message' => __(':name was created.', ['name' => $plan->name]),
-            'status' => 'success',
-            'status_code' => HttpStatus::CREATED,
-        ])
+        return (new PlanResource($plan))
+            ->additional([
+                'message' => __(':name was created.', ['name' => $plan->name]),
+                'status' => 'success',
+                'status_code' => HttpStatus::CREATED,
+            ])
             ->response()
             ->setStatusCode(HttpStatus::CREATED->value);
     }
@@ -213,7 +216,9 @@ class PlanController extends Controller
             }
 
             if ($isDefault) {
-                Plan::whereKeyNot($plan->id ?? 0)->where('is_default', true)->update(['is_default' => false]);
+                Plan::whereKeyNot($plan->id ?? 0)
+                    ->where('is_default', true)
+                    ->update(['is_default' => false]);
                 $plan->active = true;
             }
 

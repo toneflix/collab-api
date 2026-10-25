@@ -188,7 +188,8 @@ class Providers
                 /** @var Carbon */
                 $datetime = $check->last_attempt;
             } else {
-                $check = PasswordCodeResets::whereEmail($request?->email)->first();
+                $check = PasswordCodeResets::whereEmail($request?->email)
+                    ->first();
 
                 $action = 'reset your password';
 
@@ -196,7 +197,8 @@ class Providers
                 $datetime = $check->created_at ?? null;
             }
 
-            $dateAdd = $datetime?->addSeconds(config('settings.token_lifespan', 30));
+            $dateAdd = $datetime
+                ?->addSeconds(config('settings.token_lifespan', 30));
 
             return (! $datetime || $dateAdd->isPast())
                 ? Limit::none()
@@ -216,7 +218,9 @@ class Providers
     public static function paginator(LengthAwarePaginator $data, $keys = [], $exclude = []): array
     {
         if ($data instanceof LengthAwarePaginator) {
-            $links = $data->linkCollection()->filter(fn($link) => is_numeric($link['label']));
+            $links = $data
+                ->linkCollection()
+                ->filter(fn($link) => is_numeric($link['label']));
 
             $output = [];
 

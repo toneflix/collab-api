@@ -31,7 +31,8 @@ class PasswordResetLinkController extends Controller
         ]);
 
         // Delete the old code
-        PasswordCodeResets::whereEmail($request->email)->delete();
+        PasswordCodeResets::whereEmail($request->email)
+            ->delete();
 
         // // generate the new code
         $reset = new PasswordCodeResets;

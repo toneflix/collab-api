@@ -14,7 +14,9 @@ class ProjectTrackResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        $with = str($request->input('with'))->remove(' ')->explode(',');
+        $with = str($request->input('with'))
+            ->remove(' ')
+            ->explode(',');
 
         return [
             'id' => $this->id,

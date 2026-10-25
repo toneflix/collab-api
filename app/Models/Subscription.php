@@ -52,6 +52,8 @@ class Subscription extends Model
 
     public function scopeActive(Builder $query): void
     {
-        $query->where('starts_at', '<=', now())->where('ends_at', '>', now());
+        $query
+            ->where('starts_at', '<=', now())
+            ->where('ends_at', '>', now());
     }
 }

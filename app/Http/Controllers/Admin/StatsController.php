@@ -19,10 +19,11 @@ class StatsController extends Controller
 
         $overview = $stats->for($request->user());
 
-        return (new AdminStatsResource($overview))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new AdminStatsResource($overview))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 }

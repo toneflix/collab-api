@@ -23,10 +23,13 @@ trait ModelCanExtend
         ?string $current = null,
         ?callable $scope = null,
     ) {
-        $username = str($current ?: $string)->slug($separator);
+        $username = str($current ?: $string)
+            ->slug($separator);
 
         if (static::query()->withoutGlobalScope(HideTakenDown::class)->where($field, $username)->when($scope, $scope)->exists()) {
-            $username = $username->append($separator)->append(Random::number(1111, 9999));
+            $username = $username
+                ->append($separator)
+                ->append(Random::number(1111, 9999));
         }
 
         return $username->toString();

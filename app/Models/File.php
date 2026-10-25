@@ -109,7 +109,8 @@ class File extends Model
                 if (! str($mediaPath)->exactly('default')) {
                     $wt = '?preload=true';
 
-                    $superLoad = Auth::user()->hasRole(config('permission-defs.elevated-roles', []));
+                    $superLoad = Auth::user()
+                        ->hasRole(config('permission-defs.elevated-roles', []));
                     $uid = Auth::id() ?: 0;
 
                     // Check if the user has elevated access and append some random query you

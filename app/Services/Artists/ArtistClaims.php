@@ -60,13 +60,17 @@ class ArtistClaims
         $this->ensurePending($claim);
 
         DB::transaction(function () use ($claim, $admin, $note) {
-            $artist = Artist::query()->lockForUpdate()->findOrFail($claim->artist_id);
+            $artist = Artist::query()
+                ->lockForUpdate()
+                ->findOrFail($claim->artist_id);
 
             if (! $artist->isClaimable()) {
                 throw ValidationException::withMessages(['claim' => 'This artist is already managed by an account.']);
             }
 
-            $artist->forceFill(['user_id' => $claim->user_id, 'verified' => true])->saveQuietly();
+            $artist
+                ->forceFill(['user_id' => $claim->user_id, 'verified' => true])
+                ->saveQuietly();
 
             Release::query()
                 ->withoutGlobalScopes()
@@ -133,7 +137,9 @@ class ArtistClaims
 
     public function pendingCount(): int
     {
-        return ArtistClaim::query()->pending()->count();
+        return ArtistClaim::query()
+            ->pending()
+            ->count();
     }
 
     /**
@@ -148,7 +154,8 @@ class ArtistClaims
     {
         abort_unless($claim->document && Storage::disk($this->disk())->exists($claim->document), 404, 'This claim has no document.');
 
-        return Storage::disk($this->disk())->download($claim->document, 'claim-' . $claim->id . '-proof.' . pathinfo($claim->document, PATHINFO_EXTENSION));
+        return Storage::disk($this->disk())
+            ->download($claim->document, 'claim-' . $claim->id . '-proof.' . pathinfo($claim->document, PATHINFO_EXTENSION));
     }
 
     protected function review(ArtistClaim $claim, string $status, ?User $admin, ?string $note): void
@@ -188,17 +195,19 @@ class ArtistClaims
 
     protected function notify(ArtistClaim $claim, string $title, string $message): void
     {
-        $claim->user?->notify(new ModerationNotice($title, $message, [
-            'artist_claim_id' => $claim->id,
-            'artist' => $claim->artist->username,
-            'status' => $claim->status,
-        ]));
+        $claim->user
+            ?->notify(new ModerationNotice($title, $message, [
+                'artist_claim_id' => $claim->id,
+                'artist' => $claim->artist->username,
+                'status' => $claim->status,
+            ]));
     }
 
     protected function deleteDocument(ArtistClaim $claim): void
     {
         if ($claim->document) {
-            Storage::disk($this->disk())->delete($claim->document);
+            Storage::disk($this->disk())
+                ->delete($claim->document);
         }
     }
 

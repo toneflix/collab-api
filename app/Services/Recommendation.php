@@ -69,8 +69,12 @@ class Recommendation
         }
 
         DB::transaction(function () use ($items) {
-            $this->user->recommendations()->delete();
-            $this->user->recommendations()->createMany($items->all());
+            $this->user
+                ->recommendations()
+                ->delete();
+            $this->user
+                ->recommendations()
+                ->createMany($items->all());
         });
 
         return $items->count();
@@ -81,7 +85,8 @@ class Recommendation
      */
     public function seedTrackIds(): Collection
     {
-        $since = now()->subDays($this->historyDays);
+        $since = now()
+            ->subDays($this->historyDays);
 
         $streamed = DB::table('laravisits')
             ->where('visitable_type', (new Track)->getMorphClass())
@@ -96,7 +101,11 @@ class Recommendation
             ->where('liked', true)
             ->pluck('interactable_id');
 
-        return $streamed->merge($liked)->map(fn($id) => (int) $id)->unique()->values();
+        return $streamed
+            ->merge($liked)
+            ->map(fn($id) => (int) $id)
+            ->unique()
+            ->values();
     }
 
     /**
@@ -119,7 +128,9 @@ class Recommendation
      */
     public function seedArtistIds(Collection $trackIds): Collection
     {
-        $listened = DB::table('track_artist')->whereIn('track_id', $trackIds)->pluck('artist_id');
+        $listened = DB::table('track_artist')
+            ->whereIn('track_id', $trackIds)
+            ->pluck('artist_id');
 
         return $listened->merge($this->followedIds(Artist::class))
             ->map(fn($id) => (int) $id)
@@ -206,7 +217,9 @@ class Recommendation
      */
     protected function users(): Collection
     {
-        $following = $this->followedIds(User::class)->push($this->user->id);
+        $following = $this
+            ->followedIds(User::class)
+            ->push($this->user->id);
         $morph = $this->user->getMorphClass();
 
         $friendsOfFriends = User::query()

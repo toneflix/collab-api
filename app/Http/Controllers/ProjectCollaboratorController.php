@@ -73,7 +73,9 @@ class ProjectCollaboratorController extends Controller
         );
 
         /** @var ProjectCollaborator $collaborator */
-        $collaborator = $project->collaborators()->create($valid);
+        $collaborator = $project
+            ->collaborators()
+            ->create($valid);
 
         $sender->sendApprovableNotification(
             actionable: $collaborator,
@@ -87,14 +89,15 @@ class ProjectCollaboratorController extends Controller
             ],
         );
 
-        return (new ProjectCollaboratorResource($collaborator))->additional([
-            'message' => __('Your request to join :0 as a :1 has been sent.', [
-                $project->title,
-                $role,
-            ]),
-            'status' => 'success',
-            'status_code' => HttpStatus::CREATED,
-        ])
+        return (new ProjectCollaboratorResource($collaborator))
+            ->additional([
+                'message' => __('Your request to join :0 as a :1 has been sent.', [
+                    $project->title,
+                    $role,
+                ]),
+                'status' => 'success',
+                'status_code' => HttpStatus::CREATED,
+            ])
             ->response()
             ->setStatusCode(HttpStatus::CREATED->value);
     }
@@ -125,7 +128,9 @@ class ProjectCollaboratorController extends Controller
             ->when($cid !== 'self', fn(Builder $q) => $q->whereId($cid))
             ->firstOrFail();
 
-        $collaborator->request()->delete();
+        $collaborator
+            ->request()
+            ->delete();
         $collaborator->delete();
 
         return (new ProjectCollaboratorResource($collaborator))

@@ -40,17 +40,25 @@ class ConversationTest extends TestCase
 
         RealtimeSettings::flush();
 
-        $this->owner = User::factory()->create();
-        $this->collaborator = User::factory()->create();
-        $this->stranger = User::factory()->create();
+        $this->owner = User::factory()
+            ->create();
+        $this->collaborator = User::factory()
+            ->create();
+        $this->stranger = User::factory()
+            ->create();
 
-        $this->project = Project::query()->forceCreate([
-            'user_id' => $this->owner->id,
-            'title' => 'Chat test',
-            'privacy' => 'private',
-        ]);
-        $this->project->collaborators()->forceCreate(['user_id' => $this->collaborator->id, 'role' => 'vocals', 'accepted' => true]);
-        $this->track = $this->project->tracks()->forceCreate(['title' => 'Chat track', 'privacy' => 'private']);
+        $this->project = Project::query()
+            ->forceCreate([
+                'user_id' => $this->owner->id,
+                'title' => 'Chat test',
+                'privacy' => 'private',
+            ]);
+        $this->project
+            ->collaborators()
+            ->forceCreate(['user_id' => $this->collaborator->id, 'role' => 'vocals', 'accepted' => true]);
+        $this->track = $this->project
+            ->tracks()
+            ->forceCreate(['title' => 'Chat track', 'privacy' => 'private']);
     }
 
     protected function tearDown(): void
@@ -100,8 +108,10 @@ class ConversationTest extends TestCase
             }
         };
 
-        app(BroadcastManager::class)->extend('reverb', fn() => $spy);
-        app(BroadcastManager::class)->forgetDrivers();
+        app(BroadcastManager::class)
+            ->extend('reverb', fn() => $spy);
+        app(BroadcastManager::class)
+            ->forgetDrivers();
     }
 
     public function test_messages_come_back_as_chat_with_quoted_replies(): void
@@ -125,14 +135,19 @@ class ConversationTest extends TestCase
 
     public function test_messages_page_backwards(): void
     {
-        collect(range(1, 5))->map(fn($i) => $this->send($this->owner, "Message {$i}"));
+        collect(range(1, 5))
+            ->map(fn($i) => $this->send($this->owner, "Message {$i}"));
 
         Sanctum::actingAs($this->owner);
-        $newest = $this->getJson($this->url('/messages?limit=2'))->assertOk();
+        $newest = $this
+            ->getJson($this->url('/messages?limit=2'))
+            ->assertOk();
         $this->assertSame(['Message 4', 'Message 5'], array_column($newest->json('data'), 'body'));
         $this->assertNotNull($cursor = $newest->json('meta.next_cursor'));
 
-        $older = $this->getJson($this->url('/messages?limit=3&cursor=' . $cursor))->assertOk();
+        $older = $this
+            ->getJson($this->url('/messages?limit=3&cursor=' . $cursor))
+            ->assertOk();
         $this->assertSame(['Message 1', 'Message 2', 'Message 3'], array_column($older->json('data'), 'body'));
         $this->assertNull($older->json('meta.next_cursor'));
     }
@@ -154,22 +169,38 @@ class ConversationTest extends TestCase
 
         // The sender's own messages never count as unread.
         Sanctum::actingAs($this->owner);
-        $this->getJson('/api/conversations')->assertJsonPath('unread', 0);
+        $this
+            ->getJson('/api/conversations')
+            ->assertJsonPath('unread', 0);
 
         Sanctum::actingAs($this->collaborator);
-        $this->postJson($this->url('/read'))->assertOk();
-        $this->getJson('/api/conversations')->assertJsonPath('unread', 0);
+        $this
+            ->postJson($this->url('/read'))
+            ->assertOk();
+        $this
+            ->getJson('/api/conversations')
+            ->assertJsonPath('unread', 0);
     }
 
     public function test_outsiders_cannot_read_or_write(): void
     {
         Sanctum::actingAs($this->stranger);
 
-        $this->getJson($this->url())->assertForbidden();
-        $this->getJson($this->url('/messages'))->assertForbidden();
-        $this->postJson($this->url('/messages'), ['body' => 'Hi'])->assertForbidden();
-        $this->getJson('/api/conversations/project-track/999999')->assertNotFound();
-        $this->getJson('/api/conversations/nonsense/1')->assertNotFound();
+        $this
+            ->getJson($this->url())
+            ->assertForbidden();
+        $this
+            ->getJson($this->url('/messages'))
+            ->assertForbidden();
+        $this
+            ->postJson($this->url('/messages'), ['body' => 'Hi'])
+            ->assertForbidden();
+        $this
+            ->getJson('/api/conversations/project-track/999999')
+            ->assertNotFound();
+        $this
+            ->getJson('/api/conversations/nonsense/1')
+            ->assertNotFound();
     }
 
     public function test_people_delete_their_own_messages_and_owners_any(): void
@@ -178,16 +209,28 @@ class ConversationTest extends TestCase
         $theirs = $this->send($this->owner, 'Owner says');
 
         Sanctum::actingAs($this->collaborator);
-        $this->getJson($this->url())->assertJsonPath('data.canDeleteAny', false);
-        $this->deleteJson($this->url("/messages/{$theirs}"))->assertForbidden();
-        $this->deleteJson($this->url("/messages/{$mine}"))->assertStatus(202);
+        $this
+            ->getJson($this->url())
+            ->assertJsonPath('data.canDeleteAny', false);
+        $this
+            ->deleteJson($this->url("/messages/{$theirs}"))
+            ->assertForbidden();
+        $this
+            ->deleteJson($this->url("/messages/{$mine}"))
+            ->assertStatus(202);
 
         $again = $this->send($this->collaborator, 'Again');
         Sanctum::actingAs($this->owner);
-        $this->getJson($this->url())->assertJsonPath('data.canDeleteAny', true);
-        $this->deleteJson($this->url("/messages/{$again}"))->assertStatus(202);
+        $this
+            ->getJson($this->url())
+            ->assertJsonPath('data.canDeleteAny', true);
+        $this
+            ->deleteJson($this->url("/messages/{$again}"))
+            ->assertStatus(202);
 
-        $this->getJson($this->url('/messages'))->assertJsonCount(1, 'data');
+        $this
+            ->getJson($this->url('/messages'))
+            ->assertJsonCount(1, 'data');
     }
 
     public function test_messages_reach_the_conversation_and_everyone_elses_inbox(): void
@@ -196,7 +239,8 @@ class ConversationTest extends TestCase
 
         $this->send($this->collaborator, 'Harmony is in');
 
-        $events = collect($this->sent)->keyBy('event');
+        $events = collect($this->sent)
+            ->keyBy('event');
         $this->assertSame(["private-conversation.project-track.{$this->track->id}"], $events['comment.posted']['channels']);
         $this->assertSame('Harmony is in', $events['comment.posted']['payload']['comment']['body']);
 
@@ -224,26 +268,36 @@ class ConversationTest extends TestCase
             ->assertJsonPath('data.voice.waveform', [0.1, 0.5, 1])
             ->json('data.id');
 
-        $voice = $this->getJson($this->url('/messages'))->json('data.0.voice');
+        $voice = $this
+            ->getJson($this->url('/messages'))
+            ->json('data.0.voice');
         $this->assertStringContainsString('/media/files/', $voice['url']);
 
         // The inbox shows something readable for a message with no text.
         Sanctum::actingAs($this->owner);
-        $this->getJson('/api/conversations')->assertJsonPath('data.0.lastMessage.body', 'Voice note (0:12)');
+        $this
+            ->getJson('/api/conversations')
+            ->assertJsonPath('data.0.lastMessage.body', 'Voice note (0:12)');
 
         // Deleting the message removes the recording.
         $path = (new Media)->mediaInfo('voice_notes', Comment::find($id)->meta['voice']['file'])['path'];
-        Storage::disk(config('filesystems.default'))->assertExists($path);
+        Storage::disk(config('filesystems.default'))
+            ->assertExists($path);
         Sanctum::actingAs($this->collaborator);
-        $this->deleteJson($this->url("/messages/{$id}"))->assertStatus(202);
-        Storage::disk(config('filesystems.default'))->assertMissing($path);
+        $this
+            ->deleteJson($this->url("/messages/{$id}"))
+            ->assertStatus(202);
+        Storage::disk(config('filesystems.default'))
+            ->assertMissing($path);
     }
 
     public function test_a_message_needs_text_or_a_voice_note(): void
     {
         Sanctum::actingAs($this->owner);
 
-        $this->postJson($this->url('/messages'), ['body' => ''])->assertJsonValidationErrors('body');
+        $this
+            ->postJson($this->url('/messages'), ['body' => ''])
+            ->assertJsonValidationErrors('body');
         $this->post($this->url('/messages'), [
             'voice' => UploadedFile::fake()->create('note.txt', 2, 'text/plain'),
             'duration' => 3,
@@ -252,7 +306,9 @@ class ConversationTest extends TestCase
 
     public function test_messages_can_point_at_part_of_the_track(): void
     {
-        $stem = $this->track->stems()->forceCreate(['user_id' => $this->owner->id, 'title' => 'Vocals', 'meta' => ['name' => 'Vocals']]);
+        $stem = $this->track
+            ->stems()
+            ->forceCreate(['user_id' => $this->owner->id, 'title' => 'Vocals', 'meta' => ['name' => 'Vocals']]);
         Sanctum::actingAs($this->collaborator);
 
         $this->postJson($this->url('/messages'), [

@@ -48,7 +48,9 @@ class ReleaseVersions
             return;
         }
 
-        $release->forceFill(['review_status' => null, 'retire_on_approval' => null])->saveQuietly();
+        $release
+            ->forceFill(['review_status' => null, 'retire_on_approval' => null])
+            ->saveQuietly();
 
         $this->retireSiblings($release, $retire);
     }
@@ -66,7 +68,9 @@ class ReleaseVersions
 
         $this->retireSiblings($release, $release->retire_on_approval ?? []);
 
-        $release->forceFill(['retire_on_approval' => null])->saveQuietly();
+        $release
+            ->forceFill(['retire_on_approval' => null])
+            ->saveQuietly();
 
         $this->notifyOwner($release, 'Your release is live', "\"{$release->title}\" was approved and is now live.");
     }
@@ -100,7 +104,11 @@ class ReleaseVersions
     protected function retireSiblings(Release $release, array $ids): void
     {
         if ($ids && $release->project_id) {
-            $this->siblings($release)->whereKey($ids)->whereNull('retired_at')->update(['retired_at' => now()]);
+            $this
+                ->siblings($release)
+                ->whereKey($ids)
+                ->whereNull('retired_at')
+                ->update(['retired_at' => now()]);
         }
     }
 
@@ -117,8 +125,11 @@ class ReleaseVersions
 
     protected function notifyOwner(Release $release, string $title, string $message): void
     {
-        $owner = User::query()->withoutGlobalScopes()->find($release->user_id);
+        $owner = User::query()
+            ->withoutGlobalScopes()
+            ->find($release->user_id);
 
-        $owner?->notify(new ModerationNotice($title, $message, ['release_id' => $release->id]));
+        $owner
+            ?->notify(new ModerationNotice($title, $message, ['release_id' => $release->id]));
     }
 }

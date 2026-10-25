@@ -68,12 +68,16 @@ class AiReview extends Model
 
     public function subject(): MorphTo
     {
-        return $this->morphTo()->withoutGlobalScopes();
+        return $this
+            ->morphTo()
+            ->withoutGlobalScopes();
     }
 
     public function requester(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'requested_by')->withoutGlobalScopes();
+        return $this
+            ->belongsTo(User::class, 'requested_by')
+            ->withoutGlobalScopes();
     }
 
     public function scopeQueued(Builder $query): void

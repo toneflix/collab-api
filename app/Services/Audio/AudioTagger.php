@@ -67,7 +67,8 @@ class AudioTagger
     {
         if ($bpm === null && $key === null) {
             $this->save($owner, null, null, null);
-            TagAudio::dispatch($owner)->afterCommit();
+            TagAudio::dispatch($owner)
+                ->afterCommit();
 
             return;
         }
@@ -81,7 +82,10 @@ class AudioTagger
      */
     public function inherit(Track $track): bool
     {
-        $project = $track->projectTrack()->withoutGlobalScopes()->first();
+        $project = $track
+            ->projectTrack()
+            ->withoutGlobalScopes()
+            ->first();
 
         if (! $project?->tagged_at || $track->tags_source === Track::TAGS_MANUAL) {
             return false;

@@ -159,7 +159,10 @@ class FirebaseBroadcaster extends Broadcaster
      */
     protected function write(array $updates): void
     {
-        $this->database()->getReference()->update($updates);
+        $this
+            ->database()
+            ->getReference()
+            ->update($updates);
     }
 
     protected function factory(): Factory

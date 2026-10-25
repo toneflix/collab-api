@@ -16,7 +16,8 @@ class RealtimeServiceProvider extends ServiceProvider
     public function boot(): void
     {
         RateLimiter::for('realtime-live', function (Request $request) {
-            return Limit::perMinute(600)->by($request->user()?->id ?: $request->ip());
+            return Limit::perMinute(600)
+                ->by($request->user()?->id ?: $request->ip());
         });
 
         $this->callAfterResolving(BroadcastManager::class, function (BroadcastManager $manager) {

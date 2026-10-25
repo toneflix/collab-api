@@ -155,20 +155,42 @@ class User extends Authenticatable implements Commentator, Reportable
         });
 
         static::deleting(function (User $model) {
-            $model->projects()->delete();
-            $model->followers()->delete();
-            $model->followings()->delete();
-            $model->recommendings()->delete();
-            $model->viewingHistory()->delete();
-            $model->recommendations()->delete();
-            $model->socialInteracts()->delete();
-            $model->savedSocialInteracts()->delete();
+            $model
+                ->projects()
+                ->delete();
+            $model
+                ->followers()
+                ->delete();
+            $model
+                ->followings()
+                ->delete();
+            $model
+                ->recommendings()
+                ->delete();
+            $model
+                ->viewingHistory()
+                ->delete();
+            $model
+                ->recommendations()
+                ->delete();
+            $model
+                ->socialInteracts()
+                ->delete();
+            $model
+                ->savedSocialInteracts()
+                ->delete();
             // $model->collabProjects();
-            $model->approvableNotifications()->delete();
+            $model
+                ->approvableNotifications()
+                ->delete();
 
             if (@$model->data['eraseOnDelete'] === true) {
-                $model->releases()->delete();
-                $model->artists()->delete();
+                $model
+                    ->releases()
+                    ->delete();
+                $model
+                    ->artists()
+                    ->delete();
             }
         });
 
@@ -245,7 +267,9 @@ class User extends Authenticatable implements Commentator, Reportable
      */
     public function adminActions(): HasMany
     {
-        return $this->hasMany(AdminAction::class)->latest('id');
+        return $this
+            ->hasMany(AdminAction::class)
+            ->latest('id');
     }
 
     public function hasVerifiedPhone()
@@ -424,12 +448,16 @@ class User extends Authenticatable implements Commentator, Reportable
 
     public function recommendations(): HasMany
     {
-        return $this->hasMany(Recommendation::class)->latest();
+        return $this
+            ->hasMany(Recommendation::class)
+            ->latest();
     }
 
     public function recommendings(): MorphMany
     {
-        return $this->morphMany(Recommendation::class, 'recommendable')->latest();
+        return $this
+            ->morphMany(Recommendation::class, 'recommendable')
+            ->latest();
     }
 
     /**
@@ -473,7 +501,9 @@ class User extends Authenticatable implements Commentator, Reportable
 
         // Group the two conditions so they don't bypass the other filters on the query
         $query->where(function (Builder $q) use ($scope) {
-            $q->whereHas('projects', $scope)->orWhereHas('collabProjects', $scope);
+            $q
+                ->whereHas('projects', $scope)
+                ->orWhereHas('collabProjects', $scope);
         });
     }
 
@@ -481,11 +511,15 @@ class User extends Authenticatable implements Commentator, Reportable
     {
         $query->whereHas('releases', function (Builder $q) use ($genre) {
             $q->whereHas('genre', function (Builder $q) use ($genre) {
-                $q->where('slug', $genre)->when(is_numeric($genre), fn($q) => $q->orWhere('id', $genre));
+                $q
+                    ->where('slug', $genre)
+                    ->when(is_numeric($genre), fn($q) => $q->orWhere('id', $genre));
             });
             $q->orWhereHas('tracks', function (Builder $qx) use ($genre) {
                 $qx->whereHas('genre', function (Builder $q) use ($genre) {
-                    $q->where('slug', $genre)->when(is_numeric($genre), fn($q) => $q->orWhere('id', $genre));
+                    $q
+                        ->where('slug', $genre)
+                        ->when(is_numeric($genre), fn($q) => $q->orWhere('id', $genre));
                 });
             });
         });
@@ -526,7 +560,9 @@ class User extends Authenticatable implements Commentator, Reportable
      */
     public function subscriptions(): HasMany
     {
-        return $this->hasMany(Subscription::class)->latest('ends_at');
+        return $this
+            ->hasMany(Subscription::class)
+            ->latest('ends_at');
     }
 
     /**
@@ -579,7 +615,9 @@ class User extends Authenticatable implements Commentator, Reportable
      */
     public function earnings(): HasMany
     {
-        return $this->hasMany(Transaction::class, 'recipient_id')->where('status', 'complete');
+        return $this
+            ->hasMany(Transaction::class, 'recipient_id')
+            ->where('status', 'complete');
     }
 
     /**

@@ -36,7 +36,8 @@ class TranscribeLyrics implements AiTask
     public function handle(AiJob $job): array
     {
         /** @var ProjectTrackStem $stem */
-        $stem = ProjectTrackStem::query()->findOrFail($job->input['stem_id']);
+        $stem = ProjectTrackStem::query()
+            ->findOrFail($job->input['stem_id']);
 
         $path = $this->files->local($stem) ?? throw new ReplicateException('That stem\'s audio file is missing.');
 

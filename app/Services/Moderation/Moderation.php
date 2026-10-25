@@ -38,7 +38,10 @@ class Moderation
             throw ValidationException::withMessages(['id' => 'You can\'t report your own content.']);
         }
 
-        $report = Safety::query()->forItem($item)->where('user_id', $reporter->id)->first();
+        $report = Safety::query()
+            ->forItem($item)
+            ->where('user_id', $reporter->id)
+            ->first();
 
         if ($report && $report->status !== Safety::PENDING) {
             throw ValidationException::withMessages(['id' => 'You already reported this, and a moderator reviewed it.']);
@@ -70,11 +73,16 @@ class Moderation
     public function flagMatches(Track $track, Collection $matches): int
     {
         $owner = $track->moderationOwnerId();
-        $project = $track->projectTrack()->withoutGlobalScopes()->value('project_id');
+        $project = $track
+            ->projectTrack()
+            ->withoutGlobalScopes()
+            ->value('project_id');
         $flagged = 0;
 
         foreach ($matches as $match) {
-            $original = Track::query()->withoutGlobalScopes()->find($match['fingerprint']->model_id);
+            $original = Track::query()
+                ->withoutGlobalScopes()
+                ->find($match['fingerprint']->model_id);
 
             if (
                 ! $original ||
@@ -97,22 +105,23 @@ class Moderation
                 continue;
             }
 
-            Safety::query()->create([
-                'model_type' => $track->getMorphClass(),
-                'model_id' => $track->id,
-                'type' => Safety::TYPE_MATCH,
-                'reason' => 'copyright',
-                'details' => "Sounds like “{$summary['title']}” by {$summary['subtitle']} ({$percent}% match).",
-                'data' => [
-                    'match_type' => 'track',
-                    'match_id' => $original->id,
-                    'match_title' => $summary['title'],
-                    'match_artist' => $summary['subtitle'],
-                    'match_link' => $summary['link'],
-                    'score' => $match['score'],
-                    'kind' => $match['kind'],
-                ],
-            ]);
+            Safety::query()
+                ->create([
+                    'model_type' => $track->getMorphClass(),
+                    'model_id' => $track->id,
+                    'type' => Safety::TYPE_MATCH,
+                    'reason' => 'copyright',
+                    'details' => "Sounds like “{$summary['title']}” by {$summary['subtitle']} ({$percent}% match).",
+                    'data' => [
+                        'match_type' => 'track',
+                        'match_id' => $original->id,
+                        'match_title' => $summary['title'],
+                        'match_artist' => $summary['subtitle'],
+                        'match_link' => $summary['link'],
+                        'score' => $match['score'],
+                        'kind' => $match['kind'],
+                    ],
+                ]);
 
             $flagged++;
         }
@@ -129,9 +138,17 @@ class Moderation
      */
     public function flagLyrics(Track $track, array $words): Safety
     {
-        $words = collect($words)->unique()->sort()->values()->all();
+        $words = collect($words)
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
 
-        $latest = Safety::query()->forItem($track)->where('type', Safety::TYPE_LYRICS)->latest('id')->first();
+        $latest = Safety::query()
+            ->forItem($track)
+            ->where('type', Safety::TYPE_LYRICS)
+            ->latest('id')
+            ->first();
 
         if ($latest && $latest->status !== Safety::PENDING && ($latest->data['words'] ?? null) === $words) {
             return $latest;
@@ -163,11 +180,13 @@ class Moderation
         }
 
         $takedown = DB::transaction(function () use ($item, $moderator, $reason, $note) {
-            $takedown = $item->takedowns()->create([
-                'moderator_id' => $moderator->id,
-                'reason' => $reason,
-                'note' => $note,
-            ]);
+            $takedown = $item
+                ->takedowns()
+                ->create([
+                    'moderator_id' => $moderator->id,
+                    'reason' => $reason,
+                    'note' => $note,
+                ]);
 
             $this->stamp($item, now());
             $this->closeReports($item, $moderator, Safety::ACTIONED, $takedown);
@@ -195,7 +214,10 @@ class Moderation
     public function dismiss(Model&Reportable $item, User $moderator): int
     {
         $summary = $item->moderationSummary();
-        $pending = Safety::query()->forItem($item)->pending()->pluck('id');
+        $pending = Safety::query()
+            ->forItem($item)
+            ->pending()
+            ->pluck('id');
 
         $closed = $this->closeReports($item, $moderator, Safety::DISMISSED);
 
@@ -307,7 +329,10 @@ class Moderation
      */
     protected function stamp(Model&CanBeTakenDown $item, ?\DateTimeInterface $at): void
     {
-        $item->newQueryWithoutScopes()->whereKey($item->getKey())->update(['taken_down_at' => $at]);
+        $item
+            ->newQueryWithoutScopes()
+            ->whereKey($item->getKey())
+            ->update(['taken_down_at' => $at]);
         $item->taken_down_at = $at;
 
         if (! $item instanceof Release) {
@@ -327,13 +352,16 @@ class Moderation
 
     protected function closeReports(Model&Reportable $item, User $moderator, string $status, ?Takedown $takedown = null): int
     {
-        return Safety::query()->forItem($item)->pending()->update([
-            'status' => $status,
-            'reviewed_by' => $moderator->id,
-            'reviewed_at' => now(),
-            'takedown_id' => $takedown?->id,
-            'updated_at' => now(),
-        ]);
+        return Safety::query()
+            ->forItem($item)
+            ->pending()
+            ->update([
+                'status' => $status,
+                'reviewed_by' => $moderator->id,
+                'reviewed_at' => now(),
+                'takedown_id' => $takedown?->id,
+                'updated_at' => now(),
+            ]);
     }
 
     protected function notifyOwner(Model&Reportable $item, string $title, string $message, Takedown $takedown): void
@@ -341,10 +369,11 @@ class Moderation
         $owner = $item->moderationOwnerId();
         $user = $owner ? User::query()->withoutGlobalScopes()->find($owner) : null;
 
-        $user?->notify(new ModerationNotice($title, $message, [
-            'takedown_id' => $takedown->id,
-            'status' => $takedown->status,
-        ]));
+        $user
+            ?->notify(new ModerationNotice($title, $message, [
+                'takedown_id' => $takedown->id,
+                'status' => $takedown->status,
+            ]));
     }
 
     /**

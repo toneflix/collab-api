@@ -25,7 +25,8 @@ class NotificationSettingsController extends Controller
 
     public function update(Request $request)
     {
-        $categories = collect(NotificationCategory::cases())->map->value->all();
+        $categories = collect(NotificationCategory::cases())->map->value
+            ->all();
 
         $valid = $request->validate([
             'categories' => ['required', 'array'],
@@ -34,7 +35,9 @@ class NotificationSettingsController extends Controller
             'categories.*.push' => ['sometimes', 'boolean'],
         ]);
 
-        $values = collect($valid['categories'])->only($categories)->all();
+        $values = collect($valid['categories'])
+            ->only($categories)
+            ->all();
 
         NotificationPreferences::for($request->user())->update($values);
 
@@ -55,12 +58,14 @@ class NotificationSettingsController extends Controller
             'contentEncoding' => ['nullable', Rule::in(['aesgcm', 'aes128gcm'])],
         ]);
 
-        $request->user()->updatePushSubscription(
-            $valid['endpoint'],
-            $valid['keys']['p256dh'],
-            $valid['keys']['auth'],
-            $valid['contentEncoding'] ?? 'aes128gcm',
-        );
+        $request
+            ->user()
+            ->updatePushSubscription(
+                $valid['endpoint'],
+                $valid['keys']['p256dh'],
+                $valid['keys']['auth'],
+                $valid['contentEncoding'] ?? 'aes128gcm',
+            );
 
         return $this->settings($request->user(), 'Push notifications are on for this device.', HttpStatus::CREATED);
     }
@@ -72,7 +77,9 @@ class NotificationSettingsController extends Controller
     {
         $valid = $request->validate(['endpoint' => ['required', 'string', 'max:500']]);
 
-        $request->user()->deletePushSubscription($valid['endpoint']);
+        $request
+            ->user()
+            ->deletePushSubscription($valid['endpoint']);
 
         return $this->settings($request->user(), 'Push notifications are off for this device.', HttpStatus::ACCEPTED);
     }

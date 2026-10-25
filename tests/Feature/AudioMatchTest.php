@@ -37,7 +37,8 @@ class AudioMatchTest extends TestCase
         mkdir($this->dir);
 
         // Artists come with tracks of their own, so make one before any audio exists.
-        $this->artist = Artist::factory()->create();
+        $this->artist = Artist::factory()
+            ->create();
     }
 
     protected function tearDown(): void
@@ -72,20 +73,23 @@ class AudioMatchTest extends TestCase
         $name = Str::random(12) . '.mp3';
         Storage::put('public/media/music/tracks/' . $name, file_get_contents($file));
 
-        $genre = Genre::factory()->create();
-        $release = Release::factory()->create([
-            'draft' => false,
-            'genre_id' => $genre->id,
-            'user_id' => $owner->id,
-            'artist_id' => $this->artist->id,
-        ]);
+        $genre = Genre::factory()
+            ->create();
+        $release = Release::factory()
+            ->create([
+                'draft' => false,
+                'genre_id' => $genre->id,
+                'user_id' => $owner->id,
+                'artist_id' => $this->artist->id,
+            ]);
 
-        $track = Track::factory()->create([
-            'release_id' => $release->id,
-            'genre_id' => $genre->id,
-            'audio' => $name,
-            'duration' => 30,
-        ]);
+        $track = Track::factory()
+            ->create([
+                'release_id' => $release->id,
+                'genre_id' => $genre->id,
+                'audio' => $name,
+                'duration' => 30,
+            ]);
 
         FingerprintTrack::dispatchSync($track);
 
@@ -105,7 +109,10 @@ class AudioMatchTest extends TestCase
         $original = $this->track(User::factory()->create(), $file);
         $copy = $this->track(User::factory()->create(), $file);
 
-        $flag = Safety::query()->forItem($copy)->where('type', Safety::TYPE_MATCH)->first();
+        $flag = Safety::query()
+            ->forItem($copy)
+            ->where('type', Safety::TYPE_MATCH)
+            ->first();
 
         $this->assertNotNull($flag);
         $this->assertSame($original->id, $flag->data['match_id']);
@@ -121,7 +128,10 @@ class AudioMatchTest extends TestCase
         $original = $this->track(User::factory()->create(), $this->audio('original', 3));
         $copy = $this->track(User::factory()->create(), $this->audio('copy', 3, 64, 1.5));
 
-        $flag = Safety::query()->forItem($copy)->where('type', Safety::TYPE_MATCH)->first();
+        $flag = Safety::query()
+            ->forItem($copy)
+            ->where('type', Safety::TYPE_MATCH)
+            ->first();
 
         $this->assertNotNull($flag);
         $this->assertSame($original->id, $flag->data['match_id']);
@@ -142,7 +152,8 @@ class AudioMatchTest extends TestCase
 
     public function test_the_same_owner_uploading_twice_is_not_flagged(): void
     {
-        $owner = User::factory()->create();
+        $owner = User::factory()
+            ->create();
         $file = $this->audio('mine', 5);
 
         $this->track($owner, $file);
@@ -157,7 +168,8 @@ class AudioMatchTest extends TestCase
         $this->track(User::factory()->create(), $file);
         $copy = $this->track(User::factory()->create(), $file);
 
-        $moderator = User::factory()->create();
+        $moderator = User::factory()
+            ->create();
         $moderator->givePermissionTo(Permission::findOrCreate('manage-content'));
         Sanctum::actingAs($moderator);
 

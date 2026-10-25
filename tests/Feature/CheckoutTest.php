@@ -65,19 +65,21 @@ class CheckoutTest extends TestCase
         $this->gateway = new FakeGateway;
         $this->app->instance(PaymentGateway::class, $this->gateway);
 
-        Plan::where('slug', 'premium')->update([
-            'price' => 2000,
-            'interval' => 'month',
-            'active' => true,
-            'billing_options' => json_encode([['cycles' => 6, 'discount' => 10], ['cycles' => 12, 'discount' => 20]]),
-        ]);
+        Plan::where('slug', 'premium')
+            ->update([
+                'price' => 2000,
+                'interval' => 'month',
+                'active' => true,
+                'billing_options' => json_encode([['cycles' => 6, 'discount' => 10], ['cycles' => 12, 'discount' => 20]]),
+            ]);
         $this->setting('creator_share', 80);
         $this->setting('min_tip_amount', 100);
     }
 
     protected function setting(string $key, mixed $value): void
     {
-        Configuration::where('key', $key)->update(['value' => $value]);
+        Configuration::where('key', $key)
+            ->update(['value' => $value]);
         Cache::forget('configuration::build');
     }
 
@@ -88,7 +90,8 @@ class CheckoutTest extends TestCase
      */
     protected function planFeatures(string $slug, array $features): Plan
     {
-        $plan = Plan::where('slug', $slug)->firstOrFail();
+        $plan = Plan::where('slug', $slug)
+            ->firstOrFail();
         $plan->features = [...($plan->features ?? []), ...$features];
         $plan->save();
 
@@ -97,7 +100,8 @@ class CheckoutTest extends TestCase
 
     protected function paidRelease(float $price = 1500, ?User $owner = null): Release
     {
-        $genre = Genre::factory()->create();
+        $genre = Genre::factory()
+            ->create();
 
         return Release::factory()
             ->has(Track::factory()->count(2)->state(['genre_id' => $genre->id]), 'tracks')
@@ -138,16 +142,20 @@ class CheckoutTest extends TestCase
             ->assertJsonPath('data.access_code', fn($code) => str_starts_with($code, 'code_'))
             ->json('data.reference');
 
-        $this->postJson("/api/payments/{$reference}/verify")->assertOk();
+        $this
+            ->postJson("/api/payments/{$reference}/verify")
+            ->assertOk();
 
-        return Transaction::where('reference', $reference)->firstOrFail();
+        return Transaction::where('reference', $reference)
+            ->firstOrFail();
     }
 
     public function test_a_paid_release_is_locked_until_bought(): void
     {
         $release = $this->paidRelease(1500);
         $track = $release->tracks->first();
-        $buyer = User::factory()->create();
+        $buyer = User::factory()
+            ->create();
 
         Sanctum::actingAs($buyer);
 
@@ -157,7 +165,9 @@ class CheckoutTest extends TestCase
             ->assertJsonPath('data.price', 1500)
             ->assertJsonMissingPath('data.streamUrl');
 
-        $this->getJson("/api/tracks/{$track->id}/download")->assertStatus(402);
+        $this
+            ->getJson("/api/tracks/{$track->id}/download")
+            ->assertStatus(402);
 
         $transaction = $this->pay($buyer, ['purpose' => 'release', 'id' => $release->id]);
 
@@ -182,23 +192,32 @@ class CheckoutTest extends TestCase
         Sanctum::actingAs(User::factory()->create());
 
         $free = $this->paidRelease(0);
-        $this->postJson('/api/payments', ['purpose' => 'release', 'id' => $free->id])->assertUnprocessable();
+        $this
+            ->postJson('/api/payments', ['purpose' => 'release', 'id' => $free->id])
+            ->assertUnprocessable();
 
         $draft = $this->paidRelease(500);
         $draft->update(['draft' => true]);
-        $this->postJson('/api/payments', ['purpose' => 'release', 'id' => $draft->id])->assertNotFound();
+        $this
+            ->postJson('/api/payments', ['purpose' => 'release', 'id' => $draft->id])
+            ->assertNotFound();
     }
 
     public function test_paying_less_than_the_price_does_not_unlock(): void
     {
         $release = $this->paidRelease(1500);
-        $buyer = User::factory()->create();
+        $buyer = User::factory()
+            ->create();
         Sanctum::actingAs($buyer);
 
-        $reference = $this->postJson('/api/payments', ['purpose' => 'release', 'id' => $release->id])->json('data.reference');
+        $reference = $this
+            ->postJson('/api/payments', ['purpose' => 'release', 'id' => $release->id])
+            ->json('data.reference');
         $this->gateway->results[$reference] = ['paid' => true, 'amount' => 10];
 
-        $this->postJson("/api/payments/{$reference}/verify")->assertStatus(400);
+        $this
+            ->postJson("/api/payments/{$reference}/verify")
+            ->assertStatus(400);
 
         $this->assertSame('rejected', Transaction::where('reference', $reference)->value('status'));
         $this->assertFalse($release->fresh()->isUnlockedFor($buyer));
@@ -209,10 +228,14 @@ class CheckoutTest extends TestCase
         $release = $this->paidRelease(1500);
         Sanctum::actingAs(User::factory()->create());
 
-        $reference = $this->postJson('/api/payments', ['purpose' => 'release', 'id' => $release->id])->json('data.reference');
+        $reference = $this
+            ->postJson('/api/payments', ['purpose' => 'release', 'id' => $release->id])
+            ->json('data.reference');
         $this->gateway->results[$reference] = ['paid' => false, 'final' => false, 'amount' => 0];
 
-        $this->postJson("/api/payments/{$reference}/verify")->assertStatus(400);
+        $this
+            ->postJson("/api/payments/{$reference}/verify")
+            ->assertStatus(400);
 
         $this->assertSame('pending', Transaction::where('reference', $reference)->value('status'));
     }
@@ -226,7 +249,8 @@ class CheckoutTest extends TestCase
 
         // Ask for every track, so the free ones are on the page however many tracks the database holds.
         $limit = Track::count() + 1;
-        $ids = collect($this->getJson("/api/playlist?limit={$limit}")->assertOk()->json('data'))->pluck('id');
+        $ids = collect($this->getJson("/api/playlist?limit={$limit}")->assertOk()->json('data'))
+            ->pluck('id');
 
         $this->assertTrue($ids->intersect($free->tracks->pluck('id'))->isNotEmpty());
         $this->assertTrue($ids->intersect($paid->tracks->pluck('id'))->isEmpty());
@@ -234,23 +258,30 @@ class CheckoutTest extends TestCase
 
     public function test_stems_can_be_bought_and_downloaded(): void
     {
-        $owner = User::factory()->create();
-        $project = Project::factory()->create(['user_id' => $owner->id]);
-        $projectTrack = ProjectTrack::factory()->create([
-            'project_id' => $project->id,
-            'genre_id' => Genre::factory()->create()->id,
-            'artist_id' => Artist::factory()->create()->id,
-        ]);
-        ProjectTrackStem::factory()->create(['track_id' => $projectTrack->id, 'user_id' => $owner->id, 'src' => 'drums.mp3']);
+        $owner = User::factory()
+            ->create();
+        $project = Project::factory()
+            ->create(['user_id' => $owner->id]);
+        $projectTrack = ProjectTrack::factory()
+            ->create([
+                'project_id' => $project->id,
+                'genre_id' => Genre::factory()->create()->id,
+                'artist_id' => Artist::factory()->create()->id,
+            ]);
+        ProjectTrackStem::factory()
+            ->create(['track_id' => $projectTrack->id, 'user_id' => $owner->id, 'src' => 'drums.mp3']);
 
         $release = $this->paidRelease(0, $owner);
         $track = $release->tracks->first();
         $track->update(['stems_price' => 5000, 'project_track_id' => $projectTrack->id]);
 
-        $buyer = User::factory()->create();
+        $buyer = User::factory()
+            ->create();
         Sanctum::actingAs($buyer);
 
-        $this->getJson("/api/tracks/{$track->id}/stems")->assertStatus(402);
+        $this
+            ->getJson("/api/tracks/{$track->id}/stems")
+            ->assertStatus(402);
 
         $transaction = $this->pay($buyer, ['purpose' => 'stems', 'id' => $track->id]);
         $this->assertEquals(5000, $transaction->amount);
@@ -272,8 +303,10 @@ class CheckoutTest extends TestCase
 
     public function test_listeners_can_tip_creators(): void
     {
-        $creator = User::factory()->create();
-        $fan = User::factory()->create();
+        $creator = User::factory()
+            ->create();
+        $fan = User::factory()
+            ->create();
 
         Sanctum::actingAs($fan);
 
@@ -305,13 +338,18 @@ class CheckoutTest extends TestCase
 
     public function test_premium_adds_time_and_unlocks_downloads(): void
     {
-        $listener = User::factory()->create();
-        $track = $this->paidRelease(0)->tracks->first();
+        $listener = User::factory()
+            ->create();
+        $track = $this
+            ->paidRelease(0)->tracks
+            ->first();
         $track->update(['audio' => 'song.mp3']);
 
         Sanctum::actingAs($listener);
 
-        $this->getJson("/api/tracks/{$track->id}/download")->assertForbidden();
+        $this
+            ->getJson("/api/tracks/{$track->id}/download")
+            ->assertForbidden();
 
         $month = $this->pay($listener, ['purpose' => 'premium', 'plan' => 'premium']);
         $year = $this->pay($listener, ['purpose' => 'premium', 'plan' => 'premium', 'cycles' => 12]);
@@ -344,42 +382,61 @@ class CheckoutTest extends TestCase
     {
         Sanctum::actingAs(User::factory()->create());
 
-        $this->postJson('/api/payments', ['purpose' => 'premium', 'plan' => 'weekly'])->assertUnprocessable();
+        $this
+            ->postJson('/api/payments', ['purpose' => 'premium', 'plan' => 'weekly'])
+            ->assertUnprocessable();
 
         // The default plan is what everyone already has.
-        $this->postJson('/api/payments', ['purpose' => 'premium', 'plan' => 'free'])->assertUnprocessable();
+        $this
+            ->postJson('/api/payments', ['purpose' => 'premium', 'plan' => 'free'])
+            ->assertUnprocessable();
 
         // Only the billing options the plan offers can be bought.
         $this->postJson('/api/payments', ['purpose' => 'premium', 'plan' => 'premium', 'cycles' => 3])
             ->assertUnprocessable()
             ->assertJsonValidationErrors('cycles');
-        $this->postJson('/api/payments', ['purpose' => 'premium', 'plan' => 'premium', 'cycles' => 6])->assertCreated();
+        $this
+            ->postJson('/api/payments', ['purpose' => 'premium', 'plan' => 'premium', 'cycles' => 6])
+            ->assertCreated();
 
         // A free or inactive plan can't be bought.
-        Plan::where('slug', 'premium')->update(['active' => false]);
-        $this->postJson('/api/payments', ['purpose' => 'premium', 'plan' => 'premium'])->assertUnprocessable();
+        Plan::where('slug', 'premium')
+            ->update(['active' => false]);
+        $this
+            ->postJson('/api/payments', ['purpose' => 'premium', 'plan' => 'premium'])
+            ->assertUnprocessable();
 
-        Plan::where('slug', 'premium')->update(['price' => 0, 'active' => true]);
-        $this->postJson('/api/payments', ['purpose' => 'premium', 'plan' => 'premium'])->assertUnprocessable();
+        Plan::where('slug', 'premium')
+            ->update(['price' => 0, 'active' => true]);
+        $this
+            ->postJson('/api/payments', ['purpose' => 'premium', 'plan' => 'premium'])
+            ->assertUnprocessable();
     }
 
     public function test_settling_twice_only_counts_once(): void
     {
-        $listener = User::factory()->create();
+        $listener = User::factory()
+            ->create();
         $transaction = $this->pay($listener, ['purpose' => 'premium', 'plan' => 'premium']);
 
-        app(Checkout::class)->settle($transaction, true, 2000);
-        $this->postJson("/api/payments/{$transaction->reference}/verify")->assertOk();
+        app(Checkout::class)
+            ->settle($transaction, true, 2000);
+        $this
+            ->postJson("/api/payments/{$transaction->reference}/verify")
+            ->assertOk();
 
         $this->assertSame(1, Subscription::where('user_id', $listener->id)->count());
     }
 
     public function test_the_webhook_checks_the_signature_and_confirms_the_payment(): void
     {
-        $listener = User::factory()->create();
+        $listener = User::factory()
+            ->create();
         Sanctum::actingAs($listener);
 
-        $reference = $this->postJson('/api/payments', ['purpose' => 'premium', 'plan' => 'premium'])->json('data.reference');
+        $reference = $this
+            ->postJson('/api/payments', ['purpose' => 'premium', 'plan' => 'premium'])
+            ->json('data.reference');
 
         $payload = json_encode(['event' => 'charge.success', 'data' => ['reference' => $reference]]);
 
@@ -402,7 +459,8 @@ class CheckoutTest extends TestCase
     public function test_purchases_are_listed_for_the_buyer(): void
     {
         $release = $this->paidRelease(700);
-        $buyer = User::factory()->create();
+        $buyer = User::factory()
+            ->create();
 
         $this->pay($buyer, ['purpose' => 'release', 'id' => $release->id]);
 
@@ -419,38 +477,51 @@ class CheckoutTest extends TestCase
         $this->planFeatures('free', ['max_projects' => 1]);
         $premium = $this->planFeatures('premium', ['max_projects' => 0]);
 
-        $creator = User::factory()->create();
+        $creator = User::factory()
+            ->create();
         Sanctum::actingAs($creator);
 
-        $this->postJson('/api/creator/projects', ['title' => 'First'])->assertCreated();
+        $this
+            ->postJson('/api/creator/projects', ['title' => 'First'])
+            ->assertCreated();
         $this->postJson('/api/creator/projects', ['title' => 'Second'])
             ->assertUnprocessable()
             ->assertJsonValidationErrors('title');
 
-        $creator->subscriptions()->create([
-            'plan' => 'premium',
-            'plan_id' => $premium->id,
-            'amount' => 2000,
-            'starts_at' => now()->subDay(),
-            'ends_at' => now()->addMonth(),
-        ]);
+        $creator
+            ->subscriptions()
+            ->create([
+                'plan' => 'premium',
+                'plan_id' => $premium->id,
+                'amount' => 2000,
+                'starts_at' => now()->subDay(),
+                'ends_at' => now()->addMonth(),
+            ]);
 
         $this->actingAsFresh($creator);
 
-        $this->postJson('/api/creator/projects', ['title' => 'Second'])->assertCreated();
+        $this
+            ->postJson('/api/creator/projects', ['title' => 'Second'])
+            ->assertCreated();
     }
 
     public function test_free_projects_have_a_collaborator_limit(): void
     {
         $this->planFeatures('free', ['max_collaborators' => 1]);
 
-        $owner = User::factory()->create();
-        $project = Project::factory()->create(['user_id' => $owner->id]);
-        $project->collaborators()->delete(); // the factory adds random ones
+        $owner = User::factory()
+            ->create();
+        $project = Project::factory()
+            ->create(['user_id' => $owner->id]);
+        $project
+            ->collaborators()
+            ->delete(); // the factory adds random ones
 
         Sanctum::actingAs($owner);
 
-        [$first, $second] = User::factory()->count(2)->create();
+        [$first, $second] = User::factory()
+            ->count(2)
+            ->create();
 
         $this->postJson("/api/creator/projects/{$project->id}/collaborators", ['user_id' => (string) $first->id])
             ->assertCreated();

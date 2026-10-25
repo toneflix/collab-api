@@ -121,14 +121,16 @@ class StripeConnectGateway implements HostsPayoutAccounts, PayoutGateway
     public function transfer(PayoutTransfer $transfer): array
     {
         try {
-            $result = $this->client()->transfers->create([
-                'amount' => $this->minor($transfer->amount, $transfer->currency),
-                'currency' => strtolower($transfer->currency),
-                'destination' => $transfer->recipient,
-                'transfer_group' => $transfer->reference,
-                'description' => $transfer->reason,
-                'metadata' => ['reference' => $transfer->reference],
-            ], ['idempotency_key' => $transfer->reference]);
+            $result = $this
+                ->client()->transfers
+                ->create([
+                    'amount' => $this->minor($transfer->amount, $transfer->currency),
+                    'currency' => strtolower($transfer->currency),
+                    'destination' => $transfer->recipient,
+                    'transfer_group' => $transfer->reference,
+                    'description' => $transfer->reason,
+                    'metadata' => ['reference' => $transfer->reference],
+                ], ['idempotency_key' => $transfer->reference]);
         } catch (ApiConnectionException $e) {
             // The outcome is unknown, so leave it processing for payouts:sync to settle.
             report($e);

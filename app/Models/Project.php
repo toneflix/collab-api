@@ -76,20 +76,35 @@ class Project extends Model
         });
 
         static::deleting(function (self $model) {
-            $model->tracks()->delete();
-            $model->comments()->delete();
-            $model->comments()->delete();
-            $model->collaborators()->delete();
-            $model->socialInteractions()->delete();
-            $model->socialInteractionSaves()->delete();
+            $model
+                ->tracks()
+                ->delete();
+            $model
+                ->comments()
+                ->delete();
+            $model
+                ->comments()
+                ->delete();
+            $model
+                ->collaborators()
+                ->delete();
+            $model
+                ->socialInteractions()
+                ->delete();
+            $model
+                ->socialInteractionSaves()
+                ->delete();
         });
 
         static::updated(function (self $model) {
-            $model->releases()->where('draft', true)->update([
-                'title' => $model->title,
-                'privacy' => $model->privacy,
-                'description' => $model->description,
-            ]);
+            $model
+                ->releases()
+                ->where('draft', true)
+                ->update([
+                    'title' => $model->title,
+                    'privacy' => $model->privacy,
+                    'description' => $model->description,
+                ]);
         });
 
         static::addGlobalScopes([
@@ -125,10 +140,16 @@ class Project extends Model
     public function isCollaber(User $user): bool
     {
         if ($this->relationLoaded('collaborators')) {
-            return $this->collaborators->where('accepted', true)->contains('user_id', $user->id);
+            return $this->collaborators
+                ->where('accepted', true)
+                ->contains('user_id', $user->id);
         }
 
-        return $this->collaborators()->accepted()->forUser($user)->exists();
+        return $this
+            ->collaborators()
+            ->accepted()
+            ->forUser($user)
+            ->exists();
     }
 
     /**
@@ -166,7 +187,11 @@ class Project extends Model
 
     public function collaberData(User $user, $pending = false): ?ProjectCollaborator
     {
-        return $this->collaborators()->accepted(! $pending)->forUser($user)->first();
+        return $this
+            ->collaborators()
+            ->accepted(! $pending)
+            ->forUser($user)
+            ->first();
     }
 
     public function ready(): Attribute
@@ -189,7 +214,9 @@ class Project extends Model
      */
     public function release(): HasOne
     {
-        return $this->hasOne(Release::class)->latest('id');
+        return $this
+            ->hasOne(Release::class)
+            ->latest('id');
     }
 
     public function released(): Attribute
@@ -203,11 +230,15 @@ class Project extends Model
     {
         $query->whereHas('release', function (Builder $q) use ($genre) {
             $q->whereHas('genre', function (Builder $q) use ($genre) {
-                $q->where('slug', $genre)->when(is_numeric($genre), fn($q) => $q->orWhere('id', $genre));
+                $q
+                    ->where('slug', $genre)
+                    ->when(is_numeric($genre), fn($q) => $q->orWhere('id', $genre));
             });
             $q->orWhereHas('tracks', function (Builder $qx) use ($genre) {
                 $qx->whereHas('genre', function (Builder $q) use ($genre) {
-                    $q->where('slug', $genre)->when(is_numeric($genre), fn($q) => $q->orWhere('id', $genre));
+                    $q
+                        ->where('slug', $genre)
+                        ->when(is_numeric($genre), fn($q) => $q->orWhere('id', $genre));
                 });
             });
         });
@@ -246,7 +277,9 @@ class Project extends Model
             $query->whereHas('collaborators', function (Builder $q) use ($id) {
                 $q->accepted();
                 $q->whereHas('user', function (Builder $qx) use ($id) {
-                    $qx->where('users.username', $id)->when(is_numeric($id), fn($q) => $q->orWhere('users.id', $id));
+                    $qx
+                        ->where('users.username', $id)
+                        ->when(is_numeric($id), fn($q) => $q->orWhere('users.id', $id));
                 });
             });
 
@@ -282,7 +315,9 @@ class Project extends Model
      */
     public function tracksReady(): HasMany
     {
-        return $this->tracks()->ready();
+        return $this
+            ->tracks()
+            ->ready();
     }
 
     /**

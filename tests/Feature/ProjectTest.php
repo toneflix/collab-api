@@ -14,7 +14,8 @@ class ProjectTest extends TestCase
 
     protected function project(): Project
     {
-        return Project::factory()->create(['user_id' => User::factory()->create()->id]);
+        return Project::factory()
+            ->create(['user_id' => User::factory()->create()->id]);
     }
 
     public function test_can_send_collab_request(): void
@@ -56,7 +57,9 @@ class ProjectTest extends TestCase
         );
 
         $project = $this->project();
-        $project->collaborators()->create(['role' => 'vocals', 'user_id' => User::factory()->create()->id]);
+        $project
+            ->collaborators()
+            ->create(['role' => 'vocals', 'user_id' => User::factory()->create()->id]);
 
         $response = $this->get("/api/projects/{$project->id}/collaborators", [
             'pending' => true,
@@ -80,7 +83,9 @@ class ProjectTest extends TestCase
             'custom' => 'dancer',
         ]);
 
-        $id = $response->collect('data.id')->first();
+        $id = $response
+            ->collect('data.id')
+            ->first();
 
         $response2 = $this->delete("/api/projects/{$project->id}/collaborators/{$id}");
 

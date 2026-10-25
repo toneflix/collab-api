@@ -19,10 +19,14 @@ class ProjectController extends Controller
      */
     public function index(Request $request)
     {
-        $filters = str($request->filters)->remove(' ')->explode(',');
+        $filters = str($request->filters)
+            ->remove(' ')
+            ->explode(',');
 
         if ($request->boolean('own')) {
-            $query = $this->user->projects()->getQuery();
+            $query = $this->user
+                ->projects()
+                ->getQuery();
         } else {
             $query = Project::query();
             $query->collaber($this->user);
@@ -59,22 +63,25 @@ class ProjectController extends Controller
             'Your account can have up to :limit projects.'
         );
 
-        $project = $this->user->projects()->create([
-            'title' => $request->input('title'),
-            'privacy' => $request->input('privacy', 'private'),
-            'description' => $request->input('description'),
-        ]);
+        $project = $this->user
+            ->projects()
+            ->create([
+                'title' => $request->input('title'),
+                'privacy' => $request->input('privacy', 'private'),
+                'description' => $request->input('description'),
+            ]);
 
         (new Reputation(
             $this->user,
             $this->user->projects()->count() > 1 ? 'create_project' : 'first_project'
         ))->add();
 
-        return (new ProjectResource($project))->additional([
-            'message' => HttpStatus::message(HttpStatus::CREATED),
-            'status' => 'success',
-            'status_code' => HttpStatus::CREATED,
-        ])
+        return (new ProjectResource($project))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::CREATED),
+                'status' => 'success',
+                'status_code' => HttpStatus::CREATED,
+            ])
             ->response()
             ->setStatusCode(HttpStatus::CREATED->value);
     }
@@ -87,7 +94,9 @@ class ProjectController extends Controller
         $query = Project::query();
         $query->collaber($this->user);
 
-        $project = $query->where(fn($q) => $q->where('slug', $id)->when(is_numeric($id), fn($q) => $q->orWhere('projects.id', $id)))->firstOrFail();
+        $project = $query
+            ->where(fn($q) => $q->where('slug', $id)->when(is_numeric($id), fn($q) => $q->orWhere('projects.id', $id)))
+            ->firstOrFail();
 
         return (new ProjectResource($project))
             ->additional([
@@ -104,7 +113,9 @@ class ProjectController extends Controller
     {
         $query = Project::query();
         $query->collaber($this->user);
-        $project = $query->where(fn($q) => $q->where('slug', $id)->when(is_numeric($id), fn($q) => $q->orWhere('projects.id', $id)))->firstOrFail();
+        $project = $query
+            ->where(fn($q) => $q->where('slug', $id)->when(is_numeric($id), fn($q) => $q->orWhere('projects.id', $id)))
+            ->firstOrFail();
 
         $this->validate($request, [
             'image' => ['nullable', 'image', 'mimes:png,jpg'],
@@ -119,11 +130,12 @@ class ProjectController extends Controller
             'description' => $request->input('description'),
         ]);
 
-        return (new ProjectResource($project))->additional([
-            'message' => 'Project updated successfully.',
-            'status' => 'success',
-            'status_code' => HttpStatus::ACCEPTED,
-        ])
+        return (new ProjectResource($project))
+            ->additional([
+                'message' => 'Project updated successfully.',
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
             ->response()
             ->setStatusCode(HttpStatus::ACCEPTED->value);
     }

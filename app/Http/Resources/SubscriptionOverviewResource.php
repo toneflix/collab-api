@@ -19,8 +19,13 @@ class SubscriptionOverviewResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        $current = $this->subscriptions()->active()->first();
-        $latest = $this->subscriptions()->first();
+        $current = $this
+            ->subscriptions()
+            ->active()
+            ->first();
+        $latest = $this
+            ->subscriptions()
+            ->first();
         $plan = $this->current_plan;
 
         return [

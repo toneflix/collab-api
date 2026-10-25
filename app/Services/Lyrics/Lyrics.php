@@ -31,7 +31,9 @@ class Lyrics
 
     public function for(Track|ProjectTrack $owner): ?Lyric
     {
-        return Lyric::query()->whereMorphedTo('lyricable', $owner)->first();
+        return Lyric::query()
+            ->whereMorphedTo('lyricable', $owner)
+            ->first();
     }
 
     /**
@@ -47,7 +49,9 @@ class Lyrics
 
         $lyric = DB::transaction(function () use ($owner, $lines, $text, $source, $by, $extra) {
             if (! $lines) {
-                Lyric::query()->whereMorphedTo('lyricable', $owner)->delete();
+                Lyric::query()
+                    ->whereMorphedTo('lyricable', $owner)
+                    ->delete();
 
                 return null;
             }
@@ -55,7 +59,9 @@ class Lyrics
             $flagged = $this->check->scan($text);
 
             $lyric = Lyric::query()->whereMorphedTo('lyricable', $owner)->first() ?? new Lyric;
-            $lyric->lyricable()->associate($owner);
+            $lyric
+                ->lyricable()
+                ->associate($owner);
             $lyric->fill([
                 'lines' => $lines,
                 'text' => $text,
@@ -135,7 +141,9 @@ class Lyrics
         $explicit = (bool) $lyric?->explicit;
 
         if ((bool) $track->explicit !== $explicit) {
-            $track->forceFill(['explicit' => $explicit])->saveQuietly();
+            $track
+                ->forceFill(['explicit' => $explicit])
+                ->saveQuietly();
         }
 
         if ($review = $lyric?->flagged['review'] ?? []) {

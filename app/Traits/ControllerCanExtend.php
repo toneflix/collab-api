@@ -62,15 +62,17 @@ trait ControllerCanExtend
 
         // Create transaction
         /** @var Transaction */
-        $transaction = $user->transactions()->make([
-            'reference' => $paymentIntent['reference'] ?? $paymentIntent['id'],
-            'discount' => 0,
-            'status' => 'pending',
-            'method' => $this->paymentProcessor,
-            'amount' => $amount,
-            'fees' => $fees,
-            'due' => $amount + $fees,
-        ]);
+        $transaction = $user
+            ->transactions()
+            ->make([
+                'reference' => $paymentIntent['reference'] ?? $paymentIntent['id'],
+                'discount' => 0,
+                'status' => 'pending',
+                'method' => $this->paymentProcessor,
+                'amount' => $amount,
+                'fees' => $fees,
+                'due' => $amount + $fees,
+            ]);
 
         if ($transactable) {
             $transaction->transactable_type = $transactable->getMorphClass();
@@ -104,7 +106,10 @@ trait ControllerCanExtend
         }
 
         /** @var Transaction */
-        $transaction = $user->transactions()->where('reference', $reference)->first();
+        $transaction = $user
+            ->transactions()
+            ->where('reference', $reference)
+            ->first();
 
         if (isset($paymentIntent['error'])) {
             if ($transaction) {

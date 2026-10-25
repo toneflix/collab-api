@@ -19,7 +19,9 @@ class ArtistController extends Controller
         $user = $request->user('sanctum');
         $query = Artist::query();
 
-        $filters = str($request->filters)->remove(' ')->explode(',');
+        $filters = str($request->filters)
+            ->remove(' ')
+            ->explode(',');
 
         $query
             ->when($request->has('search'), function (Builder $query) use ($request) {
@@ -59,11 +61,12 @@ class ArtistController extends Controller
 
         $artists = $query->paginate($request->perPage(15));
 
-        return (new ArtistCollection($artists))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new ArtistCollection($artists))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -79,11 +82,12 @@ class ArtistController extends Controller
      */
     public function show(Artist $artist)
     {
-        return (new ArtistResource($artist))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new ArtistResource($artist))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**

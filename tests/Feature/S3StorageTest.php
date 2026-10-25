@@ -112,7 +112,8 @@ class S3StorageTest extends TestCase
 
     public function test_missing_files_fall_back_to_a_default(): void
     {
-        $user = User::factory()->create(['image' => 'not-there.png']);
+        $user = User::factory()
+            ->create(['image' => 'not-there.png']);
 
         $this->assertNotEmpty($user->files['image']);
         $this->assertStringNotContainsString('not-there.png', $user->files['image']);
@@ -127,7 +128,10 @@ class S3StorageTest extends TestCase
             'src' => UploadedFile::fake()->create('vocals.mp3', 200, 'audio/mpeg'),
         ])->assertSuccessful();
 
-        $stem = $projectTrack->stems()->latest('id')->firstOrFail();
+        $stem = $projectTrack
+            ->stems()
+            ->latest('id')
+            ->firstOrFail();
         $this->assertTrue(Storage::disk('s3')->exists('media/music/stem/' . $stem->src));
 
         $this->assertRedirectsToS3($stem->getFiles['src']['dynamicLink']);
@@ -152,7 +156,8 @@ class S3StorageTest extends TestCase
 
     public function test_stems_made_by_tools_are_written_to_and_read_from_s3(): void
     {
-        $owner = User::factory()->create();
+        $owner = User::factory()
+            ->create();
         [, $projectTrack] = $this->projectTrack($owner);
         $files = app(StemFiles::class);
 
@@ -179,7 +184,9 @@ class S3StorageTest extends TestCase
         $this->assertTrue(Storage::disk('s3')->exists($path));
         $this->assertRedirectsToS3($this->getJson($url)->json('data.0.voice.url'));
 
-        $this->deleteJson("{$url}/{$id}")->assertStatus(202);
+        $this
+            ->deleteJson("{$url}/{$id}")
+            ->assertStatus(202);
         $this->assertFalse(Storage::disk('s3')->exists($path));
     }
 
@@ -202,7 +209,9 @@ class S3StorageTest extends TestCase
             ->assertCreated()
             ->json('data.id');
 
-        $stem = $projectTrack->stems()->findOrFail($stemId);
+        $stem = $projectTrack
+            ->stems()
+            ->findOrFail($stemId);
         $this->assertSame(
             Storage::disk('s3')->get('media/sounds/' . $file),
             Storage::disk('s3')->get('media/music/stem/' . $stem->src)
@@ -214,9 +223,12 @@ class S3StorageTest extends TestCase
         config(['settings.encoding.output' => 'aac', 'settings.encoding.output_codec' => 'aac']);
 
         $owner = $this->actingAsFresh(User::factory()->create());
-        $genre = Genre::factory()->create();
-        $artist = Artist::factory()->create();
-        $release = Release::factory()->create(['user_id' => $owner->id, 'genre_id' => $genre->id, 'artist_id' => $artist->id]);
+        $genre = Genre::factory()
+            ->create();
+        $artist = Artist::factory()
+            ->create();
+        $release = Release::factory()
+            ->create(['user_id' => $owner->id, 'genre_id' => $genre->id, 'artist_id' => $artist->id]);
 
         $path = tempnam(sys_get_temp_dir(), 'audio') . '.mp3';
         copy(base_path('tests/fixtures/audio.mp3'), $path);
@@ -239,7 +251,10 @@ class S3StorageTest extends TestCase
         $this->assertTrue(Storage::disk('s3')->exists('artwork/' . $track->image));
 
         // The copy check reads the processed file back from the bucket.
-        $fingerprint = AudioFingerprint::query()->where('model_type', $track->getMorphClass())->where('model_id', $track->id)->firstOrFail();
+        $fingerprint = AudioFingerprint::query()
+            ->where('model_type', $track->getMorphClass())
+            ->where('model_id', $track->id)
+            ->firstOrFail();
         $this->assertSame(hash('sha256', Storage::disk('s3')->get('media/music/tracks/' . $track->audio)), $fingerprint->hash);
     }
 
@@ -250,11 +265,15 @@ class S3StorageTest extends TestCase
      */
     protected function projectTrack(User $owner): array
     {
-        Artist::factory()->create();
-        Genre::factory()->create();
+        Artist::factory()
+            ->create();
+        Genre::factory()
+            ->create();
 
-        $project = Project::factory()->create(['user_id' => $owner->id]);
-        $projectTrack = ProjectTrack::factory()->create(['project_id' => $project->id]);
+        $project = Project::factory()
+            ->create(['user_id' => $owner->id]);
+        $projectTrack = ProjectTrack::factory()
+            ->create(['project_id' => $project->id]);
 
         return [$project, $projectTrack];
     }
@@ -279,6 +298,8 @@ class S3StorageTest extends TestCase
      */
     protected function http(string $url): int
     {
-        return Http::withoutRedirecting()->get($url)->status();
+        return Http::withoutRedirecting()
+            ->get($url)
+            ->status();
     }
 }

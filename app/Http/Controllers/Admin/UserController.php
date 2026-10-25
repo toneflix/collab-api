@@ -51,12 +51,13 @@ class UserController extends Controller
             ->with(['roles', 'subscriptions' => fn($q) => $q->active()->with('planModel')])
             ->paginate($request->perPage(20, 50));
 
-        return (new AdminUserCollection($users))->additional([
-            'roles' => config('permission-defs.roles', []),
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new AdminUserCollection($users))
+            ->additional([
+                'roles' => config('permission-defs.roles', []),
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     public function show(Request $request, UserInsights $insights, User $managedUser)
@@ -154,7 +155,8 @@ class UserController extends Controller
             'reason' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $plan = Plan::query()->findOrFail($valid['plan_id']);
+        $plan = Plan::query()
+            ->findOrFail($valid['plan_id']);
         $this->manager->assignPlan($request->user(), $managedUser, $plan, (int) ($valid['cycles'] ?? 1), $valid['reason'] ?? null);
 
         return $this->user($request, $managedUser, __(':user is on :plan now.', ['user' => $managedUser->username, 'plan' => $plan->name]));
@@ -214,11 +216,12 @@ class UserController extends Controller
             ->with('admin')
             ->paginate($request->perPage(15, 50));
 
-        return (new AdminActionCollection($actions))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new AdminActionCollection($actions))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -239,11 +242,12 @@ class UserController extends Controller
             ->with('transactable')
             ->paginate($request->perPage(15, 50));
 
-        return (new TransactionCollection($transactions))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new TransactionCollection($transactions))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -258,13 +262,14 @@ class UserController extends Controller
 
         $can = $this->manager->abilities($request->user(), $user);
 
-        return (new AdminUserResource($user))->additional([
-            'can' => $can,
-            'roles' => config('permission-defs.roles', []),
-            ...$extra,
-            'message' => $message,
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new AdminUserResource($user))
+            ->additional([
+                'can' => $can,
+                'roles' => config('permission-defs.roles', []),
+                ...$extra,
+                'message' => $message,
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 }

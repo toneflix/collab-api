@@ -14,7 +14,9 @@ class ReleaseResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        $with = str($request->input('with'))->remove(' ')->explode(',');
+        $with = str($request->input('with'))
+            ->remove(' ')
+            ->explode(',');
 
         $user = $request->user('sanctum');
         $interaction = $this->socialInteractionData($user);

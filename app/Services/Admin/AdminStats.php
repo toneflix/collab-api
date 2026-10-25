@@ -51,7 +51,9 @@ class AdminStats
 
     protected function since(): Carbon
     {
-        return now()->subDays($this->days - 1)->startOfDay();
+        return now()
+            ->subDays($this->days - 1)
+            ->startOfDay();
     }
 
     /**
@@ -61,7 +63,8 @@ class AdminStats
      */
     protected function users()
     {
-        return User::query()->withoutGlobalScopes();
+        return User::query()
+            ->withoutGlobalScopes();
     }
 
     /**

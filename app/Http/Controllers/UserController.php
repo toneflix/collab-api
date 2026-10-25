@@ -45,7 +45,9 @@ class UserController extends Controller
             fn(Builder $q) => $q->whereNotIn('id', str($request->skip)->remove(' ')->explode(','))
         );
 
-        $filters = str($request->filters)->remove(' ')->explode(',');
+        $filters = str($request->filters)
+            ->remove(' ')
+            ->explode(',');
 
         $query
             ->when($request->has('genre'), fn(Builder $q) => $q->genre($request->genre))
@@ -80,11 +82,12 @@ class UserController extends Controller
 
         $users = $query->paginate($request->perPage(15));
 
-        return (new UserCollection($users))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new UserCollection($users))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -100,11 +103,12 @@ class UserController extends Controller
      */
     public function show(User $user)
     {
-        return (new UserResource($user))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new UserResource($user))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**

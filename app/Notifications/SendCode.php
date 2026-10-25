@@ -50,7 +50,9 @@ class SendCode extends Notification implements ShouldQueue
                 : Providers::config('prefered_notification_channels', ['mail', 'sms'])
             );
 
-        return collect($channels)->map(fn($ch) => $ch == 'sms' ? SmsProvider::getChannel() : $ch)->toArray();
+        return collect($channels)
+            ->map(fn($ch) => $ch == 'sms' ? SmsProvider::getChannel() : $ch)
+            ->toArray();
     }
 
     /**
@@ -67,7 +69,8 @@ class SendCode extends Notification implements ShouldQueue
         /** @var Carbon */
         $datetime = $notifiable->last_attempt;
 
-        $dateAdd = $datetime?->addSeconds(Providers::config('token_lifespan', 30));
+        $dateAdd = $datetime
+            ?->addSeconds(Providers::config('token_lifespan', 30));
 
         $message = Providers::messageParser(
             "send_code::$this->type",
@@ -101,7 +104,8 @@ class SendCode extends Notification implements ShouldQueue
 
         /** @var Carbon */
         $datetime = $n->last_attempt;
-        $dateAdd = $datetime?->addSeconds(Providers::config('token_lifespan', 30));
+        $dateAdd = $datetime
+            ?->addSeconds(Providers::config('token_lifespan', 30));
 
         $message = [
             'otp' => __('Use this code: :0 to verify your request, It expires in :1.', [

@@ -34,13 +34,16 @@ class ProjectReleaseTest extends TestCase
 
         Queue::fake();
 
-        $this->owner = User::factory()->create();
-        $this->project = Project::factory()->create(['user_id' => $this->owner->id]);
-        $this->track = ProjectTrack::factory()->create([
-            'project_id' => $this->project->id,
-            'genre_id' => Genre::factory()->create()->id,
-            'artist_id' => Artist::factory()->create()->id,
-        ]);
+        $this->owner = User::factory()
+            ->create();
+        $this->project = Project::factory()
+            ->create(['user_id' => $this->owner->id]);
+        $this->track = ProjectTrack::factory()
+            ->create([
+                'project_id' => $this->project->id,
+                'genre_id' => Genre::factory()->create()->id,
+                'artist_id' => Artist::factory()->create()->id,
+            ]);
     }
 
     protected function releaseForm(array $extra = []): array
@@ -64,9 +67,12 @@ class ProjectReleaseTest extends TestCase
     {
         Sanctum::actingAs($this->owner);
 
-        $this->getJson("/api/projects/{$this->project->id}")->assertJsonPath('data.ready', false);
+        $this
+            ->getJson("/api/projects/{$this->project->id}")
+            ->assertJsonPath('data.ready', false);
 
-        ProjectTrackStem::factory()->create(['track_id' => $this->track->id, 'user_id' => $this->owner->id, 'src' => 'drums.mp3']);
+        ProjectTrackStem::factory()
+            ->create(['track_id' => $this->track->id, 'user_id' => $this->owner->id, 'src' => 'drums.mp3']);
 
         $this->getJson("/api/projects/{$this->project->id}")
             ->assertJsonPath('data.ready', true)
@@ -82,20 +88,28 @@ class ProjectReleaseTest extends TestCase
             ->json('data.id');
 
         $this->assertSame(1, $this->project->release->tracks()->count());
-        $this->getJson("/api/projects/{$this->project->id}")->assertJsonPath('data.draftReleaseId', $id);
+        $this
+            ->getJson("/api/projects/{$this->project->id}")
+            ->assertJsonPath('data.draftReleaseId', $id);
 
         $this->putJson("/api/creator/releases/{$id}", $this->releaseForm(['draft' => false, 'publish' => true]))
             ->assertStatus(202);
 
-        $this->getJson("/api/projects/{$this->project->id}")->assertJsonPath('data.released', true);
+        $this
+            ->getJson("/api/projects/{$this->project->id}")
+            ->assertJsonPath('data.released', true);
     }
 
     public function test_a_released_project_can_be_released_again_and_retire_the_old_version(): void
     {
         Sanctum::actingAs($this->owner);
 
-        $first = $this->postJson('/api/creator/releases', $this->releaseForm())->json('data.id');
-        $this->putJson("/api/creator/releases/{$first}", $this->releaseForm(['draft' => false]))->assertStatus(202);
+        $first = $this
+            ->postJson('/api/creator/releases', $this->releaseForm())
+            ->json('data.id');
+        $this
+            ->putJson("/api/creator/releases/{$first}", $this->releaseForm(['draft' => false]))
+            ->assertStatus(202);
 
         $second = $this->postJson('/api/creator/releases', $this->releaseForm(['version' => 'Radio Edit']))
             ->assertCreated()
@@ -110,12 +124,16 @@ class ProjectReleaseTest extends TestCase
         $this->assertSame(2, $this->project->releases()->count());
         $this->assertNotNull($this->project->releases()->find($first)->retired_at);
 
-        $live = collect($this->getJson('/api/releases?limit=100')->json('data'))->pluck('id');
+        $live = collect($this->getJson('/api/releases?limit=100')->json('data'))
+            ->pluck('id');
         $this->assertTrue($live->contains($second));
         $this->assertFalse($live->contains($first));
 
         // A retired release still opens for people who have the link or bought it.
-        $this->getJson("/api/releases/{$first}")->assertOk()->assertJsonPath('data.retired', true);
+        $this
+            ->getJson("/api/releases/{$first}")
+            ->assertOk()
+            ->assertJsonPath('data.retired', true);
 
         $this->putJson("/api/creator/releases/{$first}/retirement", ['retired' => false])
             ->assertStatus(202)
@@ -129,12 +147,22 @@ class ProjectReleaseTest extends TestCase
         $media = new Media;
         $preview = 'mix-' . uniqid() . '.mp3';
         $media->disk->put($media->mediaInfo('music_tracks', $preview)['path'], 'mix');
-        $this->track->forceFill(['preview' => $preview])->saveQuietly();
+        $this->track
+            ->forceFill(['preview' => $preview])
+            ->saveQuietly();
 
-        $id = $this->postJson('/api/creator/releases', $this->releaseForm())->json('data.id');
-        $this->putJson("/api/creator/releases/{$id}", $this->releaseForm(['draft' => false]))->assertStatus(202);
+        $id = $this
+            ->postJson('/api/creator/releases', $this->releaseForm())
+            ->json('data.id');
+        $this
+            ->putJson("/api/creator/releases/{$id}", $this->releaseForm(['draft' => false]))
+            ->assertStatus(202);
 
-        $audio = $this->project->releases()->find($id)->tracks()->value('audio');
+        $audio = $this->project
+            ->releases()
+            ->find($id)
+            ->tracks()
+            ->value('audio');
         $path = (new Media)->mediaInfo('music_tracks', $audio)['path'];
 
         $this->assertNotNull($audio);
@@ -148,7 +176,9 @@ class ProjectReleaseTest extends TestCase
     {
         Sanctum::actingAs($this->owner);
 
-        $first = $this->postJson('/api/creator/releases', $this->releaseForm(['draft' => false]))->json('data.id');
+        $first = $this
+            ->postJson('/api/creator/releases', $this->releaseForm(['draft' => false]))
+            ->json('data.id');
 
         $this->postJson('/api/creator/releases', $this->releaseForm(['draft' => false, 'retire' => [$first]]))
             ->assertCreated();
@@ -160,7 +190,9 @@ class ProjectReleaseTest extends TestCase
     {
         Sanctum::actingAs($this->owner);
 
-        $this->postJson('/api/creator/releases', $this->releaseForm(['draft' => false]))->assertCreated();
+        $this
+            ->postJson('/api/creator/releases', $this->releaseForm(['draft' => false]))
+            ->assertCreated();
 
         Queue::assertPushed(TranscribeTrack::class, 1);
         Queue::assertPushed(TagAudio::class, fn(TagAudio $job) => $job->inherit);
@@ -170,13 +202,24 @@ class ProjectReleaseTest extends TestCase
     {
         Sanctum::actingAs($this->owner);
 
-        $id = $this->postJson('/api/creator/releases', $this->releaseForm(['draft' => false]))->json('data.id');
-        $track = $this->project->releases()->find($id)->tracks()->first();
+        $id = $this
+            ->postJson('/api/creator/releases', $this->releaseForm(['draft' => false]))
+            ->json('data.id');
+        $track = $this->project
+            ->releases()
+            ->find($id)
+            ->tracks()
+            ->first();
 
-        app(Lyrics::class)->save($this->track, [['start' => 1, 'end' => 2, 'text' => 'Written in the studio']], Lyric::WRITTEN, $this->owner);
-        $track->lyric()->delete();
+        app(Lyrics::class)
+            ->save($this->track, [['start' => 1, 'end' => 2, 'text' => 'Written in the studio']], Lyric::WRITTEN, $this->owner);
+        $track
+            ->lyric()
+            ->delete();
 
-        $this->getJson("/api/tracks/{$track->id}/lyrics")->assertJsonPath('data.lines.0.text', 'Written in the studio');
+        $this
+            ->getJson("/api/tracks/{$track->id}/lyrics")
+            ->assertJsonPath('data.lines.0.text', 'Written in the studio');
         $this->assertNotNull(app(Lyrics::class)->for($track));
     }
 
@@ -184,16 +227,22 @@ class ProjectReleaseTest extends TestCase
     {
         Sanctum::actingAs($this->owner);
 
-        $id = $this->postJson('/api/creator/releases', $this->releaseForm())->json('data.id');
+        $id = $this
+            ->postJson('/api/creator/releases', $this->releaseForm())
+            ->json('data.id');
 
-        $this->putJson("/api/creator/releases/{$id}/retirement", ['retired' => true])->assertUnprocessable();
+        $this
+            ->putJson("/api/creator/releases/{$id}/retirement", ['retired' => true])
+            ->assertUnprocessable();
     }
 
     public function test_others_cannot_release_a_project(): void
     {
         Sanctum::actingAs(User::factory()->create());
 
-        $this->postJson('/api/creator/releases', $this->releaseForm())->assertForbidden();
+        $this
+            ->postJson('/api/creator/releases', $this->releaseForm())
+            ->assertForbidden();
 
         $this->assertNull($this->project->release()->first());
     }

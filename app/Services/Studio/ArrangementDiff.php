@@ -94,7 +94,9 @@ class ArrangementDiff
             $shown[] = $more === 1 ? '1 more change' : "{$more} more changes";
         }
 
-        return str(Arr::join($shown, ', ', ' and '))->limit(250)->toString();
+        return str(Arr::join($shown, ', ', ' and '))
+            ->limit(250)
+            ->toString();
     }
 
     /**
@@ -163,8 +165,10 @@ class ArrangementDiff
      */
     protected function stemChanges(): array
     {
-        $before = collect($this->before['stems'] ?? [])->keyBy('id');
-        $after = collect($this->after['stems'] ?? [])->keyBy('id');
+        $before = collect($this->before['stems'] ?? [])
+            ->keyBy('id');
+        $after = collect($this->after['stems'] ?? [])
+            ->keyBy('id');
         $changes = [];
 
         foreach ($after as $id => $stem) {

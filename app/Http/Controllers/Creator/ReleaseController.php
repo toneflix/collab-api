@@ -86,7 +86,12 @@ class ReleaseController extends Controller
 
             // Pick up an unfinished version of this project before starting a new one.
             /** @var Release $release */
-            $release = $this->user->releases()->whereProjectId($request->project_id)->where('draft', true)->latest('id')->first();
+            $release = $this->user
+                ->releases()
+                ->whereProjectId($request->project_id)
+                ->where('draft', true)
+                ->latest('id')
+                ->first();
         }
 
         $release ??= $this->user->releases()->make();
@@ -120,11 +125,12 @@ class ReleaseController extends Controller
             $versions->published($release, $request->input('retire', []));
         }
 
-        return (new ReleaseResource($release))->additional([
-            'message' => 'New release created successfully.',
-            'status' => 'success',
-            'status_code' => HttpStatus::CREATED,
-        ])
+        return (new ReleaseResource($release))
+            ->additional([
+                'message' => 'New release created successfully.',
+                'status' => 'success',
+                'status_code' => HttpStatus::CREATED,
+            ])
             ->response()
             ->setStatusCode(HttpStatus::CREATED->value);
     }
@@ -280,60 +286,61 @@ class ReleaseController extends Controller
             Limits::for($this->user)->ensureCanCharge(Feature::SELL_STEMS, $form['stems_price'] ?? null, $current, "tracks.{$i}.stems_price");
         }
 
-        collect($tracks)->each(function ($form, $i) use ($release, $request) {
-            if (isset($form['project_track_id']) && ! isset($form['id'])) {
-                /** @var Track $track */
-                $track = $release->tracks()->firstOrNew(['project_track_id' => $form['project_track_id']], $form);
-                $track->slug = $track->gusm($track->title, '-');
-                if (empty($track->duration) && $track->projectTrack) {
-                    $track->duration = $track->projectTrack->duration;
-                }
-                $track->saveQuietly();
-            } else {
-                /** @var Track $track */
-                $track = $release->tracks()->find($form['id']);
-            }
-
-            if ($track) {
-                if (isset(Arr::dot($request->allFiles())["tracks.$i.image"])) {
-                    $form['image'] = (new Media)->save('artwork', 'tracks.*.image', $track->image, $i);
-                }
-
-                if (isset(Arr::dot($request->allFiles())["tracks.$i.audio"]) && (! $track->exists || ! $track->audio)) {
-                    $form['audio'] = (new Media)->save('music_tracks', 'tracks.*.audio', $track->audio, $i);
-                } else {
-                    unset($form['audio']);
-                }
-
-                if ($track->exists) {
-                    $track->updateQuietly($form);
-                } else {
+        collect($tracks)
+            ->each(function ($form, $i) use ($release, $request) {
+                if (isset($form['project_track_id']) && ! isset($form['id'])) {
+                    /** @var Track $track */
+                    $track = $release->tracks()->firstOrNew(['project_track_id' => $form['project_track_id']], $form);
+                    $track->slug = $track->gusm($track->title, '-');
+                    if (empty($track->duration) && $track->projectTrack) {
+                        $track->duration = $track->projectTrack->duration;
+                    }
                     $track->saveQuietly();
+                } else {
+                    /** @var Track $track */
+                    $track = $release->tracks()->find($form['id']);
                 }
 
-                $artists = [];
+                if ($track) {
+                    if (isset(Arr::dot($request->allFiles())["tracks.$i.image"])) {
+                        $form['image'] = (new Media)->save('artwork', 'tracks.*.image', $track->image, $i);
+                    }
 
-                // Update the track artist
-                if (isset($form['artist_id'])) {
-                    $artists[$form['artist_id']] = ['type' => 'primary'];
+                    if (isset(Arr::dot($request->allFiles())["tracks.$i.audio"]) && (! $track->exists || ! $track->audio)) {
+                        $form['audio'] = (new Media)->save('music_tracks', 'tracks.*.audio', $track->audio, $i);
+                    } else {
+                        unset($form['audio']);
+                    }
+
+                    if ($track->exists) {
+                        $track->updateQuietly($form);
+                    } else {
+                        $track->saveQuietly();
+                    }
+
+                    $artists = [];
+
+                    // Update the track artist
+                    if (isset($form['artist_id'])) {
+                        $artists[$form['artist_id']] = ['type' => 'primary'];
+                        if ($track->projectTrack) {
+                            $track->projectTrack->artist_id = $form['artist_id'];
+                        }
+                    }
+
+                    // Update the related project track
                     if ($track->projectTrack) {
-                        $track->projectTrack->artist_id = $form['artist_id'];
+                        $track->projectTrack->genre_id = $form['genre_id'];
+                        $track->projectTrack->saveQuietly();
+                    }
+                    $track->artists()->sync($artists);
+
+                    // Saved quietly above, so the lyrics and tags from the studio are queued here.
+                    if ($track->wasRecentlyCreated) {
+                        $track->queueSoundChecks(isset($form['audio']));
                     }
                 }
-
-                // Update the related project track
-                if ($track->projectTrack) {
-                    $track->projectTrack->genre_id = $form['genre_id'];
-                    $track->projectTrack->saveQuietly();
-                }
-                $track->artists()->sync($artists);
-
-                // Saved quietly above, so the lyrics and tags from the studio are queued here.
-                if ($track->wasRecentlyCreated) {
-                    $track->queueSoundChecks(isset($form['audio']));
-                }
-            }
-        });
+            });
     }
 
     /**

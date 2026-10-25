@@ -30,7 +30,9 @@ class NewPasswordController extends Controller
         ]);
 
         // find the code
-        $code = PasswordCodeResets::whereToken($request->code)->orWhere('code', $request->code)->first();
+        $code = PasswordCodeResets::whereToken($request->code)
+            ->orWhere('code', $request->code)
+            ->first();
 
         // check if it has not expired: the default time is 30 seconds
         if (! $code || $code->created_at->diffInSeconds(now()) >= PV::config('token_lifespan', 30)) {

@@ -62,7 +62,9 @@ trait HasAudioTags
     public function scopeInKey(Builder $query, array $keys, bool $compatible = false): void
     {
         if ($compatible) {
-            $keys = collect($keys)->flatMap(fn(MusicalKey $key) => $key->compatible())->all();
+            $keys = collect($keys)
+                ->flatMap(fn(MusicalKey $key) => $key->compatible())
+                ->all();
         }
 
         $query->whereIn($this->qualifyColumn('musical_key'), collect($keys)->map->value->unique()->values());

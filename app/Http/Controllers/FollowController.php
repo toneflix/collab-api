@@ -30,11 +30,12 @@ class FollowController extends Controller
 
         $follows = $query->paginate($request->perPage(45));
 
-        return (new FollowCollection($follows))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new FollowCollection($follows))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -50,11 +51,12 @@ class FollowController extends Controller
 
         $action = $followable->isFollowedBy($user) ? 'followed' : 'unfollowed';
 
-        return (new FollowResource($followable))->additional([
-            'message' => __("You have :0 this $name", [$action]),
-            'status' => 'success',
-            'status_code' => HttpStatus::ACCEPTED,
-        ]);
+        return (new FollowResource($followable))
+            ->additional([
+                'message' => __("You have :0 this $name", [$action]),
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ]);
     }
 
     /**
@@ -86,7 +88,9 @@ class FollowController extends Controller
         if ($followable) {
             if ($follow_id) {
                 /** @var Followable $follow */
-                $follow = $followable->followers()->findOrFail($followable_id);
+                $follow = $followable
+                    ->followers()
+                    ->findOrFail($followable_id);
             }
         }
 

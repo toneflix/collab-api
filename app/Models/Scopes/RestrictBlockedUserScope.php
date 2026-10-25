@@ -30,7 +30,12 @@ class RestrictBlockedUserScope implements Scope
     {
         if (auth('sanctum')->hasUser()) {
             if (in_array(get_class($model), self::$blockable)) {
-                $table = str(get_class($model))->afterLast('\\')->snake()->lower()->plural()->toString();
+                $table = str(get_class($model))
+                    ->afterLast('\\')
+                    ->snake()
+                    ->lower()
+                    ->plural()
+                    ->toString();
 
                 $builder->whereNotIn("{$table}.user_id", function (QueryBuilder $query) {
                     $query->select('blocks.blockable_id')

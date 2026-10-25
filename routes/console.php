@@ -9,19 +9,32 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote')->hourly();
 
 // Refresh expired recommendations (up to 1000 users per run).
-Schedule::command('app:recommend')->hourly()->withoutOverlapping();
+Schedule::command('app:recommend')
+    ->hourly()
+    ->withoutOverlapping();
 
 // Firebase keeps every realtime event until it's deleted.
-Schedule::command('realtime:prune')->hourly()->withoutOverlapping();
+Schedule::command('realtime:prune')
+    ->hourly()
+    ->withoutOverlapping();
 
 // Top up the shared sound library from Freesound (CC0 only).
-Schedule::command('sounds:sync')->dailyAt('03:30')->withoutOverlapping()->runInBackground();
+Schedule::command('sounds:sync')
+    ->dailyAt('03:30')
+    ->withoutOverlapping()
+    ->runInBackground();
 
 // Settle payouts whose provider webhook never arrived.
-Schedule::command('payouts:sync')->everyThirtyMinutes()->withoutOverlapping();
+Schedule::command('payouts:sync')
+    ->everyThirtyMinutes()
+    ->withoutOverlapping();
 
 // Drop track versions older than each owner's plan keeps.
-Schedule::command('studio:prune-history')->dailyAt('04:00')->withoutOverlapping();
+Schedule::command('studio:prune-history')
+    ->dailyAt('04:00')
+    ->withoutOverlapping();
 
 // Refund AI jobs that stopped without finishing.
-Schedule::command('ai:sweep')->everyTenMinutes()->withoutOverlapping();
+Schedule::command('ai:sweep')
+    ->everyTenMinutes()
+    ->withoutOverlapping();

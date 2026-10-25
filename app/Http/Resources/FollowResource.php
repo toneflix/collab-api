@@ -15,7 +15,9 @@ class FollowResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        return $this->res($this->resource)->toArray($request);
+        return $this
+            ->res($this->resource)
+            ->toArray($request);
     }
 
     protected function res(Model $res): JsonResource|Model

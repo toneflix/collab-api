@@ -27,7 +27,9 @@ class TrackController extends Controller
             ? $release->tracks()->getQuery()
             : Track::query()->whereHas('release', fn(Builder $q) => $q->live());
 
-        $filters = str($request->filters)->remove(' ')->explode(',');
+        $filters = str($request->filters)
+            ->remove(' ')
+            ->explode(',');
 
         $query
             ->when($request->filled('search'), fn(Builder $q) => $q->search((string) $request->search)->with('lyric'))
@@ -68,11 +70,12 @@ class TrackController extends Controller
 
         $tracks = $query->paginate($request->perPage(15));
 
-        return (new TrackCollection($tracks))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new TrackCollection($tracks))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -90,11 +93,12 @@ class TrackController extends Controller
     {
         $track->stream(0, $request->user('sanctum'));
 
-        return (new TrackResource($track))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new TrackResource($track))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -108,11 +112,12 @@ class TrackController extends Controller
 
         $track->stream($request->integer('duration'), $request->user('sanctum'));
 
-        return (new TrackResource($track))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new TrackResource($track))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**

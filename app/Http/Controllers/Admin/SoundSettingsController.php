@@ -67,7 +67,10 @@ class SoundSettingsController extends Controller
      */
     public function useAccount(Request $request)
     {
-        $connection = $request->user()->freesound()->first();
+        $connection = $request
+            ->user()
+            ->freesound()
+            ->first();
 
         abort_unless($connection, HttpStatus::UNPROCESSABLE_ENTITY->value, 'Connect your Freesound account first.');
 
@@ -109,11 +112,12 @@ class SoundSettingsController extends Controller
             ->latest('id')
             ->paginate($request->perPage(30));
 
-        return (new SoundCollection($sounds))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new SoundCollection($sounds))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -205,7 +209,10 @@ class SoundSettingsController extends Controller
     {
         $account = SoundSettings::get('freesound_library_account');
         $connection = SoundLibrary::libraryConnection();
-        $mine = $request->user()->freesound()->first();
+        $mine = $request
+            ->user()
+            ->freesound()
+            ->first();
 
         $fields = collect(SoundSettings::forAdmin())
             ->except(['freesound_library_account', 'freesound_last_sync'])

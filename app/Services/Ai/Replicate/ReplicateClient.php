@@ -44,7 +44,8 @@ class ReplicateClient
     public function run(string $model, array $input, ?int $timeout = null): array
     {
         $timeout ??= (int) ($this->config['timeout'] ?? 600);
-        $deadline = now()->addSeconds($timeout);
+        $deadline = now()
+            ->addSeconds($timeout);
 
         $prediction = $this->create($model, $input);
 
@@ -100,7 +101,11 @@ class ReplicateClient
         $tries = 0;
 
         while (true) {
-            $response = $this->http()->withHeaders(['Prefer' => 'wait=60'])->timeout(75)->post($path, $body);
+            $response = $this
+                ->http()
+                ->withHeaders(['Prefer' => 'wait=60'])
+                ->timeout(75)
+                ->post($path, $body);
 
             if ($response->status() !== 429 || ++$tries > self::THROTTLE_RETRIES) {
                 return $response;
@@ -167,7 +172,11 @@ class ReplicateClient
                 ? $this->http()
                 : Http::timeout(60);
 
-            $content = $request->timeout(300)->get($url)->throw()->body();
+            $content = $request
+                ->timeout(300)
+                ->get($url)
+                ->throw()
+                ->body();
         }
 
         file_put_contents($path, $content);

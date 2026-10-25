@@ -62,16 +62,19 @@ class Configuration extends Model
     public static function build($loadSecret = false)
     {
         if ($loadSecret) {
-            return Configuration::all()->mapWithKeys(function ($item) {
-                return [$item->key => $item->value];
-            });
+            return Configuration::all()
+                ->mapWithKeys(function ($item) {
+                    return [$item->key => $item->value];
+                });
         }
 
         /** @var Collection<TMapWithKeysKey, TMapWithKeysValue> $config */
         $config = Cache::remember('configuration::build', null, function () {
-            return Configuration::all()->filter(fn($conf) => ! $conf->secret)->mapWithKeys(function ($item) {
-                return [$item->key => $item->value];
-            });
+            return Configuration::all()
+                ->filter(fn($conf) => ! $conf->secret)
+                ->mapWithKeys(function ($item) {
+                    return [$item->key => $item->value];
+                });
         });
 
         return $config;

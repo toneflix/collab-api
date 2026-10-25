@@ -28,11 +28,12 @@ class AiCreditsController extends Controller
             ...AiSettings::clientConfig(),
         ];
 
-        return (new AiAccountResource($account))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new AiAccountResource($account))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     public function history(Request $request)
@@ -46,10 +47,11 @@ class AiCreditsController extends Controller
             ->latest('id')
             ->paginate($request->perPage(20));
 
-        return (new AiCreditEntryCollection($entries))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new AiCreditEntryCollection($entries))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 }

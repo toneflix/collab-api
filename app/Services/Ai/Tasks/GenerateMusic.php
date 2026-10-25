@@ -50,7 +50,9 @@ class GenerateMusic implements AiTask
         $path = tempnam(sys_get_temp_dir(), 'ai-music-');
         file_put_contents($path, $audio->content());
 
-        $title = str((string) $input['prompt'])->limit(60, '')->toString();
+        $title = str((string) $input['prompt'])
+            ->limit(60, '')
+            ->toString();
         $meta = [
             'duration' => (float) $input['seconds'],
             'ai' => array_filter([

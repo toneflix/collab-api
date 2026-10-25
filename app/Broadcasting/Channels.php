@@ -35,7 +35,8 @@ class Channels
     {
         // Live edits in a project track's editor.
         $broadcaster->channel('project-track.{id}', function (User $user, string $id) {
-            $track = ProjectTrack::with('project')->find($id);
+            $track = ProjectTrack::with('project')
+                ->find($id);
 
             return $track && static::canView($user, $track);
         });
@@ -62,7 +63,8 @@ class Channels
     public static function canView(User $user, Model $model): bool
     {
         if ($model instanceof Project || $model instanceof ProjectTrack) {
-            return Gate::forUser($user)->allows('view', $model);
+            return Gate::forUser($user)
+                ->allows('view', $model);
         }
 
         if ($model->privacy === 'public') {

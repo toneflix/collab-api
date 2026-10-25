@@ -26,7 +26,10 @@ class ProjectTrackController extends Controller
     {
         $this->authorize('view', $project);
 
-        $query = $project->tracks()->visibleTo($request->user())->getQuery();
+        $query = $project
+            ->tracks()
+            ->visibleTo($request->user())
+            ->getQuery();
 
         $tracks = $query->paginate($request->perPage(45));
 
@@ -60,16 +63,19 @@ class ProjectTrackController extends Controller
             'meta' => ['nullable', 'array'],
         ]);
 
-        $track = $project->tracks()->create($valid);
+        $track = $project
+            ->tracks()
+            ->create($valid);
 
         // Add reputation for the owner
         (new Reputation($this->user, 'create_project_track'))->add();
 
-        return (new ProjectTrackResource($track))->additional([
-            'message' => 'Project track created successfully',
-            'status' => 'success',
-            'status_code' => HttpStatus::CREATED,
-        ])
+        return (new ProjectTrackResource($track))
+            ->additional([
+                'message' => 'Project track created successfully',
+                'status' => 'success',
+                'status_code' => HttpStatus::CREATED,
+            ])
             ->response()
             ->setStatusCode(HttpStatus::CREATED->value);
     }
@@ -115,7 +121,8 @@ class ProjectTrackController extends Controller
         ]);
 
         // Tempo and meter live in the track's meta, next to whatever else is there.
-        $meta = collect($track->meta ?? [])->merge($valid['meta'] ?? []);
+        $meta = collect($track->meta ?? [])
+            ->merge($valid['meta'] ?? []);
         foreach (['bpm' => 'bpm', 'time_signature' => 'timeSignature'] as $field => $key) {
             if ($request->filled($field)) {
                 $meta[$key] = $field === 'bpm' ? round((float) $valid[$field], 2) : $valid[$field];
@@ -138,9 +145,12 @@ class ProjectTrackController extends Controller
 
         // Everyone else on the track now has this as the saved state. A
         // message too big for the driver carries no stems; clients reload.
-        $stems = $track->stems()->get()->mapWithKeys(fn($stem) => [
-            $stem->id => collect($stem->meta)->except('src')->all(),
-        ]);
+        $stems = $track
+            ->stems()
+            ->get()
+            ->mapWithKeys(fn($stem) => [
+                $stem->id => collect($stem->meta)->except('src')->all(),
+            ]);
 
         Realtime::send(Channels::projectTrack($track), 'track.saved', [
             'track_id' => $track->id,
@@ -150,11 +160,12 @@ class ProjectTrackController extends Controller
             'stems' => strlen((string) json_encode($stems)) > 8000 ? null : $stems->all(),
         ]);
 
-        return (new ProjectTrackResource($track))->additional([
-            'message' => 'Project track updated successfully',
-            'status' => 'success',
-            'status_code' => HttpStatus::ACCEPTED,
-        ])
+        return (new ProjectTrackResource($track))
+            ->additional([
+                'message' => 'Project track updated successfully',
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
             ->response()
             ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
@@ -184,18 +195,19 @@ class ProjectTrackController extends Controller
             'stems.*.stem_id' => 'parent',
         ]);
 
-        collect($stems)->each(function ($form, $i) use ($track) {
-            /** @var ProjectTrack $stem */
-            $stem = $track->stems()->find($form['id']);
+        collect($stems)
+            ->each(function ($form, $i) use ($track) {
+                /** @var ProjectTrack $stem */
+                $stem = $track->stems()->find($form['id']);
 
-            // Add reputation for the owner
-            (new Reputation($this->user, 'create_project_track_stem'))->add();
+                // Add reputation for the owner
+                (new Reputation($this->user, 'create_project_track_stem'))->add();
 
-            if ($stem) {
-                $form['src'] = (new Media)->save('stem_files', 'stems.*.src', $stem->src, $i);
-                $stem->updateQuietly($form);
-            }
-        });
+                if ($stem) {
+                    $form['src'] = (new Media)->save('stem_files', 'stems.*.src', $stem->src, $i);
+                    $stem->updateQuietly($form);
+                }
+            });
     }
 
     /**

@@ -25,7 +25,10 @@ class UserResource extends JsonResource
 
         $permissions = [];
         if ($previleged) {
-            $permQuery = $this->getPermissionsViaRoles()->pluck('name')->unique();
+            $permQuery = $this
+                ->getPermissionsViaRoles()
+                ->pluck('name')
+                ->unique();
             $permissions = $permQuery->count() ? $permQuery->values() : $this->getPermissionNames();
         }
 

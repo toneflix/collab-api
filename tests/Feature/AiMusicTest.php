@@ -84,8 +84,11 @@ class AiMusicTest extends TestCase
         AiSettings::update(['ai_enabled' => true, 'ai_music_credits' => 5, 'ai_stems_credits' => 5]);
 
         $this->owner = $this->member(100);
-        $this->project = Project::query()->forceCreate(['user_id' => $this->owner->id, 'title' => 'AI test', 'privacy' => 'private']);
-        $this->track = $this->project->tracks()->forceCreate(['title' => 'Idea', 'privacy' => 'private']);
+        $this->project = Project::query()
+            ->forceCreate(['user_id' => $this->owner->id, 'title' => 'AI test', 'privacy' => 'private']);
+        $this->track = $this->project
+            ->tracks()
+            ->forceCreate(['title' => 'Idea', 'privacy' => 'private']);
     }
 
     protected function tearDown(): void
@@ -102,11 +105,14 @@ class AiMusicTest extends TestCase
             'features' => [Feature::AI_TOOLS->value => true, Feature::AI_CREDITS->value => $credits],
         ]);
 
-        $user = User::factory()->create();
-        $user->subscriptions()->create([
-            'plan' => $plan->slug, 'plan_id' => $plan->id, 'amount' => 1000,
-            'starts_at' => now()->subDay(), 'ends_at' => now()->addYear(),
-        ]);
+        $user = User::factory()
+            ->create();
+        $user
+            ->subscriptions()
+            ->create([
+                'plan' => $plan->slug, 'plan_id' => $plan->id, 'amount' => 1000,
+                'starts_at' => now()->subDay(), 'ends_at' => now()->addYear(),
+            ]);
 
         return $user->fresh();
     }
@@ -121,7 +127,8 @@ class AiMusicTest extends TestCase
      */
     protected function fakeDemucs(): void
     {
-        $stems = collect(['vocals', 'drums', 'bass', 'other'])->mapWithKeys(fn($part) => [$part => "https://replicate.delivery/out/{$part}.mp3"]);
+        $stems = collect(['vocals', 'drums', 'bass', 'other'])
+            ->mapWithKeys(fn($part) => [$part => "https://replicate.delivery/out/{$part}.mp3"]);
 
         Http::fake([
             self::API . '/files' => Http::response(['urls' => ['get' => self::API . '/files/f1']]),
@@ -149,10 +156,13 @@ class AiMusicTest extends TestCase
         $job = AiJob::findOrFail($id);
         $this->assertSame(AiJob::SUCCEEDED, $job->status);
 
-        $stem = $this->track->stems()->sole();
+        $stem = $this->track
+            ->stems()
+            ->sole();
         $this->assertSame($stem->id, $job->output['stems'][0]);
         $this->assertSame('Warm lofi beat with vinyl crackle', $stem->meta['ai']['prompt']);
-        Storage::disk(config('filesystems.default'))->assertExists('public/media/music/stem/' . $stem->src);
+        Storage::disk(config('filesystems.default'))
+            ->assertExists('public/media/music/stem/' . $stem->src);
         $this->assertSame(85, Credits::for($this->owner)->total());
     }
 
@@ -165,7 +175,9 @@ class AiMusicTest extends TestCase
             'https://replicate.delivery/*' => Http::response('ID3-song', 200, ['Content-Type' => 'audio/mpeg']),
         ]);
 
-        $audio = Audio::of('Afrobeats groove')->withProviderOptions(['music_length_ms' => 10000])->generate('replicate');
+        $audio = Audio::of('Afrobeats groove')
+            ->withProviderOptions(['music_length_ms' => 10000])
+            ->generate('replicate');
 
         $this->assertSame('ID3-song', $audio->content());
         $this->assertSame('elevenlabs/music', $audio->meta->model);
@@ -201,11 +213,15 @@ class AiMusicTest extends TestCase
         $this->fakeDemucs();
         $file = tempnam(sys_get_temp_dir(), 'test-');
         file_put_contents($file, 'ID3-mix');
-        $stem = app(StemFiles::class)->addStem($this->track, $this->owner, $file, 'Full mix');
+        $stem = app(StemFiles::class)
+            ->addStem($this->track, $this->owner, $file, 'Full mix');
         @unlink($file);
 
         Sanctum::actingAs($this->owner);
-        $this->postJson($this->url("stems/{$stem->id}/split"))->assertCreated()->assertJsonPath('data.kind', 'stems');
+        $this
+            ->postJson($this->url("stems/{$stem->id}/split"))
+            ->assertCreated()
+            ->assertJsonPath('data.kind', 'stems');
 
         $this->assertSame(5, $this->track->stems()->count());
         $this->assertSame(95, Credits::for($this->owner)->total());
@@ -216,7 +232,10 @@ class AiMusicTest extends TestCase
         Audio::fake(fn() => throw new RuntimeException('Model is down'));
         Sanctum::actingAs($this->owner);
 
-        $id = $this->postJson($this->url(), ['prompt' => 'Amapiano log drums', 'seconds' => 60])->assertCreated()->json('data.id');
+        $id = $this
+            ->postJson($this->url(), ['prompt' => 'Amapiano log drums', 'seconds' => 60])
+            ->assertCreated()
+            ->json('data.id');
 
         $job = AiJob::findOrFail($id);
         $this->assertSame(AiJob::FAILED, $job->status);
@@ -232,23 +251,40 @@ class AiMusicTest extends TestCase
         Audio::fake();
 
         Sanctum::actingAs(User::factory()->create());
-        $this->postJson($this->url(), ['prompt' => 'Drill beat', 'seconds' => 30])->assertForbidden();
+        $this
+            ->postJson($this->url(), ['prompt' => 'Drill beat', 'seconds' => 30])
+            ->assertForbidden();
 
-        $this->project->forceFill(['user_id' => $poor = $this->member(5)->id])->save();
+        $this->project
+            ->forceFill(['user_id' => $poor = $this->member(5)->id])
+            ->save();
         Sanctum::actingAs(User::find($poor));
-        $this->postJson($this->url(), ['prompt' => 'Drill beat', 'seconds' => 30])->assertJsonValidationErrors('credits');
+        $this
+            ->postJson($this->url(), ['prompt' => 'Drill beat', 'seconds' => 30])
+            ->assertJsonValidationErrors('credits');
 
-        $free = User::factory()->create();
-        $this->project->forceFill(['user_id' => $free->id])->save();
+        $free = User::factory()
+            ->create();
+        $this->project
+            ->forceFill(['user_id' => $free->id])
+            ->save();
         Sanctum::actingAs($free);
-        $this->postJson($this->url(), ['prompt' => 'Drill beat', 'seconds' => 30])->assertJsonValidationErrors('ai');
+        $this
+            ->postJson($this->url(), ['prompt' => 'Drill beat', 'seconds' => 30])
+            ->assertJsonValidationErrors('ai');
 
-        $this->project->forceFill(['user_id' => $this->owner->id])->save();
+        $this->project
+            ->forceFill(['user_id' => $this->owner->id])
+            ->save();
         Sanctum::actingAs($this->owner);
-        $this->postJson($this->url(), ['prompt' => 'Drill beat', 'seconds' => 301])->assertJsonValidationErrors('seconds');
+        $this
+            ->postJson($this->url(), ['prompt' => 'Drill beat', 'seconds' => 301])
+            ->assertJsonValidationErrors('seconds');
 
         config(['ai.providers.replicate.key' => null]);
-        $this->postJson($this->url(), ['prompt' => 'Drill beat', 'seconds' => 30])->assertJsonValidationErrors('ai');
+        $this
+            ->postJson($this->url(), ['prompt' => 'Drill beat', 'seconds' => 30])
+            ->assertJsonValidationErrors('ai');
 
         Audio::assertNothingGenerated();
     }
@@ -258,22 +294,36 @@ class AiMusicTest extends TestCase
         Audio::fake();
         Sanctum::actingAs($this->owner);
 
-        $id = $this->postJson($this->url(), ['prompt' => 'Gospel choir', 'seconds' => 10])->json('data.id');
+        $id = $this
+            ->postJson($this->url(), ['prompt' => 'Gospel choir', 'seconds' => 10])
+            ->json('data.id');
 
-        $this->getJson($this->url('ai/jobs'))->assertOk()->assertJsonPath('data.0.id', $id)->assertJsonPath('data.0.status', 'succeeded');
-        $this->getJson("/api/creator/ai/jobs/{$id}")->assertOk()->assertJsonPath('data.prompt', 'Gospel choir');
+        $this
+            ->getJson($this->url('ai/jobs'))
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $id)
+            ->assertJsonPath('data.0.status', 'succeeded');
+        $this
+            ->getJson("/api/creator/ai/jobs/{$id}")
+            ->assertOk()
+            ->assertJsonPath('data.prompt', 'Gospel choir');
 
         Sanctum::actingAs(User::factory()->create());
-        $this->getJson("/api/creator/ai/jobs/{$id}")->assertNotFound();
+        $this
+            ->getJson("/api/creator/ai/jobs/{$id}")
+            ->assertNotFound();
     }
 
     public function test_jobs_that_stopped_are_refunded_by_the_sweep(): void
     {
         $job = AiJob::create(['user_id' => $this->owner->id, 'project_track_id' => $this->track->id, 'kind' => 'music', 'status' => AiJob::RUNNING, 'input' => ['prompt' => 'Jazz', 'seconds' => 10], 'credits' => 5]);
         Credits::for($this->owner)->spend(5, 'Music: Jazz', $job);
-        AiJob::whereKey($job->id)->update(['updated_at' => now()->subHour()]);
+        AiJob::whereKey($job->id)
+            ->update(['updated_at' => now()->subHour()]);
 
-        $this->artisan('ai:sweep')->assertSuccessful();
+        $this
+            ->artisan('ai:sweep')
+            ->assertSuccessful();
 
         $this->assertSame(AiJob::FAILED, $job->fresh()->status);
         $this->assertSame(100, Credits::for($this->owner)->total());
@@ -303,9 +353,12 @@ class AiMusicTest extends TestCase
         $this->assertSame(AiJob::SUCCEEDED, $job->status);
         $this->assertNull($job->failure);
 
-        $stem = $this->track->stems()->sole();
+        $stem = $this->track
+            ->stems()
+            ->sole();
         $this->assertSame([$stem->id], $job->output['stems']);
-        Storage::disk(config('filesystems.default'))->assertExists('public/media/music/stem/' . $stem->src);
+        Storage::disk(config('filesystems.default'))
+            ->assertExists('public/media/music/stem/' . $stem->src);
 
         Http::assertSent(fn(Request $request) => $request->url() === self::ELEVENLABS_PREDICTION['output']
             && ! $request->hasHeader('Authorization'));
@@ -331,9 +384,10 @@ class AiMusicTest extends TestCase
         $this->assertSame([$this->track->stems()->sole()->id], $job->output['stems']);
         $this->assertSame(100 - 43 + 5, Credits::for($this->owner)->total());
 
-        Log::shouldHaveReceived('error')->withArgs(fn($message, $context) => $message === 'AI job failed'
-            && $context['step'] === 'Split into stems'
-            && $context['exception'] instanceof RequestException);
+        Log::shouldHaveReceived('error')
+            ->withArgs(fn($message, $context) => $message === 'AI job failed'
+                && $context['step'] === 'Split into stems'
+                && $context['exception'] instanceof RequestException);
     }
 
     public function test_admins_can_list_what_went_wrong_with_jobs(): void
@@ -344,7 +398,9 @@ class AiMusicTest extends TestCase
             ->expectsOutputToContain('RequestException: 422 invalid input')
             ->assertSuccessful();
 
-        $this->artisan('ai:jobs', ['--status' => 'done'])->assertExitCode(2);
+        $this
+            ->artisan('ai:jobs', ['--status' => 'done'])
+            ->assertExitCode(2);
     }
 
     public function test_throttled_predictions_are_tried_again(): void
@@ -358,7 +414,8 @@ class AiMusicTest extends TestCase
             self::ELEVENLABS_PREDICTION['output'] => Http::response('ID3-song', 200, ['Content-Type' => 'audio/mpeg']),
         ]);
 
-        $audio = Audio::of('Afrobeats groove')->generate('replicate');
+        $audio = Audio::of('Afrobeats groove')
+            ->generate('replicate');
 
         $this->assertSame('ID3-song', $audio->content());
         Sleep::assertSlept(fn($duration) => $duration->totalSeconds === 7.0, 1);

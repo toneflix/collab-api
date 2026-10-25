@@ -53,8 +53,10 @@ class LoginRequest extends FormRequest
         RateLimiter::clear($this->throttleKey());
 
         if (Auth::user()?->isSuspended()) {
-            $message = Auth::user()->suspensionMessage();
-            Auth::guard('web')->logout();
+            $message = Auth::user()
+                ->suspensionMessage();
+            Auth::guard('web')
+                ->logout();
 
             throw ValidationException::withMessages(['email' => $message]);
         }

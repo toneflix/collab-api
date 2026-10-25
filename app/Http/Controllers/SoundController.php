@@ -35,7 +35,9 @@ class SoundController extends Controller
     public function status(Request $request)
     {
         $user = $request->user();
-        $connection = $user->freesound()->first();
+        $connection = $user
+            ->freesound()
+            ->first();
 
         $status = [
             ...SoundSettings::clientConfig(),
@@ -45,11 +47,12 @@ class SoundController extends Controller
             'categories' => $this->categories(),
         ];
 
-        return (new SoundsStatusResource($status))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new SoundsStatusResource($status))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -71,7 +74,8 @@ class SoundController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Sound::query()->where('user_id', $request->user()->id);
+        $query = Sound::query()
+            ->where('user_id', $request->user()->id);
 
         return $this->list($request, $query);
     }
@@ -227,11 +231,12 @@ class SoundController extends Controller
             ->latest('id')
             ->paginate($request->perPage(30));
 
-        return (new SoundCollection($sounds))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new SoundCollection($sounds))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -261,7 +266,8 @@ class SoundController extends Controller
 
     public static function audioRule(): string
     {
-        $exts = collect(Providers::config('allowed_audio_exts'))->join(',');
+        $exts = collect(Providers::config('allowed_audio_exts'))
+            ->join(',');
 
         return str($exts)
             ->remove('.')

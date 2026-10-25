@@ -37,16 +37,20 @@ class ReleaseReviewTest extends TestCase
         Queue::fake();
         Notification::fake();
 
-        $this->owner = User::factory()->create();
-        $this->admin = User::factory()->create();
+        $this->owner = User::factory()
+            ->create();
+        $this->admin = User::factory()
+            ->create();
         $this->admin->givePermissionTo(Permission::findOrCreate('manage-content'));
 
-        $this->project = Project::factory()->create(['user_id' => $this->owner->id]);
-        $this->track = ProjectTrack::factory()->create([
-            'project_id' => $this->project->id,
-            'genre_id' => Genre::factory()->create()->id,
-            'artist_id' => Artist::factory()->create()->id,
-        ]);
+        $this->project = Project::factory()
+            ->create(['user_id' => $this->owner->id]);
+        $this->track = ProjectTrack::factory()
+            ->create([
+                'project_id' => $this->project->id,
+                'genre_id' => Genre::factory()->create()->id,
+                'artist_id' => Artist::factory()->create()->id,
+            ]);
     }
 
     protected function tearDown(): void
@@ -58,7 +62,8 @@ class ReleaseReviewTest extends TestCase
 
     protected function reviews(bool $on): void
     {
-        Configuration::where('key', 'review_releases')->update(['value' => $on ? '1' : '0']);
+        Configuration::where('key', 'review_releases')
+            ->update(['value' => $on ? '1' : '0']);
         Cache::forget('configuration::build');
     }
 
@@ -84,7 +89,8 @@ class ReleaseReviewTest extends TestCase
 
     protected function liveIds()
     {
-        return collect($this->getJson('/api/releases?limit=100')->json('data'))->pluck('id');
+        return collect($this->getJson('/api/releases?limit=100')->json('data'))
+            ->pluck('id');
     }
 
     public function test_releases_go_live_straight_away_when_reviews_are_off(): void
@@ -116,10 +122,16 @@ class ReleaseReviewTest extends TestCase
             ->assertJsonFragment(['id' => $second]);
 
         $title = Release::find($second)->title;
-        $this->getJson('/api/admin/moderation/releases?search=' . urlencode(strtoupper($title)))->assertJsonFragment(['id' => $second]);
-        $this->getJson('/api/admin/moderation/releases?search=nothing-like-this')->assertJsonCount(0, 'data');
+        $this
+            ->getJson('/api/admin/moderation/releases?search=' . urlencode(strtoupper($title)))
+            ->assertJsonFragment(['id' => $second]);
+        $this
+            ->getJson('/api/admin/moderation/releases?search=nothing-like-this')
+            ->assertJsonCount(0, 'data');
 
-        $this->postJson("/api/admin/moderation/releases/{$second}/approve")->assertStatus(202);
+        $this
+            ->postJson("/api/admin/moderation/releases/{$second}/approve")
+            ->assertStatus(202);
 
         $this->assertSame(Release::REVIEW_APPROVED, Release::find($second)->review_status);
         $this->assertNotNull(Release::find($first)->retired_at);
@@ -135,8 +147,12 @@ class ReleaseReviewTest extends TestCase
 
         Sanctum::actingAs($this->admin);
 
-        $this->postJson("/api/admin/moderation/releases/{$id}/reject")->assertUnprocessable();
-        $this->postJson("/api/admin/moderation/releases/{$id}/reject", ['note' => 'Artwork is missing.'])->assertStatus(202);
+        $this
+            ->postJson("/api/admin/moderation/releases/{$id}/reject")
+            ->assertUnprocessable();
+        $this
+            ->postJson("/api/admin/moderation/releases/{$id}/reject", ['note' => 'Artwork is missing.'])
+            ->assertStatus(202);
 
         $release = Release::find($id);
         $this->assertTrue($release->draft);
@@ -144,7 +160,9 @@ class ReleaseReviewTest extends TestCase
 
         Sanctum::actingAs($this->owner);
 
-        $this->getJson("/api/releases/{$id}")->assertJsonPath('data.reviewNote', 'Artwork is missing.');
+        $this
+            ->getJson("/api/releases/{$id}")
+            ->assertJsonPath('data.reviewNote', 'Artwork is missing.');
     }
 
     public function test_only_moderators_review_releases(): void
@@ -154,7 +172,11 @@ class ReleaseReviewTest extends TestCase
 
         Sanctum::actingAs(User::factory()->create());
 
-        $this->getJson('/api/admin/moderation/releases')->assertForbidden();
-        $this->postJson("/api/admin/moderation/releases/{$id}/approve")->assertForbidden();
+        $this
+            ->getJson('/api/admin/moderation/releases')
+            ->assertForbidden();
+        $this
+            ->postJson("/api/admin/moderation/releases/{$id}/approve")
+            ->assertForbidden();
     }
 }

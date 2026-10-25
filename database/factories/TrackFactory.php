@@ -41,9 +41,13 @@ class TrackFactory extends Factory
     {
         return $this->afterCreating(function (Track $model) {
             if ($model->release?->artist_id) {
-                $model->artists()->attach($model->release?->artist_id);
+                $model
+                    ->artists()
+                    ->attach($model->release?->artist_id);
             } else {
-                $model->artists()->attach(Artist::inRandomOrder()->first()->id);
+                $model
+                    ->artists()
+                    ->attach(Artist::inRandomOrder()->first()->id);
             }
             User::inRandomOrder()->limit(rand(1, 10))
                 ->get()

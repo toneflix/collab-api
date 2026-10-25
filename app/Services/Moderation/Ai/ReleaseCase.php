@@ -47,8 +47,14 @@ class ReleaseCase extends ReviewCase
     public function brief(): string
     {
         $release = $this->subject;
-        $artist = $release->artist()->withoutGlobalScopes()->first();
-        $owner = $release->user()->withoutGlobalScopes()->first();
+        $artist = $release
+            ->artist()
+            ->withoutGlobalScopes()
+            ->first();
+        $owner = $release
+            ->user()
+            ->withoutGlobalScopes()
+            ->first();
 
         $tracks = Track::query()
             ->withoutGlobalScopes()

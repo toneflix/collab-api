@@ -41,24 +41,39 @@ class ProjectTrackAccessTest extends TestCase
         Storage::fake(config('filesystems.default'));
         $this->seed(ConfigurationSeeder::class);
 
-        $this->owner = User::factory()->create();
-        $this->collaborator = User::factory()->create();
-        $this->pending = User::factory()->create();
-        $this->stranger = User::factory()->create();
+        $this->owner = User::factory()
+            ->create();
+        $this->collaborator = User::factory()
+            ->create();
+        $this->pending = User::factory()
+            ->create();
+        $this->stranger = User::factory()
+            ->create();
 
-        $this->project = Project::query()->forceCreate([
-            'user_id' => $this->owner->id,
-            'title' => 'Access test',
-            'privacy' => 'private',
-        ]);
-        $this->project->collaborators()->forceCreate(['user_id' => $this->collaborator->id, 'role' => 'keys', 'accepted' => true]);
-        $this->project->collaborators()->forceCreate(['user_id' => $this->pending->id, 'role' => 'bass', 'accepted' => false]);
+        $this->project = Project::query()
+            ->forceCreate([
+                'user_id' => $this->owner->id,
+                'title' => 'Access test',
+                'privacy' => 'private',
+            ]);
+        $this->project
+            ->collaborators()
+            ->forceCreate(['user_id' => $this->collaborator->id, 'role' => 'keys', 'accepted' => true]);
+        $this->project
+            ->collaborators()
+            ->forceCreate(['user_id' => $this->pending->id, 'role' => 'bass', 'accepted' => false]);
 
-        $this->track = $this->project->tracks()->forceCreate(['title' => 'Night Drive', 'privacy' => 'private']);
+        $this->track = $this->project
+            ->tracks()
+            ->forceCreate(['title' => 'Night Drive', 'privacy' => 'private']);
 
         Sanctum::actingAs($this->owner);
-        $id = $this->addStem('Bass')->assertCreated()->json('data.id');
-        $this->stem = ProjectTrackStem::query()->findOrFail($id);
+        $id = $this
+            ->addStem('Bass')
+            ->assertCreated()
+            ->json('data.id');
+        $this->stem = ProjectTrackStem::query()
+            ->findOrFail($id);
     }
 
     protected function url(string $path = '', ?ProjectTrack $track = null): string
@@ -82,9 +97,15 @@ class ProjectTrackAccessTest extends TestCase
         foreach ([$this->stranger, $this->pending] as $user) {
             Sanctum::actingAs($user);
 
-            $this->addStem('Intruder')->assertForbidden();
-            $this->putJson($this->url("/stems/{$this->stem->id}"), ['meta' => ['gain' => 0]])->assertForbidden();
-            $this->deleteJson($this->url("/stems/{$this->stem->id}"))->assertForbidden();
+            $this
+                ->addStem('Intruder')
+                ->assertForbidden();
+            $this
+                ->putJson($this->url("/stems/{$this->stem->id}"), ['meta' => ['gain' => 0]])
+                ->assertForbidden();
+            $this
+                ->deleteJson($this->url("/stems/{$this->stem->id}"))
+                ->assertForbidden();
         }
 
         $this->assertSame(1, $this->track->stems()->count());
@@ -94,29 +115,41 @@ class ProjectTrackAccessTest extends TestCase
     public function test_owner_and_collaborators_can_edit_and_delete_stems(): void
     {
         Sanctum::actingAs($this->collaborator);
-        $this->putJson($this->url("/stems/{$this->stem->id}"), ['meta' => ['gain' => 0.5]])->assertAccepted();
+        $this
+            ->putJson($this->url("/stems/{$this->stem->id}"), ['meta' => ['gain' => 0.5]])
+            ->assertAccepted();
         $this->assertEquals(0.5, $this->stem->fresh()->meta['gain']);
 
         Sanctum::actingAs($this->owner);
-        $this->deleteJson($this->url("/stems/{$this->stem->id}"))->assertAccepted();
+        $this
+            ->deleteJson($this->url("/stems/{$this->stem->id}"))
+            ->assertAccepted();
         $this->assertSoftDeleted($this->stem);
     }
 
     public function test_outsiders_cannot_change_tracks(): void
     {
-        $genre = Genre::query()->firstOrCreate(['title' => 'Test genre'], ['slug' => 'test-genre']);
-        $artist = Artist::factory()->create(['user_id' => $this->stranger->id]);
+        $genre = Genre::query()
+            ->firstOrCreate(['title' => 'Test genre'], ['slug' => 'test-genre']);
+        $artist = Artist::factory()
+            ->create(['user_id' => $this->stranger->id]);
         $form = ['title' => 'Taken', 'genre_id' => (string) $genre->id, 'artist_id' => (string) $artist->id];
 
         Sanctum::actingAs($this->stranger);
 
-        $this->postJson("/api/creator/projects/{$this->project->id}/tracks", $form)->assertForbidden();
+        $this
+            ->postJson("/api/creator/projects/{$this->project->id}/tracks", $form)
+            ->assertForbidden();
         $this->putJson($this->url(), [
             ...$form,
             'stems' => [['id' => $this->stem->id, 'meta' => ['gain' => 0]]],
         ])->assertForbidden();
-        $this->deleteJson($this->url())->assertForbidden();
-        $this->postJson($this->url('/assets'), ['file' => UploadedFile::fake()->create('notes.pdf', 10)])->assertForbidden();
+        $this
+            ->deleteJson($this->url())
+            ->assertForbidden();
+        $this
+            ->postJson($this->url('/assets'), ['file' => UploadedFile::fake()->create('notes.pdf', 10)])
+            ->assertForbidden();
 
         $this->assertSame('Night Drive', $this->track->fresh()->title);
         $this->assertEquals(1, $this->stem->fresh()->meta['gain']);
@@ -124,18 +157,27 @@ class ProjectTrackAccessTest extends TestCase
 
     public function test_stems_and_tracks_must_belong_to_the_url(): void
     {
-        $other = Project::query()->forceCreate([
-            'user_id' => $this->stranger->id,
-            'title' => 'Someone else',
-            'privacy' => 'private',
-        ]);
-        $theirTrack = $other->tracks()->forceCreate(['title' => 'Theirs', 'privacy' => 'private']);
-        $sibling = $this->project->tracks()->forceCreate(['title' => 'Sibling', 'privacy' => 'private']);
+        $other = Project::query()
+            ->forceCreate([
+                'user_id' => $this->stranger->id,
+                'title' => 'Someone else',
+                'privacy' => 'private',
+            ]);
+        $theirTrack = $other
+            ->tracks()
+            ->forceCreate(['title' => 'Theirs', 'privacy' => 'private']);
+        $sibling = $this->project
+            ->tracks()
+            ->forceCreate(['title' => 'Sibling', 'privacy' => 'private']);
 
         Sanctum::actingAs($this->owner);
 
-        $this->putJson($this->url("/stems/{$this->stem->id}", $sibling), ['meta' => ['gain' => 0]])->assertNotFound();
-        $this->deleteJson("/api/creator/projects/{$this->project->id}/tracks/{$theirTrack->id}")->assertNotFound();
+        $this
+            ->putJson($this->url("/stems/{$this->stem->id}", $sibling), ['meta' => ['gain' => 0]])
+            ->assertNotFound();
+        $this
+            ->deleteJson("/api/creator/projects/{$this->project->id}/tracks/{$theirTrack->id}")
+            ->assertNotFound();
 
         $this->assertEquals(1, $this->stem->fresh()->meta['gain']);
         $this->assertNotNull($theirTrack->fresh());
@@ -143,12 +185,15 @@ class ProjectTrackAccessTest extends TestCase
 
     public function test_only_people_on_the_project_get_full_stem_audio(): void
     {
-        $elsewhere = Project::query()->forceCreate([
-            'user_id' => $this->owner->id,
-            'title' => 'Elsewhere',
-            'privacy' => 'private',
-        ]);
-        $elsewhere->collaborators()->forceCreate(['user_id' => $this->stranger->id, 'role' => 'drums', 'accepted' => true]);
+        $elsewhere = Project::query()
+            ->forceCreate([
+                'user_id' => $this->owner->id,
+                'title' => 'Elsewhere',
+                'privacy' => 'private',
+            ]);
+        $elsewhere
+            ->collaborators()
+            ->forceCreate(['user_id' => $this->stranger->id, 'role' => 'drums', 'accepted' => true]);
 
         $this->assertTrue($this->stem->verifyAccess($this->owner));
         $this->assertTrue($this->stem->verifyAccess($this->collaborator));
@@ -160,25 +205,47 @@ class ProjectTrackAccessTest extends TestCase
     public function test_private_projects_are_hidden_from_outsiders(): void
     {
         $this->app['auth']->forgetGuards();
-        $this->getJson("/api/projects/{$this->project->id}")->assertNotFound();
+        $this
+            ->getJson("/api/projects/{$this->project->id}")
+            ->assertNotFound();
 
         foreach ([$this->stranger, $this->pending] as $user) {
             Sanctum::actingAs($user);
 
-            $this->getJson("/api/projects/{$this->project->id}")->assertNotFound();
-            $this->getJson("/api/creator/projects/{$this->project->id}/tracks")->assertNotFound();
-            $this->getJson($this->url())->assertNotFound();
-            $this->getJson($this->url('/stems'))->assertNotFound();
-            $this->getJson($this->url("/stems/{$this->stem->id}"))->assertNotFound();
-            $this->getJson($this->url('/assets'))->assertNotFound();
+            $this
+                ->getJson("/api/projects/{$this->project->id}")
+                ->assertNotFound();
+            $this
+                ->getJson("/api/creator/projects/{$this->project->id}/tracks")
+                ->assertNotFound();
+            $this
+                ->getJson($this->url())
+                ->assertNotFound();
+            $this
+                ->getJson($this->url('/stems'))
+                ->assertNotFound();
+            $this
+                ->getJson($this->url("/stems/{$this->stem->id}"))
+                ->assertNotFound();
+            $this
+                ->getJson($this->url('/assets'))
+                ->assertNotFound();
             $this->assertFalse(Channels::canView($user, $this->track));
         }
 
         Sanctum::actingAs($this->collaborator);
 
-        $this->getJson("/api/projects/{$this->project->id}")->assertOk();
-        $this->getJson("/api/creator/projects/{$this->project->id}/tracks")->assertOk()->assertJsonCount(1, 'data');
-        $this->getJson($this->url('/stems'))->assertOk()->assertJsonCount(1, 'data');
+        $this
+            ->getJson("/api/projects/{$this->project->id}")
+            ->assertOk();
+        $this
+            ->getJson("/api/creator/projects/{$this->project->id}/tracks")
+            ->assertOk()
+            ->assertJsonCount(1, 'data');
+        $this
+            ->getJson($this->url('/stems'))
+            ->assertOk()
+            ->assertJsonCount(1, 'data');
         $this->assertTrue(Channels::canView($this->collaborator, $this->track));
     }
 
@@ -186,7 +253,9 @@ class ProjectTrackAccessTest extends TestCase
     {
         $this->project->update(['privacy' => 'public']);
         $this->track->update(['privacy' => 'public']);
-        $hidden = $this->project->tracks()->forceCreate(['title' => 'Unfinished', 'privacy' => 'private']);
+        $hidden = $this->project
+            ->tracks()
+            ->forceCreate(['title' => 'Unfinished', 'privacy' => 'private']);
 
         Sanctum::actingAs($this->stranger);
 
@@ -197,11 +266,18 @@ class ProjectTrackAccessTest extends TestCase
         $this->getJson("/api/projects/{$this->project->id}?with=tracks")
             ->assertOk()
             ->assertJsonCount(1, 'data.tracks');
-        $this->getJson($this->url('/stems'))->assertOk();
-        $this->getJson($this->url('', $hidden))->assertNotFound();
+        $this
+            ->getJson($this->url('/stems'))
+            ->assertOk();
+        $this
+            ->getJson($this->url('', $hidden))
+            ->assertNotFound();
 
         Sanctum::actingAs($this->owner);
 
-        $this->getJson("/api/creator/projects/{$this->project->id}/tracks")->assertOk()->assertJsonCount(2, 'data');
+        $this
+            ->getJson("/api/creator/projects/{$this->project->id}/tracks")
+            ->assertOk()
+            ->assertJsonCount(2, 'data');
     }
 }

@@ -37,7 +37,8 @@ class Comment extends BeyondCodeComment implements CanBeTakenDown
         // a comment belongs to; a reply takes its parent's.
         static::creating(function (self $comment) {
             if ($comment->commentable_type === static::class) {
-                $parent = static::withoutGlobalScopes()->find($comment->commentable_id);
+                $parent = static::withoutGlobalScopes()
+                    ->find($comment->commentable_id);
                 $comment->root_type = $parent?->root_type;
                 $comment->root_id = $parent?->root_id;
             } else {
@@ -59,7 +60,9 @@ class Comment extends BeyondCodeComment implements CanBeTakenDown
 
     public function moderationSummary(): array
     {
-        $author = User::query()->withoutGlobalScopes()->find($this->user_id);
+        $author = User::query()
+            ->withoutGlobalScopes()
+            ->find($this->user_id);
 
         return [
             'title' => (string) str($this->comment)->limit(140),
@@ -82,6 +85,8 @@ class Comment extends BeyondCodeComment implements CanBeTakenDown
      */
     public function parent(): MorphTo
     {
-        return $this->morphTo('commentable')->withoutGlobalScopes();
+        return $this
+            ->morphTo('commentable')
+            ->withoutGlobalScopes();
     }
 }

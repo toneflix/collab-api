@@ -33,15 +33,19 @@ class RecommendationTest extends TestCase
      */
     protected function listener(): User
     {
-        $user = User::factory()->create();
-        $user->followings()->delete();
+        $user = User::factory()
+            ->create();
+        $user
+            ->followings()
+            ->delete();
 
         return $user;
     }
 
     public function test_recommends_unheard_tracks_from_the_genres_a_user_listens_to(): void
     {
-        $genre = Genre::factory()->create();
+        $genre = Genre::factory()
+            ->create();
         $published = $this->makeRelease($genre);
         $draft = $this->makeRelease($genre, 1, true);
 
@@ -65,14 +69,19 @@ class RecommendationTest extends TestCase
 
     public function test_recommends_artists_the_user_does_not_follow_yet(): void
     {
-        $genre = Genre::factory()->create();
+        $genre = Genre::factory()
+            ->create();
         $release = $this->makeRelease($genre);
         $other = $this->makeRelease($genre);
 
         $user = $this->listener();
-        $release->tracks->first()->stream(120, $user);
+        $release->tracks
+            ->first()
+            ->stream(120, $user);
 
-        $followed = $other->tracks->first()->artists->first();
+        $followed = $other->tracks
+            ->first()->artists
+            ->first();
         $user->follow($followed);
 
         (new Recommendation($user, [Artist::class]))->generate();
@@ -87,11 +96,17 @@ class RecommendationTest extends TestCase
 
     public function test_recommends_people_followed_by_people_the_user_follows(): void
     {
-        [$user, $friend, $friendOfFriend] = User::factory()->count(3)->create();
+        [$user, $friend, $friendOfFriend] = User::factory()
+            ->count(3)
+            ->create();
 
         // The user factory follows random people, so start from a clean slate.
-        $user->followings()->delete();
-        $friend->followings()->delete();
+        $user
+            ->followings()
+            ->delete();
+        $friend
+            ->followings()
+            ->delete();
 
         $user->follow($friend);
         $friend->follow($friendOfFriend);
@@ -109,12 +124,17 @@ class RecommendationTest extends TestCase
 
     public function test_command_refreshes_recommendations_for_a_user(): void
     {
-        $genre = Genre::factory()->create();
+        $genre = Genre::factory()
+            ->create();
         $release = $this->makeRelease($genre);
         $user = $this->listener();
-        $release->tracks->first()->stream(120, $user);
+        $release->tracks
+            ->first()
+            ->stream(120, $user);
 
-        $this->artisan('app:recommend', ['user_ids' => [$user->id]])->assertSuccessful();
+        $this
+            ->artisan('app:recommend', ['user_ids' => [$user->id]])
+            ->assertSuccessful();
 
         $this->assertTrue($user->recommendations()->exists());
     }
@@ -133,7 +153,8 @@ class RecommendationTest extends TestCase
 
     public function test_album_filter_only_returns_releases_with_more_than_one_track(): void
     {
-        $genre = Genre::factory()->create();
+        $genre = Genre::factory()
+            ->create();
         $single = $this->makeRelease($genre, 1);
         $album = $this->makeRelease($genre, 2);
 

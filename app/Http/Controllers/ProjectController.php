@@ -19,7 +19,9 @@ class ProjectController extends Controller
     {
         $query = Project::query();
 
-        $filters = str($request->filters)->remove(' ')->explode(',');
+        $filters = str($request->filters)
+            ->remove(' ')
+            ->explode(',');
         $days = Freq::period($request->period);
 
         $query
@@ -32,11 +34,12 @@ class ProjectController extends Controller
 
         $projects = $query->paginate($request->perPage(45));
 
-        return (new ProjectCollection($projects))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new ProjectCollection($projects))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -51,11 +54,12 @@ class ProjectController extends Controller
     {
         $this->authorizeForUser($request->user('sanctum'), 'view', $project);
 
-        return (new ProjectResource($project))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new ProjectResource($project))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**

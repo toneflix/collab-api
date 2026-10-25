@@ -52,7 +52,8 @@ class NotifyUnreadMessages implements ShouldBeUnique, ShouldQueue
 
     public function handle(): void
     {
-        $user = User::query()->find($this->userId);
+        $user = User::query()
+            ->find($this->userId);
         $root = class_exists($this->rootType) ? $this->rootType::query()->find($this->rootId) : null;
 
         if (! $user || ! $root || ! Channels::canView($user, $root)) {
@@ -72,7 +73,9 @@ class NotifyUnreadMessages implements ShouldBeUnique, ShouldQueue
             return;
         }
 
-        $latest = (clone $unread)->latest('id')->first();
+        $latest = (clone $unread)
+            ->latest('id')
+            ->first();
         $senders = User::query()
             ->whereIn('id', (clone $unread)->select('user_id')->distinct()->limit(5))
             ->limit(5)

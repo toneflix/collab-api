@@ -49,7 +49,10 @@ class PaymentController extends Controller
     public function verify(Checkout $checkout, string $reference)
     {
         /** @var Transaction $transaction */
-        $transaction = $this->user->transactions()->where('reference', $reference)->firstOrFail();
+        $transaction = $this->user
+            ->transactions()
+            ->where('reference', $reference)
+            ->firstOrFail();
 
         $transaction = $checkout->verify($transaction);
 
@@ -76,7 +79,8 @@ class PaymentController extends Controller
         }
 
         if ($request->input('event') === 'charge.success') {
-            $transaction = Transaction::where('reference', $request->input('data.reference'))->first();
+            $transaction = Transaction::where('reference', $request->input('data.reference'))
+                ->first();
 
             // Ask Paystack directly rather than trusting the webhook body.
             if ($transaction) {
@@ -85,13 +89,15 @@ class PaymentController extends Controller
         }
 
         if (str_starts_with((string) $request->input('event'), 'transfer.')) {
-            $payout = Payout::where('reference', $request->input('data.reference'))->first();
+            $payout = Payout::where('reference', $request->input('data.reference'))
+                ->first();
 
             if ($payout) {
                 $payouts->sync($payout);
             }
         }
 
-        return response()->json(['status' => 'ok']);
+        return response()
+            ->json(['status' => 'ok']);
     }
 }

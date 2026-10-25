@@ -132,7 +132,9 @@ class Artist extends Model
      */
     public function user(): BelongsTo
     {
-        return $this->belongsTo(User::class)->withDefault(fn() => User::firstWhere('curator', true));
+        return $this
+            ->belongsTo(User::class)
+            ->withDefault(fn() => User::firstWhere('curator', true));
     }
 
     /**
@@ -153,18 +155,24 @@ class Artist extends Model
 
     public function recommendings(): MorphMany
     {
-        return $this->morphMany(Recommendation::class, 'recommendable')->latest();
+        return $this
+            ->morphMany(Recommendation::class, 'recommendable')
+            ->latest();
     }
 
     public function scopeGenre(Builder $query, string $genre): void
     {
         $query->whereHas('releases', function (Builder $q) use ($genre) {
             $q->whereHas('genre', function (Builder $q) use ($genre) {
-                $q->where('slug', $genre)->when(is_numeric($genre), fn($q) => $q->orWhere('id', $genre));
+                $q
+                    ->where('slug', $genre)
+                    ->when(is_numeric($genre), fn($q) => $q->orWhere('id', $genre));
             });
             $q->orWhereHas('tracks', function (Builder $qx) use ($genre) {
                 $qx->whereHas('genre', function (Builder $q) use ($genre) {
-                    $q->where('slug', $genre)->when(is_numeric($genre), fn($q) => $q->orWhere('id', $genre));
+                    $q
+                        ->where('slug', $genre)
+                        ->when(is_numeric($genre), fn($q) => $q->orWhere('id', $genre));
                 });
             });
         });
@@ -175,11 +183,15 @@ class Artist extends Model
         $days = Freq::period($period);
 
         $query->whereHas('tracks', function (Builder $q) use ($days, $user) {
-            $q->userThatPlayed($user)->popularPlayedLastDays($days);
+            $q
+                ->userThatPlayed($user)
+                ->popularPlayedLastDays($days);
         });
         $query->orWhereHas('releases', function (Builder $q) use ($days, $user) {
             $q->whereHas('tracks', function (Builder $qx) use ($days, $user) {
-                $qx->userThatPlayed($user)->popularPlayedLastDays($days);
+                $qx
+                    ->userThatPlayed($user)
+                    ->popularPlayedLastDays($days);
             });
         });
     }

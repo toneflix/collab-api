@@ -81,7 +81,10 @@ class Plan extends Model
 
     public function scopeOrdered(Builder $query): void
     {
-        $query->orderBy('sort')->orderBy('price')->orderBy('id');
+        $query
+            ->orderBy('sort')
+            ->orderBy('price')
+            ->orderBy('id');
     }
 
     /**
@@ -103,7 +106,9 @@ class Plan extends Model
      */
     public function allFeatures(): array
     {
-        return collect(Feature::cases())->mapWithKeys(fn(Feature $f) => [$f->value => $this->feature($f)])->all();
+        return collect(Feature::cases())
+            ->mapWithKeys(fn(Feature $f) => [$f->value => $this->feature($f)])
+            ->all();
     }
 
     /**
@@ -207,7 +212,8 @@ class Plan extends Model
      */
     public function billingOption(int $cycles): ?array
     {
-        return collect($this->billingOptions())->firstWhere('cycles', $cycles);
+        return collect($this->billingOptions())
+            ->firstWhere('cycles', $cycles);
     }
 
     public function isFree(): bool

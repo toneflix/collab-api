@@ -22,11 +22,12 @@ class TakedownController extends Controller
 
         $takedowns = $queue->takedownsFor($request->user(), (int) $request->input('limit', 20));
 
-        return (new TakedownCollection($takedowns))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new TakedownCollection($takedowns))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     public function appeal(Request $request, Takedown $takedown, Moderation $moderation)

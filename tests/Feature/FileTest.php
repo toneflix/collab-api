@@ -27,7 +27,8 @@ class FileTest extends TestCase
             $file->save();
         });
 
-        $file = UploadedFile::fake()->image('avatar.jpg');
+        $file = UploadedFile::fake()
+            ->image('avatar.jpg');
         $this->post('/test/file/upload', [
             'file' => $file,
         ]);
@@ -38,28 +39,31 @@ class FileTest extends TestCase
     {
         $time = (string) time();
         Route::post('/test/file/config/upload', function (Request $request) use ($time) {
-            $conf = Configuration::factory()->create(
-                [
-                    'key' => "test_banner_$time",
-                    'title' => 'Test Banner',
-                    'value' => $time,
-                    'type' => 'file',
-                    'autogrow' => false,
-                    'secret' => false,
-                    'autogrow' => true,
-                ]
-            );
+            $conf = Configuration::factory()
+                ->create(
+                    [
+                        'key' => "test_banner_$time",
+                        'title' => 'Test Banner',
+                        'value' => $time,
+                        'type' => 'file',
+                        'autogrow' => false,
+                        'secret' => false,
+                        'autogrow' => true,
+                    ]
+                );
 
             $conf->value = $request->file('file');
             $conf->save();
         });
 
-        $file = UploadedFile::fake()->image('avatar.jpg');
+        $file = UploadedFile::fake()
+            ->image('avatar.jpg');
         $this->post('/test/file/config/upload', [
             'file' => $file,
         ]);
 
-        $conf = Configuration::where('key', "test_banner_$time")->first();
+        $conf = Configuration::where('key', "test_banner_$time")
+            ->first();
         $this->assertStringContainsString('.jpg', $conf->value);
     }
 
@@ -67,17 +71,18 @@ class FileTest extends TestCase
     {
         $time = (string) time();
         Route::post('/test/file/config/upload', function (Request $request) use ($time) {
-            $conf = Configuration::factory()->create(
-                [
-                    'key' => "test_multiple_banners_$time",
-                    'title' => 'Test Banner',
-                    'value' => $time,
-                    'type' => 'files',
-                    'autogrow' => false,
-                    'secret' => false,
-                    'autogrow' => true,
-                ]
-            );
+            $conf = Configuration::factory()
+                ->create(
+                    [
+                        'key' => "test_multiple_banners_$time",
+                        'title' => 'Test Banner',
+                        'value' => $time,
+                        'type' => 'files',
+                        'autogrow' => false,
+                        'secret' => false,
+                        'autogrow' => true,
+                    ]
+                );
 
             $conf->value = $request->file('file');
             $conf->save();
@@ -91,7 +96,8 @@ class FileTest extends TestCase
             'file' => $files,
         ]);
 
-        $conf = Configuration::where('key', "test_multiple_banners_$time")->first();
+        $conf = Configuration::where('key', "test_multiple_banners_$time")
+            ->first();
         $this->assertStringContainsString('.jpg', $conf->value->pluck('file_url')->first());
         $this->assertStringContainsString('.jpg', $conf->value->pluck('file_url')->last());
     }

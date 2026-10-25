@@ -50,7 +50,8 @@ class RealtimeController extends Controller
             ->map(fn($id) => (string) $id)
             ->all();
 
-        $stems = collect($input)->only($known);
+        $stems = collect($input)
+            ->only($known);
 
         // Keep within what every driver can carry in one message (Pusher: 10 KB).
         abort_if(
@@ -66,10 +67,11 @@ class RealtimeController extends Controller
 
         $result = ['sent' => $sent];
 
-        return (new ActionResource($result))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new ActionResource($result))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 }

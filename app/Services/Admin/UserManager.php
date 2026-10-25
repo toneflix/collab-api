@@ -73,7 +73,9 @@ class UserManager
      */
     public function abilities(User $admin, User $user): array
     {
-        return collect(array_keys(self::ABILITIES))->mapWithKeys(fn($ability) => [$ability => $this->can($admin, $ability, $user)])->all();
+        return collect(array_keys(self::ABILITIES))
+            ->mapWithKeys(fn($ability) => [$ability => $this->can($admin, $ability, $user)])
+            ->all();
     }
 
     public function authorize(User $admin, string $ability, User $user): void
@@ -124,7 +126,9 @@ class UserManager
                 'suspension_reason' => $reason,
             ])->save();
 
-            $user->tokens()->delete();
+            $user
+                ->tokens()
+                ->delete();
 
             $this->record($admin, $user, $until ? 'account.suspended' : 'account.banned', $reason, [
                 'until' => $until?->toIso8601String(),
@@ -141,7 +145,9 @@ class UserManager
         }
 
         return DB::transaction(function () use ($admin, $user, $reason) {
-            $user->forceFill(['suspended_at' => null, 'suspended_until' => null, 'suspension_reason' => null])->save();
+            $user
+                ->forceFill(['suspended_at' => null, 'suspended_until' => null, 'suspension_reason' => null])
+                ->save();
             $this->record($admin, $user, 'account.restored', $reason);
 
             return $user;
@@ -188,8 +194,16 @@ class UserManager
     public function syncRoles(?User $admin, User $user, array $roles): User
     {
         $super = self::superAdminRole();
-        $before = $user->getRoleNames()->sort()->values()->all();
-        $after = collect($roles)->unique()->sort()->values()->all();
+        $before = $user
+            ->getRoleNames()
+            ->sort()
+            ->values()
+            ->all();
+        $after = collect($roles)
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
 
         if ($admin && in_array($super, array_merge(array_diff($after, $before), array_diff($before, $after))) && ! $admin->hasRole($super)) {
             throw ValidationException::withMessages(['roles' => 'Only super admins can give or take the super admin role.']);
@@ -215,8 +229,17 @@ class UserManager
      */
     public function syncPermissions(?User $admin, User $user, array $permissions): User
     {
-        $before = $user->getDirectPermissions()->pluck('name')->sort()->values()->all();
-        $after = collect($permissions)->unique()->sort()->values()->all();
+        $before = $user
+            ->getDirectPermissions()
+            ->pluck('name')
+            ->sort()
+            ->values()
+            ->all();
+        $after = collect($permissions)
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
 
         if ($before === $after) {
             return $user;
@@ -315,12 +338,13 @@ class UserManager
             $details['via'] = 'console';
         }
 
-        return AdminAction::query()->create([
-            'admin_id' => $admin?->id,
-            'user_id' => $user->id,
-            'action' => $action,
-            'reason' => $reason,
-            'details' => array_filter($details, fn($value) => $value !== null) ?: null,
-        ]);
+        return AdminAction::query()
+            ->create([
+                'admin_id' => $admin?->id,
+                'user_id' => $user->id,
+                'action' => $action,
+                'reason' => $reason,
+                'details' => array_filter($details, fn($value) => $value !== null) ?: null,
+            ]);
     }
 }

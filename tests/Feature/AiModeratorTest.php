@@ -40,10 +40,13 @@ class AiModeratorTest extends TestCase
 
         Notification::fake();
 
-        $this->admin = User::factory()->create();
+        $this->admin = User::factory()
+            ->create();
         $this->admin->givePermissionTo(Permission::findOrCreate('manage-content'));
-        $this->claimant = User::factory()->create();
-        $this->artist = Artist::factory()->create(['user_id' => null, 'verified' => false]);
+        $this->claimant = User::factory()
+            ->create();
+        $this->artist = Artist::factory()
+            ->create(['user_id' => null, 'verified' => false]);
 
         $test = $this;
         $this->app->instance(ModeratorModel::class, new class($test) implements ModeratorModel
@@ -99,7 +102,10 @@ class AiModeratorTest extends TestCase
             'message' => 'I have managed this artist since 2021 and handle all their releases.',
         ])->assertCreated();
 
-        return ArtistClaim::query()->where('artist_id', $this->artist->id)->latest('id')->firstOrFail();
+        return ArtistClaim::query()
+            ->where('artist_id', $this->artist->id)
+            ->latest('id')
+            ->firstOrFail();
     }
 
     public function test_admin_can_send_a_claim_and_the_moderator_approves_it(): void
@@ -108,9 +114,13 @@ class AiModeratorTest extends TestCase
         $this->answers = ["Here you go:\n```json\n" . $this->verdict('approve', 95) . "\n```"];
 
         Sanctum::actingAs($this->admin);
-        $this->postJson("/api/admin/moderation/claims/{$claim->id}/ai-review")->assertAccepted();
+        $this
+            ->postJson("/api/admin/moderation/claims/{$claim->id}/ai-review")
+            ->assertAccepted();
 
-        $review = $claim->aiReviews()->sole();
+        $review = $claim
+            ->aiReviews()
+            ->sole();
         $this->assertSame(AiReview::DECIDED, $review->status);
         $this->assertSame(AiReview::MANUAL, $review->mode);
         $this->assertSame(95, $review->confidence);
@@ -131,7 +141,9 @@ class AiModeratorTest extends TestCase
         $this->answers = [$this->verdict('unsure', 20, 'We could not confirm you manage this artist.')];
 
         Sanctum::actingAs($this->admin);
-        $this->postJson("/api/admin/moderation/claims/{$claim->id}/ai-review")->assertAccepted();
+        $this
+            ->postJson("/api/admin/moderation/claims/{$claim->id}/ai-review")
+            ->assertAccepted();
 
         $this->assertStringContainsString('You must pick one', $this->asked[0]['system']);
         $this->assertSame(ArtistClaim::REJECTED, $claim->refresh()->status);
@@ -145,14 +157,18 @@ class AiModeratorTest extends TestCase
         $this->answers = ['I think it is fine', 'Still not JSON'];
 
         Sanctum::actingAs($this->admin);
-        $this->postJson("/api/admin/moderation/claims/{$claim->id}/ai-review")->assertAccepted();
+        $this
+            ->postJson("/api/admin/moderation/claims/{$claim->id}/ai-review")
+            ->assertAccepted();
 
         $this->assertCount(2, $this->asked);
         $this->assertSame(AiReview::FAILED, $claim->aiReviews()->sole()->status);
         $this->assertTrue($claim->refresh()->isPending());
 
         $this->answers = [$this->verdict('reject', 90, 'The links are unrelated.')];
-        $this->postJson("/api/admin/moderation/claims/{$claim->id}/ai-review")->assertAccepted();
+        $this
+            ->postJson("/api/admin/moderation/claims/{$claim->id}/ai-review")
+            ->assertAccepted();
         $this->assertSame(ArtistClaim::REJECTED, $claim->refresh()->status);
     }
 
@@ -174,7 +190,9 @@ class AiModeratorTest extends TestCase
 
         $claim = $this->claim();
 
-        $review = $claim->aiReviews()->sole();
+        $review = $claim
+            ->aiReviews()
+            ->sole();
         $this->assertSame(AiReview::FLAGGED, $review->status);
         $this->assertStringContainsString('"unsure"', $this->asked[0]['system']);
         $this->assertTrue($claim->refresh()->isPending());
@@ -196,20 +214,26 @@ class AiModeratorTest extends TestCase
 
     public function test_releases_can_be_sent_and_sent_back_with_a_note(): void
     {
-        $owner = User::factory()->create();
-        $release = Release::factory()->create([
-            'user_id' => $owner->id,
-            'artist_id' => $this->artist->id,
-            'genre_id' => Genre::factory()->create()->id,
-            'draft' => false,
-            'review_status' => Release::REVIEW_PENDING,
-        ]);
+        $owner = User::factory()
+            ->create();
+        $release = Release::factory()
+            ->create([
+                'user_id' => $owner->id,
+                'artist_id' => $this->artist->id,
+                'genre_id' => Genre::factory()->create()->id,
+                'draft' => false,
+                'review_status' => Release::REVIEW_PENDING,
+            ]);
         $this->answers = [$this->verdict('reject', 85, 'Remove other artists\' names from the title.')];
 
         Sanctum::actingAs($this->admin);
-        $this->postJson("/api/admin/moderation/releases/{$release->id}/ai-review")->assertAccepted();
+        $this
+            ->postJson("/api/admin/moderation/releases/{$release->id}/ai-review")
+            ->assertAccepted();
 
-        $release = Release::query()->withoutGlobalScopes()->find($release->id);
+        $release = Release::query()
+            ->withoutGlobalScopes()
+            ->find($release->id);
         $this->assertSame(Release::REVIEW_REJECTED, $release->review_status);
         $this->assertTrue($release->draft);
         $this->assertSame('Remove other artists\' names from the title.', $release->review_note);
@@ -221,16 +245,23 @@ class AiModeratorTest extends TestCase
     {
         $claim = $this->claim();
 
-        $this->postJson("/api/admin/moderation/claims/{$claim->id}/ai-review")->assertForbidden();
+        $this
+            ->postJson("/api/admin/moderation/claims/{$claim->id}/ai-review")
+            ->assertForbidden();
 
         Sanctum::actingAs($this->admin);
-        $this->postJson("/api/admin/moderation/claims/{$claim->id}/reject", ['note' => 'No.'])->assertAccepted();
-        $this->postJson("/api/admin/moderation/claims/{$claim->id}/ai-review")->assertUnprocessable();
+        $this
+            ->postJson("/api/admin/moderation/claims/{$claim->id}/reject", ['note' => 'No.'])
+            ->assertAccepted();
+        $this
+            ->postJson("/api/admin/moderation/claims/{$claim->id}/ai-review")
+            ->assertUnprocessable();
     }
 
     public function test_admins_can_turn_automatic_review_on(): void
     {
-        $admin = User::factory()->create();
+        $admin = User::factory()
+            ->create();
         $admin->givePermissionTo(Permission::findOrCreate('manage-configuration'));
         Sanctum::actingAs($admin);
 

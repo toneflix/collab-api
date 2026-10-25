@@ -112,7 +112,10 @@ class Credits
             $wallet = $this->lockedWallet();
 
             /** @var AiCreditEntry $locked */
-            $locked = AiCreditEntry::query()->whereKey($spend->id)->lockForUpdate()->firstOrFail();
+            $locked = AiCreditEntry::query()
+                ->whereKey($spend->id)
+                ->lockForUpdate()
+                ->firstOrFail();
 
             if ($locked->type !== AiCreditEntry::SPEND || $locked->refund()->exists()) {
                 return null;
@@ -174,7 +177,8 @@ class Credits
      */
     public function period(): Carbon
     {
-        return now()->startOfMonth();
+        return now()
+            ->startOfMonth();
     }
 
     protected function planUsed(AiWallet $wallet): int
@@ -184,14 +188,18 @@ class Credits
 
     protected function wallet(): AiWallet
     {
-        return AiWallet::query()->firstOrCreate(['user_id' => $this->user->id]);
+        return AiWallet::query()
+            ->firstOrCreate(['user_id' => $this->user->id]);
     }
 
     protected function lockedWallet(): AiWallet
     {
         $this->wallet();
 
-        return AiWallet::query()->where('user_id', $this->user->id)->lockForUpdate()->firstOrFail();
+        return AiWallet::query()
+            ->where('user_id', $this->user->id)
+            ->lockForUpdate()
+            ->firstOrFail();
     }
 
     protected function record(string $type, int $credits, string $description, ?Model $source, int $plan, int $purchased, ?int $refundOf = null): AiCreditEntry
@@ -207,7 +215,9 @@ class Credits
         ]);
 
         if ($source) {
-            $entry->source()->associate($source);
+            $entry
+                ->source()
+                ->associate($source);
         }
 
         $entry->save();

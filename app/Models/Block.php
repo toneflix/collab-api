@@ -60,7 +60,9 @@ class Block extends Model
 
     public function blockable(): MorphTo
     {
-        return $this->morphTo()->withoutGlobalScopes([RestrictBlockedUserScope::class]);
+        return $this
+            ->morphTo()
+            ->withoutGlobalScopes([RestrictBlockedUserScope::class]);
     }
 
     public function name(): Attribute

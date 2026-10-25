@@ -34,10 +34,11 @@ class PlaylistController extends Controller
             randomize: $request->boolean('randomize'),
         );
 
-        return (new TrackCollection($upNext->paginate($request->integer('limit', 15))))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new TrackCollection($upNext->paginate($request->integer('limit', 15))))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 }

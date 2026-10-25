@@ -16,7 +16,9 @@ class TrackResource extends JsonResource
     public function toArray(Request $request): array
     {
         $user = $request->user('sanctum');
-        $with = str($request->input('with'))->remove(' ')->explode(',');
+        $with = str($request->input('with'))
+            ->remove(' ')
+            ->explode(',');
         $interaction = $this->socialInteractionData($user);
         $locked = ! $this->isUnlockedFor($user);
 

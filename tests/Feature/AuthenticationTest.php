@@ -64,7 +64,8 @@ class AuthenticationTest extends TestCase
 
     public function test_user_can_login(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()
+            ->create();
 
         $response = $this->withCredentials()
             ->post(
@@ -98,7 +99,8 @@ class AuthenticationTest extends TestCase
     public function test_user_can_request_password_reset_code(): void
     {
         \Artisan::call('db:seed ConfigurationSeeder');
-        $user = User::factory()->create();
+        $user = User::factory()
+            ->create();
 
         $response = $this->withCredentials()
             ->post(
@@ -118,7 +120,8 @@ class AuthenticationTest extends TestCase
     public function test_user_can_confirm_password_reset_code(): void
     {
         \Artisan::call('db:seed ConfigurationSeeder');
-        $user = User::factory()->create();
+        $user = User::factory()
+            ->create();
 
         $this->withCredentials()
             ->post(
@@ -132,7 +135,8 @@ class AuthenticationTest extends TestCase
                 ]
             );
 
-        $c = PasswordCodeResets::whereEmail($user->email)->first('code');
+        $c = PasswordCodeResets::whereEmail($user->email)
+            ->first('code');
 
         $response = $this->withCredentials()
             ->post(
@@ -152,7 +156,8 @@ class AuthenticationTest extends TestCase
     public function test_user_can_reset_password(): void
     {
         \Artisan::call('db:seed ConfigurationSeeder');
-        $user = User::factory()->create();
+        $user = User::factory()
+            ->create();
 
         $this->withCredentials()
             ->post(
@@ -166,7 +171,8 @@ class AuthenticationTest extends TestCase
                 ]
             );
 
-        $c = PasswordCodeResets::whereEmail($user->email)->first('code');
+        $c = PasswordCodeResets::whereEmail($user->email)
+            ->first('code');
 
         $response = $this->withCredentials()
             ->post(

@@ -27,14 +27,19 @@ class ProcessAudioTest extends TestCase
 
         // libfdk_aac is not always installed, so use FFmpeg's native AAC encoder here
         config(['settings.encoding.output' => 'aac', 'settings.encoding.output_codec' => 'aac']);
-        $genre = Genre::factory()->create();
-        $artist = Artist::factory()->create();
-        $user = User::factory()->create();
-        Release::factory()->create(['user_id' => $user->id, 'genre_id' => $genre->id, 'artist_id' => $artist->id]);
+        $genre = Genre::factory()
+            ->create();
+        $artist = Artist::factory()
+            ->create();
+        $user = User::factory()
+            ->create();
+        Release::factory()
+            ->create(['user_id' => $user->id, 'genre_id' => $genre->id, 'artist_id' => $artist->id]);
 
         Sanctum::actingAs($user, ['*']);
 
-        $image = UploadedFile::fake()->image('image.jpg', 640, 640);
+        $image = UploadedFile::fake()
+            ->image('image.jpg', 640, 640);
 
         // Work on a copy so the upload does not move the fixture away
         $path = tempnam(sys_get_temp_dir(), 'audio') . '.mp3';
@@ -59,7 +64,9 @@ class ProcessAudioTest extends TestCase
         ]);
 
         $id = $response->json('data.id');
-        $data = $user->releases[0]->tracks()->find($id);
+        $data = $user->releases[0]
+            ->tracks()
+            ->find($id);
 
         $response->assertCreated();
         $this->assertTrue($data->meta['processed']);

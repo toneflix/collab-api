@@ -34,7 +34,8 @@ class UserAccess extends Command
             return self::FAILURE;
         }
 
-        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        app(PermissionRegistrar::class)
+            ->forgetCachedPermissions();
 
         $roles = $this->resolve(Role::class, 'role');
         $permissions = $this->resolve(Permission::class, 'permission');
@@ -48,7 +49,9 @@ class UserAccess extends Command
         }
 
         if ($permissions['grant']->isNotEmpty() || $permissions['revoke']->isNotEmpty()) {
-            $current = $user->getDirectPermissions()->pluck('name');
+            $current = $user
+                ->getDirectPermissions()
+                ->pluck('name');
             $manager->syncPermissions(null, $user, $current->merge($permissions['grant'])->diff($permissions['revoke'])->values()->all());
         }
 
@@ -68,7 +71,10 @@ class UserAccess extends Command
         $resolved = [];
 
         foreach (['grant', 'revoke'] as $action) {
-            $values = collect((array) $this->option("{$action}-{$kind}"))->filter()->unique()->values();
+            $values = collect((array) $this->option("{$action}-{$kind}"))
+                ->filter()
+                ->unique()
+                ->values();
 
             [$ids, $names] = $values->partition(fn($value) => ctype_digit((string) $value));
             $found = $model::query()
@@ -83,7 +89,9 @@ class UserAccess extends Command
                 return null;
             }
 
-            $resolved[$action] = $found->pluck('name')->values();
+            $resolved[$action] = $found
+                ->pluck('name')
+                ->values();
         }
 
         return $resolved;

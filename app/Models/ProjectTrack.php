@@ -92,19 +92,29 @@ class ProjectTrack extends Model
         });
 
         static::deleting(function (self $model) {
-            $model->stems()->withTrashed()->forceDelete();
-            $model->assets()->delete();
-            $model->lyric()->delete();
+            $model
+                ->stems()
+                ->withTrashed()
+                ->forceDelete();
+            $model
+                ->assets()
+                ->delete();
+            $model
+                ->lyric()
+                ->delete();
             Lyric::query()
                 ->where('lyricable_type', (new Track)->getMorphClass())
                 ->whereIn('lyricable_id', $model->releasedTracks()->select('id'))
                 ->delete();
-            $model->releasedTracks()->delete();
+            $model
+                ->releasedTracks()
+                ->delete();
         });
 
         static::saved(function (self $model) {
             if ($model->preview && ($model->wasRecentlyCreated || $model->wasChanged('preview'))) {
-                TagAudio::dispatch($model)->afterCommit();
+                TagAudio::dispatch($model)
+                    ->afterCommit();
             }
         });
 
@@ -147,11 +157,13 @@ class ProjectTrack extends Model
      */
     public function genre(): BelongsTo
     {
-        return $this->belongsTo(Genre::class)->withDefault(fn() => Genre::first() ?? [
-            'id' => null,
-            'title' => 'Unknown',
-            'description' => 'Unknown',
-        ]);
+        return $this
+            ->belongsTo(Genre::class)
+            ->withDefault(fn() => Genre::first() ?? [
+                'id' => null,
+                'title' => 'Unknown',
+                'description' => 'Unknown',
+            ]);
     }
 
     /**

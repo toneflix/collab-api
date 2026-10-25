@@ -13,14 +13,17 @@ class ReplicateModeratorModel implements ModeratorModel
 {
     public function ask(string $system, string $prompt, ?string $image = null): string
     {
-        $prediction = ReplicateClient::make()->run($this->name(), array_filter([
-            'system_prompt' => $system,
-            'prompt' => $prompt,
-            'max_tokens' => 1024,
-            'image' => $image,
-        ]), 180);
+        $prediction = ReplicateClient::make()
+            ->run($this->name(), array_filter([
+                'system_prompt' => $system,
+                'prompt' => $prompt,
+                'max_tokens' => 1024,
+                'image' => $image,
+            ]), 180);
 
-        return collect((array) $prediction['output'])->flatten()->join('');
+        return collect((array) $prediction['output'])
+            ->flatten()
+            ->join('');
     }
 
     public function name(): string

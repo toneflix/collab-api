@@ -17,10 +17,11 @@ class LyricsController extends Controller
         // Tracks released before lyrics were copied on release pick them up here.
         $lyric = $lyrics->for($track) ?? $lyrics->inherit($track);
 
-        return (new LyricResource($lyric))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new LyricResource($lyric))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 }

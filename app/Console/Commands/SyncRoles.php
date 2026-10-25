@@ -63,7 +63,8 @@ class SyncRoles extends Command
         $permissions = $this->option('permissions');
 
         /** @var Collection<TKey,User> */
-        $users = app(config('permission-defs.user-model', []))->findMany($users);
+        $users = app(config('permission-defs.user-model', []))
+            ->findMany($users);
 
         $conf = str_ireplace(
             ["\n", "\t", '  '],
@@ -138,7 +139,8 @@ class SyncRoles extends Command
         $permissions = $this->option('permissions');
 
         /** @var Collection<TKey,User> */
-        $users = app(config('permission-defs.user-model', []))->findMany($users);
+        $users = app(config('permission-defs.user-model', []))
+            ->findMany($users);
 
         $conf = str_ireplace(
             ["\n", "\t", '  '],
@@ -205,8 +207,10 @@ class SyncRoles extends Command
         if (app()->runningInConsole() && $this->confirm('Are you sure you want to reset all permissions and roles?')) {
             // Works on PostgreSQL, MySQL/MariaDB and SQLite
             Schema::withoutForeignKeyConstraints(function () {
-                Role::query()->delete();
-                Permission::query()->delete();
+                Role::query()
+                    ->delete();
+                Permission::query()
+                    ->delete();
             });
         }
     }
@@ -221,7 +225,8 @@ class SyncRoles extends Command
     protected function names(string $model, array $values)
     {
         // Ids and names are matched separately, so PostgreSQL never compares a name with the bigint id.
-        [$ids, $names] = collect($values)->partition(fn($value) => ctype_digit((string) $value));
+        [$ids, $names] = collect($values)
+            ->partition(fn($value) => ctype_digit((string) $value));
 
         return $model::query()
             ->where(fn($query) => $query->whereIn('name', $names->all())->orWhereIn('id', $ids->all()))
@@ -242,11 +247,15 @@ class SyncRoles extends Command
         $exclusions = (array) config('permission-defs.exclusions', []);
 
         // Every role gets every permission except the ones excluded for it.
-        Role::query()->whereIn('name', $rolesArray)->get()->each(
-            fn(Role $role) => $role->syncPermissions($permissionsArray->diff($exclusions[$role->name] ?? [])->values())
-        );
+        Role::query()
+            ->whereIn('name', $rolesArray)
+            ->get()
+            ->each(
+                fn(Role $role) => $role->syncPermissions($permissionsArray->diff($exclusions[$role->name] ?? [])->values())
+            );
 
-        $roles = Role::withCount('permissions')->get();
+        $roles = Role::withCount('permissions')
+            ->get();
         $permissions = Permission::get();
 
         $this->info('Roles');

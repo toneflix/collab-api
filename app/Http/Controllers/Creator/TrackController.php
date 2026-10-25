@@ -25,7 +25,9 @@ class TrackController extends Controller
             ->where(fn($q) => $q->where('slug', $release_id)->when(is_numeric($release_id), fn($q) => $q->orWhere('releases.id', $release_id)))
             ->firstOrFail();
 
-        $query = $release->tracks()->getQuery();
+        $query = $release
+            ->tracks()
+            ->getQuery();
 
         $tracks = $query->paginate($request->perPage(15));
 
@@ -67,7 +69,9 @@ class TrackController extends Controller
         Limits::for($this->user)->ensureCanCharge(Feature::SELL_STEMS, $request->input('stems_price'), 0, 'stems_price');
 
         /** @var Track $track */
-        $track = $release->tracks()->make();
+        $track = $release
+            ->tracks()
+            ->make();
 
         $track->slug = $request->input('slug');
         $track->title = $request->input('title');
@@ -82,13 +86,16 @@ class TrackController extends Controller
         if ($request->artist_id) {
             $artists[$request->artist_id] = ['type' => 'primary'];
         }
-        $track->artists()->sync($artists);
+        $track
+            ->artists()
+            ->sync($artists);
 
-        return (new TrackResource($track))->additional([
-            'message' => 'New track created successfully.',
-            'status' => 'success',
-            'status_code' => HttpStatus::CREATED,
-        ])
+        return (new TrackResource($track))
+            ->additional([
+                'message' => 'New track created successfully.',
+                'status' => 'success',
+                'status_code' => HttpStatus::CREATED,
+            ])
             ->response()
             ->setStatusCode(HttpStatus::CREATED->value);
     }
@@ -140,7 +147,9 @@ class TrackController extends Controller
         if ($request->artist_id) {
             $artists[$request->artist_id] = ['type' => 'primary'];
         }
-        $track->artists()->sync($artists);
+        $track
+            ->artists()
+            ->sync($artists);
 
         return (new TrackResource($track))
             ->additional([
@@ -196,7 +205,9 @@ class TrackController extends Controller
             'release.releaseDate' => 'release date',
         ]);
 
-        $release = $this->user->releases()->find($request->release_id);
+        $release = $this->user
+            ->releases()
+            ->find($request->release_id);
         $release ??= $this->user->releases()->create($filled['release']);
 
         return $this->store($request, $release->id);
