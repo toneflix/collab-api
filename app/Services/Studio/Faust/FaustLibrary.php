@@ -35,7 +35,7 @@ class FaustLibrary
     /**
      * Every effect, in name order, or none when the compiler is missing.
      *
-     * @return list<array{type: string, name: string, label: string, group: string, description: string, source: string, params: list<array{key: string, address: string, min: float, max: float, step: float, init: float}>}>
+     * @return list<array{type: string, name: string, label: string, group: string, description: string, source: string, params: list<array{key: string, address: string, min: float, max: float, step: float, init: float, unit: ?string}>}>
      */
     public function all(): array
     {
@@ -54,7 +54,7 @@ class FaustLibrary
     /**
      * One effect by its type, like "faust-hall".
      *
-     * @return array{type: string, name: string, label: string, group: string, description: string, source: string, params: list<array{key: string, address: string, min: float, max: float, step: float, init: float}>}|null
+     * @return array{type: string, name: string, label: string, group: string, description: string, source: string, params: list<array{key: string, address: string, min: float, max: float, step: float, init: float, unit: ?string}>}|null
      */
     public function find(string $type): ?array
     {
@@ -128,7 +128,7 @@ class FaustLibrary
     /**
      * An effect's name, menu details and settings, read from the compiler.
      *
-     * @return array{type: string, name: string, label: string, group: string, description: string, source: string, params: list<array{key: string, address: string, min: float, max: float, step: float, init: float}>}|null
+     * @return array{type: string, name: string, label: string, group: string, description: string, source: string, params: list<array{key: string, address: string, min: float, max: float, step: float, init: float, unit: ?string}>}|null
      */
     protected function describe(string $path): ?array
     {
@@ -160,7 +160,7 @@ class FaustLibrary
      * The sliders of a Faust UI, in the order the plugin's control ports are.
      *
      * @param  list<array<string, mixed>>  $items
-     * @return list<array{key: string, address: string, min: float, max: float, step: float, init: float}>
+     * @return list<array{key: string, address: string, min: float, max: float, step: float, init: float, unit: ?string}>
      */
     protected function controls(array $items): array
     {
@@ -181,6 +181,7 @@ class FaustLibrary
                     'max' => (float) ($item['max'] ?? 1),
                     'step' => (float) ($item['step'] ?? 1),
                     'init' => (float) ($item['init'] ?? 0),
+                    'unit' => collect($item['meta'] ?? [])->pluck('unit')->filter()->first(),
                 ];
             }
         }
