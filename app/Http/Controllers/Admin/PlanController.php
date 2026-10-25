@@ -4,8 +4,9 @@ namespace App\Http\Controllers\Admin;
 
 use App\Enums\Feature;
 use App\Enums\HttpStatus;
-use App\Helpers\Providers;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\FeatureCollection;
+use App\Http\Resources\PlanCollection;
 use App\Http\Resources\PlanResource;
 use App\Models\Plan;
 use Closure;
@@ -37,7 +38,11 @@ class PlanController extends Controller
 
     public function index()
     {
-        return PlanResource::collection(Plan::ordered()->get())->additional([
+        $plans = Plan::query()
+            ->ordered()
+            ->get();
+
+        return (new PlanCollection($plans))->additional([
             'message' => HttpStatus::message(HttpStatus::OK),
             'status' => 'success',
             'status_code' => HttpStatus::OK,
@@ -49,19 +54,23 @@ class PlanController extends Controller
      */
     public function features()
     {
-        return Providers::response()->success([
-            'data' => Feature::catalogue(),
+        $features = Feature::catalogue();
+
+        return (new FeatureCollection($features))->additional([
             'message' => HttpStatus::message(HttpStatus::OK),
+            'status' => 'success',
+            'status_code' => HttpStatus::OK,
         ]);
     }
 
     public function show(Plan $plan)
     {
-        return (new PlanResource($plan))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new PlanResource($plan))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     public function store(Request $request)
@@ -72,18 +81,23 @@ class PlanController extends Controller
             'message' => __(':name was created.', ['name' => $plan->name]),
             'status' => 'success',
             'status_code' => HttpStatus::CREATED,
-        ])->response()->setStatusCode(HttpStatus::CREATED->value);
+        ])
+            ->response()
+            ->setStatusCode(HttpStatus::CREATED->value);
     }
 
     public function update(Request $request, Plan $plan)
     {
         $plan = $this->save($request, $plan);
 
-        return (new PlanResource($plan))->additional([
-            'message' => __(':name was saved.', ['name' => $plan->name]),
-            'status' => 'success',
-            'status_code' => HttpStatus::ACCEPTED,
-        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
+        return (new PlanResource($plan))
+            ->additional([
+                'message' => __(':name was saved.', ['name' => $plan->name]),
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 
     /**
@@ -99,19 +113,26 @@ class PlanController extends Controller
         if ($plan->subscriptions()->exists()) {
             $plan->update(['active' => false]);
 
-            return (new PlanResource($plan))->additional([
-                'message' => __(':name has subscribers, so it was deactivated instead of deleted.', ['name' => $plan->name]),
-                'status' => 'success',
-                'status_code' => HttpStatus::ACCEPTED,
-            ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
+            return (new PlanResource($plan))
+                ->additional([
+                    'message' => __(':name has subscribers, so it was deactivated instead of deleted.', ['name' => $plan->name]),
+                    'status' => 'success',
+                    'status_code' => HttpStatus::ACCEPTED,
+                ])
+                ->response()
+                ->setStatusCode(HttpStatus::ACCEPTED->value);
         }
 
         $plan->delete();
 
-        return Providers::response()->success([
-            'data' => [],
-            'message' => __(':name was deleted.', ['name' => $plan->name]),
-        ], HttpStatus::ACCEPTED);
+        return (new PlanResource($plan))
+            ->additional([
+                'message' => __(':name was deleted.', ['name' => $plan->name]),
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 
     protected function save(Request $request, Plan $plan): Plan

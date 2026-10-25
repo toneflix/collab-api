@@ -4,9 +4,10 @@ namespace App\Http\Controllers\Admin;
 
 use App\Enums\HttpStatus;
 use App\Http\Controllers\Controller;
-use App\Http\Resources\AdminActionResource;
+use App\Http\Resources\AdminActionCollection;
+use App\Http\Resources\AdminUserCollection;
 use App\Http\Resources\AdminUserResource;
-use App\Http\Resources\TransactionResource;
+use App\Http\Resources\TransactionCollection;
 use App\Models\Plan;
 use App\Models\User;
 use App\Services\Admin\UserDirectory;
@@ -44,12 +45,13 @@ class UserController extends Controller
             'limit' => ['nullable', 'integer', 'min:1', 'max:50'],
         ]);
 
-        $users = $directory->query($valid)
+        $users = $directory
+            ->query($valid)
             ->withCount(['projects', 'collabProjects', 'releases'])
             ->with(['roles', 'subscriptions' => fn($q) => $q->active()->with('planModel')])
-            ->paginate($valid['limit'] ?? 20);
+            ->paginate($request->perPage(20, 50));
 
-        return AdminUserResource::collection($users)->additional([
+        return (new AdminUserCollection($users))->additional([
             'roles' => config('permission-defs.roles', []),
             'message' => HttpStatus::message(HttpStatus::OK),
             'status' => 'success',
@@ -59,9 +61,9 @@ class UserController extends Controller
 
     public function show(Request $request, UserInsights $insights, User $managedUser)
     {
-        return $this->user($request, $managedUser, HttpStatus::message(HttpStatus::OK), [
-            'stats' => $insights->for($managedUser),
-        ]);
+        $stats = $insights->for($managedUser);
+
+        return $this->user($request, $managedUser, HttpStatus::message(HttpStatus::OK), ['stats' => $stats]);
     }
 
     public function update(Request $request, User $managedUser)
@@ -207,9 +209,12 @@ class UserController extends Controller
      */
     public function activity(Request $request, User $managedUser)
     {
-        $list = $managedUser->adminActions()->with('admin')->paginate(min((int) $request->input('limit', 15), 50));
+        $actions = $managedUser
+            ->adminActions()
+            ->with('admin')
+            ->paginate($request->perPage(15, 50));
 
-        return AdminActionResource::collection($list)->additional([
+        return (new AdminActionCollection($actions))->additional([
             'message' => HttpStatus::message(HttpStatus::OK),
             'status' => 'success',
             'status_code' => HttpStatus::OK,
@@ -230,7 +235,11 @@ class UserController extends Controller
             ? $managedUser->earnings()->with('user')->latest('paid_at')->latest('id')
             : $managedUser->transactions()->latest('id');
 
-        return TransactionResource::collection($query->with('transactable')->paginate($valid['limit'] ?? 15))->additional([
+        $transactions = $query
+            ->with('transactable')
+            ->paginate($request->perPage(15, 50));
+
+        return (new TransactionCollection($transactions))->additional([
             'message' => HttpStatus::message(HttpStatus::OK),
             'status' => 'success',
             'status_code' => HttpStatus::OK,
@@ -242,10 +251,15 @@ class UserController extends Controller
      */
     protected function user(Request $request, User $user, string $message, array $extra = [])
     {
-        $user->refresh()->load(['roles', 'subscriptions' => fn($q) => $q->active()->with('planModel')])->loadCount('releases');
+        $user
+            ->refresh()
+            ->load(['roles', 'subscriptions' => fn($q) => $q->active()->with('planModel')])
+            ->loadCount('releases');
+
+        $can = $this->manager->abilities($request->user(), $user);
 
         return (new AdminUserResource($user))->additional([
-            'can' => $this->manager->abilities($request->user(), $user),
+            'can' => $can,
             'roles' => config('permission-defs.roles', []),
             ...$extra,
             'message' => $message,

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Enums\HttpStatus;
 use App\Helpers\Providers;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\SettingsResource;
 use App\Services\Ai\AiSettings;
 use Closure;
 use Illuminate\Http\Request;
@@ -66,14 +67,20 @@ class AiSettingsController extends Controller
 
     protected function settings(string $message = 'OK', HttpStatus $status = HttpStatus::OK)
     {
-        return Providers::response()->success([
-            'data' => [
-                'fields' => AiSettings::forAdmin(),
-                'keys' => AiSettings::keys(),
-                'client' => AiSettings::clientConfig(),
-                'currency' => (string) Providers::config('app_currency', 'USD'),
-            ],
-            'message' => $message,
-        ], $status);
+        $settings = [
+            'fields' => AiSettings::forAdmin(),
+            'keys' => AiSettings::keys(),
+            'client' => AiSettings::clientConfig(),
+            'currency' => (string) Providers::config('app_currency', 'USD'),
+        ];
+
+        return (new SettingsResource($settings))
+            ->additional([
+                'message' => $message,
+                'status' => 'success',
+                'status_code' => $status,
+            ])
+            ->response()
+            ->setStatusCode($status->value);
     }
 }
