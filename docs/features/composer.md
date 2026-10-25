@@ -66,3 +66,17 @@ The model is Claude Haiku on Replicate by default (**Composer Writing Model**, `
 Before a block or verse suggestion the song is saved as a `before_ai` version, so the writer can go back.
 
 **Composer Song Model** (`ai_composer_music_model`, MiniMax Music 2.5 by default) is the music model that sings songs made from Composer lyrics. Only models that take lyrics can be picked (MiniMax 2.5, MiniMax 1.5 and Suno).
+
+## Song to project
+
+A song can become a project with one track that carries its lyrics.
+
+```
+POST /api/creator/songs/{song}/project
+{ "genre_id": 3, "artist_id": 12, "title": "Late Night Train", "privacy": "private", "generate": true, "prompt": "Moody synth pop, female vocals" }
+```
+
+- The project and track take the song's title unless `title` is given. Both start private unless `privacy` says otherwise. The project counts toward the `max_projects` plan limit.
+- The song's sung lines (section names left out) go on the track's lyric sheet as written lyrics. The song keeps a link to the track (`project` in the song resource, with the project's `id`, `slug`, `title` and the `trackId`).
+- With `generate`, AI sings the lyrics onto the track with the **Composer Song Model**, the section names included. `prompt` (the sound) is then required. Access, the model's lyrics length and the credits are all checked before anything is created, so a failed check leaves no empty project behind. The started job comes back as `aiJob` beside `data`.
+- A song makes one project. `POST /api/creator/songs/{song}/project/lyrics` puts the song's current lyrics on that track's lyric sheet again. It needs edit access to the track.

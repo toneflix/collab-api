@@ -76,6 +76,14 @@ class Song extends Model
         return $this->belongsTo(Sound::class, 'beat_sound_id');
     }
 
+    /**
+     * The project track made from this song, whose lyric sheet it updates.
+     */
+    public function track(): BelongsTo
+    {
+        return $this->belongsTo(ProjectTrack::class, 'project_track_id');
+    }
+
     public function versions(): HasMany
     {
         return $this->hasMany(SongVersion::class);
