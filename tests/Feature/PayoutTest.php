@@ -303,8 +303,8 @@ class PayoutTest extends TestCase
 
         $this->postJson('/api/account/payouts/account/resolve', $this->nigerianAccount())
             ->assertOk()
-            ->assertJsonPath('data.account_name', 'ADA LOVELACE')
-            ->assertJsonPath('data.bank_name', 'GTBank');
+            ->assertJsonPath('data.accountName', 'ADA LOVELACE')
+            ->assertJsonPath('data.bankName', 'GTBank');
 
         $this->postJson('/api/account/payouts/account/resolve', $this->nigerianAccount(bank: '999'))
             ->assertUnprocessable()

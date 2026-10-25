@@ -96,7 +96,7 @@ class AdminUsersTest extends TestCase
         $this->getJson('/api/admin/users?limit=2')
             ->assertOk()
             ->assertJsonCount(2, 'data')
-            ->assertJsonStructure(['data' => [['id', 'username', 'email', 'roles', 'plan', 'suspended']], 'meta' => ['last_page'], 'roles']);
+            ->assertJsonStructure(['data' => [['id', 'username', 'email', 'roles', 'plan', 'suspended']], 'meta' => ['lastPage'], 'roles']);
 
         $this->getJson('/api/admin/users?search=findme_')
             ->assertOk()

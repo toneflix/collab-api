@@ -22,7 +22,7 @@ class BlockResource extends JsonResource
         return [
             'id' => $this->id,
             'reason' => $this->reason,
-            'user_id' => $this->user_id,
+            'userId' => $this->user_id,
             'user' => $this->when($with->contains('user'), fn() => new UserResource($this->user)),
             'model' => $this->when($with->contains('model'), fn() => $this->res($this->blockable)),
         ];

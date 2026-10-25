@@ -1,9 +1,9 @@
 <?php
 
 /*
-| Paginated lists keep Laravel's shape, which the frontend's ResponseBody and
-| PageMeta types read: `data`, `links` and `meta` with snake_case page keys.
-| Resources write their own (camelCase) keys, so camel casing stays off.
+| Paginated lists answer `{ data, meta: { currentPage, lastPage, perPage, total } }`,
+| which the frontend's ResponseBody and PageMeta types read. Resource and meta keys
+| are camelCase.
 */
 
 return [
@@ -28,7 +28,7 @@ return [
     |
     */
 
-    'paginated_response_extra' => ['meta', 'links'],
+    'paginated_response_extra' => ['meta'],
 
     /*
     |---------------------------------------------------------------------------------
@@ -45,10 +45,6 @@ return [
     */
 
     'paginated_response_meta' => [
-        'to' => 'to',
-        'from' => 'from',
-        'links' => 'links',
-        'path' => 'path',
         'total' => 'total',
         'per_page' => 'per_page',
         'last_page' => 'last_page',
@@ -85,5 +81,5 @@ return [
     |
     */
 
-    'prefer_camel_casing' => false,
+    'prefer_camel_casing' => true,
 ];

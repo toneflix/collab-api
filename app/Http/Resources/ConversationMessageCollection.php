@@ -20,8 +20,8 @@ class ConversationMessageCollection extends ResourceCollection
     {
         return $this->collection
             ->reverse()
-            ->values()->map
-            ->toArray($request)
+            ->values()
+            ->map(fn(ConversationMessageResource $message) => $message->resolve($request))
             ->all();
     }
 
@@ -35,10 +35,9 @@ class ConversationMessageCollection extends ResourceCollection
     public function paginationInformation(Request $request, array $paginated, array $default): array
     {
         $default['meta'] = [
-            'path' => $paginated['path'] ?? null,
-            'per_page' => $paginated['per_page'] ?? null,
-            'next_cursor' => $paginated['next_cursor'] ?? null,
-            'prev_cursor' => $paginated['prev_cursor'] ?? null,
+            'perPage' => $paginated['per_page'] ?? null,
+            'nextCursor' => $paginated['next_cursor'] ?? null,
+            'prevCursor' => $paginated['prev_cursor'] ?? null,
         ];
 
         return $default;

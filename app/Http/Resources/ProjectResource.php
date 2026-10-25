@@ -54,7 +54,7 @@ class ProjectResource extends JsonResource
             'props' => $interaction['props'],
             'proped' => $interaction['proped'] ?? false,
             'privacy' => $this->privacy,
-            'user_id' => $this->user_id,
+            'userId' => $this->user_id,
             'released' => $this->released,
             'draftReleaseId' => $this->when(
                 $user && $user->id === $this->user_id,

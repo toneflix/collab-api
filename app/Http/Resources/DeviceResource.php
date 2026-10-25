@@ -36,9 +36,9 @@ class DeviceResource extends JsonResource
             'id' => $this->id,
             'name' => collect([$dev->getBrandName(), $name, "(v{$version})"])->implode(' '),
             'platform' => $platform ?: 'Unknown Platform',
-            'platform_id' => str($platform ?: 'question')->slug('-')->toString(),
+            'platformId' => str($platform ?: 'question')->slug('-')->toString(),
             'current' => $this->id === $request->user()?->currentAccessToken()?->id,
-            'last_used' => $this->last_used_at?->diffInHours() > 24
+            'lastUsed' => $this->last_used_at?->diffInHours() > 24
                 ? $this->last_used_at?->format('d M Y')
                 : $this->last_used_at?->diffForHumans(),
         ];

@@ -20,10 +20,10 @@ class NotificationRequestResource extends JsonResource
             'pending' => $this->pending,
             'rejected' => $this->rejected,
             'approved' => $this->approved,
-            'custom_data' => $this->data,
-            'read_at' => $this->read_at,
-            'created_at' => $this->created_at,
-            'updated_at' => $this->updated_at,
+            'customData' => $this->data,
+            'readAt' => $this->read_at,
+            'createdAt' => $this->created_at,
+            'updatedAt' => $this->updated_at,
         ];
     }
 }

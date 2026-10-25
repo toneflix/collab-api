@@ -139,7 +139,7 @@ class CheckoutTest extends TestCase
 
         $reference = $this->postJson('/api/payments', $body)
             ->assertCreated()
-            ->assertJsonPath('data.access_code', fn($code) => str_starts_with($code, 'code_'))
+            ->assertJsonPath('data.accessCode', fn($code) => str_starts_with($code, 'code_'))
             ->json('data.reference');
 
         $this
