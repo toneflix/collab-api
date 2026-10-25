@@ -9,17 +9,28 @@ use App\Models\User;
 use App\Services\Ai\AiSettings;
 use App\Services\Ai\Replicate\ReplicateClient;
 use App\Services\Ai\Replicate\ReplicateException;
+use App\Services\Audio\StemAudio;
 use App\Services\Studio\StemFiles;
 
 /**
  * Splits a stem's audio into vocals, drums, bass and other with Demucs, and
- * adds each part to the track as a new stem.
+ * adds each part to the track as a new stem. "Other" is the song minus the
+ * first three parts, so together the stems sound exactly like the song.
  */
 class SplitStems implements AiTask
 {
     public const PARTS = ['vocals', 'drums', 'bass', 'other'];
 
-    public function __construct(protected StemFiles $files) {}
+    /**
+     * How much louder than Demucs' own "other" the rebuilt one may be before
+     * it's taken as a sign the parts didn't line up with the song, in dB.
+     */
+    protected const REMAINDER_HEADROOM = 6.0;
+
+    public function __construct(
+        protected StemFiles $files,
+        protected StemAudio $audio,
+    ) {}
 
     public function credits(array $input): int
     {
@@ -60,23 +71,32 @@ class SplitStems implements AiTask
     {
         $client = ReplicateClient::make();
 
-        $prediction = $client->run($this->model(), [
+        $prediction = $client->run($this->model(), array_filter([
             'audio' => $client->upload($path, mime_content_type($path) ?: 'audio/mpeg'),
-            'output_format' => 'mp3',
-        ]);
+            'model' => $this->variant(),
+            'output_format' => 'wav',
+        ]));
 
         $output = (array) $prediction['output'];
         $files = [];
+        $temp = [];
 
         try {
             foreach (self::PARTS as $part) {
                 if (ReplicateClient::isFile($output[$part] ?? null)) {
-                    $files[$part] = $client->download($output[$part]);
+                    $files[$part] = $temp[] = $client->download($output[$part]);
                 }
             }
 
             if (! $files) {
                 throw new ReplicateException('Stem separation returned no stems.');
+            }
+
+            $files = $this->rebuildOther($path, $files);
+            $temp = [...$temp, ...array_values($files)];
+
+            foreach ($files as $part => $file) {
+                $files[$part] = $temp[] = $this->audio->mp3($file);
             }
 
             return array_values(array_map(fn (string $part, string $file) => $this->files->addStem(
@@ -86,12 +106,50 @@ class SplitStems implements AiTask
                 ]
             ), array_keys($files), $files));
         } finally {
-            array_map(fn (string $file) => @unlink($file), $files);
+            array_map(fn (string $file) => @unlink($file), array_unique($temp));
         }
+    }
+
+    /**
+     * Swap Demucs' "other" for the song minus vocals, drums and bass, unless
+     * the result is so loud that the parts can't have lined up.
+     *
+     * @param  array<string, string>  $files
+     * @return array<string, string>
+     */
+    protected function rebuildOther(string $song, array $files): array
+    {
+        $parts = array_diff_key($files, ['other' => true]);
+
+        if (! isset($files['other']) || count($parts) < count(self::PARTS) - 1) {
+            return $files;
+        }
+
+        $remainder = $this->audio->remainder($song, array_values($parts));
+        $level = $this->audio->level($remainder);
+        $limit = ($this->audio->level($files['other']) ?? 0.0) + self::REMAINDER_HEADROOM;
+
+        if ($level === null || $level > $limit) {
+            @unlink($remainder);
+
+            return $files;
+        }
+
+        $files['other'] = $remainder;
+
+        return $files;
     }
 
     protected function model(): string
     {
         return (string) config('ai.providers.replicate.models.stems.default', 'ryan5453/demucs');
+    }
+
+    /**
+     * The Demucs weights to separate with, like htdemucs_ft.
+     */
+    protected function variant(): ?string
+    {
+        return config('ai.providers.replicate.models.stems.variant') ?: null;
     }
 }

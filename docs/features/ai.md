@@ -22,6 +22,12 @@ The tools stay hidden unless admins turned them on, the token is set, and the pe
 
 All are cleared for commercial use: ElevenLabs Music under its music terms, Demucs and Whisper under MIT. Generated music is added to the project track as a stem, or split into stems first if the person asks.
 
+## Audio quality
+
+- **Stems add up to the song.** Demucs (`htdemucs_ft` weights, set with `REPLICATE_STEMS_VARIANT`) returns WAV. Vocals, drums and bass are kept as separated, and "other" is rebuilt with FFmpeg as the song minus those three, so the four stems played together sound exactly like the song. If the rebuilt part is more than 6 dB louder than Demucs' own "other", the parts didn't line up and Demucs' "other" is kept. Each stem is then encoded once as a 320 kbps MP3 (`App\Services\Audio\StemAudio`).
+- **Studio mixes** are encoded in the browser as 320 kbps MP3. A mix that would clip is turned down to just under full scale first.
+- **Uploaded MP3s are kept as they are.** `ProcessAudio` only re-encodes lossless uploads (WAV, FLAC, AIFF, ALAC), since encoding an MP3 again only loses quality.
+
 ## Credits
 
 - Each plan gives a number of credits per calendar month. They are used first and reset each month.
