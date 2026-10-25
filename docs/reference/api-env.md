@@ -13,6 +13,7 @@ Every key and secret the API uses comes from `.env`, read through files in `conf
 | `APP_KEY` | | Encryption key. Create it with `php artisan key:generate`. |
 | `APP_DEBUG` | `true` | Must be `false` in production. |
 | `APP_URL` | `http://localhost` | The API's public address. File and placeholder image links are built from it. |
+| `TRUSTED_PROXIES` | `*` | Proxies whose `X-Forwarded-*` headers are trusted, as a comma-separated list of addresses. Keep `*` behind Railway or another TLS proxy. |
 | `ASSET_URL` | `APP_URL` | Where placeholder images in `public/defaults` are served from, if not `APP_URL`. |
 | `FRONTEND_URL` | `https://collab.toneflix.ng` | The app's public address. Used for links in emails and push, push icons, and the Freesound callback. |
 | `APP_TIMEZONE` | `UTC` | |

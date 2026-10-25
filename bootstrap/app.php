@@ -45,8 +45,10 @@ return Application::configure(basePath: dirname(__DIR__))
             ]
         );
 
+        // Hosts like Railway end TLS at their edge, so trust its X-Forwarded-*
+        // headers. Otherwise links are built as http:// and browsers block them.
         $middleware->trustProxies(
-            at: null,
+            at: env('TRUSTED_PROXIES', '*'),
             headers: Request::HEADER_X_FORWARDED_FOR |
                 Request::HEADER_X_FORWARDED_HOST |
                 Request::HEADER_X_FORWARDED_PORT |
