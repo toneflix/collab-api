@@ -6,7 +6,7 @@ namespace App\Services\Ai\Music;
  * MiniMax Music 2.5: full songs with vocals sung from the lyrics, styled by
  * the prompt. The model decides the length, up to about 5 minutes.
  */
-class MiniMaxMusic25 extends MusicModel
+class MiniMaxMusic25 extends ReplicateMusic
 {
     public const ID = 'minimax/music-2.5';
 

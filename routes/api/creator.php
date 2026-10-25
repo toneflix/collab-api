@@ -48,6 +48,7 @@ Route::middleware(['auth:sanctum'])
             Route::apiResource('projects/{project}/tracks/{track}/assets', ProjectTrackAssetController::class);
         });
         Route::get('ai/jobs/{job}', [AiController::class, 'show'])->name('ai.jobs.show');
+        Route::post('ai/jobs/{job}/versions/{version}', [AiController::class, 'choose'])->whereNumber('version')->name('ai.jobs.versions.choose');
         Route::put('tracks/{track}/lyrics', [LyricsController::class, 'updateTrack'])->name('tracks.lyrics.update');
         Route::put('tracks/{track}/tags', [AudioTagController::class, 'updateTrack'])->name('tracks.tags.update');
         Route::apiResource('projects/{project}/collaborators', ProjectCollaboratorController::class);

@@ -6,7 +6,7 @@ namespace App\Services\Ai\Music;
  * Stable Audio 2.5: instrumentals, loops and sound beds up to 190 seconds,
  * with no vocals.
  */
-class StableAudio25 extends MusicModel
+class StableAudio25 extends ReplicateMusic
 {
     public const ID = 'stability-ai/stable-audio-2.5';
 

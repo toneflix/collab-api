@@ -4,12 +4,15 @@ namespace App\Services\Ai;
 
 use App\Broadcasting\Channels;
 use App\Http\Resources\AiJobResource;
+use App\Jobs\AddMusicVersion;
 use App\Jobs\RunAiJob;
 use App\Models\AiCreditEntry;
 use App\Models\AiJob;
 use App\Models\ProjectTrack;
 use App\Models\ProjectTrackVersion;
 use App\Models\User;
+use App\Services\Ai\Music\MusicVersions;
+use App\Services\Ai\Tasks\GenerateMusic;
 use App\Services\Realtime\Realtime;
 use App\Services\Studio\TrackHistory;
 use Illuminate\Http\Client\RequestException;
@@ -29,6 +32,8 @@ class AiStudio
      */
     public const MAX_UNFINISHED = 3;
 
+    public function __construct(protected MusicVersions $versions) {}
+
     /**
      * @param  array<string, mixed>  $input
      */
@@ -43,6 +48,11 @@ class AiStudio
 
         $job = new AiJob(['user_id' => $user->id, 'project_track_id' => $track->id, 'kind' => $kind, 'input' => $input]);
         $task = $job->task();
+        $engine = $task->engine($input);
+
+        if (! $engine->available()) {
+            throw ValidationException::withMessages(['ai' => "{$engine->label()} isn't set up yet, so this tool can't run."]);
+        }
 
         $job = DB::transaction(function () use ($job, $task, $credits, $input) {
             $job->credits = $task->credits($input);
@@ -83,8 +93,89 @@ class AiStudio
             return $this->fail($job, $e);
         }
 
+        $job->forceFill(['status' => AiJob::SUCCEEDED, 'finished_at' => now()]);
+
+        return $this->publish($job, $history, $output);
+    }
+
+    /**
+     * Start adding the version of a song its owner picked to the track.
+     */
+    public function choose(AiJob $job, int $index): AiJob
+    {
+        $job = DB::transaction(function () use ($job, $index) {
+            $job = AiJob::query()
+                ->lockForUpdate()
+                ->findOrFail($job->id);
+
+            if (isset($job->output['choosing'])) {
+                throw ValidationException::withMessages(['version' => 'A version is already on its way to the track.']);
+            }
+
+            $this->versions->find($job, $index);
+
+            $job
+                ->forceFill(['output' => [...$job->output, 'choosing' => $index]])
+                ->save();
+
+            AddMusicVersion::dispatch($job)
+                ->afterCommit();
+
+            return $job;
+        });
+
+        $this->announce($job);
+
+        return $job;
+    }
+
+    /**
+     * Add the picked version to the track. When that fails the pick is
+     * undone so the owner can try again.
+     */
+    public function addVersion(AiJob $job): AiJob
+    {
+        $index = $job->output['choosing'] ?? null;
+
+        if ($index === null) {
+            return $job;
+        }
+
+        $history = TrackHistory::for($job->track);
+        $history->baseline();
+
+        try {
+            $output = app(GenerateMusic::class)
+                ->choose($job, (int) $index);
+        } catch (Throwable $e) {
+            $this->log($job, $e, 'Add version');
+
+            $job
+                ->forceFill([
+                    'output' => array_diff_key($job->output, ['choosing' => true]),
+                    'failure' => 'Add version: ' . $this->reason($e),
+                ])
+                ->save();
+            $this->announce($job);
+
+            return $job;
+        }
+
+        $output = [...array_diff_key($job->output, ['choosing' => true]), ...$output, 'chosen' => (int) $index];
+
+        return $this->publish($job, $history, $output);
+    }
+
+    /**
+     * Save what a job made, record the track's new version and tell everyone
+     * about the stems it added.
+     *
+     * @param  array<string, mixed>  $output
+     */
+    protected function publish(AiJob $job, TrackHistory $history, array $output): AiJob
+    {
         $job
-            ->forceFill(['status' => AiJob::SUCCEEDED, 'output' => $output, 'finished_at' => now()])
+            ->forceFill(['output' => $output])
             ->save();
 
         $history->record($job->user, ProjectTrackVersion::ADDED);

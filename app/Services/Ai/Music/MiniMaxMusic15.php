@@ -6,7 +6,7 @@ namespace App\Services\Ai\Music;
  * MiniMax Music 1.5: songs up to 4 minutes sung from the lyrics, which can
  * follow a reference song, voice or instrumental.
  */
-class MiniMaxMusic15 extends MusicModel
+class MiniMaxMusic15 extends ReplicateMusic
 {
     public const ID = 'minimax/music-1.5';
 

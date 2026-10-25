@@ -12,12 +12,14 @@ use App\Models\ProjectTrack;
 use App\Models\ProjectTrackStem;
 use App\Services\Ai\AiSettings;
 use App\Services\Ai\AiStudio;
+use App\Services\Ai\Music\MusicVersions;
 use App\Services\Ai\Music\ReferenceAudio;
 use Illuminate\Http\Request;
 use Throwable;
 
 /**
- * AI tools in the studio: generate music for a track and split stems.
+ * AI tools in the studio: generate music for a track, pick a version of it
+ * and split stems.
  */
 class AiController extends Controller
 {
@@ -47,8 +49,10 @@ class AiController extends Controller
             'instrumental' => $model->instrumentalOption() ? (bool) ($valid['instrumental'] ?? false) : $model->instrumentalOnly(),
             'seed' => $valid['seed'] ?? null,
             'split' => (bool) ($valid['split'] ?? false),
+            'stems_engine' => ! empty($valid['split']) ? AiSettings::stemsEngine()->value : null,
             'reference_kind' => $reference ? ($valid['reference_kind'] ?? $model->references()[0]) : null,
             ...$reference,
+            ...$model->jobSettings(),
         ], fn($value) => $value !== null);
 
         try {
@@ -69,9 +73,38 @@ class AiController extends Controller
         $job = $studio->start($request->user(), $track, 'stems', [
             'stem_id' => $stem->id,
             'title' => (string) $stem->title,
+            'stems_engine' => AiSettings::stemsEngine()->value,
         ]);
 
         return $this->started($job, 'Splitting into stems. They show up on the track when they\'re ready.');
+    }
+
+    /**
+     * Put the version of a generated song the owner picked on the track.
+     */
+    public function choose(Request $request, AiStudio $studio, AiJob $job, int $version)
+    {
+        abort_unless((int) $job->user_id === (int) $request->user()->id, HttpStatus::NOT_FOUND->value, 'Job not found.');
+        $this->authorize('update', $job->track);
+
+        $job = $studio->choose($job, $version);
+
+        return (new AiJobResource($job))
+            ->additional([
+                'message' => 'Adding that version to the track.',
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
+    }
+
+    /**
+     * Play a version of a generated song, from a signed link.
+     */
+    public function version(MusicVersions $versions, AiJob $job, int $version)
+    {
+        return $versions->stream($job, $version);
     }
 
     /**
