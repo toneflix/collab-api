@@ -64,3 +64,25 @@ php artisan cache:forget audio::chromaprint
 php artisan queue:restart
 ```
 :::
+
+## Faust effects
+
+Studio effects written in [Faust](https://faust.grame.fr) live in `resources/faust/*.dsp`. The studio compiles each one in the browser. To render the same effect in the preview mix, the API builds the source into a LADSPA plugin with `faust2ladspa` and runs it through FFmpeg's `ladspa` filter. That needs:
+
+- the `faust` compiler, plus `ladspa-sdk` and `g++` for `faust2ladspa`
+- an FFmpeg with the `ladspa` filter (Ubuntu's and Debian's builds have it)
+
+```bash
+sudo apt-get install faust ladspa-sdk g++
+ffmpeg -hide_banner -filters | grep ladspa
+```
+
+Plugins are built the first time a mix uses them and kept in `storage/app/faust`. These variables change the defaults:
+
+```dotenv
+FAUST_BINARY=faust
+FAUST2LADSPA_BINARY=faust2ladspa
+FAUST_PLUGIN_PATH=/var/lib/toneflix/faust
+```
+
+Without the compiler, the studio offers no Faust effects, and a mix leaves out any it finds. Each new `.dsp` file needs the `tf_label`, `tf_group` and `tf_description` declarations. Its sliders become the effect's settings.
