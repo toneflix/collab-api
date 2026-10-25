@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Jobs\TagAudio;
+use App\Traits\HasAudioTags;
 use App\Traits\ModelCanExtend;
 use BeyondCode\Comments\Traits\HasComments;
 use Illuminate\Database\Eloquent\Builder;
@@ -18,6 +20,7 @@ use Toneflix\LaravelFileable\Traits\Fileable;
 class ProjectTrack extends Model
 {
     use Fileable;
+    use HasAudioTags;
     use HasComments;
     use HasFactory;
     use ModelCanExtend;
@@ -97,6 +100,12 @@ class ProjectTrack extends Model
                 ->whereIn('lyricable_id', $model->releasedTracks()->select('id'))
                 ->delete();
             $model->releasedTracks()->delete();
+        });
+
+        static::saved(function (self $model) {
+            if ($model->preview && ($model->wasRecentlyCreated || $model->wasChanged('preview'))) {
+                TagAudio::dispatch($model)->afterCommit();
+            }
         });
 
         // Published versions keep their details; only draft releases follow the studio.

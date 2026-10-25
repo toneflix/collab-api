@@ -38,6 +38,7 @@ class AiSettings extends SettingsStore
         'ai_lyrics_auto' => ['Transcribe Released Tracks', '1', 'Write out the lyrics of newly released tracks automatically. The app pays for these, not the creator.'],
         'ai_lyrics_explicit_words' => ['More Explicit Words', null, 'Comma separated words that mark a track explicit, on top of the built-in list.'],
         'ai_lyrics_review_words' => ['More Words to Review', null, 'Comma separated words or phrases that send a track to the moderation queue, on top of the built-in list.'],
+        'ai_tags_auto' => ['Detect Tempo and Key', '1', 'Tag new tracks and studio mixes with their BPM and key. This runs on your own server and uses no credits.'],
     ];
 
     public const KEYS = [
@@ -120,6 +121,15 @@ class AiSettings extends SettingsStore
     public static function autoLyrics(): bool
     {
         return self::enabled() && filter_var(self::get('ai_lyrics_auto'), FILTER_VALIDATE_BOOL);
+    }
+
+    /**
+     * Whether new audio gets its tempo and key detected. This works without
+     * Replicate, since the analysis runs on the server.
+     */
+    public static function autoTags(): bool
+    {
+        return filter_var(self::get('ai_tags_auto'), FILTER_VALIDATE_BOOL);
     }
 
     /**

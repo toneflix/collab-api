@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\Feature;
 use App\Enums\HttpStatus;
+use App\Enums\MusicalKey;
 use App\Helpers\Providers;
 use App\Http\Resources\TrackCollection;
 use App\Http\Resources\TrackResource;
@@ -30,6 +31,17 @@ class TrackController extends Controller
         $query
             ->when($request->filled('search'), fn (Builder $q) => $q->search((string) $request->search)->with('lyric'))
             ->when($request->has('genre'), fn (Builder $q) => $q->genre($request->genre))
+            ->when(
+                $request->filled('bpm_min') || $request->filled('bpm_max'),
+                fn (Builder $q) => $q->bpmBetween(
+                    $request->filled('bpm_min') ? (float) $request->bpm_min : null,
+                    $request->filled('bpm_max') ? (float) $request->bpm_max : null,
+                )
+            )
+            ->when($request->filled('key'), fn (Builder $q) => $q->inKey(
+                str($request->key)->explode(',')->map(fn ($key) => MusicalKey::parse($key))->filter()->values()->all(),
+                $request->boolean('compatible'),
+            ))
             ->when($filters->contains('latest'), fn (Builder $q) => $q->latestInPeriod($request->period))
             ->when(
                 $filters->contains('liked') && $request->user('sanctum'),

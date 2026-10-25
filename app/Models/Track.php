@@ -5,7 +5,9 @@ namespace App\Models;
 use App\Contracts\CanBeTakenDown;
 use App\Jobs\FingerprintTrack;
 use App\Jobs\ProcessAudio;
+use App\Jobs\TagAudio;
 use App\Jobs\TranscribeTrack;
+use App\Traits\HasAudioTags;
 use App\Traits\HasLikedScope;
 use App\Traits\Metricable;
 use App\Traits\ModelCanExtend;
@@ -26,6 +28,7 @@ use Toneflix\SocialInteractions\Traits\HasSocialInteractions;
 class Track extends Model implements CanBeTakenDown
 {
     use Fileable;
+    use HasAudioTags;
     use HasComments;
     use HasFactory;
     use HasLikedScope;
@@ -164,6 +167,9 @@ class Track extends Model implements CanBeTakenDown
 
             if (($model->audio || $model->project_track_id) && ($model->wasRecentlyCreated || $model->wasChanged(['audio', 'project_track_id']))) {
                 TranscribeTrack::dispatch($model)->afterCommit();
+
+                $ownAudio = $model->wasRecentlyCreated ? (bool) $model->audio : $model->wasChanged('audio');
+                TagAudio::dispatch($model, inherit: ! $ownAudio)->afterCommit();
             }
         });
 

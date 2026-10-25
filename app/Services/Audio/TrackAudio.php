@@ -2,6 +2,7 @@
 
 namespace App\Services\Audio;
 
+use App\Models\ProjectTrack;
 use App\Models\Track;
 use Illuminate\Support\Str;
 use Toneflix\LaravelFileable\Media;
@@ -22,6 +23,14 @@ class TrackAudio
         }
 
         return $file ? $this->copy($file) : null;
+    }
+
+    /**
+     * Copies a project track's preview mix to a local temporary file.
+     */
+    public function localPreview(ProjectTrack $track): ?string
+    {
+        return $track->preview ? $this->copy($track->preview) : null;
     }
 
     /**

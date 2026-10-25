@@ -75,6 +75,8 @@ class TrackResource extends JsonResource
                 }
             ),
             'explicit' => (bool) $this->explicit || (bool) $this->release?->explicit,
+            'tags' => $this->audioTags(),
+            'owned' => (bool) $this->release?->isOwnedBy($user),
             'hasLyrics' => $this->when($this->relationLoaded('lyric'), fn () => $this->lyric !== null),
             'lyricMatch' => $this->when(
                 $request->filled('search') && $this->relationLoaded('lyric'),
