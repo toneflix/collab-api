@@ -1,6 +1,6 @@
 # AI tools and credits
 
-The studio's AI panel can **generate music** from a prompt and **split a track into stems**. Both run on [Replicate](https://replicate.com) with one API token, and both are paid for with AI credits.
+The studio's AI panel can **generate music** from a prompt and **split a track into stems**, and the lyric sheet can **write out the lyrics** sung on a stem. All run on [Replicate](https://replicate.com) with one API token, and are paid for with AI credits. Released tracks also get their lyrics written out automatically, paid for by the app (see [Lyrics](#lyrics)).
 
 ## Setup
 
@@ -18,8 +18,9 @@ The tools stay hidden unless admins turned them on, the token is set, and the pe
 | --- | --- | --- |
 | Music generation | `elevenlabs/music` | `REPLICATE_MUSIC_MODEL` |
 | Stem separation | `ryan5453/demucs` | `REPLICATE_STEMS_MODEL` |
+| Lyrics transcription | `openai/whisper` (large-v3) | `REPLICATE_LYRICS_MODEL` |
 
-Both are cleared for commercial use: ElevenLabs Music under its music terms, Demucs under MIT. Generated music is added to the project track as a stem, or split into stems first if the person asks.
+All are cleared for commercial use: ElevenLabs Music under its music terms, Demucs and Whisper under MIT. Generated music is added to the project track as a stem, or split into stems first if the person asks.
 
 ## Credits
 
@@ -46,12 +47,29 @@ Admin settings on `/admin/ai`:
 | Music credits per 10 seconds | 5 |
 | Stem split credits | 5 |
 | Longest generated track | 300 seconds |
+| Lyrics credits | 2 |
+| Transcribe released tracks | On |
+| More explicit words | Empty, added to the built-in list in `config/lyrics.php` |
+| More words to review | Empty, added to the built-in list in `config/lyrics.php` |
 
 People buy packs at `/studio/credits` through Paystack, and see their usage there too.
+
+## Lyrics
+
+Lyrics are kept per released track and per project track in the `lyrics` table, as lines with a start and end time in seconds (or none, for lines written before they are synced).
+
+- **Released tracks.** Saving a track with new audio queues `TranscribeTrack`. A track released from the studio takes its project track's lyric sheet. Otherwise, when AI tools and "Transcribe released tracks" are on, Whisper writes the lyrics out from the track's audio (or its project's preview mix). This costs the app about $0.001 a track, and no credits. Lyrics the creator wrote themselves are never replaced. Creators correct lyrics with `PUT /api/creator/tracks/{track}/lyrics`.
+- **The studio.** Collaborators edit the lyric sheet of a project track, and can have a stem transcribed for the lyrics credits. Lines are timed to where the stem sits on the track. Saving the sheet updates every track released from it.
+- **The player** reads `GET /api/tracks/{track}/lyrics` and highlights the line being sung.
+- **Search.** `GET /api/tracks?search=` matches titles and lyrics (PostgreSQL full text). Each result has `lyricMatch`, the line that matched.
+- **Explicit content.** Words from the explicit list mark a released track explicit. Words from the review list send it to the moderation queue as a "Lyrics check" flag, once for each set of words a moderator hasn't already reviewed. Both lists ignore case and match whole words only.
+
+Whisper hears vocals best on their own, so transcribing a vocals stem (for example one made with the stem split) gives cleaner lyrics than a full mix.
 
 ## In code
 
 - `App\Services\Ai\AiStudio` starts, runs and fails jobs (`ai_jobs` table).
 - `App\Services\Ai\Credits` spends, refunds and adds credits.
-- Each task is an `AiTask` in `App\Services\Ai\Tasks` (`GenerateMusic`, `SplitStems`).
+- Each task is an `AiTask` in `App\Services\Ai\Tasks` (`GenerateMusic`, `SplitStems`, `TranscribeLyrics`).
+- `App\Services\Lyrics\Lyrics` saves lyrics and applies the explicit and review checks (`LyricsCheck`). `Transcriber` calls Whisper.
 - `laravel/ai` has no Replicate driver, so a custom `replicate` driver is registered in `AppServiceProvider`, and Demucs is called through `ReplicateClient`.

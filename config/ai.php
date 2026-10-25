@@ -52,7 +52,7 @@ return [
     */
 
     'providers' => [
-        // Music generation and stem separation run on Replicate, through App\Services\Ai\Replicate.
+        // Music generation, stem separation and lyrics transcription run on Replicate, through App\Services\Ai\Replicate.
         'replicate' => [
             'driver' => 'replicate',
             'key' => env('REPLICATE_API_TOKEN'),
@@ -62,6 +62,7 @@ return [
             'models' => [
                 'audio' => ['default' => env('REPLICATE_MUSIC_MODEL', 'elevenlabs/music')],
                 'stems' => ['default' => env('REPLICATE_STEMS_MODEL', 'ryan5453/demucs')],
+                'lyrics' => ['default' => env('REPLICATE_LYRICS_MODEL', 'openai/whisper')],
             ],
         ],
 

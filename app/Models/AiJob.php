@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Services\Ai\Tasks\AiTask;
 use App\Services\Ai\Tasks\GenerateMusic;
 use App\Services\Ai\Tasks\SplitStems;
+use App\Services\Ai\Tasks\TranscribeLyrics;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -29,6 +30,7 @@ class AiJob extends Model
     public const TASKS = [
         'music' => GenerateMusic::class,
         'stems' => SplitStems::class,
+        'lyrics' => TranscribeLyrics::class,
     ];
 
     protected $attributes = [
@@ -101,6 +103,8 @@ class AiJob extends Model
             'prompt' => $this->input['prompt'] ?? null,
             'seconds' => $this->input['seconds'] ?? null,
             'split' => (bool) ($this->input['split'] ?? $this->kind === 'stems'),
+            'title' => $this->input['title'] ?? null,
+            'lines' => $this->output['lines'] ?? null,
             'credits' => $this->credits,
             'stems' => $this->output['stems'] ?? [],
             'error' => $this->error,

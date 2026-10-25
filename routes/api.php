@@ -6,6 +6,7 @@ use App\Http\Controllers\CommentController;
 use App\Http\Controllers\ExploreController;
 use App\Http\Controllers\FollowController;
 use App\Http\Controllers\GenreController;
+use App\Http\Controllers\LyricsController;
 use App\Http\Controllers\Payment\PaymentController;
 use App\Http\Controllers\Payment\PayoutWebhookController;
 use App\Http\Controllers\PlanController;
@@ -52,6 +53,7 @@ Route::get('/initialize', function () {
 
 Route::apiResource('users', UserController::class)->only(['index', 'show']);
 Route::apiResource('tracks', TrackController::class)->only(['index', 'show']);
+Route::get('tracks/{track}/lyrics', [LyricsController::class, 'show'])->name('tracks.lyrics');
 Route::apiResource('genres', GenreController::class)->only(['index', 'show']);
 Route::apiResource('artists', ArtistController::class)->only(['index', 'show']);
 Route::apiResource('explore', ExploreController::class)->only(['index']);

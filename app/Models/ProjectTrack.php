@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Toneflix\LaravelFileable\Traits\Fileable;
 
 class ProjectTrack extends Model
@@ -91,6 +92,11 @@ class ProjectTrack extends Model
         static::deleting(function (self $model) {
             $model->stems()->withTrashed()->forceDelete();
             $model->assets()->delete();
+            $model->lyric()->delete();
+            Lyric::query()
+                ->where('lyricable_type', (new Track)->getMorphClass())
+                ->whereIn('lyricable_id', $model->releasedTrack()->select('id'))
+                ->delete();
             $model->releasedTrack()->delete();
         });
 
@@ -150,6 +156,11 @@ class ProjectTrack extends Model
     public function releasedTrack(): HasOne
     {
         return $this->hasOne(Track::class);
+    }
+
+    public function lyric(): MorphOne
+    {
+        return $this->morphOne(Lyric::class, 'lyricable');
     }
 
     /**

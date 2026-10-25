@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Contracts\CanBeTakenDown;
 use App\Jobs\FingerprintTrack;
 use App\Jobs\ProcessAudio;
+use App\Jobs\TranscribeTrack;
 use App\Traits\HasLikedScope;
 use App\Traits\Metricable;
 use App\Traits\ModelCanExtend;
@@ -18,6 +19,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasOneThrough;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Toneflix\LaravelFileable\Traits\Fileable;
 use Toneflix\SocialInteractions\Traits\HasSocialInteractions;
 
@@ -147,6 +149,7 @@ class Track extends Model implements CanBeTakenDown
 
         static::deleting(function (self $model) {
             $model->artists()->detach();
+            $model->lyric()->delete();
         });
 
         static::saved(function (self $model) {
@@ -157,6 +160,10 @@ class Track extends Model implements CanBeTakenDown
 
             if ($model->audio && ($model->wasRecentlyCreated || $model->wasChanged('audio'))) {
                 FingerprintTrack::dispatch($model);
+            }
+
+            if (($model->audio || $model->project_track_id) && ($model->wasRecentlyCreated || $model->wasChanged(['audio', 'project_track_id']))) {
+                TranscribeTrack::dispatch($model)->afterCommit();
             }
         });
 
@@ -211,6 +218,11 @@ class Track extends Model implements CanBeTakenDown
         return $this->belongsTo(Release::class)->withDefault(fn () => [
             'title' => 'Unknown',
         ]);
+    }
+
+    public function lyric(): MorphOne
+    {
+        return $this->morphOne(Lyric::class, 'lyricable');
     }
 
     /**
@@ -327,6 +339,18 @@ class Track extends Model implements CanBeTakenDown
         $query->whereHas('artists', function (Builder $q) use ($id) {
             $q->where('artists.username', $id)->when(is_numeric($id), fn ($q) => $q->orWhere('artists.id', $id));
         });
+    }
+
+    /**
+     * Tracks whose title, or lyrics, match the words searched for.
+     */
+    public function scopeSearch(Builder $query, string $terms): void
+    {
+        $terms = trim($terms);
+
+        $query->where(fn (Builder $q) => $q
+            ->whereLike('tracks.title', "%{$terms}%")
+            ->orWhereHas('lyric', fn (Builder $lyric) => $lyric->whereFullText('text', $terms)));
     }
 
     public function scopeGenre(Builder $query, string $genre): void
