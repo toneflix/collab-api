@@ -1,0 +1,19 @@
+<?php
+
+namespace {{ namespace }};
+
+use Illuminate\Http\Request;
+use Toneflix\ResourceModifier\Services\Json\JsonResource;
+
+class {{ class }} extends JsonResource
+{
+    /**
+     * @return array<string, mixed>
+     */
+    public function toArray(Request $request): array
+    {
+        return [
+            'id' => $this->id,
+        ];
+    }
+}
