@@ -14,6 +14,7 @@ use App\Http\Controllers\Creator\TrackController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth:sanctum'])->prefix('creator')->name('creator.')->group(function () {
+    Route::put('releases/{release}/retirement', [ReleaseController::class, 'retirement'])->name('releases.retirement');
     Route::apiResource('releases', ReleaseController::class);
     Route::apiResource('releases/{release}/tracks', TrackController::class)->names('releases.tracks');
     Route::post('releases/generic/tracks/save', [TrackController::class, 'save'])->name('releases.save.track');

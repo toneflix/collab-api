@@ -24,6 +24,34 @@ class TrackAudio
         return $file ? $this->copy($file) : null;
     }
 
+    /**
+     * Gives a track released from the studio its own copy of the preview mix,
+     * so later work on the project doesn't change what was released.
+     */
+    public function freeze(Track $track): bool
+    {
+        if ($track->audio || ! $track->project_track_id) {
+            return false;
+        }
+
+        $preview = $track->projectTrack()->withoutGlobalScopes()->value('preview');
+
+        $media = new Media;
+        $path = $preview ? ($media->mediaInfo('music_tracks', $preview)['path'] ?? null) : null;
+
+        if (! $path || ! $media->disk->exists($path)) {
+            return false;
+        }
+
+        $name = Str::random(40).'.'.(pathinfo($path, PATHINFO_EXTENSION) ?: 'mp3');
+        $media->disk->copy($path, dirname($path).'/'.$name);
+
+        $track->audio = $name;
+        $track->saveQuietly();
+
+        return true;
+    }
+
     protected function copy(string $file): ?string
     {
         $media = new Media;

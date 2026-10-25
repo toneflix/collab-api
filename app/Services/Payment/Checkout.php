@@ -171,7 +171,7 @@ class Checkout
     protected function forRelease(User $payer, string|int|null $id): array
     {
         /** @var Release $release */
-        $release = Release::where('draft', false)
+        $release = Release::live()
             ->where(fn (Builder $q) => $q->where('slug', (string) $id)->when(is_numeric($id), fn ($q) => $q->orWhere('releases.id', $id)))
             ->firstOrFail();
 
@@ -192,7 +192,7 @@ class Checkout
     protected function forStems(User $payer, string|int|null $id): array
     {
         /** @var Track $track */
-        $track = Track::whereHas('release', fn (Builder $q) => $q->where('draft', false))
+        $track = Track::whereHas('release', fn (Builder $q) => $q->live())
             ->where(fn (Builder $q) => $q->where('slug', (string) $id)->when(is_numeric($id), fn ($q) => $q->orWhere('tracks.id', $id)))
             ->firstOrFail();
 

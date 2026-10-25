@@ -11,7 +11,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Toneflix\LaravelFileable\Traits\Fileable;
@@ -95,22 +94,26 @@ class ProjectTrack extends Model
             $model->lyric()->delete();
             Lyric::query()
                 ->where('lyricable_type', (new Track)->getMorphClass())
-                ->whereIn('lyricable_id', $model->releasedTrack()->select('id'))
+                ->whereIn('lyricable_id', $model->releasedTracks()->select('id'))
                 ->delete();
-            $model->releasedTrack()->delete();
+            $model->releasedTracks()->delete();
         });
 
+        // Published versions keep their details; only draft releases follow the studio.
         static::updated(function (self $model) {
-            if ($model->releasedTrack) {
-                $model->releasedTrack->title = $model->title;
-                $model->releasedTrack->genre_id = $model->genre_id;
-                $artists = [];
-                if ($model->isDirty('artist_id')) {
-                    $artists[$model->artist_id] = ['type' => 'primary'];
-                    $model->releasedTrack->artists()->sync($artists);
-                }
-                $model->releasedTrack->saveQuietly();
-            }
+            $model->releasedTracks()
+                ->whereHas('release', fn (Builder $q) => $q->where('draft', true))
+                ->chunkById(100, function ($tracks) use ($model) {
+                    foreach ($tracks as $track) {
+                        $track->title = $model->title;
+                        $track->genre_id = $model->genre_id;
+                        $track->saveQuietly();
+
+                        if ($model->wasChanged('artist_id')) {
+                            $track->artists()->sync([$model->artist_id => ['type' => 'primary']]);
+                        }
+                    }
+                });
         });
     }
 
@@ -151,11 +154,11 @@ class ProjectTrack extends Model
     }
 
     /**
-     * Get the released track for this project Track if available
+     * The released tracks made from this project track, one per release version.
      */
-    public function releasedTrack(): HasOne
+    public function releasedTracks(): HasMany
     {
-        return $this->hasOne(Track::class);
+        return $this->hasMany(Track::class);
     }
 
     public function lyric(): MorphOne

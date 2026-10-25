@@ -7,9 +7,11 @@ use App\Enums\HttpStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ReleaseCollection;
 use App\Http\Resources\ReleaseResource;
+use App\Models\Project;
 use App\Models\Release;
 use App\Models\Track;
 use App\Services\Limits;
+use App\Services\Releases\ReleaseVersions;
 use App\Services\Reputation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -22,7 +24,9 @@ class ReleaseController extends Controller
      */
     public function index(Request $request)
     {
-        $query = $this->user->releases()->getQuery();
+        $query = $this->user->releases()->getQuery()
+            ->when($request->filled('project_id'), fn ($q) => $q->where('project_id', $request->input('project_id')))
+            ->latest('id');
 
         $releases = $query->paginate($request->input('limit', 15));
 
@@ -36,7 +40,7 @@ class ReleaseController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(Request $request, ReleaseVersions $versions)
     {
         $request->merge(['release_date', $request->input('releaseDate', now())]);
 
@@ -45,6 +49,9 @@ class ReleaseController extends Controller
             'isrc' => ['nullable', 'string'],
             'iswc' => ['nullable', 'string'],
             'title' => ['required', 'string'],
+            'version' => ['nullable', 'string', 'max:60'],
+            'retire' => ['nullable', 'array'],
+            'retire.*' => ['integer'],
             'pline' => ['nullable', 'string'],
             'draft' => ['nullable', 'boolean'],
             'artwork' => ['nullable', 'image', 'mimes:png,jpg'],
@@ -73,17 +80,23 @@ class ReleaseController extends Controller
 
         Limits::for($this->user)->ensureCanCharge(Feature::SELL_RELEASES, $request->input('price'), 0, 'price');
 
-        if ($request->has('project_id')) {
+        if ($request->filled('project_id')) {
+            $this->authorize('release', Project::findOrFail($request->input('project_id')));
+
+            // Pick up an unfinished version of this project before starting a new one.
             /** @var Release $release */
-            $release = $this->user->releases()->whereProjectId($request->project_id)->first();
+            $release = $this->user->releases()->whereProjectId($request->project_id)->where('draft', true)->latest('id')->first();
         }
 
         $release ??= $this->user->releases()->make();
+
+        $wasDraft = ! $release->exists || $release->draft;
 
         $release->slug = $request->input('slug');
         $release->isrc = $request->input('isrc', '');
         $release->iswc = $request->input('iswc', '');
         $release->title = $request->input('title');
+        $release->version = $request->input('version');
         $release->pline = $request->input('pline', '');
         $release->draft = $request->boolean('draft', true);
         $release->privacy = $request->input('privacy', 'public');
@@ -101,6 +114,10 @@ class ReleaseController extends Controller
         $release->save();
 
         $this->saveTracks($request, $release);
+
+        if ($wasDraft && ! $release->draft) {
+            $versions->published($release, $request->input('retire', []));
+        }
 
         return (new ReleaseResource($release))->additional([
             'message' => 'New release created successfully.',
@@ -120,7 +137,7 @@ class ReleaseController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, string $id)
+    public function update(Request $request, string $id, ReleaseVersions $versions)
     {
         /** @var Release $release */
         $release = $this->user->releases()
@@ -138,6 +155,9 @@ class ReleaseController extends Controller
             'draft' => ['nullable', 'boolean'],
             'tracks' => ['nullable', 'array'],
             'publish' => ['nullable', 'boolean'],
+            'version' => ['nullable', 'string', 'max:60'],
+            'retire' => ['nullable', 'array'],
+            'retire.*' => ['integer'],
             'artwork' => ['image', 'mimes:png,jpg'],
             'privacy' => ['nullable', 'string', 'in:public,private'],
             'explicit' => ['nullable', 'boolean'],
@@ -164,6 +184,10 @@ class ReleaseController extends Controller
 
         Limits::for($this->user)->ensureCanCharge(Feature::SELL_RELEASES, $request->input('price'), (float) $release->price, 'price');
 
+        if (! $release->project_id && $request->filled('project_id')) {
+            $this->authorize('release', Project::findOrFail($request->input('project_id')));
+        }
+
         $this->saveTracks($request, $release);
 
         if ($release->slug) {
@@ -175,6 +199,7 @@ class ReleaseController extends Controller
         $release->isrc = $request->input('isrc', '');
         $release->iswc = $request->input('iswc', '');
         $release->title = $request->input('title', $release->title);
+        $release->version = $request->input('version', $release->version);
         $release->pline = $request->input('pline', '');
         $release->draft = $request->boolean('draft', true);
         $release->privacy = $request->input('privacy', 'public');
@@ -190,6 +215,10 @@ class ReleaseController extends Controller
         $release->contains_music ??= $request->boolean('contains_music', true);
         $release->price = $request->input('price', $release->price) ?? 0;
         $release->save();
+
+        if ($draft && ! $release->draft) {
+            $versions->published($release, $request->input('retire', []));
+        }
 
         // Add reputation for the owner
         if ($draft && ! $release->draft && $release->project) {
@@ -292,6 +321,30 @@ class ReleaseController extends Controller
                 $track->artists()->sync($artists);
             }
         });
+    }
+
+    /**
+     * Retire a release so it's no longer listed or sold, or bring it back.
+     * People who bought it keep it.
+     */
+    public function retirement(Request $request, string $id, ReleaseVersions $versions)
+    {
+        /** @var Release $release */
+        $release = $this->user->releases()
+            ->where(fn ($q) => $q->where('slug', $id)->when(is_numeric($id), fn ($q) => $q->orWhere('releases.id', $id)))
+            ->firstOrFail();
+
+        $this->validate($request, ['retired' => ['required', 'boolean']]);
+
+        abort_if($release->draft, HttpStatus::UNPROCESSABLE_ENTITY->value, 'Only published releases can be retired.');
+
+        $versions->retire($release, $request->boolean('retired'));
+
+        return (new ReleaseResource($release))->additional([
+            'message' => $release->isRetired() ? 'Release retired.' : 'Release restored.',
+            'status' => 'success',
+            'status_code' => HttpStatus::ACCEPTED,
+        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 
     /**

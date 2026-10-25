@@ -48,6 +48,16 @@ class ProjectPolicy
     }
 
     /**
+     * Only the owner can release a project or change its release.
+     */
+    public function release(User $user, Project $project): Response
+    {
+        return (int) $project->user_id === (int) $user->id
+            ? Response::allow()
+            : Response::deny('Only the project owner can release it.');
+    }
+
+    /**
      * Determine whether the user can delete the model.
      */
     public function delete(User $user, Project $project): bool
