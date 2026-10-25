@@ -1,23 +1,23 @@
 # AI tools and credits
 
-The studio's AI panel can **generate music** from a prompt and **split a track into stems**, and the lyric sheet can **write out the lyrics** sung on a stem. All run on [Replicate](https://replicate.com) with one API token, and are paid for with AI credits. Released tracks also get their lyrics written out automatically, paid for by the app (see [Lyrics](#lyrics)).
+The studio's AI panel can **generate music** from a prompt and **split a track into stems**, and the lyric sheet can **write out the lyrics** sung on a stem. They run on two engines, [Replicate](https://replicate.com) (the default for everything) and [Suno](#suno) (optional, for music and stems), and are paid for with AI credits. Released tracks also get their lyrics written out automatically, paid for by the app (see [Lyrics](#lyrics)).
 
 ## Setup
 
-1. Set `REPLICATE_API_TOKEN` in the API's `.env`. Replicate allows only 6 new predictions a minute with a burst of 1 while the account has under $5 of credit or no payment method, which throttles the split that follows a song. Add a payment method and turn on auto-reload. Throttled requests wait and are tried again up to 3 times.
+1. Set `REPLICATE_API_TOKEN` in the API's `.env`, and `SUNO_API_KEY` to use Suno. Replicate allows only 6 new predictions a minute with a burst of 1 while the account has under $5 of credit or no payment method, which throttles the split that follows a song. Add a payment method and turn on auto-reload. Throttled requests wait and are tried again up to 3 times.
 2. Keep a queue worker running. Each AI request is a queued `RunAiJob` that can take up to 25 minutes.
 3. Keep the scheduler running. `ai:sweep` refunds jobs that stopped without finishing.
 4. On `/admin/ai` (needs `manage-configuration`), check that AI Tools is on and set prices.
 5. Give plans the `ai_tools` feature and a monthly `ai_credits` amount at `/admin/plans`. Premium starts with AI tools and 100 credits a month.
 
-The tools stay hidden unless admins turned them on, the token is set, and the person's plan includes `ai_tools`.
+The tools stay hidden unless admins turned them on, an engine's key is set, and the person's plan includes `ai_tools`. A tool whose engine has no key turns requests away before any credits are taken.
 
 ## Models
 
 | Task | Default model | Change with |
 | --- | --- | --- |
 | Music generation | `elevenlabs/music` | "Music model" on `/admin/ai` (`REPLICATE_MUSIC_MODEL` sets the default) |
-| Stem separation | `ryan5453/demucs` | `REPLICATE_STEMS_MODEL` |
+| Stem separation | `ryan5453/demucs` | "Stem split engine" on `/admin/ai` (Demucs or Suno); `REPLICATE_STEMS_MODEL` |
 | Lyrics transcription | `openai/whisper` (large-v3) | `REPLICATE_LYRICS_MODEL` |
 
 Generated music is added to the project track as a stem, or split into stems first if the person asks.
@@ -32,12 +32,25 @@ Admins pick one music model on `/admin/ai`, and each has its own credit price. A
 | `minimax/music-2.5` | 30 per song | Model decides, up to about 5 min | Required, up to 3500 characters | No |
 | `minimax/music-1.5` | 10 per song | Model decides, up to 4 min | Required, 10 to 600 characters | Song, voice or instrumental, over 15 s |
 | `stability-ai/stable-audio-2.5` | 40 per track | Chosen, up to 190 s | No vocals | No |
+| `suno/music` (Suno engine) | 12 per song | Chosen on v5.5 and v6, 10 s to 5 min | Optional, up to 5000 characters; Suno writes them when left out | Song, over 6 s |
 
 - MiniMax 2.5 is asked for lossless WAV. WAV output is split as it is and stored once as a 320 kbps MP3.
 - A reference is a stem on the track (`reference_stem_id`) or an uploaded MP3 or WAV up to 20 MB (`reference`), with `reference_kind`. Uploads wait on the uploads disk under `ai/references/` and are deleted once the job has run.
-- Models are classes in `App\Services\Ai\Music` (`MusicModel` and one subclass each). A subclass sets the Replicate id, the credit setting, its pricing, the form rules and how the form maps to the model's inputs. Add one to `MusicModel::MODELS` and its credit setting to `AiSettings::FIELDS`.
+- Models are classes in `App\Services\Ai\Music`. `MusicModel` holds what every model shares; `ReplicateMusic` runs a Replicate model through the Laravel AI SDK, and `SunoMusic` runs Suno. A subclass sets its id, engine, credit setting, pricing, the form rules, how the form maps to the model's inputs and how a song is made (`generate()`). Add one to `MusicModel::MODELS` and its credit setting to `AiSettings::FIELDS`.
 - The default prices are rough, since Replicate doesn't publish all of these. Check the cost of a run on Replicate and adjust.
 - Licensing: ElevenLabs Music is cleared for commercial use under its music terms, and Stable Audio is trained on licensed music. MiniMax's terms only say the customer owns outputs "to the extent permitted by law", with no explicit commercial grant. Demucs and Whisper are MIT.
+
+## Suno
+
+Suno is an optional second engine, through [sunoapi.org](https://sunoapi.org). Replicate stays the default for every tool; admins switch music to Suno with "Music model" and stems with "Stem split engine" on `/admin/ai`.
+
+- **Not Suno itself.** sunoapi.org is a reseller run by MIRA MUSE LLC; Suno has no public API. Its terms say nothing about who owns generated songs, so treat Suno output like MiniMax's for anything sold.
+- **Model version.** "Suno model version" picks v6, v5.5 (default), v5 or v4.5. Only v6 and v5.5 follow the requested length. A job keeps the version it started with (`input.suno_version`).
+- **Lyrics.** With lyrics, or for an instrumental, the prompt is the style. Without lyrics Suno writes them from the prompt, and a reference song can guide it (the requested length is then up to Suno).
+- **Two versions.** Every request makes two versions at one price. With "Keep both Suno versions" off, only the first is kept. With it on, both are stored under `ai/versions/{job}` and the job lists them (`versions`, each with a signed `url` that plays it for 6 hours). The owner picks one with `POST /api/creator/ai/jobs/{job}/versions/{index}`; it goes on the track (split into stems if asked) through the queued `AddMusicVersion` job, and the other is deleted. `ai:sweep` deletes versions nobody picked after 7 days.
+- **Stems.** Suno splits into vocals and instrumental, or up to 12 stems ("Suno stems"). A song Suno made is split by its Suno id; other audio is uploaded to sunoapi.org's file host first (kept 3 days). Parts come back as MP3 and are stored as they are.
+- **Polling.** Suno requires a callback URL for every task. It points at `POST /api/ai/suno/callback`, which only answers, because callbacks carry no signature. Jobs poll Suno every 5 seconds instead, up to `SUNO_TIMEOUT`.
+- **Prices.** A Suno credit costs $0.005. A song request is 12 Suno credits (about $0.06), vocals/instrumental 10 ($0.05), 12 stems 50 ($0.25). Default AI credit prices keep the usual margin: 12 per song, 50 per Suno split. sunoapi.org allows 20 requests per 10 seconds.
 
 ## Audio quality
 
@@ -108,7 +121,9 @@ New tracks and studio mixes are tagged with their BPM and musical key. This runs
 
 - `App\Services\Ai\AiStudio` starts, runs and fails jobs (`ai_jobs` table).
 - `App\Services\Ai\Credits` spends, refunds and adds credits.
-- Each task is an `AiTask` in `App\Services\Ai\Tasks` (`GenerateMusic`, `SplitStems`, `TranscribeLyrics`).
+- Each task is an `AiTask` in `App\Services\Ai\Tasks` (`GenerateMusic`, `SplitStems`, `TranscribeLyrics`) and names the `AiEngine` it runs on.
+- Stem splitting goes through a `StemSplitter` in `App\Services\Ai\Stems`: `DemucsSplitter` (Replicate) or `SunoSplitter`.
+- `App\Services\Ai\Suno\SunoClient` starts Suno tasks, polls them, uploads and downloads files.
 - `App\Services\Lyrics\Lyrics` saves lyrics and applies the explicit and review checks (`LyricsCheck`). `Transcriber` calls Whisper.
 - `App\Services\Audio\AudioTagger` saves tempo and key tags. `Analysis\AudioAnalyzer` decodes audio for `TempoDetector` and `KeyDetector`.
 - `laravel/ai` has no Replicate driver, so a custom `replicate` driver is registered in `AppServiceProvider`, and Demucs is called through `ReplicateClient`.
