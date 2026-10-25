@@ -3,8 +3,6 @@
 namespace App\Services\Moderation;
 
 use App\Contracts\CanBeTakenDown;
-use App\Http\Resources\SafetyResource;
-use App\Http\Resources\TakedownResource;
 use App\Models\Release;
 use App\Models\Safety;
 use App\Models\Scopes\RestrictBlockedUserScope;
@@ -30,7 +28,8 @@ class ModerationQueue
     ) {}
 
     /**
-     * Content with pending reports, most reported first.
+     * Content with pending reports, most reported first. Each row carries its
+     * reason counts, latest reports and takedown in force.
      *
      * @param  array{type?: ?string, reason?: ?string, source?: ?string, search?: ?string}  $filters
      */
@@ -48,35 +47,25 @@ class ModerationQueue
 
         $reasons = $this->reasonCounts($page->getCollection());
 
-        $page->setCollection($page->getCollection()->map(function (Safety $row) use ($reasons) {
-            $key = $row->model_type.':'.$row->model_id;
-            $reports = Safety::query()
+        $page->getCollection()->each(function (Safety $row) use ($reasons) {
+            $row->setAttribute('reason_counts', $reasons[$row->model_type.':'.$row->model_id] ?? []);
+
+            $row->setRelation('latestReports', Safety::query()
                 ->pending()
                 ->where('model_type', $row->model_type)
                 ->where('model_id', $row->model_id)
                 ->with('user')
                 ->latest('id')
                 ->limit(self::REPORTS_PER_ITEM)
-                ->get();
+                ->get());
 
-            $takedown = Takedown::query()
+            $row->setRelation('activeTakedown', Takedown::query()
                 ->where('model_type', $row->model_type)
                 ->where('model_id', $row->model_id)
                 ->inForce()
                 ->latest('id')
-                ->first();
-
-            return [
-                'key' => $key,
-                'item' => $this->item($row->model_type, $row->model_id),
-                'reportsCount' => (int) $row->reports_count,
-                'matchesCount' => (int) $row->matches_count,
-                'lastReportedAt' => $row->last_reported_at,
-                'reasons' => $reasons[$key] ?? [],
-                'reports' => SafetyResource::collection($reports)->resolve(),
-                'takedown' => $takedown ? (new TakedownResource($takedown))->resolve() : null,
-            ];
-        }));
+                ->first());
+        });
 
         return $page;
     }

@@ -183,7 +183,7 @@ class AiModeratorTest extends TestCase
         Sanctum::actingAs($this->admin);
         $this->getJson('/api/admin/moderation/claims')
             ->assertJsonPath('data.0.aiReview.status', 'flagged')
-            ->assertJsonPath('meta.aiModerator', true);
+            ->assertJsonPath('stats.aiModerator', true);
     }
 
     public function test_automatic_review_is_off_by_default(): void

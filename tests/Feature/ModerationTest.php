@@ -136,7 +136,7 @@ class ModerationTest extends TestCase
         Sanctum::actingAs($this->moderator);
         $this->getJson('/api/admin/moderation/queue')
             ->assertOk()
-            ->assertJsonPath('meta.pending', 1)
+            ->assertJsonPath('stats.pending', 1)
             ->assertJsonPath('data.0.item.type', 'release')
             ->assertJsonPath('data.0.item.owner.id', $this->owner->id)
             ->assertJsonPath('data.0.reportsCount', 2)
@@ -213,7 +213,7 @@ class ModerationTest extends TestCase
             ->assertUnprocessable();
 
         Sanctum::actingAs($this->moderator);
-        $this->getJson('/api/admin/moderation/takedowns?status=appealed')->assertOk()->assertJsonPath('meta.appeals', 1);
+        $this->getJson('/api/admin/moderation/takedowns?status=appealed')->assertOk()->assertJsonPath('stats.appeals', 1);
         $this->postJson("/api/admin/moderation/takedowns/{$takedown}/restore", ['resolution' => 'The licence checks out.'])
             ->assertAccepted()
             ->assertJsonPath('data.status', Takedown::RESTORED);

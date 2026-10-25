@@ -118,7 +118,7 @@ class ArtistClaimTest extends TestCase
         Sanctum::actingAs($this->admin);
         $this->getJson('/api/admin/moderation/claims')
             ->assertOk()
-            ->assertJsonPath('meta.claims', 2)
+            ->assertJsonPath('stats.claims', 2)
             ->assertJsonPath('data.0.artist.unownedReleases', $unowned->count());
 
         $this->postJson("/api/admin/moderation/claims/{$claim->id}/approve")->assertAccepted();
