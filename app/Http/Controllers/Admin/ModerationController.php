@@ -53,6 +53,7 @@ class ModerationController extends Controller
             'type' => ['nullable', Rule::in($this->reportables->names())],
             'reason' => ['nullable', Rule::in(Safety::$allowedReasons)],
             'source' => ['nullable', Rule::in([Safety::TYPE_REPORT, Safety::TYPE_MATCH, Safety::TYPE_LYRICS])],
+            'search' => ['nullable', 'string', 'max:100'],
             'limit' => ['nullable', 'integer', 'between:1,50'],
         ]);
 
@@ -63,10 +64,11 @@ class ModerationController extends Controller
     {
         $valid = $request->validate([
             'status' => ['nullable', Rule::in([Takedown::ACTIVE, Takedown::APPEALED, Takedown::RESTORED])],
+            'search' => ['nullable', 'string', 'max:100'],
             'limit' => ['nullable', 'integer', 'between:1,50'],
         ]);
 
-        $page = $this->queue->takedowns($valid['status'] ?? null, (int) ($valid['limit'] ?? 20));
+        $page = $this->queue->takedowns($valid['status'] ?? null, $valid['search'] ?? null, (int) ($valid['limit'] ?? 20));
 
         return $this->page($page, TakedownResource::collection($page->items())->resolve());
     }
@@ -76,9 +78,12 @@ class ModerationController extends Controller
      */
     public function releases(Request $request)
     {
-        $valid = $request->validate(['limit' => ['nullable', 'integer', 'between:1,50']]);
+        $valid = $request->validate([
+            'search' => ['nullable', 'string', 'max:100'],
+            'limit' => ['nullable', 'integer', 'between:1,50'],
+        ]);
 
-        $page = $this->queue->releases((int) ($valid['limit'] ?? 20));
+        $page = $this->queue->releases($valid['search'] ?? null, (int) ($valid['limit'] ?? 20));
 
         return $this->page($page, collect($page->items())->map(fn (Release $release) => [
             ...(new ReleaseResource($release))->resolve($request),
