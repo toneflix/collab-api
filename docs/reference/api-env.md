@@ -140,7 +140,7 @@ See [Payment providers](../guide/payments) for webhooks and dashboard settings.
 | Key | Default | What it does |
 | --- | --- | --- |
 | `REPLICATE_API_TOKEN` | | From [replicate.com/account/api-tokens](https://replicate.com/account/api-tokens). AI tools stay off without it. |
-| `REPLICATE_MUSIC_MODEL` | `elevenlabs/music` | Model for music generation. |
+| `REPLICATE_MUSIC_MODEL` | `elevenlabs/music` | Music model to start with, until an admin picks one on `/admin/ai`. |
 | `REPLICATE_STEMS_MODEL` | `ryan5453/demucs` | Model for stem separation. |
 | `REPLICATE_STEMS_VARIANT` | `htdemucs_ft` | Demucs weights. `htdemucs` is about four times faster but less clean. |
 | `REPLICATE_LYRICS_MODEL` | `openai/whisper` | Model for lyrics transcription. |

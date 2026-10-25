@@ -11,32 +11,52 @@ use App\Models\ProjectTrack;
 use App\Models\ProjectTrackStem;
 use App\Services\Ai\AiSettings;
 use App\Services\Ai\AiStudio;
+use App\Services\Ai\Music\ReferenceAudio;
 use Illuminate\Http\Request;
+use Throwable;
 
 /**
  * AI tools in the studio: generate music for a track and split stems.
  */
 class AiController extends Controller
 {
-    public function music(Request $request, AiStudio $studio, Project $project, ProjectTrack $track)
+    public function music(Request $request, AiStudio $studio, ReferenceAudio $references, Project $project, ProjectTrack $track)
     {
         $this->authorize('update', $track);
 
+        $model = AiSettings::musicModel();
+
         $valid = $request->validate([
-            'prompt' => ['required', 'string', 'min:3', 'max:2000'],
-            'seconds' => ['required', 'integer', 'min:3', 'max:'.AiSettings::musicMaxSeconds()],
-            'instrumental' => ['nullable', 'boolean'],
-            'seed' => ['nullable', 'integer', 'min:0', 'max:4294967295'],
+            ...$model->rules(),
             'split' => ['nullable', 'boolean'],
+            'reference' => $model->references() ? ['nullable', 'file', 'mimes:mp3,wav', 'max:20480'] : ['prohibited'],
+            'reference_stem_id' => $model->references() ? ['nullable', 'integer'] : ['prohibited'],
+        ], [
+            'reference.prohibited' => $model::NAME.' doesn\'t take reference audio.',
+            'reference_stem_id.prohibited' => $model::NAME.' doesn\'t take reference audio.',
         ]);
 
-        $job = $studio->start($request->user(), $track, 'music', [
+        $reference = $references->keep($model, $track, $request->file('reference'), $valid['reference_stem_id'] ?? null);
+
+        $input = array_filter([
+            'model' => $model::ID,
             'prompt' => trim($valid['prompt']),
-            'seconds' => (int) $valid['seconds'],
-            'instrumental' => (bool) ($valid['instrumental'] ?? false),
+            'lyrics' => isset($valid['lyrics']) ? trim($valid['lyrics']) : null,
+            'seconds' => $model->maxSeconds() ? (int) $valid['seconds'] : null,
+            'instrumental' => $model->instrumentalOption() ? (bool) ($valid['instrumental'] ?? false) : $model->instrumentalOnly(),
             'seed' => $valid['seed'] ?? null,
             'split' => (bool) ($valid['split'] ?? false),
-        ]);
+            'reference_kind' => $reference ? ($valid['reference_kind'] ?? $model->references()[0]) : null,
+            ...$reference,
+        ], fn ($value) => $value !== null);
+
+        try {
+            $job = $studio->start($request->user(), $track, 'music', $input);
+        } catch (Throwable $e) {
+            $references->forget($input);
+
+            throw $e;
+        }
 
         return $this->started($job, 'Generating your music. It shows up on the track when it\'s ready.');
     }
