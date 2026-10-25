@@ -6,7 +6,8 @@ use App\Http\Controllers\Creator\SongSuggestionController;
 use App\Http\Controllers\Creator\SongVersionController;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware(['auth:sanctum'])
+Route::middleware(['auth:sanctum', 'throttle:composer'])
+    ->withoutMiddleware('throttle:api')
     ->prefix('creator')
     ->name('creator.')
     ->group(function () {

@@ -73,6 +73,12 @@ class AppServiceProvider extends ServiceProvider
                 ->by($request->user()?->id ?: $request->ip());
         });
 
+        // Composer's editor looks up words and autosaves as the writer types.
+        RateLimiter::for('composer', function (Request $request) {
+            return Limit::perMinute(300)
+                ->by('composer:' . ($request->user()?->id ?: $request->ip()));
+        });
+
         Providers::rateLimitCodeRequests();
 
         Ai::extend('replicate', fn($app, array $config) => new ReplicateProvider($config, $app['events']));
