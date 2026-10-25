@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Enums\Feature;
 use App\Enums\HttpStatus;
-use App\Helpers\Providers;
 use App\Http\Resources\ProjectCollaboratorCollection;
 use App\Http\Resources\ProjectCollaboratorResource;
 use App\Models\Project;
@@ -50,11 +49,11 @@ class ProjectCollaboratorController extends Controller
         /** @var User $sender */
         $sender = $request->user('sanctum');
 
-        if ($project->isCollaber($sender)) {
-            return Providers::response()->error([
-                'message' => 'You are already a collaber on this project.',
-            ], HttpStatus::UNPROCESSABLE_ENTITY);
-        }
+        abort_if(
+            $project->isCollaber($sender),
+            HttpStatus::UNPROCESSABLE_ENTITY->value,
+            'You are already a collaber on this project.',
+        );
 
         $role = $request->role === 'custom' ? $request->custom : $request->role;
 

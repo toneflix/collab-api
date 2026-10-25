@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Account;
 
 use App\Enums\HttpStatus;
 use App\Enums\NotificationCategory;
-use App\Helpers\Providers;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\SettingsResource;
 use App\Models\User;
 use App\Services\Notifications\NotificationPreferences;
 use App\Services\Notifications\WebPush;
@@ -79,12 +79,23 @@ class NotificationSettingsController extends Controller
 
     protected function settings(User $user, string $message = 'OK', HttpStatus $status = HttpStatus::OK)
     {
-        return Providers::response()->success([
-            'data' => [
-                'categories' => NotificationPreferences::for($user)->forClient(),
-                'push' => WebPush::clientConfig() + ['devices' => $user->pushSubscriptions()->count()],
-            ],
-            'message' => $message,
-        ], $status);
+        $categories = NotificationPreferences::for($user)->forClient();
+        $devices = $user
+            ->pushSubscriptions()
+            ->count();
+
+        $settings = [
+            'categories' => $categories,
+            'push' => WebPush::clientConfig() + ['devices' => $devices],
+        ];
+
+        return (new SettingsResource($settings))
+            ->additional([
+                'message' => $message,
+                'status' => 'success',
+                'status_code' => $status,
+            ])
+            ->response()
+            ->setStatusCode($status->value);
     }
 }

@@ -5,8 +5,7 @@ namespace App\Http\Controllers\Account;
 use App\Enums\HttpStatus;
 use App\Helpers\Providers;
 use App\Http\Controllers\Controller;
-use App\Http\Resources\PlanResource;
-use App\Http\Resources\SubscriptionResource;
+use App\Http\Resources\SubscriptionOverviewResource;
 use App\Http\Resources\TransactionCollection;
 use Illuminate\Http\Request;
 
@@ -71,22 +70,13 @@ class PaymentsController extends Controller
      */
     public function subscription()
     {
-        $current = $this->user->subscriptions()->active()->first();
-        $latest = $this->user->subscriptions()->first();
-        $plan = $this->user->current_plan;
+        $user = $this->user;
 
-        return Providers::response()->success([
-            'data' => [
-                'premium' => (bool) $current,
-                // When the paid time runs out, including periods paid in advance
-                'endsAt' => $current ? $latest?->ends_at : null,
-                'current' => $current ? new SubscriptionResource($current) : null,
-                'plan' => new PlanResource($plan),
-                // 0 means no limit
-                'features' => $plan->allFeatures(),
-                'currency' => Providers::config('app_currency', 'NGN'),
-            ],
-            'message' => HttpStatus::message(HttpStatus::OK),
-        ]);
+        return (new SubscriptionOverviewResource($user))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 }

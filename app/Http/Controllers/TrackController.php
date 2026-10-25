@@ -5,8 +5,8 @@ namespace App\Http\Controllers;
 use App\Enums\Feature;
 use App\Enums\HttpStatus;
 use App\Enums\MusicalKey;
-use App\Helpers\Providers;
-use App\Http\Resources\StemDownloadResource;
+use App\Http\Resources\ActionResource;
+use App\Http\Resources\StemDownloadCollection;
 use App\Http\Resources\TrackCollection;
 use App\Http\Resources\TrackResource;
 use App\Models\ProjectTrackStem;
@@ -122,18 +122,19 @@ class TrackController extends Controller
     {
         abort_unless($track->stemsUnlockedFor($request->user()), HttpStatus::PAYMENT_REQUIRED->value, 'Buy the stems to download them.');
 
-        $request->validate(['limit' => ['nullable', 'integer', 'between:1,100']]);
+        $query = $track->projectTrack?->stems() ?? ProjectTrackStem::query()->whereKey([]);
 
-        $stems = ($track->projectTrack?->stems() ?? ProjectTrackStem::query()->whereKey([]))
+        $stems = $query
             ->whereNotNull('src')
             ->oldest('id')
-            ->paginate((int) $request->input('limit', 50));
+            ->paginate($request->perPage(50));
 
-        return StemDownloadResource::collection($stems)->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new StemDownloadCollection($stems))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -163,13 +164,22 @@ class TrackController extends Controller
 
         abort_if($url === '', HttpStatus::NOT_FOUND->value, 'This track has no audio yet.');
 
-        return Providers::response()->success([
-            'data' => [
-                'url' => $url,
-                'filename' => str($track->title)->slug()->append('.', $track->meta['format'] ?? 'mp3')->toString(),
-            ],
-            'message' => HttpStatus::message(HttpStatus::OK),
-        ]);
+        $filename = str($track->title)
+            ->slug()
+            ->append('.', $track->meta['format'] ?? 'mp3')
+            ->toString();
+
+        $download = [
+            'url' => $url,
+            'filename' => $filename,
+        ];
+
+        return (new ActionResource($download))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**

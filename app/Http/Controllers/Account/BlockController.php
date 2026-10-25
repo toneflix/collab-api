@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Account;
 
 use App\Enums\HttpStatus;
-use App\Helpers\Providers;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\BlockCollection;
 use App\Http\Resources\BlockResource;
@@ -92,10 +91,7 @@ class BlockController extends Controller
                 ->setStatusCode(HttpStatus::CREATED->value);
         }
 
-        return Providers::response()->error([
-            'message' => __('This :0 is currently not available.', [$request->type]),
-            'status_code' => HttpStatus::UNPROCESSABLE_ENTITY,
-        ]);
+        abort(HttpStatus::UNPROCESSABLE_ENTITY->value, __('This :0 is currently not available.', [$request->type]));
     }
 
     /**

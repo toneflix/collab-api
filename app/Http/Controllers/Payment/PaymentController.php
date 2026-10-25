@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Payment;
 
 use App\Enums\HttpStatus;
-use App\Helpers\Providers;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\PaymentSessionResource;
 use App\Http\Resources\TransactionResource;
 use App\Models\Payout;
 use App\Models\Transaction;
@@ -33,15 +33,14 @@ class PaymentController extends Controller
 
         $session = $checkout->start($this->user, $valid['purpose'], $valid);
 
-        return Providers::response()->success([
-            'data' => [
-                'reference' => $session['transaction']->reference,
-                'amount' => $session['transaction']->due,
-                'access_code' => $session['access_code'],
-                'authorization_url' => $session['authorization_url'],
-            ],
-            'message' => 'Payment started.',
-        ], HttpStatus::CREATED);
+        return (new PaymentSessionResource($session))
+            ->additional([
+                'message' => 'Payment started.',
+                'status' => 'success',
+                'status_code' => HttpStatus::CREATED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::CREATED->value);
     }
 
     /**

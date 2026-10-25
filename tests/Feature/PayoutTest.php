@@ -316,7 +316,7 @@ class PayoutTest extends TestCase
         $this->assertSame(1, $this->gateway->recipients);
 
         $this->deleteJson('/api/account/payouts/account')->assertOk();
-        $this->getJson('/api/account/payouts/account')->assertJsonPath('data', null);
+        $this->getJson('/api/account/payouts/account')->assertJsonPath('data', []);
     }
 
     public function test_a_withdrawal_needs_an_account_and_enough_cleared_balance(): void

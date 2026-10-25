@@ -310,11 +310,8 @@ class Account extends Controller
         $user = Auth::user();
 
         if (! Hash::check($request->current_password, $user->password)) {
-            return Providers::response()->error([
-                'message' => 'Your input has a few errors',
-                'status' => 'error',
-                'status_code' => HttpStatus::UNPROCESSABLE_ENTITY,
-                'errors' => ['current_password' => ['Your current password is not correct.']],
+            throw ValidationException::withMessages([
+                'current_password' => 'Your current password is not correct.',
             ]);
         }
 

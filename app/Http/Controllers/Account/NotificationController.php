@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Account;
 
 use App\Enums\HttpStatus;
-use App\Helpers\Providers;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\ActionResource;
 use App\Http\Resources\NotificationCollection;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
@@ -82,13 +82,22 @@ class NotificationController extends Controller
 
     protected function stats(Request $request, string $message)
     {
-        return Providers::response()->success([
-            'data' => [],
-            'stats' => [
-                'unread' => $request->user()->unreadNotifications()->count(),
-            ],
-            'message' => $message,
-        ], HttpStatus::ACCEPTED);
+        $unread = $request
+            ->user()
+            ->unreadNotifications()
+            ->count();
+
+        $result = [];
+
+        return (new ActionResource($result))
+            ->additional([
+                'stats' => ['unread' => $unread],
+                'message' => $message,
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 
     /**
