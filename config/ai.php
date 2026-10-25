@@ -63,6 +63,7 @@ return [
                 'audio' => ['default' => env('REPLICATE_MUSIC_MODEL', 'elevenlabs/music')],
                 'stems' => ['default' => env('REPLICATE_STEMS_MODEL', 'ryan5453/demucs')],
                 'lyrics' => ['default' => env('REPLICATE_LYRICS_MODEL', 'openai/whisper')],
+                'moderator' => ['default' => env('REPLICATE_MODERATOR_MODEL', 'anthropic/claude-4.5-haiku')],
             ],
         ],
 

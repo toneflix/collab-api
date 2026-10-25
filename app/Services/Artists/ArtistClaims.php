@@ -2,6 +2,7 @@
 
 namespace App\Services\Artists;
 
+use App\Events\AwaitingReview;
 use App\Models\Artist;
 use App\Models\ArtistClaim;
 use App\Models\Release;
@@ -45,6 +46,8 @@ class ArtistClaims
             'links' => array_values(array_unique($data['links'])),
         ])->save();
 
+        AwaitingReview::dispatch($claim);
+
         return $claim;
     }
 
@@ -52,7 +55,7 @@ class ArtistClaims
      * Link the artist to the claimant. Releases of the artist that no account
      * owns move to them, and other pending claims on the artist are declined.
      */
-    public function approve(ArtistClaim $claim, User $admin, ?string $note = null): ArtistClaim
+    public function approve(ArtistClaim $claim, ?User $admin, ?string $note = null): ArtistClaim
     {
         $this->ensurePending($claim);
 
@@ -85,7 +88,7 @@ class ArtistClaims
         return $claim;
     }
 
-    public function reject(ArtistClaim $claim, User $admin, string $note): ArtistClaim
+    public function reject(ArtistClaim $claim, ?User $admin, string $note): ArtistClaim
     {
         $this->ensurePending($claim);
 
@@ -115,6 +118,7 @@ class ArtistClaims
             ->with([
                 'user',
                 'reviewer',
+                'latestAiReview',
                 'artist' => fn ($q) => $q->withCount([
                     'releases as unowned_releases_count' => fn (Builder $q) => $q->withoutGlobalScopes()->whereNull('user_id'),
                 ]),
@@ -147,11 +151,11 @@ class ArtistClaims
         return Storage::disk($this->disk())->download($claim->document, 'claim-'.$claim->id.'-proof.'.pathinfo($claim->document, PATHINFO_EXTENSION));
     }
 
-    protected function review(ArtistClaim $claim, string $status, User $admin, ?string $note): void
+    protected function review(ArtistClaim $claim, string $status, ?User $admin, ?string $note): void
     {
         $claim->forceFill([
             'status' => $status,
-            'reviewed_by' => $admin->id,
+            'reviewed_by' => $admin?->id,
             'review_note' => $note,
             'reviewed_at' => now(),
         ])->save();
@@ -160,7 +164,7 @@ class ArtistClaims
     /**
      * Decline the other pending claims on an artist that was just claimed.
      */
-    protected function declineOthers(ArtistClaim $approved, User $admin): void
+    protected function declineOthers(ArtistClaim $approved, ?User $admin): void
     {
         $note = 'Another account was confirmed as this artist\'s manager.';
 

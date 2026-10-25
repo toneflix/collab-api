@@ -5,6 +5,8 @@ namespace App\Providers;
 use App\Helpers\Providers;
 use App\Notifications\Channels\PushChannel;
 use App\Services\Ai\Replicate\ReplicateProvider;
+use App\Services\Moderation\Ai\ModeratorModel;
+use App\Services\Moderation\Ai\ReplicateModeratorModel;
 use App\Services\Notifications\WebPush;
 use App\Services\Payment\FlutterwaveGateway;
 use App\Services\Payment\PaymentGateway;
@@ -32,6 +34,8 @@ class AppServiceProvider extends ServiceProvider
             PaymentGateway::class,
             PaystackGateway::class
         );
+
+        $this->app->bind(ModeratorModel::class, ReplicateModeratorModel::class);
 
         $this->app->singleton(PayoutProviders::class, fn ($app) => new PayoutProviders([
             $app->make(PaystackGateway::class),

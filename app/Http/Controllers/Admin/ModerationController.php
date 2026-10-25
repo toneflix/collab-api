@@ -6,14 +6,17 @@ use App\Contracts\CanBeTakenDown;
 use App\Enums\HttpStatus;
 use App\Helpers\Providers;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\AiReviewResource;
 use App\Http\Resources\ArtistClaimResource;
 use App\Http\Resources\ReleaseResource;
 use App\Http\Resources\TakedownResource;
+use App\Models\AiReview;
 use App\Models\ArtistClaim;
 use App\Models\Release;
 use App\Models\Safety;
 use App\Models\Takedown;
 use App\Services\Artists\ArtistClaims;
+use App\Services\Moderation\Ai\AiModerator;
 use App\Services\Moderation\Moderation;
 use App\Services\Moderation\ModerationQueue;
 use App\Services\Moderation\Reportables;
@@ -93,6 +96,7 @@ class ModerationController extends Controller
             'owner' => $release->user ? ['id' => $release->user->id, 'name' => $release->user->fullname, 'username' => $release->user->username] : null,
             'versionOf' => $release->project?->title,
             'submittedAt' => $release->updated_at,
+            'aiReview' => $release->latestAiReview ? (new AiReviewResource($release->latestAiReview))->resolve($request) : null,
         ])->all());
     }
 
@@ -159,6 +163,30 @@ class ModerationController extends Controller
         return Providers::response()->success([
             'data' => ['id' => $claim->id],
             'message' => 'Declined. The claimant was told why.',
+        ], HttpStatus::ACCEPTED);
+    }
+
+    /**
+     * Hand a claim to the AI moderator, which decides it.
+     */
+    public function aiReviewClaim(Request $request, ArtistClaim $claim, AiModerator $moderator)
+    {
+        return $this->sentToAi($moderator->send($claim, $request->user()));
+    }
+
+    /**
+     * Hand a release waiting for approval to the AI moderator, which decides it.
+     */
+    public function aiReviewRelease(Request $request, Release $reviewRelease, AiModerator $moderator)
+    {
+        return $this->sentToAi($moderator->send($reviewRelease, $request->user()));
+    }
+
+    protected function sentToAi(AiReview $review)
+    {
+        return Providers::response()->success([
+            'data' => (new AiReviewResource($review->refresh()))->resolve(),
+            'message' => 'Sent to the AI moderator. Its decision shows here when it is done.',
         ], HttpStatus::ACCEPTED);
     }
 
@@ -251,6 +279,7 @@ class ModerationController extends Controller
                 'page' => $page->currentPage(),
                 'lastPage' => $page->lastPage(),
                 ...$this->queue->stats(),
+                'aiModerator' => app(AiModerator::class)->available(),
             ],
             'message' => HttpStatus::message(HttpStatus::OK),
         ]);

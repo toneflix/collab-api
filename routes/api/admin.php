@@ -74,6 +74,8 @@ Route::middleware(['auth:sanctum'])->prefix('admin')->name('admin.')->group(func
         Route::get('claims', [ModerationController::class, 'claims'])->name('claims');
         Route::post('claims/{claim}/approve', [ModerationController::class, 'approveClaim'])->whereNumber('claim')->name('claims.approve');
         Route::post('claims/{claim}/reject', [ModerationController::class, 'rejectClaim'])->whereNumber('claim')->name('claims.reject');
+        Route::post('claims/{claim}/ai-review', [ModerationController::class, 'aiReviewClaim'])->whereNumber('claim')->middleware('throttle:20,1')->name('claims.ai');
+        Route::post('releases/{reviewRelease}/ai-review', [ModerationController::class, 'aiReviewRelease'])->whereNumber('reviewRelease')->middleware('throttle:20,1')->name('releases.ai');
         Route::get('claims/{claim}/document', [ModerationController::class, 'claimDocument'])->whereNumber('claim')->name('claims.document');
         Route::post('releases/{reviewRelease}/approve', [ModerationController::class, 'approveRelease'])->whereNumber('reviewRelease')->name('releases.approve');
         Route::post('releases/{reviewRelease}/reject', [ModerationController::class, 'rejectRelease'])->whereNumber('reviewRelease')->name('releases.reject');

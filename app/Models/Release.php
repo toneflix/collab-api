@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Contracts\CanBeTakenDown;
 use App\Helpers\Freq;
 use App\Models\Scopes\RestrictBlockedUserScope;
+use App\Traits\HasAiReviews;
 use App\Traits\HasLikedScope;
 use App\Traits\Metricable;
 use App\Traits\ModelCanExtend;
@@ -30,6 +31,7 @@ use Toneflix\SocialInteractions\Traits\HasSocialInteractions;
 class Release extends Model implements CanBeTakenDown, CanVisit
 {
     use Fileable;
+    use HasAiReviews;
     use HasComments;
     use HasFactory;
     use HasLikedScope;
