@@ -37,6 +37,20 @@ When a released track's lyrics are saved, whether written out by Whisper or by t
 
 See [Lyrics](./ai#lyrics).
 
+## Artist profiles and claims
+
+An artist's profile (name, bio, photo and cover photo) can be edited by the account that manages the artist and by admins with `manage-content`. Only admins can mark an artist verified. `App\Policies\ArtistPolicy` decides both.
+
+Artists that no account manages (`artists.user_id` is empty, such as imported catalogue) show a **Claim this artist** button. The claimant says how they are connected (artist, manager, label or other), gives contact details, one to five links that prove it, a note, and an optional document (PDF, JPG or PNG up to 10 MB). Documents are stored privately on the default disk under `artist-claims/` and only moderators can download them.
+
+Claims wait on the **Artist claims** tab of `/admin/moderation`. Approving one:
+
+- links the artist to the claimant's account and marks it verified, so they can edit it and pick it on their releases,
+- moves the artist's releases that no account owns to the claimant, so they manage them from Studio (releases other creators uploaded stay with them),
+- declines the other pending claims on the artist.
+
+Declining needs a note, which the claimant sees. Claimants are notified either way. `App\Services\Artists\ArtistClaims` makes every change to claims.
+
 ## In code
 
 - `App\Services\Moderation\Moderation` is the only place moderation state changes: `report`, `flagMatches`, `flagLyrics`, `takeDown`, `dismiss`, `resolve`, `appeal`, `restore`, `uphold`.

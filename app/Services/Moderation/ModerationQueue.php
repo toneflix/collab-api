@@ -10,6 +10,7 @@ use App\Models\Safety;
 use App\Models\Scopes\RestrictBlockedUserScope;
 use App\Models\Takedown;
 use App\Models\User;
+use App\Services\Artists\ArtistClaims;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -23,7 +24,10 @@ class ModerationQueue
     /** Latest reports shown with each item */
     public const REPORTS_PER_ITEM = 5;
 
-    public function __construct(protected Reportables $reportables) {}
+    public function __construct(
+        protected Reportables $reportables,
+        protected ArtistClaims $claims,
+    ) {}
 
     /**
      * Content with pending reports, most reported first.
@@ -80,7 +84,7 @@ class ModerationQueue
     /**
      * How many pieces of content wait for review, and how many appeals.
      *
-     * @return array{pending: int, appeals: int}
+     * @return array{pending: int, appeals: int, releases: int, claims: int}
      */
     public function stats(): array
     {
@@ -91,6 +95,7 @@ class ModerationQueue
             )->count(),
             'appeals' => Takedown::query()->where('status', Takedown::APPEALED)->count(),
             'releases' => Release::query()->withoutGlobalScopes()->inReview()->count(),
+            'claims' => $this->claims->pendingCount(),
         ];
     }
 

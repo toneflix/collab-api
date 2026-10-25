@@ -20,6 +20,16 @@ class ArtistPolicy
     }
 
     /**
+     * People can ask to manage an artist no account manages yet.
+     */
+    public function claim(User $user, Artist $artist): Response
+    {
+        return $artist->isClaimable()
+            ? Response::allow()
+            : Response::deny('This artist is already managed by an account.');
+    }
+
+    /**
      * Only admins can mark an artist as verified.
      */
     public function verify(User $user, Artist $artist): bool

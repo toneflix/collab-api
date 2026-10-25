@@ -6,11 +6,14 @@ use App\Contracts\CanBeTakenDown;
 use App\Enums\HttpStatus;
 use App\Helpers\Providers;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\ArtistClaimResource;
 use App\Http\Resources\ReleaseResource;
 use App\Http\Resources\TakedownResource;
+use App\Models\ArtistClaim;
 use App\Models\Release;
 use App\Models\Safety;
 use App\Models\Takedown;
+use App\Services\Artists\ArtistClaims;
 use App\Services\Moderation\Moderation;
 use App\Services\Moderation\ModerationQueue;
 use App\Services\Moderation\Reportables;
@@ -117,6 +120,51 @@ class ModerationController extends Controller
             'data' => ['id' => $reviewRelease->id],
             'message' => 'Sent back to its owner with your note.',
         ], HttpStatus::ACCEPTED);
+    }
+
+    /**
+     * Claims on artists no account manages yet.
+     */
+    public function claims(Request $request, ArtistClaims $claims)
+    {
+        $valid = $request->validate([
+            'status' => ['nullable', Rule::in([ArtistClaim::PENDING, ArtistClaim::APPROVED, ArtistClaim::REJECTED])],
+            'search' => ['nullable', 'string', 'max:100'],
+            'limit' => ['nullable', 'integer', 'between:1,50'],
+        ]);
+
+        $page = $claims->queue($valid['status'] ?? ArtistClaim::PENDING, $valid['search'] ?? null, (int) ($valid['limit'] ?? 20));
+
+        return $this->page($page, ArtistClaimResource::collection($page->items())->resolve($request));
+    }
+
+    public function approveClaim(Request $request, ArtistClaim $claim, ArtistClaims $claims)
+    {
+        $valid = $request->validate(['note' => ['nullable', 'string', 'max:2000']]);
+
+        $claims->approve($claim, $request->user(), $valid['note'] ?? null);
+
+        return Providers::response()->success([
+            'data' => ['id' => $claim->id],
+            'message' => 'Approved. The artist is now linked to the claimant\'s account.',
+        ], HttpStatus::ACCEPTED);
+    }
+
+    public function rejectClaim(Request $request, ArtistClaim $claim, ArtistClaims $claims)
+    {
+        $valid = $request->validate(['note' => ['required', 'string', 'max:2000']]);
+
+        $claims->reject($claim, $request->user(), $valid['note']);
+
+        return Providers::response()->success([
+            'data' => ['id' => $claim->id],
+            'message' => 'Declined. The claimant was told why.',
+        ], HttpStatus::ACCEPTED);
+    }
+
+    public function claimDocument(ArtistClaim $claim, ArtistClaims $claims)
+    {
+        return $claims->downloadDocument($claim);
     }
 
     public function takeDown(Request $request, string $type, int $id)

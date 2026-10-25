@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Services\Artists\ArtistClaims;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -38,6 +39,13 @@ class ArtistResource extends JsonResource
             'projectsCount' => 0,
             'canEdit' => (bool) $viewer?->can('update', $this->resource),
             'canVerify' => (bool) $viewer?->can('verify', $this->resource),
+            'claimable' => $this->isClaimable(),
+            'yourClaim' => $this->when(
+                $request->routeIs('artists.show') && $this->isClaimable(),
+                fn () => ($claim = app(ArtistClaims::class)->latestFor($viewer, $this->resource))
+                    ? (new ArtistClaimResource($claim))->resolve($request)
+                    : null,
+            ),
         ];
     }
 }

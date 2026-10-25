@@ -71,6 +71,10 @@ Route::middleware(['auth:sanctum'])->prefix('admin')->name('admin.')->group(func
         Route::post('takedowns/{takedown}/restore', [ModerationController::class, 'restore'])->name('restore');
         Route::post('takedowns/{takedown}/uphold', [ModerationController::class, 'uphold'])->name('uphold');
         Route::get('releases', [ModerationController::class, 'releases'])->name('releases');
+        Route::get('claims', [ModerationController::class, 'claims'])->name('claims');
+        Route::post('claims/{claim}/approve', [ModerationController::class, 'approveClaim'])->whereNumber('claim')->name('claims.approve');
+        Route::post('claims/{claim}/reject', [ModerationController::class, 'rejectClaim'])->whereNumber('claim')->name('claims.reject');
+        Route::get('claims/{claim}/document', [ModerationController::class, 'claimDocument'])->whereNumber('claim')->name('claims.document');
         Route::post('releases/{reviewRelease}/approve', [ModerationController::class, 'approveRelease'])->whereNumber('reviewRelease')->name('releases.approve');
         Route::post('releases/{reviewRelease}/reject', [ModerationController::class, 'rejectRelease'])->whereNumber('reviewRelease')->name('releases.reject');
     });

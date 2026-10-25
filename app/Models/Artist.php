@@ -135,6 +135,22 @@ class Artist extends Model
         return $this->belongsTo(User::class)->withDefault(fn () => User::firstWhere('curator', true));
     }
 
+    /**
+     * Requests from people who want to manage this artist.
+     */
+    public function claims(): HasMany
+    {
+        return $this->hasMany(ArtistClaim::class);
+    }
+
+    /**
+     * An artist no account manages yet can be claimed.
+     */
+    public function isClaimable(): bool
+    {
+        return ! $this->user_id;
+    }
+
     public function recommendings(): MorphMany
     {
         return $this->morphMany(Recommendation::class, 'recommendable')->latest();
