@@ -2,6 +2,8 @@
 
 namespace App\Http\Resources;
 
+use App\Services\Studio\Mix\MixRenderer;
+use App\Services\Studio\MixPreview;
 use Illuminate\Http\Request;
 use Toneflix\ResourceModifier\Services\Json\JsonResource;
 
@@ -41,6 +43,9 @@ class ProjectTrackResource extends JsonResource
             'bpm' => (float) ($this->meta['bpm'] ?? 120),
             'timeSignature' => (string) ($this->meta['timeSignature'] ?? '4/4'),
             'tags' => $this->audioTags(),
+            // The studio's master volume, 0 to 1, and where the server is with the preview mix.
+            'mixVolume' => MixRenderer::masterVolume($this->resource),
+            'mix' => MixPreview::state($this->resource),
         ];
     }
 }

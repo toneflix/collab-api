@@ -13,6 +13,7 @@ use App\Models\ProjectTrack;
 use App\Models\ProjectTrackVersion;
 use App\Services\Realtime\Realtime;
 use App\Services\Reputation;
+use App\Services\Studio\MixPreview;
 use App\Services\Studio\TrackHistory;
 use Illuminate\Http\Request;
 use Toneflix\LaravelFileable\Media;
@@ -118,6 +119,8 @@ class ProjectTrackController extends Controller
             'stems' => ['nullable', 'array'],
             'bpm' => ['nullable', 'numeric', 'between:20,300'],
             'time_signature' => ['nullable', 'string', 'in:' . implode(',', ProjectTrack::TIME_SIGNATURES)],
+            'mix_volume' => ['nullable', 'numeric', 'between:0,1'],
+            'render' => ['nullable', 'boolean'],
         ]);
 
         // Tempo and meter live in the track's meta, next to whatever else is there.
@@ -128,8 +131,11 @@ class ProjectTrackController extends Controller
                 $meta[$key] = $field === 'bpm' ? round((float) $valid[$field], 2) : $valid[$field];
             }
         }
+        if ($request->filled('mix_volume')) {
+            $meta['mixVolume'] = round((float) $valid['mix_volume'], 4);
+        }
         $valid['meta'] = $meta->all();
-        unset($valid['bpm'], $valid['time_signature']);
+        unset($valid['bpm'], $valid['time_signature'], $valid['mix_volume'], $valid['render']);
 
         if (isset($valid['preview'])) {
             unset($valid['preview']);
@@ -142,6 +148,11 @@ class ProjectTrackController extends Controller
         $track->update($valid);
 
         $history->record($this->user, ProjectTrackVersion::SAVED);
+
+        if ($request->boolean('render')) {
+            app(MixPreview::class)
+                ->queue($track);
+        }
 
         // Everyone else on the track now has this as the saved state. A
         // message too big for the driver carries no stems; clients reload.

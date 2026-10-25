@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Services\Ai\AiSettings;
 use App\Services\Ai\Credits;
 use App\Services\Ai\Replicate\ReplicateClient;
+use App\Services\Audio\StemAudio;
 use App\Services\Studio\StemFiles;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\Client\Request;
@@ -125,10 +126,16 @@ class AiMusicTest extends TestCase
     /**
      * Replicate answering for Demucs, a community model that runs by version.
      */
-    protected function fakeDemucs(): void
+    /**
+     * Replicate answering with Demucs parts made from the test song at these
+     * volumes, as WAV.
+     *
+     * @param  array<string, float>  $volumes
+     */
+    protected function fakeDemucs(array $volumes = ['vocals' => 0.5, 'drums' => 0.2, 'bass' => 0.1, 'other' => 0.2]): void
     {
-        $stems = collect(['vocals', 'drums', 'bass', 'other'])
-            ->mapWithKeys(fn($part) => [$part => "https://replicate.delivery/out/{$part}.mp3"]);
+        $stems = collect($volumes)
+            ->mapWithKeys(fn($volume, $part) => [$part => "https://replicate.delivery/out/{$part}.wav"]);
 
         Http::fake([
             self::API . '/files' => Http::response(['urls' => ['get' => self::API . '/files/f1']]),
@@ -136,8 +143,45 @@ class AiMusicTest extends TestCase
             self::API . '/models/ryan5453/demucs' => Http::response(['latest_version' => ['id' => 'v-demucs']]),
             self::API . '/predictions' => Http::response(['id' => 'p-stems', 'status' => 'starting']),
             self::API . '/predictions/p-stems' => Http::response(['id' => 'p-stems', 'status' => 'succeeded', 'output' => $stems->all()]),
-            'https://replicate.delivery/*' => Http::response('ID3-audio', 200, ['Content-Type' => 'audio/mpeg']),
+            ...$stems->mapWithKeys(fn($url, $part) => [$url => Http::response($this->part($volumes[$part]), 200, ['Content-Type' => 'audio/wav'])])->all(),
         ]);
+    }
+
+    /**
+     * The test song at a volume, as WAV.
+     */
+    protected function part(float $volume): string
+    {
+        $path = tempnam(sys_get_temp_dir(), 'part-') . '.wav';
+        exec('ffmpeg -loglevel error -y -i ' . escapeshellarg($this->song()) . ' -af volume=' . $volume . ' ' . escapeshellarg($path));
+
+        return tap((string) file_get_contents($path), fn() => @unlink($path));
+    }
+
+    protected function song(): string
+    {
+        return base_path('tests/fixtures/audio.mp3');
+    }
+
+    /**
+     * RMS level in dBFS of the track's stems played together, minus the song.
+     */
+    protected function differenceFromSong(): float
+    {
+        $files = app(StemFiles::class);
+        $stems = $this->track
+            ->stems()
+            ->get()
+            ->map(fn($stem) => $files->local($stem))
+            ->all();
+
+        $difference = app(StemAudio::class)
+            ->remainder($this->song(), $stems);
+        $level = app(StemAudio::class)
+            ->level($difference);
+        array_map('unlink', [...$stems, $difference]);
+
+        return $level;
     }
 
     public function test_music_is_generated_into_a_stem_with_the_laravel_ai_sdk(): void
@@ -190,7 +234,7 @@ class AiMusicTest extends TestCase
 
     public function test_generated_music_can_be_split_into_stems_with_demucs(): void
     {
-        Audio::fake([base64_encode('ID3-generated')]);
+        Audio::fake([base64_encode((string) file_get_contents($this->song()))]);
         $this->fakeDemucs();
         Sanctum::actingAs($this->owner);
 
@@ -205,17 +249,32 @@ class AiMusicTest extends TestCase
 
         Http::assertSent(fn(Request $request) => $request->url() === self::API . '/predictions'
             && $request['version'] === 'v-demucs'
-            && $request['input'] === ['audio' => self::API . '/files/f1', 'output_format' => 'mp3']);
+            && $request['input'] === ['audio' => self::API . '/files/f1', 'model' => 'htdemucs_ft', 'output_format' => 'wav']);
+
+        $this->assertLessThan(-50, $this->differenceFromSong());
+    }
+
+    public function test_split_stems_keep_demucs_other_when_the_parts_do_not_line_up(): void
+    {
+        $this->fakeDemucs(['vocals' => 0.1, 'drums' => 0.05, 'bass' => 0.05, 'other' => 0.01]);
+        $stem = app(StemFiles::class)
+            ->addStem($this->track, $this->owner, $this->song(), 'Full mix');
+
+        Sanctum::actingAs($this->owner);
+        $this
+            ->postJson($this->url("stems/{$stem->id}/split"))
+            ->assertCreated();
+        $stem->delete();
+
+        $this->assertSame(4, $this->track->stems()->count());
+        $this->assertGreaterThan(-30, $this->differenceFromSong());
     }
 
     public function test_an_existing_stem_can_be_split(): void
     {
         $this->fakeDemucs();
-        $file = tempnam(sys_get_temp_dir(), 'test-');
-        file_put_contents($file, 'ID3-mix');
         $stem = app(StemFiles::class)
-            ->addStem($this->track, $this->owner, $file, 'Full mix');
-        @unlink($file);
+            ->addStem($this->track, $this->owner, $this->song(), 'Full mix');
 
         Sanctum::actingAs($this->owner);
         $this

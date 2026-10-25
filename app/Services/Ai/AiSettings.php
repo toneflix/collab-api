@@ -5,6 +5,8 @@ namespace App\Services\Ai;
 use App\Helpers\Providers;
 use App\Models\ArtistClaim;
 use App\Models\Release;
+use App\Services\Ai\Music\ElevenLabsMusic;
+use App\Services\Ai\Music\MusicModel;
 use App\Services\Settings\SettingsStore;
 
 /**
@@ -33,7 +35,11 @@ class AiSettings extends SettingsStore
         'ai_enabled' => ['AI Tools', '1', 'Let people on plans that include AI tools use them.'],
         'ai_credit_price' => ['Price per Credit', null, 'What one bought credit costs, in the app currency.'],
         'ai_credit_packs' => ['Credit Packs', '100, 500:10, 2000:20', 'Comma separated pack sizes. Add a colon and a percentage for a discount, like 500:10.'],
-        'ai_music_credits' => ['Music Credits per 10 Seconds', '5', 'Credits a generated track uses for every 10 seconds of audio.'],
+        'ai_music_model' => ['Music Model', ElevenLabsMusic::ID, 'The model the studio generates music with.'],
+        'ai_music_credits' => ['ElevenLabs Music Credits per 10 Seconds', '5', 'Credits an ElevenLabs track uses for every 10 seconds of audio. About $0.08 for 30 seconds on Replicate.'],
+        'ai_music_minimax_25_credits' => ['MiniMax Music 2.5 Credits per Song', '30', 'Credits one MiniMax Music 2.5 song uses, whatever its length.'],
+        'ai_music_minimax_15_credits' => ['MiniMax Music 1.5 Credits per Song', '10', 'Credits one MiniMax Music 1.5 song uses, whatever its length.'],
+        'ai_music_stable_audio_credits' => ['Stable Audio 2.5 Credits per Track', '40', 'Credits one Stable Audio 2.5 track uses, whatever its length.'],
         'ai_stems_credits' => ['Stem Split Credits', '5', 'Credits one split into stems uses.'],
         'ai_music_max_seconds' => ['Longest Generated Track (seconds)', '300', 'The longest track people can generate at once.'],
         'ai_lyrics_credits' => ['Lyrics Credits', '2', 'Credits one lyrics transcription in the studio uses.'],
@@ -104,11 +110,11 @@ class AiSettings extends SettingsStore
     }
 
     /**
-     * Credits a generated track of this many seconds uses.
+     * The model the studio generates music with.
      */
-    public static function musicCredits(int $seconds): int
+    public static function musicModel(): MusicModel
     {
-        return max(1, (int) ceil($seconds / 10 * max(1, (int) self::get('ai_music_credits'))));
+        return MusicModel::find(self::get('ai_music_model')) ?? new ElevenLabsMusic;
     }
 
     public static function stemsCredits(): int
@@ -175,7 +181,7 @@ class AiSettings extends SettingsStore
     /**
      * What the app needs to show the AI tools and their costs.
      *
-     * @return array{enabled: bool, creditPrice: float, packs: list<array{credits: int, discount: float, price: float}>, costs: array<string, int>, musicMaxSeconds: int}
+     * @return array{enabled: bool, creditPrice: float, packs: list<array{credits: int, discount: float, price: float}>, costs: array<string, int>, music: array<string, mixed>}
      */
     public static function clientConfig(): array
     {
@@ -184,12 +190,21 @@ class AiSettings extends SettingsStore
             'creditPrice' => self::creditPrice(),
             'packs' => self::packs(),
             'costs' => [
-                'music10s' => max(1, (int) self::get('ai_music_credits')),
                 'stems' => self::stemsCredits(),
                 'lyrics' => self::lyricsCredits(),
             ],
-            'musicMaxSeconds' => self::musicMaxSeconds(),
+            'music' => self::musicModel()->toClient(),
         ];
+    }
+
+    /**
+     * Every music model admins can switch to.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public static function musicModels(): array
+    {
+        return array_values(array_map(fn(MusicModel $model) => $model->toClient(), MusicModel::all()));
     }
 
     /**
@@ -199,6 +214,12 @@ class AiSettings extends SettingsStore
      */
     protected static function fallback(string $key, array $field): ?string
     {
+        if ($key === 'ai_music_model') {
+            $configured = (string) config('ai.providers.replicate.models.audio.default');
+
+            return MusicModel::find($configured) ? $configured : $field[1];
+        }
+
         if ($key === 'ai_credit_price') {
             $currency = strtoupper((string) Providers::config('app_currency', 'USD'));
 

@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Models\AiJob;
+use App\Services\Ai\Music\MusicModel;
 use Illuminate\Http\Request;
 use Toneflix\ResourceModifier\Services\Json\JsonResource;
 
@@ -18,12 +19,16 @@ class AiJobResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $modelId = $this->input['model'] ?? null;
+        $model = $modelId ? (MusicModel::find($modelId)?->name() ?? $modelId) : null;
+
         return [
             'id' => $this->id,
             'kind' => $this->kind,
             'status' => $this->status,
             'trackId' => $this->project_track_id,
             'prompt' => $this->input['prompt'] ?? null,
+            'model' => $model,
             'seconds' => $this->input['seconds'] ?? null,
             'split' => (bool) ($this->input['split'] ?? $this->kind === 'stems'),
             'title' => $this->input['title'] ?? null,
