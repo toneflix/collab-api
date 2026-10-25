@@ -169,6 +169,22 @@ class MixRenderTest extends TestCase
         $this->assertSame(MixPreview::READY, $this->track->fresh()->meta['mix']['status']);
     }
 
+    public function test_master_effects_are_saved_and_rendered_after_the_mix(): void
+    {
+        $chain = json_encode([
+            ['type' => 'tf-eq', 'params' => ['low' => 2, 'mid' => 0, 'midFrequency' => 1000, 'high' => 1]],
+            ['type' => 'tf-limiter', 'params' => ['ceiling' => -6, 'release' => 0.1]],
+        ]);
+
+        $this->stem($this->tone(2, 440, 0.9));
+        $this->save(['master_effects' => $chain]);
+
+        $track = $this->track->fresh();
+
+        $this->assertSame($chain, $track->meta['masterEffects']);
+        $this->assertSame(MixPreview::READY, $track->meta['mix']['status']);
+    }
+
     public function test_only_the_newest_render_is_kept(): void
     {
         $this->stem($this->tone(2));
