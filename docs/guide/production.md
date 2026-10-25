@@ -51,6 +51,8 @@ QUEUE_CONNECTION=database
 MAIL_MAILER=smtp
 ```
 
+`APP_URL` must be the public `https://` address. Queued jobs and the default avatar build links from it, and a browser blocks `http://` audio on an `https://` page. The API trusts `X-Forwarded-*` headers from any proxy, since Railway and most hosts end TLS at their edge. If the server is reachable without a proxy, set `TRUSTED_PROXIES` to the proxy's addresses.
+
 ### Every deploy
 
 ```bash
