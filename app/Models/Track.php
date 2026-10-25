@@ -165,11 +165,8 @@ class Track extends Model implements CanBeTakenDown
                 FingerprintTrack::dispatch($model);
             }
 
-            if (($model->audio || $model->project_track_id) && ($model->wasRecentlyCreated || $model->wasChanged(['audio', 'project_track_id']))) {
-                TranscribeTrack::dispatch($model)->afterCommit();
-
-                $ownAudio = $model->wasRecentlyCreated ? (bool) $model->audio : $model->wasChanged('audio');
-                TagAudio::dispatch($model, inherit: ! $ownAudio)->afterCommit();
+            if ($model->wasRecentlyCreated || $model->wasChanged(['audio', 'project_track_id'])) {
+                $model->queueSoundChecks($model->wasRecentlyCreated ? (bool) $model->audio : $model->wasChanged('audio'));
             }
         });
 
@@ -178,6 +175,20 @@ class Track extends Model implements CanBeTakenDown
                 'visits as streams' => fn ($q) => $q->where('data->duration', '>', 0),
             ]),
         ]);
+    }
+
+    /**
+     * Give the track its lyrics and tempo/key, from its project track or its
+     * own audio. Runs on save, and by hand for tracks saved quietly.
+     */
+    public function queueSoundChecks(bool $ownAudio): void
+    {
+        if (! $this->audio && ! $this->project_track_id) {
+            return;
+        }
+
+        TranscribeTrack::dispatch($this)->afterCommit();
+        TagAudio::dispatch($this, inherit: ! $ownAudio)->afterCommit();
     }
 
     public function gusm(string $str, string $sep = '-', ?string $cur = null)

@@ -15,7 +15,8 @@ class LyricsController extends Controller
     public function show(Lyrics $lyrics, Track $track)
     {
         return Providers::response()->success([
-            'data' => $lyrics->for($track)?->present(),
+            // Tracks released before lyrics were copied on release pick them up here.
+            'data' => ($lyrics->for($track) ?? $lyrics->inherit($track))?->present(),
             'message' => HttpStatus::message(HttpStatus::OK),
         ]);
     }
