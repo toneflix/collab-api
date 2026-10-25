@@ -23,14 +23,7 @@ class ProjectController extends Controller
         $days = Freq::period($request->period);
 
         $query
-            ->where(function (Builder $query) {
-                $query->where('privacy', 'public');
-                $query->orWhere('user_id', auth('sanctum')->id());
-                $query->orWhereHas(
-                    'collaborators',
-                    fn (Builder $q) => $q->whereUserId(auth('sanctum')->id())->whereAccepted(true)
-                );
-            })
+            ->visibleTo($filters->contains('open') ? null : $request->user('sanctum'))
             ->when($request->has('genre'), fn (Builder $q) => $q->genre($request->genre))
             ->when($filters->contains('top'), fn ($q) => $q->top(true))
             ->when($filters->contains('latest'), fn ($q) => $q->orderByLastDays($days, 'desc'))
@@ -49,16 +42,14 @@ class ProjectController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request, Project $project)
-    {
-    }
+    public function store(Request $request, Project $project) {}
 
     /**
      * Display the specified resource.
      */
-    public function show(Project $project)
+    public function show(Request $request, Project $project)
     {
-        $this->authorize('view', $project);
+        $this->authorizeForUser($request->user('sanctum'), 'view', $project);
 
         return (new ProjectResource($project))->additional([
             'message' => HttpStatus::message(HttpStatus::OK),

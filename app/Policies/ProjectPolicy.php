@@ -17,14 +17,11 @@ class ProjectPolicy
     }
 
     /**
-     * Public and preview projects are open to everyone; private ones to their
-     * owner and accepted collaborators.
+     * Determine whether the user can view the project.
      */
     public function view(?User $user, Project $project): Response
     {
-        $open = in_array($project->privacy, ['public', 'public_preview'], true);
-
-        return $open || ($user && $project->canEdit($user))
+        return $project->isVisibleTo($user)
             ? Response::allow()
             : Response::denyAsNotFound('This project is private.');
     }

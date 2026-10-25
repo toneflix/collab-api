@@ -38,6 +38,11 @@ class Project extends Model
     use ModelCanExtend;
 
     /**
+     * Privacy settings anyone can see a project under.
+     */
+    public const OPEN_PRIVACIES = ['public', 'public_preview'];
+
+    /**
      * The attributes that are mass assignable.
      *
      * @var array<int, string>
@@ -133,6 +138,30 @@ class Project extends Model
     public function canEdit(User $user): bool
     {
         return (int) $this->user_id === (int) $user->id || $this->isCollaber($user);
+    }
+
+    /**
+     * Open projects are visible to everyone; private ones to the people who
+     * can edit them.
+     */
+    public function isVisibleTo(?User $user): bool
+    {
+        return in_array($this->privacy, self::OPEN_PRIVACIES, true) || ($user && $this->canEdit($user));
+    }
+
+    /**
+     * Limit the query to projects the user can see, matching isVisibleTo().
+     */
+    public function scopeVisibleTo(Builder $query, ?User $user): void
+    {
+        $query->where(function (Builder $query) use ($user) {
+            $query->whereIn('projects.privacy', self::OPEN_PRIVACIES);
+
+            if ($user) {
+                $query->orWhere('projects.user_id', $user->id);
+                $query->orWhereHas('collaborators', fn (Builder $q) => $q->accepted()->where('user_id', $user->id));
+            }
+        });
     }
 
     public function collaberData(User $user, $pending = false): ?ProjectCollaborator
