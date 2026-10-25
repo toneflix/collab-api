@@ -81,4 +81,4 @@ POST /api/creator/songs/{song}/project
 - With `generate`, AI sings the lyrics onto the track with the **Composer Song Model**, the section names included. Models that take a length get `seconds`, 180 by default. `prompt` (the sound) is then required. Access, the model's lyrics length and the credits are all checked before anything is created, so a failed check leaves no empty project behind. The started job comes back as `aiJob` beside `data`.
 - A song makes one project. `POST /api/creator/songs/{song}/project/lyrics` puts the song's current lyrics on that track's lyric sheet again. It needs edit access to the track.
 - Saving a song that has a project updates the track's lyric sheet whenever the sung lines change, if the writer can still edit the track. This replaces lyrics edited on the sheet directly.
-- For people who can edit the track, the track resource has `song` (`id`, `title`, `body`), so the studio's music tool can start from the song's lyrics.
+- For people who can edit the track, the track resource has `song` (`id`, `title`, `body`, `bpm`, `key`, `mood`), so the studio's music tool can start from the song's lyrics and details.
