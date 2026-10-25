@@ -6,8 +6,8 @@ use RuntimeException;
 use Symfony\Component\Process\Process;
 
 /**
- * FFmpeg work on separated stems: rebuilding the part of a song the other
- * stems leave out, and encoding stems once at a high bitrate.
+ * FFmpeg work on stem audio: rebuilding the part of a song the other stems
+ * leave out, reading levels and encoding once at a high bitrate.
  */
 class StemAudio
 {
@@ -55,13 +55,28 @@ class StemAudio
     }
 
     /**
-     * Encode audio as a 320 kbps MP3.
+     * Encode audio as a 320 kbps MP3, turned up or down by a gain in dB.
      */
-    public function mp3(string $path): string
+    public function mp3(string $path, float $gain = 0.0): string
     {
         $out = $this->temp('mp3');
+        $volume = $gain != 0.0 ? ['-af', 'volume='.round($gain, 4).'dB'] : [];
 
-        $this->run(['-i', $path, '-c:a', 'libmp3lame', '-b:a', self::BITRATE.'k', $out], $out);
+        $this->run(['-i', $path, ...$volume, '-c:a', 'libmp3lame', '-b:a', self::BITRATE.'k', $out], $out);
+
+        return $out;
+    }
+
+    /**
+     * Render FFmpeg arguments into a 32 bit float WAV.
+     *
+     * @param  list<string>  $args
+     */
+    public function wav(array $args): string
+    {
+        $out = $this->temp('wav');
+
+        $this->run([...$args, '-c:a', 'pcm_f32le', $out], $out);
 
         return $out;
     }
@@ -71,14 +86,49 @@ class StemAudio
      */
     public function level(string $path): ?float
     {
+        return $this->stat($path, 'RMS_level', 'RMS level dB');
+    }
+
+    /**
+     * The file's loudest sample in dBFS, or null when it can't be read.
+     */
+    public function peak(string $path): ?float
+    {
+        return $this->stat($path, 'Peak_level', 'Peak level dB');
+    }
+
+    /**
+     * The file's channel count and length in seconds.
+     *
+     * @return array{channels: int, duration: float}
+     */
+    public function probe(string $path): array
+    {
+        $process = new Process([$this->ffmpeg(), '-hide_banner', '-i', $path]);
+        $process->setTimeout(60);
+        $process->run();
+        $info = $process->getErrorOutput();
+
+        $duration = preg_match('/Duration:\s*(\d+):(\d+):([\d.]+)/', $info, $time)
+            ? $time[1] * 3600 + $time[2] * 60 + (float) $time[3]
+            : 0.0;
+
+        return [
+            'channels' => preg_match('/Audio:[^\n]*\b(mono|1 channels)\b/', $info) ? 1 : 2,
+            'duration' => $duration,
+        ];
+    }
+
+    protected function stat(string $path, string $measure, string $label): ?float
+    {
         $process = new Process([
             $this->ffmpeg(), '-hide_banner', '-nostats', '-i', $path,
-            '-af', 'astats=measure_perchannel=none:measure_overall=RMS_level', '-f', 'null', '-',
+            '-af', "astats=measure_perchannel=none:measure_overall={$measure}", '-f', 'null', '-',
         ]);
         $process->setTimeout(300);
         $process->run();
 
-        if (! preg_match('/RMS level dB:\s*(-?[\d.]+|-inf)/', $process->getErrorOutput(), $match)) {
+        if (! preg_match('/'.preg_quote($label, '/').':\s*(-?[\d.]+|-inf)/', $process->getErrorOutput(), $match)) {
             return null;
         }
 
