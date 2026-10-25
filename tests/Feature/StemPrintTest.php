@@ -133,6 +133,26 @@ class StemPrintTest extends TestCase
         $this->assertNotNull($this->files[] = $files->localFile($stem->meta['print']['file']));
     }
 
+    public function test_a_print_can_be_flac(): void
+    {
+        Sanctum::actingAs($this->owner);
+
+        $flac = $this->files[] = tempnam(sys_get_temp_dir(), 'print-') . '.flac';
+        exec(sprintf('ffmpeg -loglevel error -y -i %s %s', escapeshellarg($this->tone(3)), escapeshellarg($flac)));
+
+        $this
+            ->post($this->url(), [
+                'audio' => new UploadedFile($flac, 'print.flac', 'audio/flac', null, true),
+                'start' => 1,
+                'key' => 'flac',
+            ], ['Accept' => 'application/json'])
+            ->assertAccepted();
+
+        $stem = $this->stem->fresh();
+        $this->assertStringEndsWith('.flac', $stem->meta['print']['file']);
+        $this->assertEqualsWithDelta(4, $this->mixLength(), 0.1);
+    }
+
     public function test_saving_the_stem_keeps_its_print(): void
     {
         Sanctum::actingAs($this->owner);

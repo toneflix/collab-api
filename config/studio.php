@@ -23,9 +23,9 @@ return [
     | Printed stems
     |--------------------------------------------------------------------------
     |
-    | Largest WAV, in MB, the studio may upload for a stem recorded through
-    | plugins FFmpeg can't run. About 10 MB per minute. PHP's
-    | upload_max_filesize and post_max_size must allow it too.
+    | Largest file, in MB, the studio may upload for a stem recorded through
+    | plugins FFmpeg can't run. The studio sends 16-bit FLAC, about 5 MB per
+    | minute. PHP's upload_max_filesize and post_max_size must allow it too.
     |
     */
     'print_max_mb' => (int) env('STUDIO_PRINT_MAX_MB', 100),

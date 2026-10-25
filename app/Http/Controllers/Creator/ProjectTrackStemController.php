@@ -132,14 +132,16 @@ class ProjectTrackStemController extends Controller
         $this->authorize('update', $track);
 
         $valid = $this->validate($request, [
-            'audio' => ['required', 'file', 'mimes:wav', 'max:' . (config('studio.print_max_mb') * 1024)],
+            'audio' => ['required', 'file', 'mimes:flac,wav', 'max:' . (config('studio.print_max_mb') * 1024)],
             'start' => ['required', 'numeric', 'min:0'],
             'key' => ['required', 'string', 'max:64'],
         ]);
 
         $audio = $request->file('audio');
 
-        $files->print($stem, $audio->getRealPath(), 'wav', (float) $valid['start'], $valid['key']);
+        $ext = $audio->guessExtension() === 'flac' ? 'flac' : 'wav';
+
+        $files->print($stem, $audio->getRealPath(), $ext, (float) $valid['start'], $valid['key']);
 
         return (new ProjectTrackStemResource($stem))
             ->additional([
