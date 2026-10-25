@@ -10,10 +10,13 @@ use App\Models\User;
 use App\Services\Ai\AiSettings;
 use App\Services\Ai\Credits;
 use App\Services\Composer\Ai\LyricModel;
+use App\Services\Composer\ComposerSettings;
 use App\Services\Composer\Songs;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Laravel\Sanctum\Sanctum;
 use RuntimeException;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
 class ComposerSuggestionsTest extends TestCase
@@ -246,5 +249,36 @@ class ComposerSuggestionsTest extends TestCase
         $this->assertTrue(AiSettings::composerMusicModel()->takesLyrics());
         $this->assertSame('anthropic/claude-4.5-haiku', AiSettings::composerModel());
         $this->assertSame(3, AiSettings::clientConfig()['costs']['composer']['line']);
+    }
+
+    public function test_admins_save_composer_settings_on_the_ai_page(): void
+    {
+        app(PermissionRegistrar::class)
+            ->forgetCachedPermissions();
+        Permission::findOrCreate('manage-configuration', 'web');
+        $admin = User::factory()
+            ->create();
+        $admin->givePermissionTo('manage-configuration');
+        $this->actingAsFresh($admin);
+
+        $this->putJson('/api/admin/ai', ['ai_composer_music_model' => 'elevenlabs/music', 'composer_word_source' => 'google'])
+            ->assertJsonValidationErrors(['ai_composer_music_model', 'composer_word_source']);
+
+        $this->putJson('/api/admin/ai', [
+            'ai_composer_model' => 'anthropic/claude-4.5-sonnet',
+            'ai_composer_verse_credits' => 4,
+            'ai_composer_music_model' => 'suno/music',
+            'composer_word_source' => 'local',
+        ])
+            ->assertAccepted()
+            ->assertJsonPath('data.fields.composer_word_source.value', 'local')
+            ->assertJsonPath('data.fields.ai_composer_model.value', 'anthropic/claude-4.5-sonnet')
+            ->assertJsonPath('data.client.costs.composer.verse', 4)
+            ->assertJsonPath('data.options.composerMusicModels', ['minimax/music-2.5', 'minimax/music-1.5', 'suno/music'])
+            ->assertJsonPath('data.keys.datamuse.0.env', 'DATAMUSE_API_KEY');
+
+        $this->assertSame('local', ComposerSettings::wordSource());
+        $this->assertSame('suno/music', AiSettings::composerMusicModel()::ID);
+        ComposerSettings::update(['composer_word_source' => 'datamuse']);
     }
 }

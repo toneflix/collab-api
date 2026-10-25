@@ -15,7 +15,7 @@ Composer is the songwriting notepad under Projects in the sidebar. This page cov
 | Definitions | `md=d` | None |
 | Syllable counts | Always local | CMU dictionary, or a guess from spelling for words it lacks |
 
-Admins pick the source with the **Word Source** setting (`composer_word_source`: `datamuse` or `local`). Datamuse is called only from the API, never from browsers. Each answer is cached for 7 days, and when Datamuse fails or is slow (5 second timeout) the local dictionary answers instead, without caching that answer.
+Admins pick the source with the **Word Source** setting in the Composer section of `/admin/ai` (`composer_word_source`: `datamuse` or `local`). Datamuse is called only from the API, never from browsers. Each answer is cached for 7 days, and when Datamuse fails or is slow (5 second timeout) the local dictionary answers instead, without caching that answer.
 
 Datamuse asks customer-facing apps to describe their use to them, and from January 1, 2027 it needs a key (`DATAMUSE_API_KEY`) and allows 100,000 requests a day per key. See [datamuse.com/api](https://www.datamuse.com/api/). Credit Datamuse wherever its results show.
 
