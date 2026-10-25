@@ -249,7 +249,7 @@ class AiMusicTest extends TestCase
 
         Http::assertSent(fn(Request $request) => $request->url() === self::API . '/predictions'
             && $request['version'] === 'v-demucs'
-            && $request['input'] === ['audio' => self::API . '/files/f1', 'model' => 'htdemucs_ft', 'output_format' => 'wav']);
+            && $request['input'] === ['audio' => self::API . '/files/f1', 'model' => 'htdemucs', 'output_format' => 'wav']);
 
         $this->assertLessThan(-50, $this->differenceFromSong());
     }
