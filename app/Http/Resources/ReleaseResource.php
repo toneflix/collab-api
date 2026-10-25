@@ -57,7 +57,7 @@ class ReleaseResource extends JsonResource
             'streams' => $this->streams,
             'imageUrl' => $imageUrl,
             'genreId' => $this->genre_id,
-            'duration' => $this->duration ?? 0,
+            'duration' => (int) ($this->tracks_sum_duration ?? 0),
             'description' => $this->description,
             $this->mergeWhen($with->contains('interaction'), fn() => [
                 'interaction' => $interaction,

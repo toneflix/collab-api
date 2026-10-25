@@ -2,6 +2,7 @@
 
 namespace App\Services\Audio;
 
+use App\Jobs\MeasureDuration;
 use App\Models\ProjectTrack;
 use App\Models\Track;
 use Illuminate\Support\Str;
@@ -14,6 +15,8 @@ use Toneflix\LaravelFileable\Media;
  */
 class TrackAudio
 {
+    public function __construct(protected StemAudio $audio) {}
+
     public function local(Track $track, bool $withPreview = false): ?string
     {
         $file = $track->audio;
@@ -64,7 +67,35 @@ class TrackAudio
         $track->audio = $name;
         $track->saveQuietly();
 
+        MeasureDuration::dispatch($track)
+            ->afterCommit();
+
         return true;
+    }
+
+    /**
+     * Stores the length in seconds of the audio a track plays.
+     */
+    public function measure(Track $track): int
+    {
+        $local = $this->local($track, withPreview: true);
+
+        if (! $local) {
+            return 0;
+        }
+
+        try {
+            $seconds = (int) round($this->audio->probe($local)['duration']);
+        } finally {
+            @unlink($local);
+        }
+
+        if ($seconds > 0) {
+            $track->duration = $seconds;
+            $track->saveQuietly();
+        }
+
+        return $seconds;
     }
 
     protected function copy(string $file): ?string

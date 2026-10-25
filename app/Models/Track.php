@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Contracts\CanBeTakenDown;
 use App\Jobs\FingerprintTrack;
+use App\Jobs\MeasureDuration;
 use App\Jobs\ProcessAudio;
 use App\Jobs\TagAudio;
 use App\Jobs\TranscribeTrack;
@@ -198,8 +199,8 @@ class Track extends Model implements CanBeTakenDown
     }
 
     /**
-     * Give the track its lyrics and tempo/key, from its project track or its
-     * own audio. Runs on save, and by hand for tracks saved quietly.
+     * Give the track its length, lyrics and tempo/key, from its project track
+     * or its own audio. Runs on save, and by hand for tracks saved quietly.
      */
     public function queueSoundChecks(bool $ownAudio): void
     {
@@ -207,6 +208,8 @@ class Track extends Model implements CanBeTakenDown
             return;
         }
 
+        MeasureDuration::dispatch($this)
+            ->afterCommit();
         TranscribeTrack::dispatch($this)
             ->afterCommit();
         TagAudio::dispatch($this, inherit: ! $ownAudio)

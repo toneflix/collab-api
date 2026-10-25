@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\MeasureDuration;
 use App\Jobs\TagAudio;
 use App\Jobs\TranscribeTrack;
 use App\Models\Artist;
@@ -194,6 +195,7 @@ class ProjectReleaseTest extends TestCase
             ->postJson('/api/creator/releases', $this->releaseForm(['draft' => false]))
             ->assertCreated();
 
+        Queue::assertPushed(MeasureDuration::class);
         Queue::assertPushed(TranscribeTrack::class, 1);
         Queue::assertPushed(TagAudio::class, fn(TagAudio $job) => $job->inherit);
     }
