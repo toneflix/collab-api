@@ -146,6 +146,10 @@ See [Payment providers](../guide/payments) for webhooks and dashboard settings.
 | `REPLICATE_LYRICS_MODEL` | `openai/whisper` | Model for lyrics transcription. |
 | `REPLICATE_MODERATOR_MODEL` | `anthropic/claude-4.5-haiku` | Model behind the AI moderator. A larger Claude model judges harder cases better at a higher cost per review. |
 | `REPLICATE_TIMEOUT` | `600` | Seconds to wait for one prediction. |
+| `SUNO_API_KEY` | | From [sunoapi.org/api-key](https://sunoapi.org/api-key). Needed only when admins pick Suno for music or stems. |
+| `SUNO_URL` | `https://api.sunoapi.org` | Suno API base URL. |
+| `SUNO_UPLOAD_URL` | `https://sunoapiorg.redpandaai.co` | sunoapi.org's file host, for audio Suno needs to read. |
+| `SUNO_TIMEOUT` | `600` | Seconds to wait for one Suno task. |
 
 ## Notifications
 

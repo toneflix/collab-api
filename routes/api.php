@@ -4,6 +4,7 @@ use App\Helpers\Providers;
 use App\Http\Controllers\ArtistClaimController;
 use App\Http\Controllers\ArtistController;
 use App\Http\Controllers\CommentController;
+use App\Http\Controllers\Creator\AiController;
 use App\Http\Controllers\ExploreController;
 use App\Http\Controllers\FollowController;
 use App\Http\Controllers\GenreController;
@@ -16,6 +17,7 @@ use App\Http\Controllers\ProjectCollaboratorController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ReleaseController;
 use App\Http\Controllers\SocialInteractionController;
+use App\Http\Controllers\SunoCallbackController;
 use App\Http\Controllers\TrackController;
 use App\Http\Controllers\UserController;
 use App\Services\Notifications\WebPush;
@@ -90,6 +92,16 @@ Route::post('payouts/flutterwave/webhook', [PayoutWebhookController::class, 'flu
     ->name('payouts.webhook.flutterwave');
 Route::post('payouts/stripe/webhook', [PayoutWebhookController::class, 'stripe'])
     ->name('payouts.webhook.stripe');
+
+// Suno needs a callback for every task; jobs poll for results, so it's ignored.
+Route::post('ai/suno/callback', SunoCallbackController::class)
+    ->name('ai.suno.callback');
+
+// A version of a generated song, from the signed link on its AI job
+Route::get('ai/jobs/{job}/versions/{version}/audio', [AiController::class, 'version'])
+    ->whereNumber('version')
+    ->middleware('signed')
+    ->name('ai.jobs.versions.audio');
 
 Route::middleware(['auth:sanctum'])
     ->group(function () {

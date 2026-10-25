@@ -6,7 +6,7 @@ namespace App\Services\Ai\Music;
  * ElevenLabs Music: songs or instrumentals from a prompt, up to 5 minutes,
  * trained on licensed music.
  */
-class ElevenLabsMusic extends MusicModel
+class ElevenLabsMusic extends ReplicateMusic
 {
     public const ID = 'elevenlabs/music';
 

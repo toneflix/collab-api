@@ -71,6 +71,16 @@ return [
             ],
         ],
 
+        // Suno songs and stems through sunoapi.org, a reseller of Suno, through App\Services\Ai\Suno.
+        'suno' => [
+            'key' => env('SUNO_API_KEY'),
+            'url' => env('SUNO_URL', 'https://api.sunoapi.org'),
+            // Uploads go to a separate file host that keeps them for 3 days
+            'upload_url' => env('SUNO_UPLOAD_URL', 'https://sunoapiorg.redpandaai.co'),
+            // Longest wait for one task, in seconds
+            'timeout' => (int) env('SUNO_TIMEOUT', 600),
+        ],
+
         'anthropic' => [
             'driver' => 'anthropic',
             'key' => env('ANTHROPIC_API_KEY'),

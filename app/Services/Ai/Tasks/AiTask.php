@@ -2,6 +2,7 @@
 
 namespace App\Services\Ai\Tasks;
 
+use App\Enums\AiEngine;
 use App\Models\AiJob;
 
 /**
@@ -22,6 +23,13 @@ interface AiTask
      * @param  array<string, mixed>  $input
      */
     public function describe(array $input): string;
+
+    /**
+     * The engine a job with this input runs on.
+     *
+     * @param  array<string, mixed>  $input
+     */
+    public function engine(array $input): AiEngine;
 
     /**
      * Do the work and return what it made, to keep on the job.

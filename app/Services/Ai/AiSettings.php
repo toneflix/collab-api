@@ -2,16 +2,19 @@
 
 namespace App\Services\Ai;
 
+use App\Enums\AiEngine;
 use App\Helpers\Providers;
 use App\Models\ArtistClaim;
 use App\Models\Release;
 use App\Services\Ai\Music\ElevenLabsMusic;
 use App\Services\Ai\Music\MusicModel;
+use App\Services\Ai\Music\SunoMusic;
 use App\Services\Settings\SettingsStore;
 
 /**
- * Admin settings for the AI tools: whether they're on, what credits cost and
- * how many credits each tool uses. The Replicate token comes from `.env`.
+ * Admin settings for the AI tools: whether they're on, which engine each tool
+ * runs on, what credits cost and how many credits each tool uses. Engine keys
+ * come from `.env`.
  */
 class AiSettings extends SettingsStore
 {
@@ -40,7 +43,13 @@ class AiSettings extends SettingsStore
         'ai_music_minimax_25_credits' => ['MiniMax Music 2.5 Credits per Song', '30', 'Credits one MiniMax Music 2.5 song uses, whatever its length.'],
         'ai_music_minimax_15_credits' => ['MiniMax Music 1.5 Credits per Song', '10', 'Credits one MiniMax Music 1.5 song uses, whatever its length.'],
         'ai_music_stable_audio_credits' => ['Stable Audio 2.5 Credits per Track', '40', 'Credits one Stable Audio 2.5 track uses, whatever its length.'],
-        'ai_stems_credits' => ['Stem Split Credits', '5', 'Credits one split into stems uses.'],
+        'ai_music_suno_credits' => ['Suno Credits per Song', '12', 'Credits one Suno song uses, whatever its length. A request costs about $0.06 on sunoapi.org and makes two versions.'],
+        'ai_suno_model' => ['Suno Model Version', 'V5_5', 'The Suno version songs are made with. v5.5 and v6 follow the length people ask for.'],
+        'ai_suno_keep_both' => ['Keep Both Suno Versions', '0', 'Suno makes two versions of every song. Keep both and let people pick the one that goes on the track, or keep only the first.'],
+        'ai_stems_engine' => ['Stem Split Engine', 'replicate', 'Where songs are split into stems: Demucs on Replicate, or Suno.'],
+        'ai_stems_credits' => ['Demucs Stem Split Credits', '5', 'Credits one split into stems uses on Replicate.'],
+        'ai_stems_suno_type' => ['Suno Stems', 'split_stem', 'Vocals and instrumental only (about $0.05 a split on sunoapi.org), or up to 12 stems (about $0.25).'],
+        'ai_stems_suno_credits' => ['Suno Stem Split Credits', '50', 'Credits one split into stems uses on Suno.'],
         'ai_music_max_seconds' => ['Longest Generated Track (seconds)', '300', 'The longest track people can generate at once.'],
         'ai_lyrics_credits' => ['Lyrics Credits', '2', 'Credits one lyrics transcription in the studio uses.'],
         'ai_lyrics_auto' => ['Transcribe Released Tracks', '1', 'Write out the lyrics of newly released tracks automatically. The app pays for these, not the creator.'],
@@ -56,14 +65,24 @@ class AiSettings extends SettingsStore
         'replicate' => [
             'REPLICATE_API_TOKEN' => ['Replicate API Token', 'ai.providers.replicate.key'],
         ],
+        'suno' => [
+            'SUNO_API_KEY' => ['Suno API Key', 'ai.providers.suno.key'],
+        ],
+    ];
+
+    /** Kinds of Suno stem splits, with the label admins see */
+    public const SUNO_STEM_TYPES = [
+        'separate_vocal' => 'Vocals and instrumental',
+        'split_stem' => 'Up to 12 stems',
     ];
 
     /**
-     * Whether admins turned the AI tools on and the Replicate token is set.
+     * Whether admins turned the AI tools on and an engine's key is set.
      */
     public static function enabled(): bool
     {
-        return filter_var(self::get('ai_enabled'), FILTER_VALIDATE_BOOL) && self::configured('replicate');
+        return filter_var(self::get('ai_enabled'), FILTER_VALIDATE_BOOL)
+            && collect(AiEngine::cases())->contains(fn(AiEngine $engine) => $engine->available());
     }
 
     public static function creditPrice(): float
@@ -117,9 +136,50 @@ class AiSettings extends SettingsStore
         return MusicModel::find(self::get('ai_music_model')) ?? new ElevenLabsMusic;
     }
 
-    public static function stemsCredits(): int
+    /**
+     * The engine new stem splits run on.
+     */
+    public static function stemsEngine(): AiEngine
     {
-        return max(1, (int) self::get('ai_stems_credits'));
+        return AiEngine::tryFrom((string) self::get('ai_stems_engine')) ?? AiEngine::REPLICATE;
+    }
+
+    /**
+     * Credits one split uses on an engine, the current one by default.
+     */
+    public static function stemsCredits(?AiEngine $engine = null): int
+    {
+        $key = ($engine ?? self::stemsEngine()) === AiEngine::SUNO ? 'ai_stems_suno_credits' : 'ai_stems_credits';
+
+        return max(1, (int) self::get($key));
+    }
+
+    /**
+     * The kind of split Suno makes, separate_vocal or split_stem.
+     */
+    public static function sunoStemsType(): string
+    {
+        $type = (string) self::get('ai_stems_suno_type');
+
+        return isset(self::SUNO_STEM_TYPES[$type]) ? $type : 'split_stem';
+    }
+
+    /**
+     * The Suno model version, like V5_5.
+     */
+    public static function sunoVersion(): string
+    {
+        $version = (string) self::get('ai_suno_model');
+
+        return isset(SunoMusic::VERSIONS[$version]) ? $version : 'V5_5';
+    }
+
+    /**
+     * Whether people keep both versions of a Suno song and pick one.
+     */
+    public static function sunoKeepsBoth(): bool
+    {
+        return filter_var(self::get('ai_suno_keep_both'), FILTER_VALIDATE_BOOL);
     }
 
     public static function lyricsCredits(): int
@@ -132,7 +192,7 @@ class AiSettings extends SettingsStore
      */
     public static function autoLyrics(): bool
     {
-        return self::enabled() && filter_var(self::get('ai_lyrics_auto'), FILTER_VALIDATE_BOOL);
+        return self::enabled() && AiEngine::REPLICATE->available() && filter_var(self::get('ai_lyrics_auto'), FILTER_VALIDATE_BOOL);
     }
 
     /**
@@ -181,7 +241,7 @@ class AiSettings extends SettingsStore
     /**
      * What the app needs to show the AI tools and their costs.
      *
-     * @return array{enabled: bool, creditPrice: float, packs: list<array{credits: int, discount: float, price: float}>, costs: array<string, int>, music: array<string, mixed>}
+     * @return array{enabled: bool, creditPrice: float, packs: list<array{credits: int, discount: float, price: float}>, costs: array<string, int>, music: array<string, mixed>, stemsEngine: string, engines: array<string, bool>}
      */
     public static function clientConfig(): array
     {
@@ -194,6 +254,10 @@ class AiSettings extends SettingsStore
                 'lyrics' => self::lyricsCredits(),
             ],
             'music' => self::musicModel()->toClient(),
+            'stemsEngine' => self::stemsEngine()->value,
+            'engines' => collect(AiEngine::cases())
+                ->mapWithKeys(fn(AiEngine $engine) => [$engine->value => $engine->available()])
+                ->all(),
         ];
     }
 

@@ -2,6 +2,7 @@
 
 namespace App\Services\Ai\Tasks;
 
+use App\Enums\AiEngine;
 use App\Models\AiJob;
 use App\Models\Lyric;
 use App\Models\ProjectTrackStem;
@@ -31,6 +32,11 @@ class TranscribeLyrics implements AiTask
     public function describe(array $input): string
     {
         return 'Lyrics: ' . ($input['title'] ?? 'stem');
+    }
+
+    public function engine(array $input): AiEngine
+    {
+        return AiEngine::REPLICATE;
     }
 
     public function handle(AiJob $job): array

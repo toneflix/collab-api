@@ -2,11 +2,12 @@
 
 namespace App\Services\Ai\Music;
 
+use App\Enums\AiEngine;
 use App\Services\Ai\AiSettings;
 
 /**
- * A music generation model on Replicate: what it can do, what a song costs
- * in credits and how the studio's form becomes the model's inputs.
+ * A music generation model: the engine it runs on, what it can do, what a
+ * song costs in credits and how the studio's form becomes the model's inputs.
  */
 abstract class MusicModel
 {
@@ -20,6 +21,7 @@ abstract class MusicModel
         MiniMaxMusic25::class,
         MiniMaxMusic15::class,
         StableAudio25::class,
+        SunoMusic::class,
     ];
 
     /** Credits are charged for every 10 seconds asked for */
@@ -28,8 +30,10 @@ abstract class MusicModel
     /** Credits are charged once per song */
     public const PER_SONG = 'song';
 
-    /** The model on Replicate, "owner/name" */
+    /** The model's id, "owner/name" */
     public const ID = '';
+
+    public const ENGINE = AiEngine::REPLICATE;
 
     public const NAME = '';
 
@@ -65,12 +69,55 @@ abstract class MusicModel
     }
 
     /**
+     * The name a job with this input shows.
+     *
+     * @param  array<string, mixed>  $input
+     */
+    public function nameFor(array $input): string
+    {
+        return $this->name();
+    }
+
+    public function engine(): AiEngine
+    {
+        return static::ENGINE;
+    }
+
+    /**
+     * Make the job's music. A reference is a local file the model follows.
+     * Most models make one song; some make a few versions to pick from.
+     *
+     * @param  array<string, mixed>  $input
+     * @return non-empty-list<Song>
+     */
+    abstract public function generate(array $input, ?string $reference = null): array;
+
+    /**
      * The longest track it makes on request, or null when the model picks
      * the length itself.
      */
     public function maxSeconds(): ?int
     {
         return null;
+    }
+
+    /**
+     * The shortest track people can ask for, in seconds.
+     */
+    public function minSeconds(): int
+    {
+        return 3;
+    }
+
+    /**
+     * Admin settings a job keeps from when it started, so a later change
+     * doesn't alter it.
+     *
+     * @return array<string, mixed>
+     */
+    public function jobSettings(): array
+    {
+        return [];
     }
 
     /**
@@ -85,13 +132,20 @@ abstract class MusicModel
 
     /**
      * Shortest and longest lyrics, or null when the model doesn't take any.
-     * Lyrics are required when given.
      *
      * @return array{0: int, 1: int}|null
      */
     public function lyricsLength(): ?array
     {
         return null;
+    }
+
+    /**
+     * Whether a model that takes lyrics needs them.
+     */
+    public function lyricsRequired(): bool
+    {
+        return true;
     }
 
     /**
@@ -151,9 +205,9 @@ abstract class MusicModel
         return array_filter([
             'prompt' => ['required', 'string', "min:{$min}", "max:{$max}"],
             'seconds' => $this->maxSeconds()
-                ? ['required', 'integer', 'min:3', 'max:' . min($this->maxSeconds(), AiSettings::musicMaxSeconds())]
+                ? ['required', 'integer', 'min:' . $this->minSeconds(), 'max:' . min($this->maxSeconds(), AiSettings::musicMaxSeconds())]
                 : ['nullable', 'integer'],
-            'lyrics' => $lyrics ? ['required', 'string', "min:{$lyrics[0]}", "max:{$lyrics[1]}"] : null,
+            'lyrics' => $lyrics ? [$this->lyricsRequired() ? 'required' : 'nullable', 'string', "min:{$lyrics[0]}", "max:{$lyrics[1]}"] : null,
             'instrumental' => ['nullable', 'boolean'],
             'seed' => ['nullable', 'integer', 'min:0', 'max:4294967295'],
             'reference_kind' => $this->references() ? ['nullable', 'string', 'in:' . implode(',', $this->references())] : null,
@@ -179,13 +233,16 @@ abstract class MusicModel
         return [
             'id' => static::ID,
             'name' => $this->name(),
+            'engine' => static::ENGINE->value,
             'description' => static::DESCRIPTION,
             'pricing' => static::PRICING,
             'credits' => $this->rate(),
             'creditsSetting' => static::CREDITS_SETTING,
+            'minSeconds' => $this->minSeconds(),
             'maxSeconds' => $this->maxSeconds() ? min($this->maxSeconds(), AiSettings::musicMaxSeconds()) : null,
             'promptLength' => $this->promptLength(),
             'lyricsLength' => $this->lyricsLength(),
+            'lyricsRequired' => $this->lyricsRequired(),
             'instrumentalOption' => $this->instrumentalOption(),
             'instrumentalOnly' => $this->instrumentalOnly(),
             'references' => $this->references(),

@@ -2,18 +2,21 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\AiEngine;
 use App\Enums\HttpStatus;
 use App\Helpers\Providers;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\SettingsResource;
 use App\Services\Ai\AiSettings;
 use App\Services\Ai\Music\MusicModel;
+use App\Services\Ai\Music\SunoMusic;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 /**
- * Lets admins switch the AI tools on or off and set what credits cost.
+ * Lets admins switch the AI tools on or off, pick each tool's engine and set
+ * what credits cost.
  */
 class AiSettingsController extends Controller
 {
@@ -47,7 +50,12 @@ class AiSettingsController extends Controller
             ...collect(MusicModel::all())->mapWithKeys(fn(MusicModel $model) => [
                 $model::CREDITS_SETTING => ['nullable', 'integer', 'between:1,1000'],
             ])->all(),
+            'ai_suno_model' => ['nullable', 'string', Rule::in(array_keys(SunoMusic::VERSIONS))],
+            'ai_suno_keep_both' => ['nullable', 'boolean'],
+            'ai_stems_engine' => ['nullable', 'string', Rule::enum(AiEngine::class)],
             'ai_stems_credits' => ['nullable', 'integer', 'between:1,1000'],
+            'ai_stems_suno_type' => ['nullable', 'string', Rule::in(array_keys(AiSettings::SUNO_STEM_TYPES))],
+            'ai_stems_suno_credits' => ['nullable', 'integer', 'between:1,1000'],
             'ai_music_max_seconds' => ['nullable', 'integer', 'between:10,300'],
             'ai_lyrics_credits' => ['nullable', 'integer', 'between:1,1000'],
             'ai_lyrics_auto' => ['nullable', 'boolean'],
@@ -63,11 +71,22 @@ class AiSettingsController extends Controller
 
         AiSettings::update($valid);
 
-        $message = filter_var($valid['ai_enabled'] ?? false, FILTER_VALIDATE_BOOL) && ! AiSettings::configured('replicate')
-            ? 'Saved, but the AI tools stay off until REPLICATE_API_TOKEN is set in .env.'
-            : 'AI settings saved.';
+        return $this->settings($this->savedMessage(), HttpStatus::ACCEPTED);
+    }
 
-        return $this->settings($message, HttpStatus::ACCEPTED);
+    /**
+     * Say which chosen engines still need their key in `.env`.
+     */
+    protected function savedMessage(): string
+    {
+        $missing = collect([AiEngine::REPLICATE, AiSettings::musicModel()->engine(), AiSettings::stemsEngine()])
+            ->unique(fn(AiEngine $engine) => $engine->value)
+            ->reject(fn(AiEngine $engine) => $engine->available())
+            ->map(fn(AiEngine $engine) => $engine->missingKeys());
+
+        return $missing->isEmpty()
+            ? 'AI settings saved.'
+            : 'Saved. Set ' . $missing->join(' and ') . ' in .env for the tools that use them.';
     }
 
     protected function settings(string $message = 'OK', HttpStatus $status = HttpStatus::OK)
@@ -77,6 +96,13 @@ class AiSettingsController extends Controller
             'keys' => AiSettings::keys(),
             'client' => AiSettings::clientConfig(),
             'models' => AiSettings::musicModels(),
+            'options' => [
+                'sunoVersions' => SunoMusic::VERSIONS,
+                'sunoStemTypes' => AiSettings::SUNO_STEM_TYPES,
+                'engines' => collect(AiEngine::cases())
+                    ->mapWithKeys(fn(AiEngine $engine) => [$engine->value => $engine->label()])
+                    ->all(),
+            ],
             'currency' => (string) Providers::config('app_currency', 'USD'),
         ];
 
