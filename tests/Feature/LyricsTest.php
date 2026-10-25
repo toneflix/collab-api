@@ -228,7 +228,7 @@ class LyricsTest extends TestCase
         $this->putJson($this->url(), ['lines' => [['text' => 'Shit happens']]])->assertAccepted();
         $this->assertTrue($released->fresh()->explicit);
 
-        $this->putJson($this->url(), ['lines' => []])->assertAccepted()->assertJsonPath('data', null);
+        $this->putJson($this->url(), ['lines' => []])->assertAccepted()->assertJsonPath('data', []);
 
         $this->assertNull(app(Lyrics::class)->for($released));
         $this->assertFalse($released->fresh()->explicit);

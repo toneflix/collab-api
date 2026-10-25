@@ -7,7 +7,8 @@ use Illuminate\Http\Request;
 use Toneflix\ResourceModifier\Services\Json\JsonResource;
 
 /**
- * Lyrics as the player and studio show them.
+ * Lyrics as the player and studio show them. A track without lyrics is
+ * an empty object.
  *
  * @mixin Lyric
  */
@@ -18,6 +19,10 @@ class LyricResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        if ($this->resource === null) {
+            return [];
+        }
+
         return [
             'lines' => $this->lines,
             'synced' => $this->synced(),

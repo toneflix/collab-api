@@ -4,9 +4,9 @@ namespace App\Http\Controllers\Account;
 
 use App\Enums\Feature;
 use App\Enums\HttpStatus;
-use App\Helpers\Providers;
 use App\Http\Controllers\Controller;
-use App\Http\Resources\AiCreditEntryResource;
+use App\Http\Resources\AiAccountResource;
+use App\Http\Resources\AiCreditEntryCollection;
 use App\Models\AiCreditEntry;
 use App\Services\Ai\AiSettings;
 use App\Services\Ai\Credits;
@@ -20,13 +20,18 @@ class AiCreditsController extends Controller
 {
     public function show(Request $request)
     {
-        return Providers::response()->success([
-            'data' => [
-                'access' => (bool) $request->user()->feature(Feature::AI_TOOLS),
-                'balance' => Credits::for($request->user())->balance(),
-                ...AiSettings::clientConfig(),
-            ],
+        $user = $request->user();
+
+        $account = [
+            'access' => (bool) $user->feature(Feature::AI_TOOLS),
+            'balance' => Credits::for($user)->balance(),
+            ...AiSettings::clientConfig(),
+        ];
+
+        return (new AiAccountResource($account))->additional([
             'message' => HttpStatus::message(HttpStatus::OK),
+            'status' => 'success',
+            'status_code' => HttpStatus::OK,
         ]);
     }
 
@@ -39,9 +44,9 @@ class AiCreditsController extends Controller
         $entries = AiCreditEntry::query()
             ->where('user_id', $request->user()->id)
             ->latest('id')
-            ->paginate((int) $request->input('limit', 20));
+            ->paginate($request->perPage(20));
 
-        return AiCreditEntryResource::collection($entries)->additional([
+        return (new AiCreditEntryCollection($entries))->additional([
             'message' => HttpStatus::message(HttpStatus::OK),
             'status' => 'success',
             'status_code' => HttpStatus::OK,

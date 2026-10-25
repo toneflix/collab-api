@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Creator;
 
 use App\Enums\HttpStatus;
-use App\Helpers\Providers;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\AiJobResource;
 use App\Http\Resources\LyricResource;
@@ -26,14 +25,17 @@ class LyricsController extends Controller
     {
         $this->authorize('view', $track);
 
-        return $this->lyrics($lyrics->for($track));
+        $lyric = $lyrics->for($track);
+
+        return $this->lyrics($lyric);
     }
 
     public function update(Request $request, Lyrics $lyrics, Project $project, ProjectTrack $track)
     {
         $this->authorize('update', $track);
 
-        $lyric = $lyrics->save($track, $this->lines($request), Lyric::WRITTEN, $request->user());
+        $lines = $this->lines($request);
+        $lyric = $lyrics->save($track, $lines, Lyric::WRITTEN, $request->user());
 
         return $this->lyrics($lyric, 'Lyrics saved.', HttpStatus::ACCEPTED);
     }
@@ -50,11 +52,14 @@ class LyricsController extends Controller
             'title' => (string) $stem->title,
         ]);
 
-        return (new AiJobResource($job))->additional([
-            'message' => 'Writing out the lyrics. They show up on the lyric sheet when they\'re ready.',
-            'status' => 'success',
-            'status_code' => HttpStatus::CREATED,
-        ])->response()->setStatusCode(HttpStatus::CREATED->value);
+        return (new AiJobResource($job))
+            ->additional([
+                'message' => 'Writing out the lyrics. They show up on the lyric sheet when they\'re ready.',
+                'status' => 'success',
+                'status_code' => HttpStatus::CREATED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::CREATED->value);
     }
 
     /**
@@ -64,7 +69,8 @@ class LyricsController extends Controller
     {
         abort_unless($track->release?->isOwnedBy($request->user()), HttpStatus::NOT_FOUND->value, 'Track not found.');
 
-        $lyric = $lyrics->save($track, $this->lines($request), Lyric::WRITTEN, $request->user());
+        $lines = $this->lines($request);
+        $lyric = $lyrics->save($track, $lines, Lyric::WRITTEN, $request->user());
 
         return $this->lyrics($lyric, 'Lyrics saved.', HttpStatus::ACCEPTED);
     }
@@ -86,16 +92,13 @@ class LyricsController extends Controller
 
     protected function lyrics(?Lyric $lyric, ?string $message = null, HttpStatus $status = HttpStatus::OK)
     {
-        $message ??= HttpStatus::message(HttpStatus::OK);
-
-        if (! $lyric) {
-            return Providers::response()->success(['data' => null, 'message' => $message], $status);
-        }
-
-        return (new LyricResource($lyric))->additional([
-            'message' => $message,
-            'status' => 'success',
-            'status_code' => $status,
-        ])->response()->setStatusCode($status->value);
+        return (new LyricResource($lyric))
+            ->additional([
+                'message' => $message ?? HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => $status,
+            ])
+            ->response()
+            ->setStatusCode($status->value);
     }
 }

@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Creator;
 
 use App\Enums\HttpStatus;
 use App\Enums\MusicalKey;
-use App\Helpers\Providers;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\AudioTagsResource;
 use App\Models\Project;
 use App\Models\ProjectTrack;
 use App\Models\Track;
@@ -45,9 +45,13 @@ class AudioTagController extends Controller
 
         $tagger->set($owner, $bpm, $key);
 
-        return Providers::response()->success([
-            'data' => $owner->audioTags(),
-            'message' => $bpm === null && $key === null ? 'Detecting the tempo and key again.' : 'Tempo and key saved.',
-        ], HttpStatus::ACCEPTED);
+        return (new AudioTagsResource($owner))
+            ->additional([
+                'message' => $bpm === null && $key === null ? 'Detecting the tempo and key again.' : 'Tempo and key saved.',
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 }

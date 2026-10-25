@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Creator;
 
 use App\Enums\HttpStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\AiJobCollection;
 use App\Http\Resources\AiJobResource;
 use App\Models\AiJob;
 use App\Models\Project;
@@ -65,9 +66,9 @@ class AiController extends Controller
         $jobs = AiJob::query()
             ->where('project_track_id', $track->id)
             ->latest('id')
-            ->paginate((int) $request->input('limit', 20));
+            ->paginate($request->perPage(20, 50));
 
-        return AiJobResource::collection($jobs)->additional([
+        return (new AiJobCollection($jobs))->additional([
             'message' => HttpStatus::message(HttpStatus::OK),
             'status' => 'success',
             'status_code' => HttpStatus::OK,
@@ -87,10 +88,13 @@ class AiController extends Controller
 
     protected function started(AiJob $job, string $message)
     {
-        return (new AiJobResource($job))->additional([
-            'message' => $message,
-            'status' => 'success',
-            'status_code' => HttpStatus::CREATED,
-        ])->response()->setStatusCode(HttpStatus::CREATED->value);
+        return (new AiJobResource($job))
+            ->additional([
+                'message' => $message,
+                'status' => 'success',
+                'status_code' => HttpStatus::CREATED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::CREATED->value);
     }
 }
