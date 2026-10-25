@@ -97,6 +97,28 @@ class PlaylistTest extends TestCase
         $this->assertSame($byArtist->id, $this->playlist(['similar_to' => $seed->id])->first());
     }
 
+    public function test_tracks_are_picked_by_relation_then_album_artist_and_label(): void
+    {
+        $genre = Genre::factory()
+            ->create();
+        $other = Genre::factory()
+            ->create();
+
+        $album = $this->makeRelease($genre, 2, ['record_label' => 'Seed Records']);
+        [$seed, $albumMate] = $album->tracks->all();
+        $albumMate->updateQuietly(['genre_id' => $other->id]);
+
+        $rest = $this->makeRelease($other, 1, ['record_label' => 'Other Records'])->tracks->first();
+        $label = $this->makeRelease($other, 1, ['record_label' => 'Seed Records'])->tracks->first();
+        $artist = $this->makeRelease($other, 1, ['record_label' => 'Other Records'])->tracks->first();
+        $artist->artists()->attach($seed->artists()->pluck('artists.id'));
+        $related = $this->makeRelease($genre, 1, ['record_label' => 'Other Records'])->tracks->first();
+
+        $ids = $this->playlist(['similar_to' => $seed->id]);
+
+        $this->assertEquals([$related->id, $albumMate->id, $artist->id, $label->id, $rest->id], $ids->all());
+    }
+
     public function test_queued_tracks_are_skipped_until_nothing_else_is_left(): void
     {
         $genre = Genre::factory()
@@ -127,7 +149,7 @@ class PlaylistTest extends TestCase
         $this->assertEmpty($this->playlist(['similar_to' => $seed->id, 'exclude' => [$seed->id]]));
     }
 
-    public function test_only_public_free_tracks_from_live_releases_are_picked(): void
+    public function test_only_free_tracks_from_live_releases_are_picked(): void
     {
         $genre = Genre::factory()
             ->create();
@@ -143,10 +165,6 @@ class PlaylistTest extends TestCase
         $paid = $this
             ->makeRelease($genre, 1, ['price' => 500])->tracks
             ->first();
-        $private = $this
-            ->makeRelease($genre)->tracks
-            ->first();
-        $private->update(['privacy' => 'private']);
         $live = $this
             ->makeRelease($genre)->tracks
             ->first();
@@ -157,7 +175,31 @@ class PlaylistTest extends TestCase
         $this->assertNotContains($draft->id, $ids);
         $this->assertNotContains($retired->id, $ids);
         $this->assertNotContains($paid->id, $ids);
-        $this->assertNotContains($private->id, $ids);
+    }
+
+    public function test_released_tracks_from_private_studio_projects_are_picked(): void
+    {
+        $genre = Genre::factory()
+            ->create();
+        $seed = $this
+            ->makeRelease($genre)->tracks
+            ->first();
+        $track = $this
+            ->makeRelease($genre)->tracks
+            ->first();
+        $track->update(['privacy' => 'private']);
+
+        $this->assertEquals([$track->id], $this->playlist(['similar_to' => $seed->id])->all());
+    }
+
+    public function test_tracks_without_artwork_show_their_release_artwork(): void
+    {
+        $release = $this->makeRelease(Genre::factory()->create(), 1, ['image' => 'cover.jpg']);
+        $track = $release->tracks
+            ->first();
+        $track->updateQuietly(['image' => null]);
+
+        $this->assertSame($release->files['artwork'], $track->fresh()->artworkUrl());
     }
 
     public function test_exclusions_are_bounded(): void

@@ -130,6 +130,22 @@ class Track extends Model implements CanBeTakenDown
         return $query->firstOrFail();
     }
 
+    /**
+     * The track's artwork, else its release's, else its studio project's.
+     */
+    public function artworkUrl(): ?string
+    {
+        if (! $this->image && $this->release?->image) {
+            return $this->release->files['artwork'];
+        }
+
+        if (! $this->image && $this->projectTrack?->project) {
+            return $this->projectTrack->project->files['image'];
+        }
+
+        return $this->files['image'];
+    }
+
     public function registerFileable()
     {
         $this->fileableLoader([
