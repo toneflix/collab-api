@@ -113,7 +113,15 @@ class MixRenderer
             ? $graph->chain($pads, 'amix=inputs=' . count($pads) . ':normalize=0:duration=longest', 'stem')
             : $pads[0];
 
-        foreach ($mix->mixEffects($channels) as $effect) {
+        $effects = $mix->mixEffects($channels);
+
+        if ($channels === 1 && collect($effects)->contains(fn($effect) => $effect->stereo())) {
+            $pad = $graph->chain($pad, 'pan=stereo|c0=c0|c1=c0', 'up');
+            $channels = 2;
+            $effects = $mix->mixEffects($channels);
+        }
+
+        foreach ($effects as $effect) {
             $pad = $effect->apply($graph, $pad);
         }
 

@@ -150,6 +150,16 @@ class MixRenderTest extends TestCase
             ['type' => 'native-compressor', 'params' => ['threshold' => -20, 'ratio' => 4, 'knee' => 30, 'attack' => 0.003, 'release' => 0.25]],
             ['type' => 'native-filter', 'params' => ['frequency' => 5000, 'q' => 2]],
             ['type' => 'native-filter', 'params' => ['frequency' => 200], 'bypassed' => 'true'],
+            ['type' => 'tf-highpass', 'params' => ['frequency' => 80, 'q' => 3]],
+            ['type' => 'tf-saturation', 'params' => ['drive' => 18, 'mix' => 0.7]],
+            ['type' => 'tf-crusher', 'params' => ['bits' => 4, 'mix' => 0.5]],
+            ['type' => 'tf-tremolo', 'params' => ['rate' => 6, 'depth' => 0.6]],
+            ['type' => 'tf-chorus', 'params' => ['rate' => 0.8, 'depth' => 0.5, 'mix' => 0.5]],
+            ['type' => 'tf-flanger', 'params' => ['rate' => 0.3, 'depth' => 0.7, 'feedback' => 0.5, 'mix' => 0.5]],
+            ['type' => 'tf-phaser', 'params' => ['rate' => 0.5, 'depth' => 0.6, 'feedback' => 0.4, 'mix' => 0.5]],
+            ['type' => 'tf-width', 'params' => ['width' => 1.6]],
+            ['type' => 'tf-autopan', 'params' => ['rate' => 0.5, 'depth' => 0.8]],
+            ['type' => 'tf-limiter', 'params' => ['ceiling' => -3, 'release' => 0.1]],
         ];
 
         $this->stem($this->tone(2, 440, 0.5), ['effects' => json_encode($effects), 'stereoPan' => 0.4]);
