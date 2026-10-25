@@ -46,10 +46,13 @@ class SafetyController extends Controller
 
         $report = $moderation->report($request->user(), $item, $valid['reason'], $valid['details'] ?? null, $claim);
 
-        return (new SafetyResource($report))->additional([
-            'message' => __('Thank you for looking out. We\'re reviewing your report, and if this :0 breaks our Terms of service, it will be removed.', [$moderation->label($item)]),
-            'status' => 'success',
-            'status_code' => HttpStatus::CREATED,
-        ])->response()->setStatusCode(HttpStatus::CREATED->value);
+        return (new SafetyResource($report))
+            ->additional([
+                'message' => __('Thank you for looking out. We\'re reviewing your report, and if this :0 breaks our Terms of service, it will be removed.', [$moderation->label($item)]),
+                'status' => 'success',
+                'status_code' => HttpStatus::CREATED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::CREATED->value);
     }
 }

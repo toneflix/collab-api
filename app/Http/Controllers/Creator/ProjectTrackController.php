@@ -30,11 +30,12 @@ class ProjectTrackController extends Controller
 
         $tracks = $query->paginate($request->perPage(45));
 
-        return (new ProjectTrackCollection($tracks))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new ProjectTrackCollection($tracks))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -68,7 +69,9 @@ class ProjectTrackController extends Controller
             'message' => 'Project track created successfully',
             'status' => 'success',
             'status_code' => HttpStatus::CREATED,
-        ])->response()->setStatusCode(HttpStatus::CREATED->value);
+        ])
+            ->response()
+            ->setStatusCode(HttpStatus::CREATED->value);
     }
 
     /**
@@ -78,11 +81,12 @@ class ProjectTrackController extends Controller
     {
         $this->authorize('view', $track);
 
-        return (new ProjectTrackResource($track))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new ProjectTrackResource($track))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -150,7 +154,9 @@ class ProjectTrackController extends Controller
             'message' => 'Project track updated successfully',
             'status' => 'success',
             'status_code' => HttpStatus::ACCEPTED,
-        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
+        ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 
     protected function saveStems(Request $request, ProjectTrack $track): void
@@ -201,10 +207,13 @@ class ProjectTrackController extends Controller
 
         $track->delete();
 
-        return (new ProjectTrackResource($track))->additional([
-            'message' => 'Project track deleted successfully',
-            'status' => 'success',
-            'status_code' => HttpStatus::ACCEPTED,
-        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
+        return (new ProjectTrackResource($track))
+            ->additional([
+                'message' => 'Project track deleted successfully',
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 }

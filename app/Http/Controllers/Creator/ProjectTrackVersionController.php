@@ -54,12 +54,15 @@ class ProjectTrackVersionController extends Controller
             'restored_from_id' => $version->id,
         ]);
 
-        return (new ProjectTrackVersionResource($result['version']->load(['user', 'restoredFrom'])))->additional([
-            'missing' => $result['missing'],
-            'keptAudio' => $result['kept_audio'],
-            'message' => 'Version restored.',
-            'status' => 'success',
-            'status_code' => HttpStatus::ACCEPTED,
-        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
+        return (new ProjectTrackVersionResource($result['version']->load(['user', 'restoredFrom'])))
+            ->additional([
+                'missing' => $result['missing'],
+                'keptAudio' => $result['kept_audio'],
+                'message' => 'Version restored.',
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 }

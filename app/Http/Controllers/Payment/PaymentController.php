@@ -56,11 +56,14 @@ class PaymentController extends Controller
 
         $paid = $transaction->status === 'complete';
 
-        return (new TransactionResource($transaction))->additional([
-            'message' => $paid ? 'Payment successful.' : 'We could not confirm this payment.',
-            'status' => $paid ? 'success' : 'error',
-            'status_code' => $paid ? HttpStatus::OK : HttpStatus::BAD_REQUEST,
-        ])->response()->setStatusCode($paid ? HttpStatus::OK->value : HttpStatus::BAD_REQUEST->value);
+        return (new TransactionResource($transaction))
+            ->additional([
+                'message' => $paid ? 'Payment successful.' : 'We could not confirm this payment.',
+                'status' => $paid ? 'success' : 'error',
+                'status_code' => $paid ? HttpStatus::OK : HttpStatus::BAD_REQUEST,
+            ])
+            ->response()
+            ->setStatusCode($paid ? HttpStatus::OK->value : HttpStatus::BAD_REQUEST->value);
     }
 
     /**

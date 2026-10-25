@@ -30,11 +30,12 @@ class ReleaseController extends Controller
 
         $releases = $query->paginate($request->perPage(15));
 
-        return (new ReleaseCollection($releases))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new ReleaseCollection($releases))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -123,7 +124,9 @@ class ReleaseController extends Controller
             'message' => 'New release created successfully.',
             'status' => 'success',
             'status_code' => HttpStatus::CREATED,
-        ])->response()->setStatusCode(HttpStatus::CREATED->value);
+        ])
+            ->response()
+            ->setStatusCode(HttpStatus::CREATED->value);
     }
 
     /**
@@ -226,13 +229,16 @@ class ReleaseController extends Controller
             (new Reputation($this->user, $repType))->add();
         }
 
-        return (new ReleaseResource($release))->additional([
-            'message' => $release->isInReview() && $request->boolean('publish')
-                ? 'Release submitted for review. It goes live once an admin approves it.'
-                : __('Release :0 successfully.', [$request->publish ? 'published' : 'updated']),
-            'status' => 'success',
-            'status_code' => HttpStatus::ACCEPTED,
-        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
+        return (new ReleaseResource($release))
+            ->additional([
+                'message' => $release->isInReview() && $request->boolean('publish')
+                    ? 'Release submitted for review. It goes live once an admin approves it.'
+                    : __('Release :0 successfully.', [$request->publish ? 'published' : 'updated']),
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 
     public function saveTracks(Request $request, Release $release): void
@@ -347,11 +353,14 @@ class ReleaseController extends Controller
 
         $versions->retire($release, $request->boolean('retired'));
 
-        return (new ReleaseResource($release))->additional([
-            'message' => $release->isRetired() ? 'Release retired.' : 'Release restored.',
-            'status' => 'success',
-            'status_code' => HttpStatus::ACCEPTED,
-        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
+        return (new ReleaseResource($release))
+            ->additional([
+                'message' => $release->isRetired() ? 'Release retired.' : 'Release restored.',
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 
     /**
@@ -366,10 +375,13 @@ class ReleaseController extends Controller
 
         $release->delete();
 
-        return (new ReleaseCollection([]))->additional([
-            'message' => 'Release deleted successfully.',
-            'status' => 'success',
-            'status_code' => HttpStatus::ACCEPTED,
-        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
+        return (new ReleaseCollection([]))
+            ->additional([
+                'message' => 'Release deleted successfully.',
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 }

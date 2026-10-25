@@ -27,11 +27,12 @@ class ProjectCollaboratorController extends Controller
 
         $collaborators = $query->paginate($request->perPage(45));
 
-        return (new ProjectCollaboratorCollection($collaborators))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new ProjectCollaboratorCollection($collaborators))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -94,7 +95,9 @@ class ProjectCollaboratorController extends Controller
             ]),
             'status' => 'success',
             'status_code' => HttpStatus::CREATED,
-        ])->response()->setStatusCode(HttpStatus::CREATED->value);
+        ])
+            ->response()
+            ->setStatusCode(HttpStatus::CREATED->value);
     }
 
     /**
@@ -126,10 +129,13 @@ class ProjectCollaboratorController extends Controller
         $collaborator->request()->delete();
         $collaborator->delete();
 
-        return (new ProjectCollaboratorResource($collaborator))->additional([
-            'message' => __(! $collaborator->accepted ? 'Your request has been cancelled.' : 'You have now left the project.'),
-            'status' => 'success',
-            'status_code' => HttpStatus::ACCEPTED,
-        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
+        return (new ProjectCollaboratorResource($collaborator))
+            ->additional([
+                'message' => __(! $collaborator->accepted ? 'Your request has been cancelled.' : 'You have now left the project.'),
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 }

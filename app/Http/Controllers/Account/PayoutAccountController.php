@@ -46,11 +46,12 @@ class PayoutAccountController extends Controller
             return Providers::response()->success(['data' => null, 'message' => HttpStatus::message(HttpStatus::OK)]);
         }
 
-        return (new PayoutAccountResource($account))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new PayoutAccountResource($account))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -76,7 +77,9 @@ class PayoutAccountController extends Controller
             'message' => 'Your payout account was saved.',
             'status' => 'success',
             'status_code' => HttpStatus::OK,
-        ])->response()->setStatusCode(HttpStatus::OK->value);
+        ])
+            ->response()
+            ->setStatusCode(HttpStatus::OK->value);
     }
 
     /**

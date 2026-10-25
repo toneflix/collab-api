@@ -25,11 +25,12 @@ class ProjectTrackAssetController extends Controller
 
         $assets = $query->get();
 
-        return (new FileCollection($assets))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new FileCollection($assets))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -57,7 +58,9 @@ class ProjectTrackAssetController extends Controller
             'message' => 'Track asset uploaded successfully.',
             'status' => 'success',
             'status_code' => HttpStatus::CREATED,
-        ])->response()->setStatusCode(HttpStatus::CREATED->value);
+        ])
+            ->response()
+            ->setStatusCode(HttpStatus::CREATED->value);
     }
 
     /**
@@ -67,11 +70,12 @@ class ProjectTrackAssetController extends Controller
     {
         $this->authorize('view', $track);
 
-        return (new FileResource($asset))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new FileResource($asset))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -103,7 +107,9 @@ class ProjectTrackAssetController extends Controller
             'message' => 'Track asset updated successfully.',
             'status' => 'success',
             'status_code' => HttpStatus::ACCEPTED,
-        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
+        ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 
     /**
@@ -115,10 +121,13 @@ class ProjectTrackAssetController extends Controller
 
         $asset->delete();
 
-        return (new FileCollection([]))->additional([
-            'message' => 'Track asset deleted successfully.',
-            'status' => 'success',
-            'status_code' => HttpStatus::ACCEPTED,
-        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
+        return (new FileCollection([]))
+            ->additional([
+                'message' => 'Track asset deleted successfully.',
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 }

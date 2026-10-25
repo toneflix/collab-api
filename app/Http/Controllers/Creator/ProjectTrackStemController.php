@@ -31,11 +31,12 @@ class ProjectTrackStemController extends Controller
 
         $stems = $query->get();
 
-        return (new ProjectTrackStemCollection($stems))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new ProjectTrackStemCollection($stems))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -79,7 +80,9 @@ class ProjectTrackStemController extends Controller
             'message' => 'Track stem created successfully.',
             'status' => 'success',
             'status_code' => HttpStatus::CREATED,
-        ])->response()->setStatusCode(HttpStatus::CREATED->value);
+        ])
+            ->response()
+            ->setStatusCode(HttpStatus::CREATED->value);
     }
 
     /**
@@ -89,11 +92,12 @@ class ProjectTrackStemController extends Controller
     {
         $this->authorize('view', $track);
 
-        return (new ProjectTrackStemResource($stem))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new ProjectTrackStemResource($stem))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -135,7 +139,9 @@ class ProjectTrackStemController extends Controller
             'message' => 'Track stem updated successfully.',
             'status' => 'success',
             'status_code' => HttpStatus::ACCEPTED,
-        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
+        ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 
     /**
@@ -157,10 +163,13 @@ class ProjectTrackStemController extends Controller
             'stem_id' => $stem->id,
         ]);
 
-        return (new ProjectTrackStemCollection([]))->additional([
-            'message' => 'Track stem deleted successfully.',
-            'status' => 'success',
-            'status_code' => HttpStatus::ACCEPTED,
-        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
+        return (new ProjectTrackStemCollection([]))
+            ->additional([
+                'message' => 'Track stem deleted successfully.',
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 }

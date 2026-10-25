@@ -65,11 +65,14 @@ class Account extends Controller
      */
     public function index()
     {
-        return (new UserResource(Auth::user()))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ])->response()->setStatusCode(HttpStatus::OK->value);
+        return (new UserResource(Auth::user()))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::OK->value);
     }
 
     /**
@@ -253,14 +256,17 @@ class Account extends Controller
 
         $user->save();
 
-        return (new UserResource($user))->additional([
-            'message' => __($msg, [
-                str($this->fillable[$identifier] ?? $this->fillable[$fields->first()] ?? 'profile')->lower(),
-            ]),
-            'status' => 'success',
-            'status_code' => HttpStatus::ACCEPTED,
-            'image' => $user->avatar,
-        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
+        return (new UserResource($user))
+            ->additional([
+                'message' => __($msg, [
+                    str($this->fillable[$identifier] ?? $this->fillable[$fields->first()] ?? 'profile')->lower(),
+                ]),
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+                'image' => $user->avatar,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 
     /**
@@ -283,11 +289,14 @@ class Account extends Controller
         $user->updated_at = Carbon::now();
         $user->save();
 
-        return (new UserResource($user))->additional([
-            'message' => 'Your profile picture has been changed successfully',
-            'status' => 'success',
-            'status_code' => HttpStatus::ACCEPTED,
-        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
+        return (new UserResource($user))
+            ->additional([
+                'message' => 'Your profile picture has been changed successfully',
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 
     /**
@@ -318,10 +327,13 @@ class Account extends Controller
         $user->data['password_updated'] = now();
         $user->save();
 
-        return (new UserResource($user))->additional([
-            'message' => 'Your password has been successfully updated',
-            'status' => 'success',
-            'status_code' => HttpStatus::ACCEPTED,
-        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
+        return (new UserResource($user))
+            ->additional([
+                'message' => 'Your password has been successfully updated',
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 }

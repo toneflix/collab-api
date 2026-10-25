@@ -39,10 +39,13 @@ class ArtistClaimController extends Controller
             $request->file('document'),
         );
 
-        return (new ArtistClaimResource($claim))->additional([
-            'message' => 'Thanks. We\'ll review your claim and let you know.',
-            'status' => 'success',
-            'status_code' => HttpStatus::CREATED,
-        ])->response()->setStatusCode(HttpStatus::CREATED->value);
+        return (new ArtistClaimResource($claim))
+            ->additional([
+                'message' => 'Thanks. We\'ll review your claim and let you know.',
+                'status' => 'success',
+                'status_code' => HttpStatus::CREATED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::CREATED->value);
     }
 }

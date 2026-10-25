@@ -32,11 +32,12 @@ class ProjectController extends Controller
 
         $projects = $query->paginate($request->perPage(45));
 
-        return (new ProjectCollection($projects))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new ProjectCollection($projects))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -73,7 +74,9 @@ class ProjectController extends Controller
             'message' => HttpStatus::message(HttpStatus::CREATED),
             'status' => 'success',
             'status_code' => HttpStatus::CREATED,
-        ])->response()->setStatusCode(HttpStatus::CREATED->value);
+        ])
+            ->response()
+            ->setStatusCode(HttpStatus::CREATED->value);
     }
 
     /**
@@ -86,11 +89,12 @@ class ProjectController extends Controller
 
         $project = $query->where(fn($q) => $q->where('slug', $id)->when(is_numeric($id), fn($q) => $q->orWhere('projects.id', $id)))->firstOrFail();
 
-        return (new ProjectResource($project))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new ProjectResource($project))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -119,7 +123,9 @@ class ProjectController extends Controller
             'message' => 'Project updated successfully.',
             'status' => 'success',
             'status_code' => HttpStatus::ACCEPTED,
-        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
+        ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 
     /**
@@ -140,10 +146,13 @@ class ProjectController extends Controller
             (new Reputation($this->user, 'delete_project'))->add($project->socialInteractionData()['props']);
         }
 
-        return (new ProjectCollection([]))->additional([
-            'message' => 'Project deleted successfully.',
-            'status' => 'success',
-            'status_code' => HttpStatus::ACCEPTED,
-        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
+        return (new ProjectCollection([]))
+            ->additional([
+                'message' => 'Project deleted successfully.',
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 }

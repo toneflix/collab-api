@@ -29,11 +29,12 @@ class TrackController extends Controller
 
         $tracks = $query->paginate($request->perPage(15));
 
-        return (new TrackCollection($tracks))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new TrackCollection($tracks))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -87,7 +88,9 @@ class TrackController extends Controller
             'message' => 'New track created successfully.',
             'status' => 'success',
             'status_code' => HttpStatus::CREATED,
-        ])->response()->setStatusCode(HttpStatus::CREATED->value);
+        ])
+            ->response()
+            ->setStatusCode(HttpStatus::CREATED->value);
     }
 
     /**
@@ -139,11 +142,14 @@ class TrackController extends Controller
         }
         $track->artists()->sync($artists);
 
-        return (new TrackResource($track))->additional([
-            'message' => 'Track updated successfully.',
-            'status' => 'success',
-            'status_code' => HttpStatus::ACCEPTED,
-        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
+        return (new TrackResource($track))
+            ->additional([
+                'message' => 'Track updated successfully.',
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 
     /**
@@ -210,10 +216,13 @@ class TrackController extends Controller
             ->where(fn($q) => $q->where('slug', $id)->when(is_numeric($id), fn($q) => $q->orWhere('tracks.id', $id)))
             ->delete();
 
-        return (new TrackCollection([]))->additional([
-            'message' => 'Track deleted successfully.',
-            'status' => 'success',
-            'status_code' => HttpStatus::ACCEPTED,
-        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
+        return (new TrackCollection([]))
+            ->additional([
+                'message' => 'Track deleted successfully.',
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 }

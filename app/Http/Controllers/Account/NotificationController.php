@@ -98,10 +98,13 @@ class NotificationController extends Controller
     {
         $request->user()->notifications()->findOrFail($id)->delete();
 
-        return (new NotificationCollection([]))->additional([
-            'message' => __('Notification Deleted'),
-            'status' => 'success',
-            'status_code' => HttpStatus::ACCEPTED,
-        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
+        return (new NotificationCollection([]))
+            ->additional([
+                'message' => __('Notification Deleted'),
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 }
