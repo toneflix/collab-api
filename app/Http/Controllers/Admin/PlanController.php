@@ -4,8 +4,9 @@ namespace App\Http\Controllers\Admin;
 
 use App\Enums\Feature;
 use App\Enums\HttpStatus;
-use App\Helpers\Providers;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\FeatureCollection;
+use App\Http\Resources\PlanCollection;
 use App\Http\Resources\PlanResource;
 use App\Models\Plan;
 use Closure;
@@ -37,10 +38,16 @@ class PlanController extends Controller
 
     public function index()
     {
-        return Providers::response()->success([
-            'data' => PlanResource::collection(Plan::ordered()->get()),
-            'message' => HttpStatus::message(HttpStatus::OK),
-        ]);
+        $plans = Plan::query()
+            ->ordered()
+            ->get();
+
+        return (new PlanCollection($plans))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -48,41 +55,52 @@ class PlanController extends Controller
      */
     public function features()
     {
-        return Providers::response()->success([
-            'data' => Feature::catalogue(),
-            'message' => HttpStatus::message(HttpStatus::OK),
-        ]);
+        $features = Feature::catalogue();
+
+        return (new FeatureCollection($features))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     public function show(Plan $plan)
     {
-        return (new PlanResource($plan))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new PlanResource($plan))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     public function store(Request $request)
     {
         $plan = $this->save($request, new Plan);
 
-        return (new PlanResource($plan))->additional([
-            'message' => __(':name was created.', ['name' => $plan->name]),
-            'status' => 'success',
-            'status_code' => HttpStatus::CREATED,
-        ])->response()->setStatusCode(HttpStatus::CREATED->value);
+        return (new PlanResource($plan))
+            ->additional([
+                'message' => __(':name was created.', ['name' => $plan->name]),
+                'status' => 'success',
+                'status_code' => HttpStatus::CREATED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::CREATED->value);
     }
 
     public function update(Request $request, Plan $plan)
     {
         $plan = $this->save($request, $plan);
 
-        return (new PlanResource($plan))->additional([
-            'message' => __(':name was saved.', ['name' => $plan->name]),
-            'status' => 'success',
-            'status_code' => HttpStatus::ACCEPTED,
-        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
+        return (new PlanResource($plan))
+            ->additional([
+                'message' => __(':name was saved.', ['name' => $plan->name]),
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 
     /**
@@ -98,18 +116,26 @@ class PlanController extends Controller
         if ($plan->subscriptions()->exists()) {
             $plan->update(['active' => false]);
 
-            return Providers::response()->success([
-                'data' => new PlanResource($plan),
-                'message' => __(':name has subscribers, so it was deactivated instead of deleted.', ['name' => $plan->name]),
-            ], HttpStatus::ACCEPTED);
+            return (new PlanResource($plan))
+                ->additional([
+                    'message' => __(':name has subscribers, so it was deactivated instead of deleted.', ['name' => $plan->name]),
+                    'status' => 'success',
+                    'status_code' => HttpStatus::ACCEPTED,
+                ])
+                ->response()
+                ->setStatusCode(HttpStatus::ACCEPTED->value);
         }
 
         $plan->delete();
 
-        return Providers::response()->success([
-            'data' => [],
-            'message' => __(':name was deleted.', ['name' => $plan->name]),
-        ], HttpStatus::ACCEPTED);
+        return (new PlanResource($plan))
+            ->additional([
+                'message' => __(':name was deleted.', ['name' => $plan->name]),
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 
     protected function save(Request $request, Plan $plan): Plan
@@ -172,16 +198,16 @@ class PlanController extends Controller
         return DB::transaction(function () use ($plan, $data, $features, $isDefault, $request, $creating) {
             if (array_key_exists('billing_options', $data)) {
                 $data['billing_options'] = collect($data['billing_options'] ?? [])
-                    ->map(fn ($option) => ['cycles' => (int) $option['cycles'], 'discount' => round((float) $option['discount'], 2)])
+                    ->map(fn($option) => ['cycles' => (int) $option['cycles'], 'discount' => round((float) $option['discount'], 2)])
                     ->sortBy('cycles')->values()->all();
                 $plan->billing_options = $data['billing_options'];
             }
-            $plan->fill(collect($data)->except(['features', 'is_default', 'slug', 'billing_options'])->reject(fn ($value) => $value === null)->all());
+            $plan->fill(collect($data)->except(['features', 'is_default', 'slug', 'billing_options'])->reject(fn($value) => $value === null)->all());
             if (array_key_exists('description', $data)) {
                 $plan->description = $data['description'];
             }
             $plan->features = $creating
-                ? [...collect(Feature::cases())->mapWithKeys(fn (Feature $f) => [$f->value => $f->fallback()])->all(), ...$features]
+                ? [...collect(Feature::cases())->mapWithKeys(fn(Feature $f) => [$f->value => $f->fallback()])->all(), ...$features]
                 : $features;
             $plan->is_default = $isDefault;
 
@@ -190,7 +216,9 @@ class PlanController extends Controller
             }
 
             if ($isDefault) {
-                Plan::whereKeyNot($plan->id ?? 0)->where('is_default', true)->update(['is_default' => false]);
+                Plan::whereKeyNot($plan->id ?? 0)
+                    ->where('is_default', true)
+                    ->update(['is_default' => false]);
                 $plan->active = true;
             }
 
@@ -207,7 +235,7 @@ class PlanController extends Controller
         $i = 1;
 
         while (Plan::where('slug', $slug)->exists()) {
-            $slug = $base.'-'.(++$i);
+            $slug = $base . '-' . (++$i);
         }
 
         return $slug;

@@ -22,12 +22,12 @@ class Compressor extends MixEffect
 
         return $graph->chain($in, implode(':', [
             'acompressor=detection=peak',
-            'threshold='.self::number(max(0.000976563, 10 ** ($threshold / 20))),
-            'ratio='.self::number($ratio),
-            'knee='.self::number(max(1, min(8, $this->param('knee', 0, 40)))),
-            'attack='.self::number(max(0.01, $this->param('attack', 0, 1) * 1000)),
-            'release='.self::number(max(0.01, $this->param('release', 0, 1) * 1000)),
-            'makeup='.self::number(max(1, min(64, $makeup))),
+            'threshold=' . self::number(max(0.000976563, 10 ** ($threshold / 20))),
+            'ratio=' . self::number($ratio),
+            'knee=' . self::number(max(1, min(8, $this->param('knee', 0, 40)))),
+            'attack=' . self::number(max(0.01, $this->param('attack', 0, 1) * 1000)),
+            'release=' . self::number(max(0.01, $this->param('release', 0, 1) * 1000)),
+            'makeup=' . self::number(max(1, min(64, $makeup))),
         ]), 'comp');
     }
 }

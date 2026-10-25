@@ -21,7 +21,7 @@ class PayoutProviders
      */
     public function enabled(): array
     {
-        return array_values(array_filter($this->gateways, fn (PayoutGateway $g) => PayoutSettings::enabled($g->key())));
+        return array_values(array_filter($this->gateways, fn(PayoutGateway $g) => PayoutSettings::enabled($g->key())));
     }
 
     public function get(string $key): PayoutGateway
@@ -65,12 +65,15 @@ class PayoutProviders
                     'name' => \Locale::getDisplayRegion("-{$code}", 'en') ?: $code,
                     'provider' => $gateway->key(),
                     'currency' => $gateway->currencyFor($code),
-                    'methods' => array_map(fn (PayoutMethod $m) => $m->toArray(), $gateway->methods($code)),
+                    'methods' => array_map(fn(PayoutMethod $m) => $m->toArray(), $gateway->methods($code)),
                 ];
             }
         }
 
-        return collect($out)->sortBy('name')->values()->all();
+        return collect($out)
+            ->sortBy('name')
+            ->values()
+            ->all();
     }
 
     /**

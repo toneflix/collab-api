@@ -77,7 +77,7 @@ enum MusicalKey: string
      */
     public function short(): string
     {
-        return strtok($this->value, ' ').($this->minor() ? 'm' : '');
+        return strtok($this->value, ' ') . ($this->minor() ? 'm' : '');
     }
 
     /**
@@ -90,7 +90,7 @@ enum MusicalKey: string
             ? (($this->pitch() - 8 + 12) * 7 % 12) + 1
             : (($this->pitch() - 11 + 12) * 7 % 12) + 1;
 
-        return $number.($this->minor() ? 'A' : 'B');
+        return $number . ($this->minor() ? 'A' : 'B');
     }
 
     /**
@@ -104,12 +104,12 @@ enum MusicalKey: string
         $number = (int) $this->camelot();
         $letter = $this->minor() ? 'A' : 'B';
         $codes = [
-            $number.$letter,
-            $number.($letter === 'A' ? 'B' : 'A'),
-            (($number + 10) % 12 + 1).$letter,
-            ($number % 12 + 1).$letter,
+            $number . $letter,
+            $number . ($letter === 'A' ? 'B' : 'A'),
+            (($number + 10) % 12 + 1) . $letter,
+            ($number % 12 + 1) . $letter,
         ];
 
-        return array_map(fn (string $code) => self::parse($code), $codes);
+        return array_map(fn(string $code) => self::parse($code), $codes);
     }
 }

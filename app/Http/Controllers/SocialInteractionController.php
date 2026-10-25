@@ -3,9 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Enums\HttpStatus;
-use App\Helpers\Providers;
 use App\Http\Resources\InteractionCollection;
+use App\Http\Resources\InteractionStateResource;
+use App\Models\Project;
+use App\Models\Release;
+use App\Models\Track;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use SocialInteractions\Models\SocialInteraction;
 
 class SocialInteractionController extends Controller
 {
@@ -16,7 +21,7 @@ class SocialInteractionController extends Controller
     {
         [$interactable] = $this->resolver($request, $pid, $interaction_id);
 
-        /** @var \Illuminate\Database\Eloquent\Builder $query */
+        /** @var Builder $query */
         $query = $interactable->socialInteractions();
 
         if ($request->interaction === 'prop') {
@@ -25,13 +30,14 @@ class SocialInteractionController extends Controller
             $query->where($request->interaction === 'save' ? 'saved' : 'liked', true);
         }
 
-        $interactions = $query->paginate($request->input('limit', 45));
+        $interactions = $query->paginate($request->perPage(45));
 
-        return (new InteractionCollection($interactions))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new InteractionCollection($interactions))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -66,18 +72,22 @@ class SocialInteractionController extends Controller
 
         $action = $interaction->interactionData["{$request->interaction}d"];
 
-        return Providers::response()->success([
-            'interaction_id' => $interaction->id,
-            'data' => $interaction->interactionData,
-            'message' => __("You have :0{$request->interaction}d this $name", [! $action ? 'un' : '']),
-        ], HttpStatus::ACCEPTED);
+        return (new InteractionStateResource($interaction))
+            ->additional([
+                'interaction_id' => $interaction->id,
+                'message' => __("You have :0{$request->interaction}d this $name", [! $action ? 'un' : '']),
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 
     /**
      * Resolve the interaction interface
      *
      * @return array{
-     *  0:\App\Models\Project|\App\Models\Track|\App\Models\Release,
+     *  0:Project|Track|Release,
      *  1:\Toneflix\SocialInteractions\Models\SocialInteraction|null,
      *  2:string
      * }
@@ -94,15 +104,17 @@ class SocialInteractionController extends Controller
             ->prepend('\\App\\Models\\')
             ->toString();
 
-        /** @var \App\Models\Project|\App\Models\Track|\App\Models\Release $interactable */
-        $interactable = (new $className())->resolveRouteBinding($interactable_id);
+        /** @var Project|Track|Release $interactable */
+        $interactable = (new $className)->resolveRouteBinding($interactable_id);
 
         $interaction = null;
 
         if ($interactable) {
             if ($interaction_id) {
-                /** @var \SocialInteractions\Models\SocialInteraction $interaction */
-                $interaction = $interactable->socialInteractions()->findOrFail($interaction_id);
+                /** @var SocialInteraction $interaction */
+                $interaction = $interactable
+                    ->socialInteractions()
+                    ->findOrFail($interaction_id);
             }
         }
 

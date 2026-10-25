@@ -56,7 +56,7 @@ class FakePayoutGateway implements CollectsBankDetails, PayoutGateway
      */
     public function transfers(): array
     {
-        return array_map(fn (PayoutTransfer $t) => $t->reference, $this->sent);
+        return array_map(fn(PayoutTransfer $t) => $t->reference, $this->sent);
     }
 
     public function key(): string
@@ -107,7 +107,7 @@ class FakePayoutGateway implements CollectsBankDetails, PayoutGateway
 
     public function createRecipient(string $country, PayoutMethod $method, string $name, string $bankCode, string $accountNumber): string
     {
-        return 'RCP_'.(++$this->recipients);
+        return 'RCP_' . (++$this->recipients);
     }
 
     public function transfer(PayoutTransfer $transfer): array
@@ -118,14 +118,14 @@ class FakePayoutGateway implements CollectsBankDetails, PayoutGateway
 
         $this->sent[] = $transfer;
 
-        return ['status' => $this->transferStatus, 'transfer_code' => 'TRF_'.$transfer->reference, 'reason' => null, 'raw' => ['reference' => $transfer->reference]];
+        return ['status' => $this->transferStatus, 'transfer_code' => 'TRF_' . $transfer->reference, 'reason' => null, 'raw' => ['reference' => $transfer->reference]];
     }
 
     public function verifyTransfer(string $reference, ?string $transferCode = null): array
     {
         return [
             'status' => $this->verified[$reference] ?? 'processing',
-            'transfer_code' => 'TRF_'.$reference,
+            'transfer_code' => 'TRF_' . $reference,
             'reason' => ($this->verified[$reference] ?? null) === 'failed' ? 'Transfer reversed' : null,
             'raw' => ['reference' => $reference],
         ];
@@ -148,9 +148,9 @@ class FakeHostedGateway extends FakePayoutGateway implements HostsPayoutAccounts
 
     public function onboard(User $user, string $country, ?string $accountId, string $returnUrl): array
     {
-        $accountId ??= 'acct_'.(++$this->accounts);
+        $accountId ??= 'acct_' . (++$this->accounts);
 
-        return ['account_id' => $accountId, 'url' => "https://connect.example.test/{$accountId}?return=".urlencode($returnUrl)];
+        return ['account_id' => $accountId, 'url' => "https://connect.example.test/{$accountId}?return=" . urlencode($returnUrl)];
     }
 
     public function ready(string $accountId): bool
@@ -188,7 +188,8 @@ class PayoutTest extends TestCase
 
     protected function setting(string $key, mixed $value): void
     {
-        Configuration::where('key', $key)->update(['value' => $value]);
+        Configuration::where('key', $key)
+            ->update(['value' => $value]);
         Cache::forget('configuration::build');
     }
 
@@ -210,7 +211,7 @@ class PayoutTest extends TestCase
     protected function earn(User $creator, float $share, int $daysAgo = 30): Transaction
     {
         $transaction = new Transaction([
-            'reference' => 'TRX-'.uniqid(),
+            'reference' => 'TRX-' . uniqid(),
             'purpose' => 'tip',
             'method' => 'paystack',
             'status' => 'complete',
@@ -220,8 +221,11 @@ class PayoutTest extends TestCase
             'recipient_share' => $share,
             'paid_at' => now()->subDays($daysAgo),
         ]);
-        $transaction->user_id = User::factory()->create()->id;
-        $transaction->transactable()->associate($creator);
+        $transaction->user_id = User::factory()
+            ->create()->id;
+        $transaction
+            ->transactable()
+            ->associate($creator);
         $transaction->save();
 
         return $transaction;
@@ -229,7 +233,8 @@ class PayoutTest extends TestCase
 
     protected function creatorWithAccount(float $cleared = 10000, float $clearing = 0): User
     {
-        $creator = User::factory()->create();
+        $creator = User::factory()
+            ->create();
         $this->earn($creator, $cleared);
 
         if ($clearing) {
@@ -237,7 +242,9 @@ class PayoutTest extends TestCase
         }
 
         $this->actingAsFresh($creator);
-        $this->putJson('/api/account/payouts/account', $this->nigerianAccount())->assertOk();
+        $this
+            ->putJson('/api/account/payouts/account', $this->nigerianAccount())
+            ->assertOk();
 
         return $creator;
     }
@@ -252,10 +259,12 @@ class PayoutTest extends TestCase
 
     protected function admin(): User
     {
-        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        app(PermissionRegistrar::class)
+            ->forgetCachedPermissions();
         Permission::findOrCreate('manage-payouts', 'web');
 
-        $admin = User::factory()->create();
+        $admin = User::factory()
+            ->create();
         $admin->givePermissionTo('manage-payouts');
 
         return $this->actingAsFresh($admin);
@@ -263,7 +272,8 @@ class PayoutTest extends TestCase
 
     public function test_the_balance_only_counts_cleared_earnings(): void
     {
-        $creator = User::factory()->create();
+        $creator = User::factory()
+            ->create();
         $this->earn($creator, 6000);
         $this->earn($creator, 2500, 2);
         $this->actingAsFresh($creator);
@@ -278,7 +288,9 @@ class PayoutTest extends TestCase
 
         $this->setting('payout_hold_days', 0);
 
-        $this->getJson('/api/account/payouts')->assertJsonPath('summary.available', 8500);
+        $this
+            ->getJson('/api/account/payouts')
+            ->assertJsonPath('summary.available', 8500);
     }
 
     public function test_a_creator_saves_a_bank_account_after_confirming_the_name(): void
@@ -291,8 +303,8 @@ class PayoutTest extends TestCase
 
         $this->postJson('/api/account/payouts/account/resolve', $this->nigerianAccount())
             ->assertOk()
-            ->assertJsonPath('data.account_name', 'ADA LOVELACE')
-            ->assertJsonPath('data.bank_name', 'GTBank');
+            ->assertJsonPath('data.accountName', 'ADA LOVELACE')
+            ->assertJsonPath('data.bankName', 'GTBank');
 
         $this->postJson('/api/account/payouts/account/resolve', $this->nigerianAccount(bank: '999'))
             ->assertUnprocessable()
@@ -312,16 +324,23 @@ class PayoutTest extends TestCase
             ->assertJsonMissingPath('data.recipientCode');
 
         // Saving the same account again reuses the Paystack recipient.
-        $this->putJson('/api/account/payouts/account', $this->nigerianAccount())->assertOk();
+        $this
+            ->putJson('/api/account/payouts/account', $this->nigerianAccount())
+            ->assertOk();
         $this->assertSame(1, $this->gateway->recipients);
 
-        $this->deleteJson('/api/account/payouts/account')->assertOk();
-        $this->getJson('/api/account/payouts/account')->assertJsonPath('data', null);
+        $this
+            ->deleteJson('/api/account/payouts/account')
+            ->assertOk();
+        $this
+            ->getJson('/api/account/payouts/account')
+            ->assertJsonPath('data', []);
     }
 
     public function test_a_withdrawal_needs_an_account_and_enough_cleared_balance(): void
     {
-        $creator = User::factory()->create();
+        $creator = User::factory()
+            ->create();
         $this->earn($creator, 5000);
         $this->earn($creator, 5000, 1);
         $this->actingAsFresh($creator);
@@ -330,10 +349,16 @@ class PayoutTest extends TestCase
             ->assertUnprocessable()
             ->assertJsonValidationErrors('account');
 
-        $this->putJson('/api/account/payouts/account', $this->nigerianAccount())->assertOk();
+        $this
+            ->putJson('/api/account/payouts/account', $this->nigerianAccount())
+            ->assertOk();
 
-        $this->postJson('/api/account/payouts', ['amount' => 500])->assertJsonValidationErrors('amount');
-        $this->postJson('/api/account/payouts', ['amount' => 6000])->assertJsonValidationErrors('amount');
+        $this
+            ->postJson('/api/account/payouts', ['amount' => 500])
+            ->assertJsonValidationErrors('amount');
+        $this
+            ->postJson('/api/account/payouts', ['amount' => 6000])
+            ->assertJsonValidationErrors('amount');
 
         $this->postJson('/api/account/payouts', ['amount' => 3000])
             ->assertCreated()
@@ -343,20 +368,31 @@ class PayoutTest extends TestCase
             ->assertJsonPath('summary.inFlight', 3000);
 
         // What is already requested can't be requested again.
-        $this->postJson('/api/account/payouts', ['amount' => 2500])->assertJsonValidationErrors('amount');
-        $this->postJson('/api/account/payouts', ['amount' => 2000])->assertCreated();
+        $this
+            ->postJson('/api/account/payouts', ['amount' => 2500])
+            ->assertJsonValidationErrors('amount');
+        $this
+            ->postJson('/api/account/payouts', ['amount' => 2000])
+            ->assertCreated();
 
         $this->assertSame([], $this->gateway->transfers());
-        $this->getJson('/api/account/payouts')->assertJsonCount(2, 'data')->assertJsonPath('summary.available', 0);
+        $this
+            ->getJson('/api/account/payouts')
+            ->assertJsonCount(2, 'data')
+            ->assertJsonPath('summary.available', 0);
     }
 
     public function test_a_creator_can_cancel_a_pending_withdrawal_but_not_someone_elses(): void
     {
         $creator = $this->creatorWithAccount(5000);
-        $id = $this->postJson('/api/account/payouts', ['amount' => 5000])->json('data.id');
+        $id = $this
+            ->postJson('/api/account/payouts', ['amount' => 5000])
+            ->json('data.id');
 
         $this->actingAsFresh(User::factory()->create());
-        $this->deleteJson("/api/account/payouts/{$id}")->assertNotFound();
+        $this
+            ->deleteJson("/api/account/payouts/{$id}")
+            ->assertNotFound();
 
         $this->actingAsFresh($creator);
         $this->deleteJson("/api/account/payouts/{$id}")
@@ -364,16 +400,24 @@ class PayoutTest extends TestCase
             ->assertJsonPath('data.status', 'cancelled')
             ->assertJsonPath('summary.available', 5000);
 
-        $this->deleteJson("/api/account/payouts/{$id}")->assertUnprocessable();
+        $this
+            ->deleteJson("/api/account/payouts/{$id}")
+            ->assertUnprocessable();
     }
 
     public function test_only_payout_admins_review_withdrawals(): void
     {
         $creator = $this->creatorWithAccount(5000);
-        $id = $this->postJson('/api/account/payouts', ['amount' => 4000])->json('data.id');
+        $id = $this
+            ->postJson('/api/account/payouts', ['amount' => 4000])
+            ->json('data.id');
 
-        $this->postJson("/api/admin/payouts/{$id}/approve")->assertForbidden();
-        $this->getJson('/api/admin/payouts')->assertForbidden();
+        $this
+            ->postJson("/api/admin/payouts/{$id}/approve")
+            ->assertForbidden();
+        $this
+            ->getJson('/api/admin/payouts')
+            ->assertForbidden();
 
         $admin = $this->admin();
 
@@ -390,14 +434,18 @@ class PayoutTest extends TestCase
         $this->assertCount(1, $this->gateway->transfers());
 
         // Approving twice doesn't send twice.
-        $this->postJson("/api/admin/payouts/{$id}/approve")->assertUnprocessable();
+        $this
+            ->postJson("/api/admin/payouts/{$id}/approve")
+            ->assertUnprocessable();
         $this->assertCount(1, $this->gateway->transfers());
     }
 
     public function test_a_rejected_withdrawal_goes_back_to_the_balance(): void
     {
         $creator = $this->creatorWithAccount(5000);
-        $id = $this->postJson('/api/account/payouts', ['amount' => 4000])->json('data.id');
+        $id = $this
+            ->postJson('/api/account/payouts', ['amount' => 4000])
+            ->json('data.id');
 
         $this->admin();
         $this->postJson("/api/admin/payouts/{$id}/reject", ['reason' => 'Suspicious tips'])
@@ -406,7 +454,9 @@ class PayoutTest extends TestCase
             ->assertJsonPath('data.reason', 'Suspicious tips');
 
         $this->actingAsFresh($creator);
-        $this->getJson('/api/account/payouts')->assertJsonPath('summary.available', 5000);
+        $this
+            ->getJson('/api/account/payouts')
+            ->assertJsonPath('summary.available', 5000);
     }
 
     public function test_withdrawals_can_be_sent_without_approval(): void
@@ -442,8 +492,10 @@ class PayoutTest extends TestCase
         $this->setting('payout_auto_approve', true);
         $this->creatorWithAccount(5000);
 
-        $reference = $this->postJson('/api/account/payouts', ['amount' => 5000])->json('data.reference');
-        $hook = fn (string $event) => $this->postJson('/api/payments/paystack/webhook', ['event' => $event, 'data' => ['reference' => $reference]], [
+        $reference = $this
+            ->postJson('/api/account/payouts', ['amount' => 5000])
+            ->json('data.reference');
+        $hook = fn(string $event) => $this->postJson('/api/payments/paystack/webhook', ['event' => $event, 'data' => ['reference' => $reference]], [
             'x-paystack-signature' => 'unused',
         ]);
 
@@ -459,11 +511,14 @@ class PayoutTest extends TestCase
         $this->gateway->verified[$reference] = 'failed';
         $hook('transfer.reversed')->assertOk();
 
-        $payout = Payout::where('reference', $reference)->first();
+        $payout = Payout::where('reference', $reference)
+            ->first();
         $this->assertSame(PayoutStatus::FAILED, $payout->status);
         $this->assertSame('Transfer reversed', $payout->failure_reason);
 
-        $this->getJson('/api/account/payouts')->assertJsonPath('summary.available', 5000);
+        $this
+            ->getJson('/api/account/payouts')
+            ->assertJsonPath('summary.available', 5000);
     }
 
     public function test_the_sync_command_resends_transfers_paystack_never_received(): void
@@ -471,18 +526,26 @@ class PayoutTest extends TestCase
         $this->setting('payout_auto_approve', true);
         $this->creatorWithAccount(5000);
 
-        $reference = $this->postJson('/api/account/payouts', ['amount' => 2000])->json('data.reference');
-        Payout::where('reference', $reference)->update(['updated_at' => now()->subHour()]);
+        $reference = $this
+            ->postJson('/api/account/payouts', ['amount' => 2000])
+            ->json('data.reference');
+        Payout::where('reference', $reference)
+            ->update(['updated_at' => now()->subHour()]);
 
         $this->gateway->verified[$reference] = 'missing';
-        $this->artisan('payouts:sync')->assertSuccessful();
+        $this
+            ->artisan('payouts:sync')
+            ->assertSuccessful();
 
         // Sent again with the same reference, so Paystack can't pay it twice.
         $this->assertSame([$reference, $reference], $this->gateway->transfers());
 
         $this->gateway->verified[$reference] = 'paid';
-        Payout::where('reference', $reference)->update(['updated_at' => now()->subHour()]);
-        $this->artisan('payouts:sync')->assertSuccessful();
+        Payout::where('reference', $reference)
+            ->update(['updated_at' => now()->subHour()]);
+        $this
+            ->artisan('payouts:sync')
+            ->assertSuccessful();
 
         $this->assertSame(PayoutStatus::PAID, Payout::where('reference', $reference)->first()->status);
     }
@@ -492,21 +555,29 @@ class PayoutTest extends TestCase
         Notification::fake();
 
         $creator = $this->creatorWithAccount(5000);
-        $first = $this->postJson('/api/account/payouts', ['amount' => 2000])->json('data.id');
-        $second = $this->postJson('/api/account/payouts', ['amount' => 2000])->json('data.id');
+        $first = $this
+            ->postJson('/api/account/payouts', ['amount' => 2000])
+            ->json('data.id');
+        $second = $this
+            ->postJson('/api/account/payouts', ['amount' => 2000])
+            ->json('data.id');
 
         Notification::assertNothingSentTo($creator);
 
         $this->admin();
         $this->gateway->transferStatus = 'paid';
-        $this->postJson("/api/admin/payouts/{$first}/approve")->assertOk();
-        $this->postJson("/api/admin/payouts/{$second}/reject", ['reason' => 'Duplicate request'])->assertOk();
+        $this
+            ->postJson("/api/admin/payouts/{$first}/approve")
+            ->assertOk();
+        $this
+            ->postJson("/api/admin/payouts/{$second}/reject", ['reason' => 'Duplicate request'])
+            ->assertOk();
 
         Notification::assertSentTo($creator, PayoutNotification::class, 2);
         Notification::assertSentTo(
             $creator,
             PayoutNotification::class,
-            fn (PayoutNotification $n) => str_contains($n->content($creator)['body'], 'Duplicate request')
+            fn(PayoutNotification $n) => str_contains($n->content($creator)['body'], 'Duplicate request')
         );
     }
 
@@ -514,7 +585,8 @@ class PayoutTest extends TestCase
     {
         $this->actingAsFresh(User::factory()->create());
 
-        $countries = collect($this->getJson('/api/account/payouts/countries')->assertOk()->json('data'))->keyBy('code');
+        $countries = collect($this->getJson('/api/account/payouts/countries')->assertOk()->json('data'))
+            ->keyBy('code');
 
         // Paystack wins Nigeria over Flutterwave; Ghana and the UK go to the others.
         $this->assertSame('paystack', $countries['NG']['provider']);
@@ -525,18 +597,23 @@ class PayoutTest extends TestCase
         PayoutSettings::update(['paystack_payouts_enabled' => false]);
         $this->assertSame('flutterwave', collect($this->getJson('/api/account/payouts/countries')->json('data'))->firstWhere('code', 'NG')['provider']);
 
-        $this->getJson('/api/account/payouts/banks?country=US&method=bank')->assertJsonValidationErrors('country');
+        $this
+            ->getJson('/api/account/payouts/banks?country=US&method=bank')
+            ->assertJsonValidationErrors('country');
     }
 
     public function test_a_withdrawal_abroad_is_converted_once_at_the_rate_when_it_is_sent(): void
     {
-        $creator = User::factory()->create();
+        $creator = User::factory()
+            ->create();
         $this->earn($creator, 10000);
         $this->actingAsFresh($creator);
 
         // Flutterwave can't look Ghanaian names up, so the creator types it.
         $ghana = ['country' => 'GH', 'method' => 'bank', 'bank_code' => '058', 'account_number' => '0123456789'];
-        $this->putJson('/api/account/payouts/account', $ghana)->assertJsonValidationErrors('account_name');
+        $this
+            ->putJson('/api/account/payouts/account', $ghana)
+            ->assertJsonValidationErrors('account_name');
 
         $this->putJson('/api/account/payouts/account', [...$ghana, 'account_name' => 'Kofi Mensah'])
             ->assertOk()
@@ -545,7 +622,10 @@ class PayoutTest extends TestCase
             ->assertJsonPath('data.currency', 'GHS')
             ->assertJsonPath('data.accountName', 'Kofi Mensah');
 
-        $id = $this->postJson('/api/account/payouts', ['amount' => 5000])->assertCreated()->json('data.id');
+        $id = $this
+            ->postJson('/api/account/payouts', ['amount' => 5000])
+            ->assertCreated()
+            ->json('data.id');
 
         $this->admin();
         $this->flutterwave->transferStatus = 'processing';
@@ -563,7 +643,9 @@ class PayoutTest extends TestCase
         // A resend after the rate moved still sends the same amount.
         $this->flutterwave->exchangeRate = 0.02;
         $this->flutterwave->verified[$sent->reference] = 'missing';
-        $this->postJson("/api/admin/payouts/{$id}/sync")->assertOk();
+        $this
+            ->postJson("/api/admin/payouts/{$id}/sync")
+            ->assertOk();
         $this->assertSame(50.0, $this->flutterwave->sent[1]->amount);
     }
 
@@ -571,7 +653,8 @@ class PayoutTest extends TestCase
     {
         config(['app.frontend_url' => 'https://collab.example.test']);
 
-        $creator = User::factory()->create();
+        $creator = User::factory()
+            ->create();
         $this->earn($creator, 10000);
         $this->actingAsFresh($creator);
 
@@ -591,14 +674,20 @@ class PayoutTest extends TestCase
             ->assertJsonPath('data.provider', 'stripe')
             ->assertJsonPath('data.accountNumber', null);
 
-        $this->postJson('/api/account/payouts', ['amount' => 5000])->assertJsonValidationErrors('account');
+        $this
+            ->postJson('/api/account/payouts', ['amount' => 5000])
+            ->assertJsonValidationErrors('account');
 
         // Continuing reuses the same account.
-        $this->postJson('/api/account/payouts/account/connect', ['country' => 'GB', 'return_url' => 'https://collab.example.test/account/earnings'])->assertOk();
+        $this
+            ->postJson('/api/account/payouts/account/connect', ['country' => 'GB', 'return_url' => 'https://collab.example.test/account/earnings'])
+            ->assertOk();
         $this->assertSame(1, $this->stripe->accounts);
 
         $this->stripe->onboarded = true;
-        $this->getJson('/api/account/payouts')->assertJsonPath('account.status', 'active');
+        $this
+            ->getJson('/api/account/payouts')
+            ->assertJsonPath('account.status', 'active');
 
         $this->setting('payout_auto_approve', true);
         $this->stripe->transferStatus = 'paid';
@@ -615,14 +704,19 @@ class PayoutTest extends TestCase
     {
         config(['services.flutterwave.webhook_hash' => 'fw-hash', 'services.stripe.webhook_secret' => 'whsec_test']);
 
-        $creator = User::factory()->create();
+        $creator = User::factory()
+            ->create();
         $this->earn($creator, 10000);
         $this->actingAsFresh($creator);
-        $this->putJson('/api/account/payouts/account', ['country' => 'GH', 'method' => 'bank', 'bank_code' => '058', 'account_number' => '0123456789', 'account_name' => 'Kofi Mensah'])->assertOk();
+        $this
+            ->putJson('/api/account/payouts/account', ['country' => 'GH', 'method' => 'bank', 'bank_code' => '058', 'account_number' => '0123456789', 'account_name' => 'Kofi Mensah'])
+            ->assertOk();
 
         $this->setting('payout_auto_approve', true);
-        $reference = $this->postJson('/api/account/payouts', ['amount' => 2000])->json('data.reference');
-        $flutterwave = fn (?string $hash) => $this->postJson('/api/payouts/flutterwave/webhook', [
+        $reference = $this
+            ->postJson('/api/account/payouts', ['amount' => 2000])
+            ->json('data.reference');
+        $flutterwave = fn(?string $hash) => $this->postJson('/api/payouts/flutterwave/webhook', [
             'event' => 'transfer.completed',
             'data' => ['reference' => $reference, 'status' => 'SUCCESSFUL'],
         ], $hash ? ['verif-hash' => $hash] : []);
@@ -643,7 +737,7 @@ class PayoutTest extends TestCase
             'id' => 'tr_1', 'object' => 'transfer', 'transfer_group' => $reference, 'metadata' => ['reference' => $reference],
         ]]]);
         $time = time();
-        $signature = "t={$time},v1=".hash_hmac('sha256', "{$time}.{$payload}", 'whsec_test');
+        $signature = "t={$time},v1=" . hash_hmac('sha256', "{$time}.{$payload}", 'whsec_test');
 
         $this->stripe->verified[$reference] = 'failed';
         $this->call('POST', '/api/payouts/stripe/webhook', [], [], [], ['HTTP_STRIPE_SIGNATURE' => 't=1,v1=bad', 'CONTENT_TYPE' => 'application/json'], $payload)
@@ -652,7 +746,8 @@ class PayoutTest extends TestCase
             ->assertOk();
         $this->assertSame(PayoutStatus::PAID, Payout::where('reference', $reference)->first()->status);
 
-        Payout::where('reference', $reference)->update(['provider' => 'stripe']);
+        Payout::where('reference', $reference)
+            ->update(['provider' => 'stripe']);
         $this->call('POST', '/api/payouts/stripe/webhook', [], [], [], ['HTTP_STRIPE_SIGNATURE' => $signature, 'CONTENT_TYPE' => 'application/json'], $payload)
             ->assertOk();
         $this->assertSame(PayoutStatus::FAILED, Payout::where('reference', $reference)->first()->status);
@@ -661,11 +756,15 @@ class PayoutTest extends TestCase
     public function test_only_configuration_admins_change_payout_providers(): void
     {
         $this->admin();
-        $this->getJson('/api/admin/payouts/settings')->assertForbidden();
+        $this
+            ->getJson('/api/admin/payouts/settings')
+            ->assertForbidden();
 
-        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        app(PermissionRegistrar::class)
+            ->forgetCachedPermissions();
         Permission::findOrCreate('manage-configuration', 'web');
-        $admin = User::factory()->create();
+        $admin = User::factory()
+            ->create();
         $admin->givePermissionTo('manage-configuration');
         $this->actingAsFresh($admin);
 
@@ -688,7 +787,9 @@ class PayoutTest extends TestCase
     protected function withoutWebhookSignature(): void
     {
         $gateway = $this->createStub(PaymentGateway::class);
-        $gateway->method('validWebhook')->willReturn(true);
+        $gateway
+            ->method('validWebhook')
+            ->willReturn(true);
 
         $this->app->instance(PaymentGateway::class, $gateway);
     }

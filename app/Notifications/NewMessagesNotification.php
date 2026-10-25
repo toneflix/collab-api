@@ -35,13 +35,14 @@ class NewMessagesNotification extends ActivityNotification
 
     protected function params(User $notifiable): array
     {
-        $names = collect($this->senders)->take(2);
+        $names = collect($this->senders)
+            ->take(2);
         $others = count($this->senders) - $names->count();
 
         return [
             'title' => $this->title,
             'count' => $this->count,
-            'senders' => $names->join(', ', ' and ').($others > 0 ? __(' and :0 more', [$others]) : ''),
+            'senders' => $names->join(', ', ' and ') . ($others > 0 ? __(' and :0 more', [$others]) : ''),
             'preview' => $this->preview,
         ];
     }

@@ -14,10 +14,11 @@ class ProjectTest extends TestCase
 
     protected function project(): Project
     {
-        return Project::factory()->create(['user_id' => User::factory()->create()->id]);
+        return Project::factory()
+            ->create(['user_id' => User::factory()->create()->id]);
     }
 
-    public function testCanSendCollabRequest(): void
+    public function test_can_send_collab_request(): void
     {
         Sanctum::actingAs(
             User::factory()->create(),
@@ -27,12 +28,12 @@ class ProjectTest extends TestCase
         $project = $this->project();
 
         $response = $this->post("/api/projects/{$project->id}/collaborators", [
-            'role' => 'vocals'
+            'role' => 'vocals',
         ]);
         $response->assertCreated();
     }
 
-    public function testCanSendCollabRequestWithCustomRole(): void
+    public function test_can_send_collab_request_with_custom_role(): void
     {
         Sanctum::actingAs(
             User::factory()->create(),
@@ -48,7 +49,7 @@ class ProjectTest extends TestCase
         $response->assertCreated();
     }
 
-    public function testCanListPendingCollabRequests(): void
+    public function test_can_list_pending_collab_requests(): void
     {
         Sanctum::actingAs(
             User::factory()->create(),
@@ -56,7 +57,9 @@ class ProjectTest extends TestCase
         );
 
         $project = $this->project();
-        $project->collaborators()->create(['role' => 'vocals', 'user_id' => User::factory()->create()->id]);
+        $project
+            ->collaborators()
+            ->create(['role' => 'vocals', 'user_id' => User::factory()->create()->id]);
 
         $response = $this->get("/api/projects/{$project->id}/collaborators", [
             'pending' => true,
@@ -66,7 +69,7 @@ class ProjectTest extends TestCase
         $response->assertJsonIsArray('data');
     }
 
-    public function testCanCancelCollabRequest(): void
+    public function test_can_cancel_collab_request(): void
     {
         Sanctum::actingAs(
             User::factory()->create(),
@@ -80,7 +83,9 @@ class ProjectTest extends TestCase
             'custom' => 'dancer',
         ]);
 
-        $id = $response->collect('data.id')->first();
+        $id = $response
+            ->collect('data.id')
+            ->first();
 
         $response2 = $this->delete("/api/projects/{$project->id}/collaborators/{$id}");
 

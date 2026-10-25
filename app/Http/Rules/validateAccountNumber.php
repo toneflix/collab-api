@@ -7,6 +7,7 @@ use Closure;
 use Illuminate\Contracts\Validation\DataAwareRule;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Support\Arr;
+use Illuminate\Translation\PotentiallyTranslatedString;
 use Toneflix\Paystack\Exception\ApiException;
 use Toneflix\Paystack\Paystack;
 
@@ -22,7 +23,7 @@ class validateAccountNumber implements DataAwareRule, ValidationRule
     /**
      * Run the validation rule.
      *
-     * @param  \Closure(string): \Illuminate\Translation\PotentiallyTranslatedString  $fail
+     * @param  Closure(string): PotentiallyTranslatedString  $fail
      */
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
@@ -34,7 +35,10 @@ class validateAccountNumber implements DataAwareRule, ValidationRule
 
         $paystack = new Paystack((string) config('services.paystack.secret_key'));
 
-        $key = str($attribute)->beforeLast('.')->append('.bank_code')->toString();
+        $key = str($attribute)
+            ->beforeLast('.')
+            ->append('.bank_code')
+            ->toString();
 
         try {
             (new PaystackTransfers($paystack))->resolveAccount([

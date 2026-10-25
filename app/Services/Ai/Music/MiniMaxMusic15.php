@@ -40,6 +40,6 @@ class MiniMaxMusic15 extends MusicModel
             'sample_rate' => 44100,
             'bitrate' => 256000,
             "{$kind}_file" => $reference,
-        ], fn ($value) => $value !== null);
+        ], fn($value) => $value !== null);
     }
 }

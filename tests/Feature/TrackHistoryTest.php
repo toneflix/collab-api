@@ -45,20 +45,30 @@ class TrackHistoryTest extends TestCase
         Storage::fake(config('filesystems.default'));
         $this->seed(ConfigurationSeeder::class);
 
-        $this->owner = User::factory()->create();
-        $this->collaborator = User::factory()->create();
-        $this->stranger = User::factory()->create();
+        $this->owner = User::factory()
+            ->create();
+        $this->collaborator = User::factory()
+            ->create();
+        $this->stranger = User::factory()
+            ->create();
 
-        $this->project = Project::query()->forceCreate([
-            'user_id' => $this->owner->id,
-            'title' => 'History test',
-            'privacy' => 'private',
-        ]);
-        $this->project->collaborators()->forceCreate(['user_id' => $this->collaborator->id, 'role' => 'keys', 'accepted' => true]);
+        $this->project = Project::query()
+            ->forceCreate([
+                'user_id' => $this->owner->id,
+                'title' => 'History test',
+                'privacy' => 'private',
+            ]);
+        $this->project
+            ->collaborators()
+            ->forceCreate(['user_id' => $this->collaborator->id, 'role' => 'keys', 'accepted' => true]);
 
-        $this->track = $this->project->tracks()->forceCreate(['title' => 'Night Drive', 'privacy' => 'private']);
-        $this->genre = Genre::query()->firstOrCreate(['title' => 'Test genre'], ['slug' => 'test-genre']);
-        $this->artist = Artist::factory()->create(['user_id' => $this->owner->id]);
+        $this->track = $this->project
+            ->tracks()
+            ->forceCreate(['title' => 'Night Drive', 'privacy' => 'private']);
+        $this->genre = Genre::query()
+            ->firstOrCreate(['title' => 'Test genre'], ['slug' => 'test-genre']);
+        $this->artist = Artist::factory()
+            ->create(['user_id' => $this->owner->id]);
     }
 
     protected function url(string $path = ''): string
@@ -74,7 +84,8 @@ class TrackHistoryTest extends TestCase
             'meta' => ['gain' => 1, 'start' => 0],
         ], ['Accept' => 'application/json'])->assertCreated()->json('data.id');
 
-        return ProjectTrackStem::query()->findOrFail($id);
+        return ProjectTrackStem::query()
+            ->findOrFail($id);
     }
 
     /**
@@ -86,7 +97,7 @@ class TrackHistoryTest extends TestCase
             'title' => $this->track->fresh()->title,
             'genre_id' => (string) $this->genre->id,
             'artist_id' => (string) $this->artist->id,
-            'stems' => collect($metas)->map(fn ($meta, $id) => ['id' => $id, 'meta' => $meta])->values()->all(),
+            'stems' => collect($metas)->map(fn($meta, $id) => ['id' => $id, 'meta' => $meta])->values()->all(),
             ...$extra,
         ]);
     }
@@ -97,7 +108,9 @@ class TrackHistoryTest extends TestCase
         $bass = $this->addStem('Bass');
 
         Sanctum::actingAs($this->collaborator);
-        $this->save([$bass->id => ['gain' => 0.4, 'start' => 2]], ['bpm' => 128])->assertAccepted();
+        $this
+            ->save([$bass->id => ['gain' => 0.4, 'start' => 2]], ['bpm' => 128])
+            ->assertAccepted();
 
         $versions = $this->getJson($this->url('/versions'))
             ->assertOk()
@@ -127,7 +140,9 @@ class TrackHistoryTest extends TestCase
         $bass = $this->addStem('Bass');
         $meta = json_decode($bass->fresh()->getRawOriginal('meta'), true);
 
-        $this->save([$bass->id => $meta])->assertAccepted();
+        $this
+            ->save([$bass->id => $meta])
+            ->assertAccepted();
 
         $this->assertSame(2, $this->track->versions()->count());
     }
@@ -138,7 +153,10 @@ class TrackHistoryTest extends TestCase
         $this->addStem('Bass');
         $this->addStem('Drums');
 
-        $latest = $this->track->versions()->latest('id')->first();
+        $latest = $this->track
+            ->versions()
+            ->latest('id')
+            ->first();
 
         $this->assertSame(2, $this->track->versions()->count());
         $this->assertSame('added Bass and Drums', $latest->summary);
@@ -148,16 +166,29 @@ class TrackHistoryTest extends TestCase
     {
         Sanctum::actingAs($this->owner);
         $bass = $this->addStem('Bass');
-        $this->save([$bass->id => ['gain' => 0.8, 'start' => 1]], ['bpm' => 100])->assertAccepted();
-        $target = $this->track->versions()->latest('id')->first();
-        $file = $bass->fresh()->getRawOriginal('src');
+        $this
+            ->save([$bass->id => ['gain' => 0.8, 'start' => 1]], ['bpm' => 100])
+            ->assertAccepted();
+        $target = $this->track
+            ->versions()
+            ->latest('id')
+            ->first();
+        $file = $bass
+            ->fresh()
+            ->getRawOriginal('src');
 
-        $this->travel(5)->minutes();
+        $this
+            ->travel(5)
+            ->minutes();
 
         Sanctum::actingAs($this->collaborator);
         $drums = $this->addStem('Drums');
-        $this->save([$bass->id => ['gain' => 0.2, 'start' => 4], $drums->id => ['gain' => 1, 'start' => 0]], ['bpm' => 140])->assertAccepted();
-        $this->deleteJson($this->url("/stems/{$bass->id}"))->assertAccepted();
+        $this
+            ->save([$bass->id => ['gain' => 0.2, 'start' => 4], $drums->id => ['gain' => 1, 'start' => 0]], ['bpm' => 140])
+            ->assertAccepted();
+        $this
+            ->deleteJson($this->url("/stems/{$bass->id}"))
+            ->assertAccepted();
 
         $this->assertSoftDeleted($bass);
         $this->assertTrue(Storage::disk(config('filesystems.default'))->exists("public/media/music/stem/{$file}"));
@@ -176,11 +207,20 @@ class TrackHistoryTest extends TestCase
         $this->assertSoftDeleted($drums);
         $this->assertEquals(100, $this->track->fresh()->meta['bpm']);
 
-        $this->getJson($this->url('/stems'))->assertOk()->assertJsonCount(1, 'data');
+        $this
+            ->getJson($this->url('/stems'))
+            ->assertOk()
+            ->assertJsonCount(1, 'data');
 
         // The restore itself can be undone.
-        $undo = $this->track->versions()->where('id', '<', $this->track->versions()->max('id'))->latest('id')->first();
-        $this->postJson($this->url("/versions/{$undo->id}/restore"))->assertAccepted();
+        $undo = $this->track
+            ->versions()
+            ->where('id', '<', $this->track->versions()->max('id'))
+            ->latest('id')
+            ->first();
+        $this
+            ->postJson($this->url("/versions/{$undo->id}/restore"))
+            ->assertAccepted();
         $this->assertSoftDeleted($bass);
         $this->assertFalse($drums->fresh()->trashed());
     }
@@ -189,22 +229,36 @@ class TrackHistoryTest extends TestCase
     {
         Sanctum::actingAs($this->owner);
         $this->addStem('Bass');
-        $current = $this->track->versions()->latest('id')->first();
+        $current = $this->track
+            ->versions()
+            ->latest('id')
+            ->first();
 
-        $this->postJson($this->url("/versions/{$current->id}/restore"))->assertUnprocessable();
+        $this
+            ->postJson($this->url("/versions/{$current->id}/restore"))
+            ->assertUnprocessable();
     }
 
     public function test_only_the_owner_and_collaborators_see_or_restore_history(): void
     {
         Sanctum::actingAs($this->owner);
         $this->addStem('Bass');
-        $original = $this->track->versions()->oldest('id')->first();
+        $original = $this->track
+            ->versions()
+            ->oldest('id')
+            ->first();
 
         Sanctum::actingAs($this->stranger);
-        $this->getJson($this->url('/versions'))->assertForbidden();
-        $this->postJson($this->url("/versions/{$original->id}/restore"))->assertForbidden();
+        $this
+            ->getJson($this->url('/versions'))
+            ->assertForbidden();
+        $this
+            ->postJson($this->url("/versions/{$original->id}/restore"))
+            ->assertForbidden();
 
-        $other = $this->project->tracks()->forceCreate(['title' => 'Other', 'privacy' => 'private']);
+        $other = $this->project
+            ->tracks()
+            ->forceCreate(['title' => 'Other', 'privacy' => 'private']);
         Sanctum::actingAs($this->owner);
         $this->postJson("/api/creator/projects/{$this->project->id}/tracks/{$other->id}/versions/{$original->id}/restore")
             ->assertNotFound();
@@ -217,14 +271,24 @@ class TrackHistoryTest extends TestCase
         Sanctum::actingAs($this->owner);
         $bass = $this->addStem('Bass');
         $file = $bass->getRawOriginal('src');
-        $this->deleteJson($this->url("/stems/{$bass->id}"))->assertAccepted();
+        $this
+            ->deleteJson($this->url("/stems/{$bass->id}"))
+            ->assertAccepted();
 
-        $this->travel(5)->minutes();
+        $this
+            ->travel(5)
+            ->minutes();
         $drums = $this->addStem('Drums');
-        $this->travel(40)->days();
-        $this->deleteJson($this->url("/stems/{$drums->id}"))->assertAccepted();
+        $this
+            ->travel(40)
+            ->days();
+        $this
+            ->deleteJson($this->url("/stems/{$drums->id}"))
+            ->assertAccepted();
 
-        $this->artisan('studio:prune-history')->assertSuccessful();
+        $this
+            ->artisan('studio:prune-history')
+            ->assertSuccessful();
 
         // Only the latest version is left; it still holds nothing removed.
         $this->assertSame(1, $this->track->versions()->count());

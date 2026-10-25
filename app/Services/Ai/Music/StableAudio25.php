@@ -32,6 +32,6 @@ class StableAudio25 extends MusicModel
             'duration' => (int) $input['seconds'],
             'steps' => 8,
             'seed' => $input['seed'] ?? null,
-        ], fn ($value) => $value !== null);
+        ], fn($value) => $value !== null);
     }
 }

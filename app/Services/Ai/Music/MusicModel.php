@@ -49,7 +49,9 @@ abstract class MusicModel
      */
     public static function all(): array
     {
-        return collect(self::MODELS)->mapWithKeys(fn (string $class) => [$class::ID => new $class])->all();
+        return collect(self::MODELS)
+            ->mapWithKeys(fn(string $class) => [$class::ID => new $class])
+            ->all();
     }
 
     public static function find(?string $id): ?self
@@ -149,12 +151,12 @@ abstract class MusicModel
         return array_filter([
             'prompt' => ['required', 'string', "min:{$min}", "max:{$max}"],
             'seconds' => $this->maxSeconds()
-                ? ['required', 'integer', 'min:3', 'max:'.min($this->maxSeconds(), AiSettings::musicMaxSeconds())]
+                ? ['required', 'integer', 'min:3', 'max:' . min($this->maxSeconds(), AiSettings::musicMaxSeconds())]
                 : ['nullable', 'integer'],
             'lyrics' => $lyrics ? ['required', 'string', "min:{$lyrics[0]}", "max:{$lyrics[1]}"] : null,
             'instrumental' => ['nullable', 'boolean'],
             'seed' => ['nullable', 'integer', 'min:0', 'max:4294967295'],
-            'reference_kind' => $this->references() ? ['nullable', 'string', 'in:'.implode(',', $this->references())] : null,
+            'reference_kind' => $this->references() ? ['nullable', 'string', 'in:' . implode(',', $this->references())] : null,
         ]);
     }
 

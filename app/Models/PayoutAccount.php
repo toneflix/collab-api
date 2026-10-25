@@ -39,7 +39,9 @@ class PayoutAccount extends Model
             return null;
         }
 
-        return str($this->account_number)->mask('*', 0, -4)->toString();
+        return str($this->account_number)
+            ->mask('*', 0, -4)
+            ->toString();
     }
 
     /**

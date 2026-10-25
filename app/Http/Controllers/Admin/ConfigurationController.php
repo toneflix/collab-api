@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Enums\HttpStatus;
-use App\Helpers\Providers;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\SettingsResource;
 use App\Services\Settings\AppConfiguration;
 use Closure;
 use Illuminate\Http\Request;
@@ -43,9 +43,15 @@ class ConfigurationController extends Controller
 
     protected function settings(string $message = 'OK', HttpStatus $status = HttpStatus::OK)
     {
-        return Providers::response()->success([
-            'data' => ['fields' => AppConfiguration::forAdmin()],
-            'message' => $message,
-        ], $status);
+        $settings = ['fields' => AppConfiguration::forAdmin()];
+
+        return (new SettingsResource($settings))
+            ->additional([
+                'message' => $message,
+                'status' => 'success',
+                'status_code' => $status,
+            ])
+            ->response()
+            ->setStatusCode($status->value);
     }
 }

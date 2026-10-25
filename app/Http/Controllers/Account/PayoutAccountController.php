@@ -3,9 +3,10 @@
 namespace App\Http\Controllers\Account;
 
 use App\Enums\HttpStatus;
-use App\Helpers\Providers;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\ActionResource;
 use App\Http\Resources\PayoutAccountResource;
+use App\Http\Resources\PayoutLookupResource;
 use App\Services\Payment\Payouts;
 use Illuminate\Http\Request;
 
@@ -19,10 +20,14 @@ class PayoutAccountController extends Controller
      */
     public function countries(Payouts $payouts)
     {
-        return Providers::response()->success([
-            'data' => $payouts->countries(),
-            'message' => HttpStatus::message(HttpStatus::OK),
-        ]);
+        $countries = $payouts->countries();
+
+        return (new PayoutLookupResource($countries))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     public function banks(Request $request, Payouts $payouts)
@@ -32,20 +37,27 @@ class PayoutAccountController extends Controller
             'method' => ['nullable', 'string', 'max:30'],
         ]);
 
-        return Providers::response()->success([
-            'data' => $payouts->banks(strtoupper($valid['country']), $valid['method'] ?? 'bank'),
-            'message' => HttpStatus::message(HttpStatus::OK),
-        ]);
+        $banks = $payouts->banks(strtoupper($valid['country']), $valid['method'] ?? 'bank');
+
+        return (new PayoutLookupResource($banks))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     public function show(Payouts $payouts)
     {
+        // Without an account the body's data is empty.
         $account = $payouts->account($this->user);
 
-        return Providers::response()->success([
-            'data' => $account ? new PayoutAccountResource($account) : null,
-            'message' => HttpStatus::message(HttpStatus::OK),
-        ]);
+        return (new PayoutAccountResource($account))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -55,22 +67,43 @@ class PayoutAccountController extends Controller
     {
         $valid = $this->validated($request);
 
-        return Providers::response()->success([
-            'data' => $payouts->resolve($valid['country'], $valid['method'], $valid['bank_code'], $valid['account_number'], $valid['details']),
-            'message' => HttpStatus::message(HttpStatus::OK),
-        ]);
+        $resolved = $payouts->resolve(
+            $valid['country'],
+            $valid['method'],
+            $valid['bank_code'],
+            $valid['account_number'],
+            $valid['details'],
+        );
+
+        return (new PayoutLookupResource($resolved))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     public function update(Request $request, Payouts $payouts)
     {
         $valid = $this->validated($request);
 
-        $account = $payouts->saveAccount($this->user, $valid['country'], $valid['method'], $valid['bank_code'], $valid['account_number'], $valid['details']);
+        $account = $payouts->saveAccount(
+            $this->user,
+            $valid['country'],
+            $valid['method'],
+            $valid['bank_code'],
+            $valid['account_number'],
+            $valid['details'],
+        );
 
-        return Providers::response()->success([
-            'data' => new PayoutAccountResource($account),
-            'message' => 'Your payout account was saved.',
-        ]);
+        return (new PayoutAccountResource($account))
+            ->additional([
+                'message' => 'Your payout account was saved.',
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::OK->value);
     }
 
     /**
@@ -87,20 +120,30 @@ class PayoutAccountController extends Controller
 
         $url = $payouts->connect($this->user, strtoupper($valid['country']), $valid['return_url']);
 
-        return Providers::response()->success([
-            'data' => ['url' => $url],
-            'message' => 'Continue with the provider to finish.',
-        ]);
+        $result = ['url' => $url];
+
+        return (new ActionResource($result))
+            ->additional([
+                'message' => 'Continue with the provider to finish.',
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     public function destroy()
     {
-        $this->user->payoutAccount()->delete();
+        $removed = $this->user
+            ->payoutAccount()
+            ->delete();
 
-        return Providers::response()->success([
-            'data' => null,
-            'message' => 'Your payout account was removed.',
-        ]);
+        $result = ['removed' => (bool) $removed];
+
+        return (new ActionResource($result))
+            ->additional([
+                'message' => 'Your payout account was removed.',
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -141,8 +184,8 @@ class PayoutAccountController extends Controller
     {
         $host = parse_url($url, PHP_URL_HOST);
         $allowed = collect([config('app.url'), config('app.frontend_url'), ...(array) config('cors.allowed_origins', [])])
-            ->filter(fn ($origin) => is_string($origin) && $origin !== '*')
-            ->map(fn ($origin) => parse_url($origin, PHP_URL_HOST))
+            ->filter(fn($origin) => is_string($origin) && $origin !== '*')
+            ->map(fn($origin) => parse_url($origin, PHP_URL_HOST))
             ->filter();
 
         abort_unless($host && $allowed->contains($host), HttpStatus::UNPROCESSABLE_ENTITY->value, 'That return link is not allowed.');

@@ -151,8 +151,12 @@ class Track extends Model implements CanBeTakenDown
         });
 
         static::deleting(function (self $model) {
-            $model->artists()->detach();
-            $model->lyric()->delete();
+            $model
+                ->artists()
+                ->detach();
+            $model
+                ->lyric()
+                ->delete();
         });
 
         static::saved(function (self $model) {
@@ -171,8 +175,8 @@ class Track extends Model implements CanBeTakenDown
         });
 
         static::addGlobalScopes([
-            fn (Builder $query) => $query->withCount([
-                'visits as streams' => fn ($q) => $q->where('data->duration', '>', 0),
+            fn(Builder $query) => $query->withCount([
+                'visits as streams' => fn($q) => $q->where('data->duration', '>', 0),
             ]),
         ]);
     }
@@ -187,8 +191,10 @@ class Track extends Model implements CanBeTakenDown
             return;
         }
 
-        TranscribeTrack::dispatch($this)->afterCommit();
-        TagAudio::dispatch($this, inherit: ! $ownAudio)->afterCommit();
+        TranscribeTrack::dispatch($this)
+            ->afterCommit();
+        TagAudio::dispatch($this, inherit: ! $ownAudio)
+            ->afterCommit();
     }
 
     public function gusm(string $str, string $sep = '-', ?string $cur = null)
@@ -201,7 +207,9 @@ class Track extends Model implements CanBeTakenDown
      */
     public function artist()
     {
-        return $this->artists()->wherePivot('type', 'primary');
+        return $this
+            ->artists()
+            ->wherePivot('type', 'primary');
     }
 
     /**
@@ -220,11 +228,13 @@ class Track extends Model implements CanBeTakenDown
      */
     public function genre(): BelongsTo
     {
-        return $this->belongsTo(Genre::class)->withDefault(fn () => Genre::first() ?? [
-            'id' => null,
-            'title' => 'Unknown',
-            'description' => 'Unknown',
-        ]);
+        return $this
+            ->belongsTo(Genre::class)
+            ->withDefault(fn() => Genre::first() ?? [
+                'id' => null,
+                'title' => 'Unknown',
+                'description' => 'Unknown',
+            ]);
     }
 
     /**
@@ -232,9 +242,11 @@ class Track extends Model implements CanBeTakenDown
      */
     public function release(): BelongsTo
     {
-        return $this->belongsTo(Release::class)->withDefault(fn () => [
-            'title' => 'Unknown',
-        ]);
+        return $this
+            ->belongsTo(Release::class)
+            ->withDefault(fn() => [
+                'title' => 'Unknown',
+            ]);
     }
 
     public function lyric(): MorphOne
@@ -257,7 +269,9 @@ class Track extends Model implements CanBeTakenDown
      */
     public function user(): HasOneThrough
     {
-        return $this->hasOneThrough(User::class, Release::class)->withDefault(fn () => User::firstWhere('curator', true));
+        return $this
+            ->hasOneThrough(User::class, Release::class)
+            ->withDefault(fn() => User::firstWhere('curator', true));
     }
 
     /**
@@ -303,7 +317,7 @@ class Track extends Model implements CanBeTakenDown
 
                 if ($user) {
                     $q->orWhere('releases.user_id', $user->id)
-                        ->orWhereHas('transactions', fn (Builder $t) => $t
+                        ->orWhereHas('transactions', fn(Builder $t) => $t
                             ->where('user_id', $user->id)
                             ->where('purpose', 'release')
                             ->where('status', 'complete'));
@@ -314,7 +328,7 @@ class Track extends Model implements CanBeTakenDown
 
     public function whereOwnedBy(Builder $query, int $userId): void
     {
-        $query->whereIn('tracks.release_id', fn ($releases) => $releases
+        $query->whereIn('tracks.release_id', fn($releases) => $releases
             ->select('id')
             ->from('releases')
             ->where('user_id', $userId));
@@ -322,14 +336,20 @@ class Track extends Model implements CanBeTakenDown
 
     public function moderationOwnerId(): ?int
     {
-        $owner = Release::query()->withoutGlobalScopes()->whereKey($this->release_id)->value('user_id');
+        $owner = Release::query()
+            ->withoutGlobalScopes()
+            ->whereKey($this->release_id)
+            ->value('user_id');
 
         return $owner ? (int) $owner : null;
     }
 
     public function moderationSummary(): array
     {
-        $artist = $this->artists()->withoutGlobalScopes()->first();
+        $artist = $this
+            ->artists()
+            ->withoutGlobalScopes()
+            ->first();
 
         return [
             'title' => (string) $this->title,
@@ -345,7 +365,9 @@ class Track extends Model implements CanBeTakenDown
         $query->whereHas('artists', function (Builder $q) use ($id) {
             $q->whereNot('track_artist.type', 'primary');
             $q->where(function (Builder $qx) use ($id) {
-                $qx->where('artists.username', $id)->when(is_numeric($id), fn ($q) => $q->orWhere('artists.id', $id));
+                $qx
+                    ->where('artists.username', $id)
+                    ->when(is_numeric($id), fn($q) => $q->orWhere('artists.id', $id));
             });
         });
     }
@@ -354,7 +376,9 @@ class Track extends Model implements CanBeTakenDown
     {
         $id = is_string($artist) ? $artist : $artist->id;
         $query->whereHas('artists', function (Builder $q) use ($id) {
-            $q->where('artists.username', $id)->when(is_numeric($id), fn ($q) => $q->orWhere('artists.id', $id));
+            $q
+                ->where('artists.username', $id)
+                ->when(is_numeric($id), fn($q) => $q->orWhere('artists.id', $id));
         });
     }
 
@@ -365,21 +389,25 @@ class Track extends Model implements CanBeTakenDown
     {
         $terms = trim($terms);
 
-        $query->where(fn (Builder $q) => $q
+        $query->where(fn(Builder $q) => $q
             ->whereLike('tracks.title', "%{$terms}%")
-            ->orWhereHas('lyric', fn (Builder $lyric) => $lyric->whereFullText('text', $terms)));
+            ->orWhereHas('lyric', fn(Builder $lyric) => $lyric->whereFullText('text', $terms)));
     }
 
     public function scopeGenre(Builder $query, string $genre): void
     {
         $query->whereHas('genre', function (Builder $q) use ($genre) {
-            $q->where('slug', $genre)->when(is_numeric($genre), fn ($q) => $q->orWhere('id', $genre));
+            $q
+                ->where('slug', $genre)
+                ->when(is_numeric($genre), fn($q) => $q->orWhere('id', $genre));
         });
     }
 
     public function scopeRecentlyPlayed(Builder $query, User|string $user, int $days = 1): void
     {
-        $query->userThatPlayed($user)->popularPlayedLastDays($days);
+        $query
+            ->userThatPlayed($user)
+            ->popularPlayedLastDays($days);
     }
 
     public function scopeUserCollabs(Builder $query, User|string $user, ?string $period = 'years_2'): void

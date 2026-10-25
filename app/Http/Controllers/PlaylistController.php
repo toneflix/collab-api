@@ -22,7 +22,7 @@ class PlaylistController extends Controller
 
         $request->validate([
             'similar_to' => ['nullable', 'integer'],
-            'exclude' => ['nullable', 'array', 'max:'.UpNext::MAX_EXCLUDED],
+            'exclude' => ['nullable', 'array', 'max:' . UpNext::MAX_EXCLUDED],
             'exclude.*' => ['integer'],
             'limit' => ['nullable', 'integer', 'min:1'],
         ]);
@@ -34,10 +34,11 @@ class PlaylistController extends Controller
             randomize: $request->boolean('randomize'),
         );
 
-        return (new TrackCollection($upNext->paginate($request->integer('limit', 15))))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new TrackCollection($upNext->paginate($request->integer('limit', 15))))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 }

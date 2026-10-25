@@ -3,7 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Enums\HttpStatus;
-use App\Helpers\Providers;
+use App\Http\Resources\ActionResource;
+use App\Http\Resources\FreesoundConnectionResource;
+use App\Http\Resources\FreesoundSoundCollection;
+use App\Http\Resources\SoundResource;
 use App\Models\Sound;
 use App\Services\Limits;
 use App\Services\Sounds\Freesound;
@@ -43,19 +46,23 @@ class FreesoundController extends Controller
     {
         $request->validate(['return' => ['nullable', 'string', 'max:300']]);
 
+        $return = (string) $request->input('return');
         $state = Str::random(40);
+
         Cache::put("freesound:state:{$state}", [
             'user_id' => $request->user()->id,
             // Only a path in our own app, so the callback can't be used to redirect elsewhere.
-            'return' => str_starts_with((string) $request->input('return'), '/') && ! str_starts_with((string) $request->input('return'), '//')
-                ? $request->input('return')
-                : null,
+            'return' => str_starts_with($return, '/') && ! str_starts_with($return, '//') ? $return : null,
         ], now()->addMinutes(15));
 
-        return Providers::response()->success([
-            'data' => ['url' => Freesound::authorizeUrl($state)],
-            'message' => HttpStatus::message(HttpStatus::OK),
-        ]);
+        $result = ['url' => Freesound::authorizeUrl($state)];
+
+        return (new ActionResource($result))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -70,32 +77,46 @@ class FreesoundController extends Controller
 
         $saved = Cache::pull("freesound:state:{$valid['state']}");
 
-        if (! $saved || (int) $saved['user_id'] !== (int) $request->user()->id) {
-            return Providers::response()->error([
-                'message' => 'That sign-in link has expired. Try connecting Freesound again.',
-            ], HttpStatus::UNPROCESSABLE_ENTITY);
-        }
+        abort_unless(
+            $saved && (int) $saved['user_id'] === (int) $request->user()->id,
+            HttpStatus::UNPROCESSABLE_ENTITY->value,
+            'That sign-in link has expired. Try connecting Freesound again.'
+        );
 
         try {
             $connection = Freesound::connect($request->user(), $valid['code']);
         } catch (RuntimeException $e) {
-            return Providers::response()->error(['message' => $e->getMessage()], HttpStatus::UNPROCESSABLE_ENTITY);
+            abort(HttpStatus::UNPROCESSABLE_ENTITY->value, $e->getMessage());
         }
 
-        return Providers::response()->success([
-            'data' => ['username' => $connection->username, 'return' => $saved['return'] ?? null],
-            'message' => 'Freesound is connected.',
-        ]);
+        return (new FreesoundConnectionResource($connection))
+            ->additional([
+                'return' => $saved['return'] ?? null,
+                'message' => 'Freesound is connected.',
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::OK->value);
     }
 
     public function disconnect(Request $request)
     {
-        $request->user()->freesound()->delete();
+        $connection = $request
+            ->user()
+            ->freesound()
+            ->first();
+        $connection
+            ?->delete();
 
-        return Providers::response()->success([
-            'data' => ['connected' => false],
-            'message' => 'Freesound is disconnected.',
-        ], HttpStatus::ACCEPTED);
+        return (new FreesoundConnectionResource($connection))
+            ->additional([
+                'message' => 'Freesound is disconnected.',
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 
     /**
@@ -109,20 +130,35 @@ class FreesoundController extends Controller
             'limit' => ['nullable', 'integer', 'between:1,50'],
         ]);
 
+        $page = (int) ($valid['page'] ?? 1);
+
         try {
-            $found = Freesound::search((string) ($valid['query'] ?? ''), (int) ($valid['page'] ?? 1), (int) ($valid['limit'] ?? 20));
+            $found = Freesound::search((string) ($valid['query'] ?? ''), $page, (int) ($valid['limit'] ?? 20));
         } catch (RuntimeException $e) {
-            return Providers::response()->error(['message' => $e->getMessage()], HttpStatus::BAD_GATEWAY);
+            abort(HttpStatus::BAD_GATEWAY->value, $e->getMessage());
         }
 
-        $imported = Sound::query()->where('user_id', $request->user()->id)->where('source', 'freesound')
-            ->whereIn('source_id', collect($found['results'])->pluck('id'))->pluck('source_id')->all();
+        $ids = collect($found['results'])
+            ->pluck('id');
 
-        return Providers::response()->success([
-            'data' => collect($found['results'])->map(fn ($s) => [...$s, 'imported' => in_array($s['id'], $imported, true)])->all(),
-            'meta' => ['total' => $found['count'], 'page' => (int) ($valid['page'] ?? 1)],
-            'message' => HttpStatus::message(HttpStatus::OK),
-        ]);
+        $imported = Sound::query()
+            ->where('user_id', $request->user()->id)
+            ->where('source', 'freesound')
+            ->whereIn('source_id', $ids)
+            ->pluck('source_id')
+            ->all();
+
+        $results = collect($found['results'])
+            ->map(fn($s) => [...$s, 'imported' => in_array($s['id'], $imported, true)])
+            ->all();
+
+        return (new FreesoundSoundCollection($results))
+            ->additional([
+                'meta' => ['total' => $found['count'], 'page' => $page],
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -133,53 +169,66 @@ class FreesoundController extends Controller
         $valid = $request->validate(['id' => ['required', 'string', 'max:20', 'regex:/^\d+$/']]);
         $user = $request->user();
 
-        $existing = Sound::query()->where('user_id', $user->id)->where('source', 'freesound')->where('source_id', $valid['id'])->first();
+        $existing = Sound::query()
+            ->where('user_id', $user->id)
+            ->where('source', 'freesound')
+            ->where('source_id', $valid['id'])
+            ->first();
+
         if ($existing) {
-            return Providers::response()->success([
-                'data' => SoundLibrary::present($existing),
-                'storage' => Limits::for($user)->storage(),
-                'message' => 'That sound is already in My sounds.',
-            ]);
+            return (new SoundResource($existing))
+                ->additional([
+                    'storage' => Limits::for($user)->storage(),
+                    'message' => 'That sound is already in My sounds.',
+                    'status' => 'success',
+                    'status_code' => HttpStatus::OK,
+                ]);
         }
 
-        $connection = $user->freesound()->first();
+        $connection = $user
+            ->freesound()
+            ->first();
+
         if (! $connection) {
-            return Providers::response()->error([
-                'message' => 'Connect your Freesound account to import sounds.',
-                'errors' => ['connect' => ['Connect Freesound first.']],
-            ], HttpStatus::UNPROCESSABLE_ENTITY);
+            throw ValidationException::withMessages(['connect' => 'Connect Freesound first.']);
         }
 
         try {
             $sound = Freesound::sound($valid['id']);
+        } catch (RuntimeException $e) {
+            abort(HttpStatus::BAD_GATEWAY->value, $e->getMessage());
+        }
 
-            if (! $sound['cc0']) {
-                return Providers::response()->error([
-                    'message' => 'Only CC0 sounds can be imported, so they can be used in anything you sell.',
-                ], HttpStatus::UNPROCESSABLE_ENTITY);
-            }
+        abort_unless($sound['cc0'], HttpStatus::UNPROCESSABLE_ENTITY->value, 'Only CC0 sounds can be imported, so they can be used in anything you sell.');
 
-            Limits::for($user)->ensureRoomFor((int) $sound['size'], 'id');
+        Limits::for($user)->ensureRoomFor((int) $sound['size'], 'id');
 
+        try {
             $download = Freesound::download($sound, $connection);
             // The real size may differ from what Freesound reported.
             Limits::for($user)->ensureRoomFor($download['size'], 'id');
         } catch (RuntimeException $e) {
-            return Providers::response()->error(['message' => $e->getMessage()], HttpStatus::BAD_GATEWAY);
+            abort(HttpStatus::BAD_GATEWAY->value, $e->getMessage());
         } catch (ValidationException $e) {
             if (isset($download)) {
                 @unlink($download['path']);
             }
+
             throw $e;
         }
 
-        $stored = SoundLibrary::storeDownload($download, SoundLibrary::freesoundAttributes($sound), $user);
+        $attributes = SoundLibrary::freesoundAttributes($sound);
+        $stored = SoundLibrary::storeDownload($download, $attributes, $user);
 
-        return Providers::response()->success([
-            'data' => SoundLibrary::present($stored),
-            'storage' => Limits::for($user)->storage(),
-            'message' => 'Imported to My sounds.',
-        ], HttpStatus::CREATED);
+        return (new SoundResource($stored))
+            ->additional([
+                'storage' => Limits::for($user)->storage(),
+                'message' => 'Imported to My sounds.',
+                'status' => 'success',
+                'status_code' => HttpStatus::CREATED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::CREATED->value);
     }
 
     protected function isAdmin(Request $request): bool

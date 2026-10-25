@@ -25,7 +25,8 @@ class RunAiReview implements ShouldQueue
 
     public function handle(AiModerator $moderator): void
     {
-        $review = AiReview::query()->find($this->reviewId);
+        $review = AiReview::query()
+            ->find($this->reviewId);
 
         if ($review) {
             $moderator->run($review);
@@ -38,10 +39,13 @@ class RunAiReview implements ShouldQueue
      */
     public function failed(?\Throwable $e): void
     {
-        AiReview::query()->whereKey($this->reviewId)->queued()->update([
-            'status' => AiReview::FAILED,
-            'error' => str($e?->getMessage() ?? 'The review stopped before it finished.')->limit(500)->toString(),
-            'updated_at' => now(),
-        ]);
+        AiReview::query()
+            ->whereKey($this->reviewId)
+            ->queued()
+            ->update([
+                'status' => AiReview::FAILED,
+                'error' => str($e?->getMessage() ?? 'The review stopped before it finished.')->limit(500)->toString(),
+                'updated_at' => now(),
+            ]);
     }
 }

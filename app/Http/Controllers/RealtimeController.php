@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Broadcasting\Channels;
 use App\Enums\HttpStatus;
-use App\Helpers\Providers;
+use App\Http\Resources\ActionResource;
 use App\Models\Project;
 use App\Models\ProjectTrack;
 use App\Providers\RealtimeServiceProvider;
@@ -44,8 +44,14 @@ class RealtimeController extends Controller
 
         // validate() would keep only the listed keys, so read the stems whole.
         $input = (array) $request->input('stems');
-        $known = $track->stems()->whereIn('id', array_keys($input))->pluck('id')->map(fn ($id) => (string) $id);
-        $stems = collect($input)->only($known->all());
+        $known = $track->stems()
+            ->whereIn('id', array_keys($input))
+            ->pluck('id')
+            ->map(fn($id) => (string) $id)
+            ->all();
+
+        $stems = collect($input)
+            ->only($known);
 
         // Keep within what every driver can carry in one message (Pusher: 10 KB).
         abort_if(
@@ -59,9 +65,13 @@ class RealtimeController extends Controller
             'stems' => $stems->all(),
         ]);
 
-        return Providers::response()->success([
-            'data' => ['sent' => $sent],
-            'message' => HttpStatus::message(HttpStatus::OK),
-        ]);
+        $result = ['sent' => $sent];
+
+        return (new ActionResource($result))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 }

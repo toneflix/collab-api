@@ -45,7 +45,7 @@ class FlutterwaveGatewayTest extends TestCase
 
         $this->assertSame(['processing', '4821'], [$result['status'], $result['transfer_code']]);
 
-        Http::assertSent(fn (Request $r) => $r->url() === 'https://api.flutterwave.com/v3/transfers'
+        Http::assertSent(fn(Request $r) => $r->url() === 'https://api.flutterwave.com/v3/transfers'
             && $r['account_bank'] === 'MTN'
             && $r['account_number'] === '233241234567'
             && $r['currency'] === 'GHS'

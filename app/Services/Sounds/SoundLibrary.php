@@ -30,14 +30,15 @@ class SoundLibrary
     {
         $name = self::put($file);
 
-        $sound = Sound::query()->create([
-            'source' => 'upload',
-            ...$attributes,
-            'user_id' => $owner?->id,
-            'file' => $name,
-            'mime' => $file->getMimeType(),
-            'size' => (int) $file->getSize(),
-        ]);
+        $sound = Sound::query()
+            ->create([
+                'source' => 'upload',
+                ...$attributes,
+                'user_id' => $owner?->id,
+                'file' => $name,
+                'mime' => $file->getMimeType(),
+                'size' => (int) $file->getSize(),
+            ]);
 
         self::forgetSize();
 
@@ -58,8 +59,8 @@ class SoundLibrary
         $guessed = strtolower((string) $file->extension());
         $ext = in_array($guessed, $known, true) ? $guessed : strtolower($file->getClientOriginalExtension() ?: 'mp3');
 
-        $name = Initiator::generateStringFromPattern(config('toneflix-fileable.file_name_pattern', '000000000-000000000')).'.'.$ext;
-        $dir = $media->getPrefix(Sound::COLLECTION).Arr::get($media->namespaces, Sound::COLLECTION.'.path');
+        $name = Initiator::generateStringFromPattern(config('toneflix-fileable.file_name_pattern', '000000000-000000000')) . '.' . $ext;
+        $dir = $media->getPrefix(Sound::COLLECTION) . Arr::get($media->namespaces, Sound::COLLECTION . '.path');
 
         $media->disk->putFileAs($dir, $file, $name);
 
@@ -75,7 +76,7 @@ class SoundLibrary
     public static function storeDownload(array $download, array $attributes, ?User $owner = null): Sound
     {
         try {
-            $file = new UploadedFile($download['path'], 'sound.'.$download['ext'], $download['mime'], null, true);
+            $file = new UploadedFile($download['path'], 'sound.' . $download['ext'], $download['mime'], null, true);
 
             return self::store($file, ['quality' => $download['quality'], ...$attributes], $owner);
         } finally {
@@ -114,7 +115,7 @@ class SoundLibrary
      */
     public static function sync(?callable $log = null): array
     {
-        $log ??= fn () => null;
+        $log ??= fn() => null;
         $result = ['added' => 0, 'skipped' => 0, 'failed' => 0, 'at' => now()->toIso8601String(), 'errors' => []];
 
         if (! SoundSettings::freesoundConfigured()) {
@@ -139,7 +140,7 @@ class SoundLibrary
                     $found = Freesound::search($query, $page, $size, $maxDuration);
                 } catch (\Throwable $e) {
                     $result['failed']++;
-                    $result['errors'][] = "\"{$query}\": ".$e->getMessage();
+                    $result['errors'][] = "\"{$query}\": " . $e->getMessage();
                     break;
                 }
 
@@ -167,7 +168,7 @@ class SoundLibrary
                         $log("Added \"{$item['name']}\"");
                     } catch (\Throwable $e) {
                         $result['failed']++;
-                        $result['errors'][] = "\"{$item['name']}\": ".$e->getMessage();
+                        $result['errors'][] = "\"{$item['name']}\": " . $e->getMessage();
                         Log::warning('Freesound sync download failed', ['id' => $item['id'], 'error' => $e->getMessage()]);
                     }
 
@@ -218,10 +219,10 @@ class SoundLibrary
         $media = new Media;
         $from = $sound->path();
         $ext = str($sound->file)->afterLast('.')->lower()->toString() ?: 'mp3';
-        $name = Initiator::generateStringFromPattern(config('toneflix-fileable.file_name_pattern', '000000000-000000000')).'.'.$ext;
+        $name = Initiator::generateStringFromPattern(config('toneflix-fileable.file_name_pattern', '000000000-000000000')) . '.' . $ext;
 
         $media->setCollectionDisk('stem_files');
-        $to = $media->getPrefix('stem_files').Arr::get($media->namespaces, 'stem_files.path').$name;
+        $to = $media->getPrefix('stem_files') . Arr::get($media->namespaces, 'stem_files.path') . $name;
         $source = new Media;
         $source->setCollectionDisk(Sound::COLLECTION);
         $stream = $source->disk->readStream($from);
@@ -229,10 +230,12 @@ class SoundLibrary
         $media->disk->writeStream($to, $stream);
         fclose($stream);
 
-        $stem = $track->stems()->make([
-            'title' => $sound->name,
-            'user_id' => $user->id,
-        ]);
+        $stem = $track
+            ->stems()
+            ->make([
+                'title' => $sound->name,
+                'user_id' => $user->id,
+            ]);
         $stem->src = $name;
         $stem->meta = [
             'gain' => 1,
@@ -249,38 +252,6 @@ class SoundLibrary
         $stem->save();
 
         return $stem->refresh();
-    }
-
-    /**
-     * A sound for the browser.
-     *
-     * @return array<string, mixed>
-     */
-    public static function present(Sound $sound): array
-    {
-        $info = $sound->mediaInfo();
-
-        return [
-            'id' => $sound->id,
-            'name' => $sound->name,
-            'category' => $sound->category,
-            'tags' => $sound->tags ?? [],
-            'bpm' => $sound->bpm,
-            'key' => $sound->key,
-            'duration' => $sound->duration,
-            'author' => $sound->author,
-            'license' => $sound->license,
-            'source' => $sound->source,
-            'sourceUrl' => $sound->source_url,
-            'quality' => $sound->quality,
-            'size' => $sound->size,
-            'waveform' => $sound->waveform ?? [],
-            'url' => $info['dynamicLink'],
-            'isActive' => $sound->is_active,
-            'takenDown' => $sound->taken_down_at !== null,
-            'mine' => $sound->user_id !== null,
-            'createdAt' => $sound->created_at,
-        ];
     }
 
     public static function forgetSize(): void

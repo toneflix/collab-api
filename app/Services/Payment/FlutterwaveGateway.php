@@ -86,15 +86,15 @@ class FlutterwaveGateway implements CollectsBankDetails, PayoutGateway
     {
         if ($method->key === 'mobile_money') {
             return collect(self::NETWORKS[$country] ?? [])
-                ->map(fn ($name, $code) => ['name' => $name, 'code' => (string) $code])
+                ->map(fn($name, $code) => ['name' => $name, 'code' => (string) $code])
                 ->values()
                 ->all();
         }
 
-        $response = $this->send('bank_code', fn ($http) => $http->get("/banks/{$country}"));
+        $response = $this->send('bank_code', fn($http) => $http->get("/banks/{$country}"));
 
         return collect($response->json('data', []))
-            ->map(fn ($bank) => ['name' => (string) $bank['name'], 'code' => (string) $bank['code']])
+            ->map(fn($bank) => ['name' => (string) $bank['name'], 'code' => (string) $bank['code']])
             ->unique('code')
             ->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)
             ->values()
@@ -107,7 +107,7 @@ class FlutterwaveGateway implements CollectsBankDetails, PayoutGateway
             return (string) ($details['account_name'] ?? '');
         }
 
-        $response = $this->send('account_number', fn ($http) => $http->post('/accounts/resolve', [
+        $response = $this->send('account_number', fn($http) => $http->post('/accounts/resolve', [
             'account_number' => $accountNumber,
             'account_bank' => $bankCode,
         ]));
@@ -131,7 +131,7 @@ class FlutterwaveGateway implements CollectsBankDetails, PayoutGateway
         }
 
         // Ask what 1000 of the destination currency costs in the source currency.
-        $response = $this->send('payout', fn ($http) => $http->get('/transfers/rates', [
+        $response = $this->send('payout', fn($http) => $http->get('/transfers/rates', [
             'amount' => 1000,
             'source_currency' => $from,
             'destination_currency' => $to,
@@ -152,16 +152,18 @@ class FlutterwaveGateway implements CollectsBankDetails, PayoutGateway
         [$bank, $number] = array_pad(explode(':', $transfer->recipient, 2), 2, '');
 
         try {
-            $response = $this->http()->post('/transfers', array_filter([
-                'account_bank' => $bank,
-                'account_number' => $number,
-                'amount' => round($transfer->amount, 2),
-                'currency' => $transfer->currency,
-                'debit_currency' => $transfer->sourceCurrency !== $transfer->currency ? $transfer->sourceCurrency : null,
-                'beneficiary_name' => $transfer->destination['account_name'] ?? null,
-                'narration' => $transfer->reason,
-                'reference' => $transfer->reference,
-            ]));
+            $response = $this
+                ->http()
+                ->post('/transfers', array_filter([
+                    'account_bank' => $bank,
+                    'account_number' => $number,
+                    'amount' => round($transfer->amount, 2),
+                    'currency' => $transfer->currency,
+                    'debit_currency' => $transfer->sourceCurrency !== $transfer->currency ? $transfer->sourceCurrency : null,
+                    'beneficiary_name' => $transfer->destination['account_name'] ?? null,
+                    'narration' => $transfer->reason,
+                    'reference' => $transfer->reference,
+                ]));
         } catch (ConnectionException $e) {
             // The outcome is unknown, so leave it processing for the webhook or payouts:sync to settle.
             report($e);
@@ -183,7 +185,9 @@ class FlutterwaveGateway implements CollectsBankDetails, PayoutGateway
         }
 
         try {
-            $response = $this->http()->get("/transfers/{$transferCode}");
+            $response = $this
+                ->http()
+                ->get("/transfers/{$transferCode}");
         } catch (ConnectionException $e) {
             return ['status' => 'processing', 'transfer_code' => $transferCode, 'reason' => null, 'raw' => ['message' => $e->getMessage()]];
         }
@@ -237,7 +241,10 @@ class FlutterwaveGateway implements CollectsBankDetails, PayoutGateway
             throw ValidationException::withMessages(['payout' => 'Flutterwave payouts are not set up yet.']);
         }
 
-        return Http::baseUrl(self::API)->withToken($secret)->acceptJson()->timeout(30);
+        return Http::baseUrl(self::API)
+            ->withToken($secret)
+            ->acceptJson()
+            ->timeout(30);
     }
 
     /**

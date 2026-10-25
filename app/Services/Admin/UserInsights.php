@@ -86,7 +86,7 @@ class UserInsights
             ->groupBy('purpose')
             ->orderByDesc('amount')
             ->get()
-            ->map(fn ($row) => ['purpose' => $row->purpose, 'count' => (int) $row->count, 'amount' => (float) $row->amount]);
+            ->map(fn($row) => ['purpose' => $row->purpose, 'count' => (int) $row->count, 'amount' => (float) $row->amount]);
 
         return [
             'total' => (float) $rows->sum('amount'),

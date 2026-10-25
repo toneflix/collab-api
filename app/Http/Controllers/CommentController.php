@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Enums\HttpStatus;
-use App\Helpers\Providers;
 use App\Http\Resources\CommentCollection;
 use App\Http\Resources\CommentResource;
 use App\Models\Comment;
@@ -31,13 +30,14 @@ class CommentController extends Controller
             $query = $commentable->comments();
         }
 
-        $comments = $query->paginate($request->input('limit', 45));
+        $comments = $query->paginate($request->perPage(45));
 
-        return (new CommentCollection($comments))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new CommentCollection($comments))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -55,11 +55,12 @@ class CommentController extends Controller
 
         Conversations::posted($comment);
 
-        return (new CommentResource($comment))->additional([
-            'message' => 'Comment posted.',
-            'status' => 'success',
-            'status_code' => HttpStatus::CREATED,
-        ]);
+        return (new CommentResource($comment))
+            ->additional([
+                'message' => 'Comment posted.',
+                'status' => 'success',
+                'status_code' => HttpStatus::CREATED,
+            ]);
     }
 
     /**
@@ -85,11 +86,12 @@ class CommentController extends Controller
 
         Conversations::posted($comment);
 
-        return (new CommentResource($comment))->additional([
-            'message' => 'Reply sent.',
-            'status' => 'success',
-            'status_code' => HttpStatus::CREATED,
-        ]);
+        return (new CommentResource($comment))
+            ->additional([
+                'message' => 'Reply sent.',
+                'status' => 'success',
+                'status_code' => HttpStatus::CREATED,
+            ]);
     }
 
     /**
@@ -103,10 +105,14 @@ class CommentController extends Controller
 
         $comment->delete();
 
-        return Providers::response()->success([
-            'data' => [],
-            'message' => 'Comment Deleted Successfully',
-        ], HttpStatus::ACCEPTED);
+        return (new CommentResource($comment))
+            ->additional([
+                'message' => 'Comment Deleted Successfully',
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 
     /**
@@ -132,7 +138,9 @@ class CommentController extends Controller
 
         if ($request->has('track_id') && method_exists($commentable, 'tracks')) {
             /** @var Track $commentable */
-            $commentable = $commentable->tracks()->findOrFail($request->track_id);
+            $commentable = $commentable
+                ->tracks()
+                ->findOrFail($request->track_id);
         }
 
         $comment = null;
@@ -140,7 +148,9 @@ class CommentController extends Controller
         if ($commentable) {
             if ($comment_id) {
                 /** @var Comment $comment */
-                $comment = $commentable->comments()->findOrFail($comment_id);
+                $comment = $commentable
+                    ->comments()
+                    ->findOrFail($comment_id);
             }
         }
 

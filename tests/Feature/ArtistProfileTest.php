@@ -25,8 +25,10 @@ class ArtistProfileTest extends TestCase
 
         Storage::fake(config('filesystems.default'));
 
-        $this->owner = User::factory()->create();
-        $this->artist = Artist::factory()->create(['user_id' => $this->owner->id, 'verified' => false]);
+        $this->owner = User::factory()
+            ->create();
+        $this->artist = Artist::factory()
+            ->create(['user_id' => $this->owner->id, 'verified' => false]);
     }
 
     protected function edit(array $data = [])
@@ -62,14 +64,17 @@ class ArtistProfileTest extends TestCase
     {
         Sanctum::actingAs($this->owner);
 
-        $this->edit(['verified' => true])->assertStatus(202);
+        $this
+            ->edit(['verified' => true])
+            ->assertStatus(202);
 
         $this->assertFalse($this->artist->refresh()->verified);
     }
 
     public function test_admin_can_edit_and_verify_any_artist(): void
     {
-        $admin = User::factory()->create();
+        $admin = User::factory()
+            ->create();
         $admin->givePermissionTo(Permission::findOrCreate('manage-content'));
         Sanctum::actingAs($admin);
 
@@ -83,7 +88,9 @@ class ArtistProfileTest extends TestCase
     {
         Sanctum::actingAs(User::factory()->create());
 
-        $this->edit()->assertForbidden();
+        $this
+            ->edit()
+            ->assertForbidden();
 
         $this->assertNotSame('New Name', $this->artist->refresh()->name);
     }

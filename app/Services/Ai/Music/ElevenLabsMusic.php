@@ -34,6 +34,6 @@ class ElevenLabsMusic extends MusicModel
             'music_length_ms' => (int) $input['seconds'] * 1000,
             'force_instrumental' => (bool) ($input['instrumental'] ?? false),
             'seed' => $input['seed'] ?? null,
-        ], fn ($value) => $value !== null);
+        ], fn($value) => $value !== null);
     }
 }

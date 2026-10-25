@@ -28,7 +28,7 @@ class AdminStats
 
     public static function allows(?User $user): bool
     {
-        return $user !== null && collect(self::PERMISSIONS)->contains(fn ($p) => $user->checkPermissionTo($p));
+        return $user !== null && collect(self::PERMISSIONS)->contains(fn($p) => $user->checkPermissionTo($p));
     }
 
     /**
@@ -36,7 +36,7 @@ class AdminStats
      */
     public function for(User $admin): array
     {
-        $can = fn (string ...$permissions) => collect($permissions)->contains(fn ($p) => $admin->checkPermissionTo($p));
+        $can = fn(string ...$permissions) => collect($permissions)->contains(fn($p) => $admin->checkPermissionTo($p));
 
         return array_filter([
             'days' => $this->days,
@@ -46,12 +46,14 @@ class AdminStats
             'revenue' => $can('manage-plans', 'manage-payouts') ? $this->revenue() : null,
             'payouts' => $can('manage-payouts') ? $this->payouts() : null,
             'moderation' => $can('manage-content') ? $this->moderation->stats() : null,
-        ], fn ($value) => $value !== null);
+        ], fn($value) => $value !== null);
     }
 
     protected function since(): Carbon
     {
-        return now()->subDays($this->days - 1)->startOfDay();
+        return now()
+            ->subDays($this->days - 1)
+            ->startOfDay();
     }
 
     /**
@@ -61,7 +63,8 @@ class AdminStats
      */
     protected function users()
     {
-        return User::query()->withoutGlobalScopes();
+        return User::query()
+            ->withoutGlobalScopes();
     }
 
     /**
@@ -102,8 +105,8 @@ class AdminStats
      */
     protected function revenue(): array
     {
-        $paid = fn () => Transaction::query()->where('status', 'complete')
-            ->where(fn ($q) => $q->whereNull('purpose')->orWhere('purpose', '!=', Payouts::ADJUSTMENT));
+        $paid = fn() => Transaction::query()->where('status', 'complete')
+            ->where(fn($q) => $q->whereNull('purpose')->orWhere('purpose', '!=', Payouts::ADJUSTMENT));
 
         $total = $paid()->toBase()
             ->selectRaw('coalesce(sum(amount), 0) as amount, coalesce(sum(amount - recipient_share), 0) as kept')
@@ -120,7 +123,7 @@ class AdminStats
                 ->groupBy('purpose')
                 ->orderByDesc('amount')
                 ->get()
-                ->map(fn ($row) => ['purpose' => $row->purpose, 'count' => (int) $row->count, 'amount' => (float) $row->amount])
+                ->map(fn($row) => ['purpose' => $row->purpose, 'count' => (int) $row->count, 'amount' => (float) $row->amount])
                 ->all(),
             'daily' => $this->daily(
                 (clone $recent)->toBase()->selectRaw('date(paid_at) as day, sum(amount) as value')->groupBy('day')->pluck('value', 'day'),

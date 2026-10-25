@@ -12,7 +12,7 @@ return [
     | Until this expiry elapses
     |
     */
-    'recommendation_expiry' =>         PeriodDays::DAYS_3,
+    'recommendation_expiry' => PeriodDays::DAYS_3,
 
     /*
     |--------------------------------------------------------------------------
@@ -23,7 +23,7 @@ return [
     | number of recommendations that a user can get in a day.
     |
     */
-    'max_daily_recommendation' =>      5,
+    'max_daily_recommendation' => 5,
 
     /*
     |--------------------------------------------------------------------------
@@ -35,7 +35,7 @@ return [
     | the user can gain reoutation from deleting it.
     |
     */
-    'delete_reputation_cost' =>         40,
+    'delete_reputation_cost' => 40,
 
     /*
     |--------------------------------------------------------------------------
@@ -47,25 +47,25 @@ return [
     |
     */
     'reputation' => [
-        'track_likes' =>                0.3,   // [x]
-        'track_views' =>                0.3,   // [x]
-        'track_saves' =>                0.5,   // [x]
-        'track_streams' =>              1.2,   // [x]
+        'track_likes' => 0.3,   // [x]
+        'track_views' => 0.3,   // [x]
+        'track_saves' => 0.5,   // [x]
+        'track_streams' => 1.2,   // [x]
 
-        'release_likes' =>              0.3,   // [x]
-        'release_views' =>              0.3,   // [x]
-        'profile_follows' =>            5,     // [x]
+        'release_likes' => 0.3,   // [x]
+        'release_views' => 0.3,   // [x]
+        'profile_follows' => 5,     // [x]
 
-        'first_project' =>              100,   // [x]
-        'project_props' =>              5,     // [x]
-        'create_project' =>             3,     // [x]
-        'delete_project' =>             10,    // [x]
-        'publish_project' =>            50,    // [x]
-        'create_project_track' =>       3,     // [x]
-        'publish_first_project' =>      100,   // [x]
-        'collab_request_approved' =>    20,    // [x]
+        'first_project' => 100,   // [x]
+        'project_props' => 5,     // [x]
+        'create_project' => 3,     // [x]
+        'delete_project' => 10,    // [x]
+        'publish_project' => 50,    // [x]
+        'create_project_track' => 3,     // [x]
+        'publish_first_project' => 100,   // [x]
+        'collab_request_approved' => 20,    // [x]
         'collab_invitation_accepted' => 20,    // [x]
-        'create_project_track_stem' =>  10,    // [x]
+        'create_project_track_stem' => 10,    // [x]
     ],
 
     /*
@@ -85,7 +85,7 @@ return [
         | If disabled audio will not be encoded after upload
         |
         */
-        'enabled' =>             true,
+        'enabled' => true,
 
         /*
         |--------------------------------------------------------------------------
@@ -127,7 +127,7 @@ return [
         | Audio will be encoded to this format
         |
         */
-        'output' =>                'aac',
+        'output' => 'aac',
 
         /*
         |--------------------------------------------------------------------------
@@ -139,7 +139,7 @@ return [
         | native AAC encoder when libfdk_aac is not installed.
         |
         */
-        'output_codec' =>          env('AUDIO_ENCODING_CODEC'),
+        'output_codec' => env('AUDIO_ENCODING_CODEC'),
 
         /*
         |--------------------------------------------------------------------------
@@ -149,7 +149,7 @@ return [
         | Bitrate of encoded files
         |
         */
-        'output_bitrate' =>        '256', //kbps
+        'output_bitrate' => '256', // kbps
 
         /*
         |--------------------------------------------------------------------------
@@ -160,7 +160,7 @@ return [
         | to allow users follow up.
         |
         */
-        'enable_progress_logs' =>  true
+        'enable_progress_logs' => true,
     ],
 
     /*

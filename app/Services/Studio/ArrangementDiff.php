@@ -76,15 +76,15 @@ class ArrangementDiff
     public function summary(int $limit = 3): string
     {
         $changes = collect($this->changes);
-        $grouped = fn (string $type) => $changes->where('type', $type)->pluck('title')->all();
+        $grouped = fn(string $type) => $changes->where('type', $type)->pluck('title')->all();
 
         $phrases = [
-            ...$changes->whereIn('type', ['tempo', 'meter', 'title'])->map(fn ($change) => $this->phrase($change))->all(),
+            ...$changes->whereIn('type', ['tempo', 'meter', 'title'])->map(fn($change) => $this->phrase($change))->all(),
             ...array_filter([
-                ($added = $grouped('added')) ? 'added '.Arr::join($added, ', ', ' and ') : null,
-                ($removed = $grouped('removed')) ? 'removed '.Arr::join($removed, ', ', ' and ') : null,
+                ($added = $grouped('added')) ? 'added ' . Arr::join($added, ', ', ' and ') : null,
+                ($removed = $grouped('removed')) ? 'removed ' . Arr::join($removed, ', ', ' and ') : null,
             ]),
-            ...$changes->whereIn('type', ['renamed', 'edited'])->map(fn ($change) => $this->phrase($change))->all(),
+            ...$changes->whereIn('type', ['renamed', 'edited'])->map(fn($change) => $this->phrase($change))->all(),
         ];
 
         $shown = array_slice(array_values($phrases), 0, $limit);
@@ -94,7 +94,9 @@ class ArrangementDiff
             $shown[] = $more === 1 ? '1 more change' : "{$more} more changes";
         }
 
-        return str(Arr::join($shown, ', ', ' and '))->limit(250)->toString();
+        return str(Arr::join($shown, ', ', ' and '))
+            ->limit(250)
+            ->toString();
     }
 
     /**
@@ -118,15 +120,15 @@ class ArrangementDiff
      */
     protected function editPhrase(string $title, array $what): string
     {
-        $verbs = array_values(array_filter(array_map(fn ($w) => self::VERBS[$w] ?? null, $what)));
-        $nouns = array_values(array_filter(array_map(fn ($w) => self::NOUNS[$w] ?? null, $what)));
+        $verbs = array_values(array_filter(array_map(fn($w) => self::VERBS[$w] ?? null, $what)));
+        $nouns = array_values(array_filter(array_map(fn($w) => self::NOUNS[$w] ?? null, $what)));
         $things = Arr::join($nouns, ', ', ' and ');
 
         if (! $verbs) {
             return "changed the {$things} of {$title}";
         }
 
-        $phrase = Arr::join($verbs, ', ', ' and ')." {$title}";
+        $phrase = Arr::join($verbs, ', ', ' and ') . " {$title}";
 
         return $nouns ? "{$phrase} and changed its {$things}" : $phrase;
     }
@@ -163,8 +165,10 @@ class ArrangementDiff
      */
     protected function stemChanges(): array
     {
-        $before = collect($this->before['stems'] ?? [])->keyBy('id');
-        $after = collect($this->after['stems'] ?? [])->keyBy('id');
+        $before = collect($this->before['stems'] ?? [])
+            ->keyBy('id');
+        $after = collect($this->after['stems'] ?? [])
+            ->keyBy('id');
         $changes = [];
 
         foreach ($after as $id => $stem) {
@@ -273,7 +277,7 @@ class ArrangementDiff
     protected function clips(array $meta): array
     {
         if (! empty($meta['clips']) && is_array($meta['clips'])) {
-            return array_map(fn ($clip) => [
+            return array_map(fn($clip) => [
                 'start' => (float) ($clip['start'] ?? 0),
                 'offset' => (float) ($clip['offset'] ?? 0),
                 'duration' => (float) ($clip['duration'] ?? 0),
@@ -324,6 +328,6 @@ class ArrangementDiff
      */
     protected function title(array $stem): string
     {
-        return (string) (($stem['title'] ?? '') ?: 'Stem '.($stem['id'] ?? ''));
+        return (string) (($stem['title'] ?? '') ?: 'Stem ' . ($stem['id'] ?? ''));
     }
 }

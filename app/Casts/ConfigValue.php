@@ -86,7 +86,7 @@ class ConfigValue implements CastsAttributes
     protected function build(mixed $value, string $type, Model $model): mixed
     {
         return match (true) {
-            $type === 'file' => $model->files[0]?->file_url ?? (new Media())->getDefaultMedia('default'),
+            $type === 'file' => $model->files[0]?->file_url ?? (new Media)->getDefaultMedia('default'),
             $type === 'files' => $model->files,
             in_array(mb_strtolower($type), ['bool', 'boolean']) => filter_var($value, FILTER_VALIDATE_BOOLEAN),
             in_array(mb_strtolower($type), ['json', 'array']) => json_decode($value, true),

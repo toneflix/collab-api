@@ -57,7 +57,7 @@ abstract class ActivityNotification extends Notification implements ShouldQueue
      */
     protected function tag(): string
     {
-        return $this->category()->value.':'.$this->path();
+        return $this->category()->value . ':' . $this->path();
     }
 
     /**
@@ -70,13 +70,13 @@ abstract class ActivityNotification extends Notification implements ShouldQueue
             'app_name' => config('app.name'),
             ...$this->params($notifiable),
         ];
-        $message = config('messages.activity::'.$this->key(), []);
+        $message = config('messages.activity::' . $this->key(), []);
 
         return [
             'subject' => __($message['subject'] ?? '', $params),
             'body' => __($message['body'] ?? '', $params),
             'action' => __($message['action'] ?? 'Open', $params),
-            'url' => rtrim(config('app.frontend_url'), '/').$this->path(),
+            'url' => rtrim(config('app.frontend_url'), '/') . $this->path(),
         ];
     }
 
@@ -98,7 +98,7 @@ abstract class ActivityNotification extends Notification implements ShouldQueue
                     __('<small>You get these emails for :0. <a href=":1">Turn them off</a> or <a href=":2">choose what you get</a>.</small>', [
                         strtolower($this->category()->title()),
                         $unsubscribe,
-                        rtrim(config('app.frontend_url'), '/').'/account/notifications',
+                        rtrim(config('app.frontend_url'), '/') . '/account/notifications',
                     ]),
                 ],
             ])
@@ -115,7 +115,7 @@ abstract class ActivityNotification extends Notification implements ShouldQueue
         return (new WebPushMessage)
             ->title($content['subject'])
             ->body($content['body'])
-            ->icon(rtrim(config('app.frontend_url'), '/').'/icons/favicon-128x128.png')
+            ->icon(rtrim(config('app.frontend_url'), '/') . '/icons/favicon-128x128.png')
             ->tag($this->tag())
             ->renotify()
             ->data(['url' => $content['url'], 'category' => $this->category()->value])

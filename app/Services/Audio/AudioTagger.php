@@ -67,7 +67,8 @@ class AudioTagger
     {
         if ($bpm === null && $key === null) {
             $this->save($owner, null, null, null);
-            TagAudio::dispatch($owner)->afterCommit();
+            TagAudio::dispatch($owner)
+                ->afterCommit();
 
             return;
         }
@@ -81,7 +82,10 @@ class AudioTagger
      */
     public function inherit(Track $track): bool
     {
-        $project = $track->projectTrack()->withoutGlobalScopes()->first();
+        $project = $track
+            ->projectTrack()
+            ->withoutGlobalScopes()
+            ->first();
 
         if (! $project?->tagged_at || $track->tags_source === Track::TAGS_MANUAL) {
             return false;
@@ -101,9 +105,9 @@ class AudioTagger
         }
 
         $owner->releasedTracks()
-            ->whereHas('release', fn (Builder $q) => $q->where('draft', true))
-            ->where(fn (Builder $q) => $q->whereNull('tags_source')->orWhere('tags_source', '!=', Track::TAGS_MANUAL))
-            ->chunkById(100, fn ($tracks) => $tracks->each(fn (Track $track) => $this->write($track, $bpm, $key, $source)));
+            ->whereHas('release', fn(Builder $q) => $q->where('draft', true))
+            ->where(fn(Builder $q) => $q->whereNull('tags_source')->orWhere('tags_source', '!=', Track::TAGS_MANUAL))
+            ->chunkById(100, fn($tracks) => $tracks->each(fn(Track $track) => $this->write($track, $bpm, $key, $source)));
 
         Realtime::send(Channels::projectTrack($owner), 'tags.updated', [
             'track_id' => $owner->id,

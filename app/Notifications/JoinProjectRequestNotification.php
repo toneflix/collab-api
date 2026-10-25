@@ -38,7 +38,7 @@ class JoinProjectRequestNotification extends ActivityNotification
 
     protected function key(): string
     {
-        return 'collabs.'.$this->type;
+        return 'collabs.' . $this->type;
     }
 
     protected function params(User $notifiable): array
@@ -54,6 +54,6 @@ class JoinProjectRequestNotification extends ActivityNotification
     {
         return in_array($this->type, ['request', 'invitation'], true)
             ? '/notifications?tab=requests'
-            : '/studio/projects/'.$this->projectId;
+            : '/studio/projects/' . $this->projectId;
     }
 }

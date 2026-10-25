@@ -59,12 +59,16 @@ class ArtistClaim extends Model
 
     public function user(): BelongsTo
     {
-        return $this->belongsTo(User::class)->withoutGlobalScopes();
+        return $this
+            ->belongsTo(User::class)
+            ->withoutGlobalScopes();
     }
 
     public function reviewer(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'reviewed_by')->withoutGlobalScopes();
+        return $this
+            ->belongsTo(User::class, 'reviewed_by')
+            ->withoutGlobalScopes();
     }
 
     public function scopePending(Builder $query): void

@@ -36,7 +36,9 @@ class Freesound
 
     protected static function http(): PendingRequest
     {
-        return Http::acceptJson()->timeout(20)->retry(2, 500, throw: false);
+        return Http::acceptJson()
+            ->timeout(20)
+            ->retry(2, 500, throw: false);
     }
 
     /**
@@ -46,16 +48,17 @@ class Freesound
      */
     public static function search(string $query, int $page = 1, int $pageSize = 20, ?float $maxDuration = null): array
     {
-        $filter = self::CC0_FILTER.($maxDuration ? ' duration:[0 TO '.$maxDuration.']' : '');
+        $filter = self::CC0_FILTER . ($maxDuration ? ' duration:[0 TO ' . $maxDuration . ']' : '');
 
-        $response = self::http()->get(self::base().'/search/text/', [
-            'query' => $query,
-            'filter' => $filter,
-            'fields' => self::FIELDS,
-            'page' => max(1, $page),
-            'page_size' => max(1, min(150, $pageSize)),
-            'token' => config('services.freesound.client_secret'),
-        ]);
+        $response = self::http()
+            ->get(self::base() . '/search/text/', [
+                'query' => $query,
+                'filter' => $filter,
+                'fields' => self::FIELDS,
+                'page' => max(1, $page),
+                'page_size' => max(1, min(150, $pageSize)),
+                'token' => config('services.freesound.client_secret'),
+            ]);
 
         // A page past the end is a 404 on Freesound.
         if ($response->status() === 404) {
@@ -70,8 +73,8 @@ class Freesound
             'count' => (int) ($data['count'] ?? 0),
             // The filter should only return CC0, but check each one anyway.
             'results' => collect($data['results'] ?? [])
-                ->filter(fn ($s) => self::isCc0($s['license'] ?? null))
-                ->map(fn ($s) => self::normalize($s))
+                ->filter(fn($s) => self::isCc0($s['license'] ?? null))
+                ->map(fn($s) => self::normalize($s))
                 ->values()
                 ->all(),
         ];
@@ -84,10 +87,11 @@ class Freesound
      */
     public static function sound(string|int $id): array
     {
-        $response = self::http()->get(self::base().'/sounds/'.urlencode((string) $id).'/', [
-            'fields' => self::FIELDS,
-            'token' => config('services.freesound.client_secret'),
-        ]);
+        $response = self::http()
+            ->get(self::base() . '/sounds/' . urlencode((string) $id) . '/', [
+                'fields' => self::FIELDS,
+                'token' => config('services.freesound.client_secret'),
+            ]);
 
         if ($response->status() === 404) {
             throw ValidationException::withMessages(['id' => 'That sound is no longer on Freesound.']);
@@ -147,7 +151,7 @@ class Freesound
      */
     public static function authorizeUrl(string $state): string
     {
-        return self::base().'/oauth2/authorize/?'.http_build_query([
+        return self::base() . '/oauth2/authorize/?' . http_build_query([
             'client_id' => config('services.freesound.client_id'),
             'response_type' => 'code',
             'state' => $state,
@@ -161,14 +165,17 @@ class Freesound
     {
         $tokens = self::token(['grant_type' => 'authorization_code', 'code' => $code]);
 
-        $me = self::http()->withToken($tokens['access_token'])->get(self::base().'/me/');
+        $me = self::http()
+            ->withToken($tokens['access_token'])
+            ->get(self::base() . '/me/');
 
-        return FreesoundConnection::query()->updateOrCreate(['user_id' => $user->id], [
-            'username' => $me->successful() ? ($me->json('username') ?: null) : null,
-            'access_token' => $tokens['access_token'],
-            'refresh_token' => $tokens['refresh_token'] ?? null,
-            'expires_at' => now()->addSeconds((int) ($tokens['expires_in'] ?? 86400)),
-        ]);
+        return FreesoundConnection::query()
+            ->updateOrCreate(['user_id' => $user->id], [
+                'username' => $me->successful() ? ($me->json('username') ?: null) : null,
+                'access_token' => $tokens['access_token'],
+                'refresh_token' => $tokens['refresh_token'] ?? null,
+                'expires_at' => now()->addSeconds((int) ($tokens['expires_in'] ?? 86400)),
+            ]);
     }
 
     /**
@@ -201,11 +208,14 @@ class Freesound
      */
     protected static function token(array $grant): array
     {
-        $response = Http::asForm()->acceptJson()->timeout(20)->post(self::base().'/oauth2/access_token/', [
-            'client_id' => config('services.freesound.client_id'),
-            'client_secret' => config('services.freesound.client_secret'),
-            ...$grant,
-        ]);
+        $response = Http::asForm()
+            ->acceptJson()
+            ->timeout(20)
+            ->post(self::base() . '/oauth2/access_token/', [
+                'client_id' => config('services.freesound.client_id'),
+                'client_secret' => config('services.freesound.client_secret'),
+                ...$grant,
+            ]);
 
         if (! $response->successful() || ! $response->json('access_token')) {
             throw new RuntimeException('Freesound didn\'t accept the sign-in. Try connecting again.');
@@ -233,14 +243,16 @@ class Freesound
             $response = Http::withToken(self::accessToken($connection))
                 ->timeout(120)
                 ->withOptions(['sink' => $path])
-                ->get(self::base().'/sounds/'.urlencode((string) $sound['id']).'/download/');
+                ->get(self::base() . '/sounds/' . urlencode((string) $sound['id']) . '/download/');
             $quality = 'original';
             $ext = strtolower((string) ($sound['type'] ?: 'wav'));
         } else {
             if (empty($sound['previewUrl'])) {
                 throw ValidationException::withMessages(['id' => 'That sound has no preview to download.']);
             }
-            $response = Http::timeout(60)->withOptions(['sink' => $path])->get($sound['previewUrl']);
+            $response = Http::timeout(60)
+                ->withOptions(['sink' => $path])
+                ->get($sound['previewUrl']);
             $quality = 'preview';
             $ext = 'mp3';
         }

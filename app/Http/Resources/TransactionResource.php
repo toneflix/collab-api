@@ -7,7 +7,7 @@ use App\Models\Track;
 use App\Models\Transaction;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
+use Toneflix\ResourceModifier\Services\Json\JsonResource;
 
 /**
  * @mixin Transaction
@@ -60,7 +60,7 @@ class TransactionResource extends JsonResource
             },
             'payer' => $this->when(
                 $seesEarnings && $this->user,
-                fn () => [
+                fn() => [
                     'id' => $this->user->id,
                     'username' => $this->user->username,
                     'fullname' => $this->user->fullname,

@@ -14,7 +14,7 @@ class ArtistSeeder extends Seeder
     public function run(): void
     {
         Artist::factory()
-            ->sequence(fn () => [
+            ->sequence(fn() => [
                 'user_id' => User::where('data->fake', true)->inRandomOrder()->first()->id,
             ])
             ->count(50)

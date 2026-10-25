@@ -49,7 +49,7 @@ class PaystackProcessor implements PaymentInterface
         $due = $amount;
         $msg = 'Transaction Failed';
 
-        $reference = Providers::config('reference_prefix', 'TRX-').Random::string(20, ! 1, ! 0, ! 0, ! 1);
+        $reference = Providers::config('reference_prefix', 'TRX-') . Random::string(20, ! 1, ! 0, ! 0, ! 1);
         $real_due = round($due * 100, 2);
 
         $response = new \stdClass;
@@ -306,7 +306,7 @@ class PaystackProcessor implements PaymentInterface
                 $user->save();
             }
 
-            $reference = Providers::config('reference_prefix', 'TRX-').Random::string(20, ! 1, ! 0, ! 0, ! 1);
+            $reference = Providers::config('reference_prefix', 'TRX-') . Random::string(20, ! 1, ! 0, ! 0, ! 1);
 
             $tranx = $paystack->transfer->initiate([
                 'source' => 'balance',

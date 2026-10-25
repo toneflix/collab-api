@@ -18,6 +18,8 @@ trait HasAiReviews
 
     public function latestAiReview(): MorphOne
     {
-        return $this->morphOne(AiReview::class, 'subject')->latestOfMany();
+        return $this
+            ->morphOne(AiReview::class, 'subject')
+            ->latestOfMany();
     }
 }

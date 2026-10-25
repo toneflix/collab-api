@@ -46,7 +46,7 @@ class PayoutNotification extends ActivityNotification
 
     protected function key(): string
     {
-        return 'payouts.'.($this->status === PayoutStatus::REJECTED->value && $this->reason ? 'rejected_reason' : $this->status);
+        return 'payouts.' . ($this->status === PayoutStatus::REJECTED->value && $this->reason ? 'rejected_reason' : $this->status);
     }
 
     protected function params(User $notifiable): array

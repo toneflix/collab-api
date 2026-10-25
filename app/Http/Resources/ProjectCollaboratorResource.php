@@ -3,7 +3,7 @@
 namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
+use Toneflix\ResourceModifier\Services\Json\JsonResource;
 
 class ProjectCollaboratorResource extends JsonResource
 {
@@ -20,9 +20,9 @@ class ProjectCollaboratorResource extends JsonResource
             'meta' => $this->meta,
             'role' => $this->role,
             'custom' => $this->meta['custom'] ?? '',
-            'user_id' => $this->user_id,
+            'userId' => $this->user_id,
             'accepted' => $this->accepted,
-            'project_id' => $this->project_id,
+            'projectId' => $this->project_id,
             'createdAt' => $this->created_at,
             'updatedAt' => $this->updated_at,
         ];

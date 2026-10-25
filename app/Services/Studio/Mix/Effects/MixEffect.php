@@ -53,9 +53,9 @@ abstract class MixEffect
             return null;
         }
 
-        $params = array_map(fn ($value) => (float) $value, array_filter(
+        $params = array_map(fn($value) => (float) $value, array_filter(
             (array) ($effect['params'] ?? []),
-            fn ($value) => is_numeric($value),
+            fn($value) => is_numeric($value),
         ));
 
         return new $class([...$class::DEFAULTS, ...$params], $channels);

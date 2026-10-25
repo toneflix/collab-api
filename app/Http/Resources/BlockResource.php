@@ -2,9 +2,8 @@
 
 namespace App\Http\Resources;
 
-use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
+use Toneflix\ResourceModifier\Services\Json\JsonResource;
 
 class BlockResource extends JsonResource
 {
@@ -16,14 +15,16 @@ class BlockResource extends JsonResource
     public function toArray(Request $request): array
     {
 
-        $with = str($request->with)->remove(' ')->explode(',');
+        $with = str($request->with)
+            ->remove(' ')
+            ->explode(',');
 
         return [
             'id' => $this->id,
             'reason' => $this->reason,
-            'user_id' => $this->user_id,
-            'user' => $this->when($with->contains('user'), fn () => new UserResource($this->user)),
-            'model' => $this->when($with->contains('model'), fn () => $this->res($this->blockable)),
+            'userId' => $this->user_id,
+            'user' => $this->when($with->contains('user'), fn() => new UserResource($this->user)),
+            'model' => $this->when($with->contains('model'), fn() => $this->res($this->blockable)),
         ];
     }
 

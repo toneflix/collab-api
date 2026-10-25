@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\Feature;
 use App\Enums\HttpStatus;
 use App\Helpers\Providers;
+use App\Http\Resources\PlanCollection;
 use App\Http\Resources\PlanResource;
 use App\Models\Plan;
 
@@ -15,17 +16,23 @@ class PlanController extends Controller
      */
     public function index()
     {
-        $plans = Plan::active()->ordered()->get();
+        // Admins add plans by hand, so the list stays short.
+        $plans = Plan::active()
+            ->ordered()
+            ->get();
 
-        return PlanResource::collection($plans)->additional([
-            // The billing periods on offer, for filtering plans, e.g. Monthly or Annual
-            'periods' => Plan::periods($plans),
-            'features' => Feature::catalogue(),
-            'current' => $this->user ? new PlanResource($this->user->current_plan) : null,
-            'currency' => Providers::config('app_currency', 'NGN'),
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        $current = $this->user?->current_plan;
+
+        return (new PlanCollection($plans))
+            ->additional([
+                // The billing periods on offer, for filtering plans, e.g. Monthly or Annual
+                'periods' => Plan::periods($plans),
+                'features' => Feature::catalogue(),
+                'current' => $current ? new PlanResource($current) : null,
+                'currency' => Providers::config('app_currency', 'NGN'),
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 }

@@ -16,6 +16,6 @@ class LowPass extends MixEffect
         $frequency = $this->param('frequency', 20, MixGraph::RATE / 2 - 50);
         $q = 10 ** ($this->param('q', 0.1, 20) / 20);
 
-        return $graph->chain($in, 'lowpass=p=2:t=q:f='.self::number($frequency).':w='.self::number($q), 'lp');
+        return $graph->chain($in, 'lowpass=p=2:t=q:f=' . self::number($frequency) . ':w=' . self::number($q), 'lp');
     }
 }

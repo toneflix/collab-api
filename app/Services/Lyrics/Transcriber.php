@@ -54,13 +54,13 @@ class Transcriber
     protected function lines(array $output): array
     {
         return collect((array) ($output['segments'] ?? []))
-            ->filter(fn ($segment) => is_array($segment) && ! $this->isSilence($segment))
-            ->map(fn (array $segment) => [
+            ->filter(fn($segment) => is_array($segment) && ! $this->isSilence($segment))
+            ->map(fn(array $segment) => [
                 'start' => round((float) ($segment['start'] ?? 0), 2),
                 'end' => round((float) ($segment['end'] ?? 0), 2),
                 'text' => trim((string) ($segment['text'] ?? '')),
             ])
-            ->filter(fn (array $line) => $line['text'] !== '')
+            ->filter(fn(array $line) => $line['text'] !== '')
             ->values()
             ->all();
     }

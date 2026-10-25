@@ -26,8 +26,8 @@ class Reverb extends MixEffect
 
         [$dry, $send] = $graph->split($in, 2);
 
-        $tail = $graph->chain([$send, $graph->chain($room, 'aresample='.MixGraph::RATE, 'ir')], 'afir=dry=1:wet=1:'.self::unscaled().',volume='.self::number($wet), 'rev');
-        $kept = $graph->chain($dry, 'volume='.self::number(1 - $wet * 0.5), 'dry');
+        $tail = $graph->chain([$send, $graph->chain($room, 'aresample=' . MixGraph::RATE, 'ir')], 'afir=dry=1:wet=1:' . self::unscaled() . ',volume=' . self::number($wet), 'rev');
+        $kept = $graph->chain($dry, 'volume=' . self::number(1 - $wet * 0.5), 'dry');
 
         return $graph->chain([$kept, $tail], 'amix=inputs=2:normalize=0:duration=first', 'rvb');
     }
@@ -64,9 +64,9 @@ class Reverb extends MixEffect
         $bytes = strlen($data);
         $block = $this->channels * 4;
 
-        file_put_contents($path, 'RIFF'.pack('V', 36 + $bytes).'WAVEfmt '
-            .pack('VvvVVvv', 16, 3, $this->channels, MixGraph::RATE, MixGraph::RATE * $block, $block, 32)
-            .'data'.pack('V', $bytes).$data);
+        file_put_contents($path, 'RIFF' . pack('V', 36 + $bytes) . 'WAVEfmt '
+            . pack('VvvVVvv', 16, 3, $this->channels, MixGraph::RATE, MixGraph::RATE * $block, $block, 32)
+            . 'data' . pack('V', $bytes) . $data);
 
         return $path;
     }

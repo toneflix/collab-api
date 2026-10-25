@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Enums\Feature;
 use App\Enums\HttpStatus;
-use App\Helpers\Providers;
 use App\Http\Resources\ProjectCollaboratorCollection;
 use App\Http\Resources\ProjectCollaboratorResource;
 use App\Models\Project;
@@ -22,16 +21,17 @@ class ProjectCollaboratorController extends Controller
     public function index(Request $request, Project $project)
     {
         $query = $project->collaborators()->getQuery()
-            ->when($request->boolean('accepted'), fn (Builder $q) => $q->whereAccepted(true))
-            ->when($request->boolean('pending'), fn (Builder $q) => $q->whereAccepted(false));
+            ->when($request->boolean('accepted'), fn(Builder $q) => $q->whereAccepted(true))
+            ->when($request->boolean('pending'), fn(Builder $q) => $q->whereAccepted(false));
 
-        $collaborators = $query->paginate($request->input('limit', 45));
+        $collaborators = $query->paginate($request->perPage(45));
 
-        return (new ProjectCollaboratorCollection($collaborators))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new ProjectCollaboratorCollection($collaborators))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -49,11 +49,11 @@ class ProjectCollaboratorController extends Controller
         /** @var User $sender */
         $sender = $request->user('sanctum');
 
-        if ($project->isCollaber($sender)) {
-            return Providers::response()->error([
-                'message' => 'You are already a collaber on this project.',
-            ], HttpStatus::UNPROCESSABLE_ENTITY);
-        }
+        abort_if(
+            $project->isCollaber($sender),
+            HttpStatus::UNPROCESSABLE_ENTITY->value,
+            'You are already a collaber on this project.',
+        );
 
         $role = $request->role === 'custom' ? $request->custom : $request->role;
 
@@ -73,7 +73,9 @@ class ProjectCollaboratorController extends Controller
         );
 
         /** @var ProjectCollaborator $collaborator */
-        $collaborator = $project->collaborators()->create($valid);
+        $collaborator = $project
+            ->collaborators()
+            ->create($valid);
 
         $sender->sendApprovableNotification(
             actionable: $collaborator,
@@ -87,14 +89,17 @@ class ProjectCollaboratorController extends Controller
             ],
         );
 
-        return (new ProjectCollaboratorResource($collaborator))->additional([
-            'message' => __('Your request to join :0 as a :1 has been sent.', [
-                $project->title,
-                $role,
-            ]),
-            'status' => 'success',
-            'status_code' => HttpStatus::CREATED,
-        ])->response()->setStatusCode(HttpStatus::CREATED->value);
+        return (new ProjectCollaboratorResource($collaborator))
+            ->additional([
+                'message' => __('Your request to join :0 as a :1 has been sent.', [
+                    $project->title,
+                    $role,
+                ]),
+                'status' => 'success',
+                'status_code' => HttpStatus::CREATED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::CREATED->value);
     }
 
     /**
@@ -119,17 +124,22 @@ class ProjectCollaboratorController extends Controller
     public function destroy(Request $request, Project $project, string $cid)
     {
         $collaborator = $project->collaborators()->getQuery()
-            ->when($cid === 'self', fn (Builder $q) => $q->whereUserId($request->user('sanctum')?->id))
-            ->when($cid !== 'self', fn (Builder $q) => $q->whereId($cid))
+            ->when($cid === 'self', fn(Builder $q) => $q->whereUserId($request->user('sanctum')?->id))
+            ->when($cid !== 'self', fn(Builder $q) => $q->whereId($cid))
             ->firstOrFail();
 
-        $collaborator->request()->delete();
+        $collaborator
+            ->request()
+            ->delete();
         $collaborator->delete();
 
-        return (new ProjectCollaboratorResource($collaborator))->additional([
-            'message' => __(! $collaborator->accepted ? 'Your request has been cancelled.' : 'You have now left the project.'),
-            'status' => 'success',
-            'status_code' => HttpStatus::ACCEPTED,
-        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
+        return (new ProjectCollaboratorResource($collaborator))
+            ->additional([
+                'message' => __(! $collaborator->accepted ? 'Your request has been cancelled.' : 'You have now left the project.'),
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 }

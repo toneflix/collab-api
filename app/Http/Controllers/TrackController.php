@@ -5,7 +5,8 @@ namespace App\Http\Controllers;
 use App\Enums\Feature;
 use App\Enums\HttpStatus;
 use App\Enums\MusicalKey;
-use App\Helpers\Providers;
+use App\Http\Resources\ActionResource;
+use App\Http\Resources\StemDownloadCollection;
 use App\Http\Resources\TrackCollection;
 use App\Http\Resources\TrackResource;
 use App\Models\ProjectTrackStem;
@@ -24,54 +25,57 @@ class TrackController extends Controller
     {
         $query = $release
             ? $release->tracks()->getQuery()
-            : Track::query()->whereHas('release', fn (Builder $q) => $q->live());
+            : Track::query()->whereHas('release', fn(Builder $q) => $q->live());
 
-        $filters = str($request->filters)->remove(' ')->explode(',');
+        $filters = str($request->filters)
+            ->remove(' ')
+            ->explode(',');
 
         $query
-            ->when($request->filled('search'), fn (Builder $q) => $q->search((string) $request->search)->with('lyric'))
-            ->when($request->has('genre'), fn (Builder $q) => $q->genre($request->genre))
+            ->when($request->filled('search'), fn(Builder $q) => $q->search((string) $request->search)->with('lyric'))
+            ->when($request->has('genre'), fn(Builder $q) => $q->genre($request->genre))
             ->when(
                 $request->filled('bpm_min') || $request->filled('bpm_max'),
-                fn (Builder $q) => $q->bpmBetween(
+                fn(Builder $q) => $q->bpmBetween(
                     $request->filled('bpm_min') ? (float) $request->bpm_min : null,
                     $request->filled('bpm_max') ? (float) $request->bpm_max : null,
                 )
             )
-            ->when($request->filled('key'), fn (Builder $q) => $q->inKey(
-                str($request->key)->explode(',')->map(fn ($key) => MusicalKey::parse($key))->filter()->values()->all(),
+            ->when($request->filled('key'), fn(Builder $q) => $q->inKey(
+                str($request->key)->explode(',')->map(fn($key) => MusicalKey::parse($key))->filter()->values()->all(),
                 $request->boolean('compatible'),
             ))
-            ->when($filters->contains('latest'), fn (Builder $q) => $q->latestInPeriod($request->period))
+            ->when($filters->contains('latest'), fn(Builder $q) => $q->latestInPeriod($request->period))
             ->when(
                 $filters->contains('liked') && $request->user('sanctum'),
-                fn (Builder $q) => $q->likedBy($request->user('sanctum'))
+                fn(Builder $q) => $q->likedBy($request->user('sanctum'))
             )
             ->when(
                 $filters->contains('own_collabs') && $request->user('sanctum'),
-                fn (Builder $q) => $q->userCollabs($request->user('sanctum'), $request->period)
+                fn(Builder $q) => $q->userCollabs($request->user('sanctum'), $request->period)
             )
             ->when(
                 $filters->contains('recently_played') && $request->user('sanctum'),
-                fn (Builder $q) => $q->recentlyPlayed($request->user('sanctum'), 3)
+                fn(Builder $q) => $q->recentlyPlayed($request->user('sanctum'), 3)
             )->when(
                 $filters->contains('trending'),
-                fn (Builder $q) => $q->popular('top', $request->period)
+                fn(Builder $q) => $q->popular('top', $request->period)
             )->when(
                 $request->has('artist_id') && ! $filters->contains('features'),
-                fn (Builder $q) => $q->forArtist($request->artist_id)
+                fn(Builder $q) => $q->forArtist($request->artist_id)
             )->when(
                 $filters->contains('features') && $request->has('artist_id'),
-                fn (Builder $q) => $q->forFeaturedArtist($request->artist_id)
+                fn(Builder $q) => $q->forFeaturedArtist($request->artist_id)
             );
 
-        $tracks = $query->paginate($request->input('limit', 15));
+        $tracks = $query->paginate($request->perPage(15));
 
-        return (new TrackCollection($tracks))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new TrackCollection($tracks))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -89,11 +93,12 @@ class TrackController extends Controller
     {
         $track->stream(0, $request->user('sanctum'));
 
-        return (new TrackResource($track))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new TrackResource($track))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -107,11 +112,12 @@ class TrackController extends Controller
 
         $track->stream($request->integer('duration'), $request->user('sanctum'));
 
-        return (new TrackResource($track))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new TrackResource($track))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -121,17 +127,19 @@ class TrackController extends Controller
     {
         abort_unless($track->stemsUnlockedFor($request->user()), HttpStatus::PAYMENT_REQUIRED->value, 'Buy the stems to download them.');
 
-        $stems = $track->projectTrack?->stems()->whereNotNull('src')->get() ?? collect();
+        $query = $track->projectTrack?->stems() ?? ProjectTrackStem::query()->whereKey([]);
 
-        return Providers::response()->success([
-            'data' => $stems->map(fn (ProjectTrackStem $stem) => [
-                'id' => $stem->id,
-                'title' => $stem->title ?: $stem->meta['name'] ?? 'Stem',
-                'size' => $stem->mediaFileInfo['src']['size'] ?? null,
-                'url' => $stem->mediaFileInfo['src']['dynamicLink'] ?? null,
-            ])->values(),
-            'message' => HttpStatus::message(HttpStatus::OK),
-        ]);
+        $stems = $query
+            ->whereNotNull('src')
+            ->oldest('id')
+            ->paginate($request->perPage(50));
+
+        return (new StemDownloadCollection($stems))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -161,13 +169,22 @@ class TrackController extends Controller
 
         abort_if($url === '', HttpStatus::NOT_FOUND->value, 'This track has no audio yet.');
 
-        return Providers::response()->success([
-            'data' => [
-                'url' => $url,
-                'filename' => str($track->title)->slug()->append('.', $track->meta['format'] ?? 'mp3')->toString(),
-            ],
-            'message' => HttpStatus::message(HttpStatus::OK),
-        ]);
+        $filename = str($track->title)
+            ->slug()
+            ->append('.', $track->meta['format'] ?? 'mp3')
+            ->toString();
+
+        $download = [
+            'url' => $url,
+            'filename' => $filename,
+        ];
+
+        return (new ActionResource($download))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**

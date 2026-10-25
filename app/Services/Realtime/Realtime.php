@@ -72,7 +72,8 @@ class Realtime
      */
     public static function origin(): ?string
     {
-        $origin = request()?->header(static::ORIGIN_HEADER);
+        $origin = request()
+            ?->header(static::ORIGIN_HEADER);
 
         return is_string($origin) && preg_match('/^[\w-]{1,64}$/', $origin) ? $origin : null;
     }
@@ -86,7 +87,8 @@ class Realtime
 
         // Drop drivers built for the old choice.
         if (app()->resolved(BroadcastManager::class)) {
-            app(BroadcastManager::class)->forgetDrivers();
+            app(BroadcastManager::class)
+                ->forgetDrivers();
         }
     }
 
@@ -112,7 +114,7 @@ class Realtime
                     'wsHost' => $reverb['options']['host'] ?? null,
                     'wsPort' => (int) (($reverb['options']['port'] ?? null) ?: 443),
                     'forceTLS' => (($reverb['options']['scheme'] ?? null) ?: 'https') === 'https',
-                ], fn ($v) => $v !== null && $v !== ''),
+                ], fn($v) => $v !== null && $v !== ''),
             ],
             'pusher' => [
                 'transport' => 'pusher',
@@ -153,7 +155,8 @@ class Realtime
             return null;
         }
 
-        $driver = app(BroadcastManager::class)->connection('firebase');
+        $driver = app(BroadcastManager::class)
+            ->connection('firebase');
 
         return $driver instanceof FirebaseBroadcaster ? $driver : null;
     }

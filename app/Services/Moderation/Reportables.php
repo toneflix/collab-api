@@ -58,7 +58,7 @@ class Reportables
                         }
                     });
 
-                $query->orWhere(fn (Builder $q) => $q
+                $query->orWhere(fn(Builder $q) => $q
                     ->where('model_type', $model->getMorphClass())
                     ->whereIn('model_id', $ids));
             }

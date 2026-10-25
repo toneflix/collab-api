@@ -1,33 +1,48 @@
 <?php
 
+use App\Http\Middleware\Authenticate;
+use App\Http\Middleware\EncryptCookies;
+use App\Http\Middleware\EnsureEmailIsVerified;
+use App\Http\Middleware\RedirectIfAuthenticated;
+use App\Http\Middleware\ResolvePlaceholderUrls;
+use App\Http\Middleware\SecureAsset;
+use App\Http\Middleware\VerifyCsrfToken;
 use App\Services\ExceptionHandler;
+use Faker\Factory;
+use Faker\Generator;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Middleware\SubstituteBindings;
+use Illuminate\Routing\Middleware\ThrottleRequests;
+use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
+use Spatie\Permission\Middleware\PermissionMiddleware;
+use Spatie\Permission\Middleware\RoleMiddleware;
+use ToneflixCode\FakerLoremToneflix\FakerLoremToneflixProvider;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
-        web: __DIR__.'/../routes/web.php',
-        api: __DIR__.'/../routes/api.php',
-        commands: __DIR__.'/../routes/console.php',
+        web: __DIR__ . '/../routes/web.php',
+        api: __DIR__ . '/../routes/api.php',
+        commands: __DIR__ . '/../routes/console.php',
         health: '/up',
     )
     // Listeners are registered in EventServiceProvider; discovering them too runs each one twice.
     ->withEvents(discover: false)
     ->withSingletons([
-        \Faker\Generator::class => function () {
-            $faker = \Faker\Factory::create();
-            $faker->addProvider(new \ToneflixCode\FakerLoremToneflix\FakerLoremToneflixProvider($faker));
+        Generator::class => function () {
+            $faker = Factory::create();
+            $faker->addProvider(new FakerLoremToneflixProvider($faker));
 
             return $faker;
         },
     ])
     ->withBindings(
         [
-            \Faker\Generator::class.':en_NG' => \Faker\Generator::class,
-            \Faker\Generator::class.':en_GB' => \Faker\Generator::class,
-            \Faker\Generator::class.':en_US' => \Faker\Generator::class,
+            Generator::class . ':en_NG' => Generator::class,
+            Generator::class . ':en_GB' => Generator::class,
+            Generator::class . ':en_US' => Generator::class,
         ]
     )
     ->withMiddleware(function (Middleware $middleware) {
@@ -56,32 +71,32 @@ return Application::configure(basePath: dirname(__DIR__))
                 Request::HEADER_X_FORWARDED_AWS_ELB
         );
 
-        $middleware->append(\App\Http\Middleware\ResolvePlaceholderUrls::class);
+        $middleware->append(ResolvePlaceholderUrls::class);
 
         $middleware->web(prepend: [
-            \App\Http\Middleware\EncryptCookies::class,
-            \App\Http\Middleware\VerifyCsrfToken::class,
+            EncryptCookies::class,
+            VerifyCsrfToken::class,
         ]);
 
         $middleware->api(append: [
-            \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
-            \Illuminate\Routing\Middleware\ThrottleRequests::class.':api',
-            \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            EnsureFrontendRequestsAreStateful::class,
+            ThrottleRequests::class . ':api',
+            SubstituteBindings::class,
         ]);
 
         $middleware->alias([
-            'auth' => \App\Http\Middleware\Authenticate::class,
-            'verified' => \App\Http\Middleware\EnsureEmailIsVerified::class,
-            'secure-asset' => \App\Http\Middleware\SecureAsset::class,
-            'guest' => \App\Http\Middleware\RedirectIfAuthenticated::class,
-            'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
-            'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
+            'auth' => Authenticate::class,
+            'verified' => EnsureEmailIsVerified::class,
+            'secure-asset' => SecureAsset::class,
+            'guest' => RedirectIfAuthenticated::class,
+            'role' => RoleMiddleware::class,
+            'permission' => PermissionMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         if (config('app.testing', false) === false) {
             $exceptions->render(function (Throwable $e, Request $request) {
-                return (new ExceptionHandler())->render($request, $e);
+                return (new ExceptionHandler)->render($request, $e);
             });
         }
     })->create();

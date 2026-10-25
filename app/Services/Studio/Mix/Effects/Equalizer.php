@@ -19,9 +19,9 @@ class Equalizer extends MixEffect
         $high = $this->param('high', -18, 18);
 
         $filters = array_filter([
-            $low != 0 ? 'lowshelf=f=250:t=s:w=1:g='.self::number($low) : null,
-            $mid != 0 ? 'equalizer=f='.self::number($this->param('midFrequency', 20, 20000)).':t=q:w=0.9:g='.self::number($mid) : null,
-            $high != 0 ? 'highshelf=f=4000:t=s:w=1:g='.self::number($high) : null,
+            $low != 0 ? 'lowshelf=f=250:t=s:w=1:g=' . self::number($low) : null,
+            $mid != 0 ? 'equalizer=f=' . self::number($this->param('midFrequency', 20, 20000)) . ':t=q:w=0.9:g=' . self::number($mid) : null,
+            $high != 0 ? 'highshelf=f=4000:t=s:w=1:g=' . self::number($high) : null,
         ]);
 
         return $filters ? $graph->chain($in, implode(',', $filters), 'eq') : $in;

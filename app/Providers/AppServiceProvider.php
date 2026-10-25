@@ -37,14 +37,20 @@ class AppServiceProvider extends ServiceProvider
 
         $this->app->bind(ModeratorModel::class, ReplicateModeratorModel::class);
 
-        $this->app->singleton(PayoutProviders::class, fn ($app) => new PayoutProviders([
+        $this->app->singleton(PayoutProviders::class, fn($app) => new PayoutProviders([
             $app->make(PaystackGateway::class),
             $app->make(FlutterwaveGateway::class),
             $app->make(StripeConnectGateway::class),
         ]));
 
-        $this->app->when(PushChannel::class)->needs(WebPushClient::class)->give(fn () => WebPush::client());
-        $this->app->when(PushChannel::class)->needs(ReportHandlerInterface::class)->give(ReportHandler::class);
+        $this->app
+            ->when(PushChannel::class)
+            ->needs(WebPushClient::class)
+            ->give(fn() => WebPush::client());
+        $this->app
+            ->when(PushChannel::class)
+            ->needs(ReportHandlerInterface::class)
+            ->give(ReportHandler::class);
     }
 
     /**
@@ -60,11 +66,12 @@ class AppServiceProvider extends ServiceProvider
         }
 
         RateLimiter::for('api', function (Request $request) {
-            return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
+            return Limit::perMinute(60)
+                ->by($request->user()?->id ?: $request->ip());
         });
 
         Providers::rateLimitCodeRequests();
 
-        Ai::extend('replicate', fn ($app, array $config) => new ReplicateProvider($config, $app['events']));
+        Ai::extend('replicate', fn($app, array $config) => new ReplicateProvider($config, $app['events']));
     }
 }

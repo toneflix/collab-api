@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Enums\HttpStatus;
-use App\Helpers\Providers;
 use App\Http\Resources\ArtistClaimResource;
 use App\Models\Artist;
 use App\Models\ArtistClaim;
@@ -40,9 +39,13 @@ class ArtistClaimController extends Controller
             $request->file('document'),
         );
 
-        return Providers::response()->success([
-            'data' => (new ArtistClaimResource($claim))->resolve($request),
-            'message' => 'Thanks. We\'ll review your claim and let you know.',
-        ], HttpStatus::CREATED);
+        return (new ArtistClaimResource($claim))
+            ->additional([
+                'message' => 'Thanks. We\'ll review your claim and let you know.',
+                'status' => 'success',
+                'status_code' => HttpStatus::CREATED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::CREATED->value);
     }
 }

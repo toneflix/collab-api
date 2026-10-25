@@ -17,12 +17,12 @@ class DetectAudioTags extends Command
     public function handle(): int
     {
         $queued = 0;
-        $untagged = fn (Builder $q) => $this->option('all')
-            ? $q->where(fn (Builder $q) => $q->whereNull('tags_source')->orWhere('tags_source', Track::TAGS_DETECTED))
+        $untagged = fn(Builder $q) => $this->option('all')
+            ? $q->where(fn(Builder $q) => $q->whereNull('tags_source')->orWhere('tags_source', Track::TAGS_DETECTED))
             : $q->whereNull('tagged_at');
 
         Track::query()->withoutGlobalScopes()
-            ->where(fn (Builder $q) => $q->whereNotNull('audio')->orWhereNotNull('project_track_id'))
+            ->where(fn(Builder $q) => $q->whereNotNull('audio')->orWhereNotNull('project_track_id'))
             ->tap($untagged)
             ->chunkById(200, function ($tracks) use (&$queued) {
                 foreach ($tracks as $track) {

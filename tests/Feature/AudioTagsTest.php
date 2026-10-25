@@ -41,14 +41,15 @@ class AudioTagsTest extends TestCase
         Storage::fake(config('filesystems.default'));
         Bus::fake([TagAudio::class, TranscribeTrack::class, FingerprintTrack::class, ProcessAudio::class]);
 
-        $this->dir = sys_get_temp_dir().'/audio-tags-'.Str::random(8);
+        $this->dir = sys_get_temp_dir() . '/audio-tags-' . Str::random(8);
         mkdir($this->dir);
-        $this->owner = User::factory()->create();
+        $this->owner = User::factory()
+            ->create();
     }
 
     protected function tearDown(): void
     {
-        array_map('unlink', glob($this->dir.'/*') ?: []);
+        array_map('unlink', glob($this->dir . '/*') ?: []);
         rmdir($this->dir);
         AiSettings::flush();
 
@@ -61,10 +62,10 @@ class AudioTagsTest extends TestCase
      */
     protected function song(int $bpm): string
     {
-        $note = fn (int $midi) => 440 * 2 ** (($midi - 69) / 12);
-        $chord = fn (int ...$notes) => implode('+', array_map(fn ($n) => 'sin(2*PI*'.$note($n).'*t)', $notes));
-        $chords = 'if(lt(mod(t,8),2),'.$chord(57, 60, 64).',if(lt(mod(t,8),4),'.$chord(62, 65, 69)
-            .',if(lt(mod(t,8),6),'.$chord(64, 68, 71).','.$chord(57, 60, 64).')))';
+        $note = fn(int $midi) => 440 * 2 ** (($midi - 69) / 12);
+        $chord = fn(int ...$notes) => implode('+', array_map(fn($n) => 'sin(2*PI*' . $note($n) . '*t)', $notes));
+        $chords = 'if(lt(mod(t,8),2),' . $chord(57, 60, 64) . ',if(lt(mod(t,8),4),' . $chord(62, 65, 69)
+            . ',if(lt(mod(t,8),6),' . $chord(64, 68, 71) . ',' . $chord(57, 60, 64) . ')))';
         $beat = 60 / $bpm;
 
         $path = "{$this->dir}/{$bpm}.mp3";
@@ -79,36 +80,43 @@ class AudioTagsTest extends TestCase
 
     protected function release(array $track = [], bool $draft = false): Track
     {
-        $genre = Genre::factory()->create();
-        $release = Release::factory()->create([
-            'draft' => $draft,
-            'price' => 0,
-            'genre_id' => $genre->id,
-            'user_id' => $this->owner->id,
-            'artist_id' => Artist::factory()->create()->id,
-        ]);
+        $genre = Genre::factory()
+            ->create();
+        $release = Release::factory()
+            ->create([
+                'draft' => $draft,
+                'price' => 0,
+                'genre_id' => $genre->id,
+                'user_id' => $this->owner->id,
+                'artist_id' => Artist::factory()->create()->id,
+            ]);
 
-        return Track::factory()->create(['release_id' => $release->id, 'genre_id' => $genre->id, 'audio' => null, ...$track]);
+        return Track::factory()
+            ->create(['release_id' => $release->id, 'genre_id' => $genre->id, 'audio' => null, ...$track]);
     }
 
     protected function upload(string $file): string
     {
-        $name = Str::random(12).'.mp3';
-        Storage::put('public/media/music/tracks/'.$name, file_get_contents($file));
+        $name = Str::random(12) . '.mp3';
+        Storage::put('public/media/music/tracks/' . $name, file_get_contents($file));
 
         return $name;
     }
 
     protected function projectTrack(): ProjectTrack
     {
-        $project = Project::query()->forceCreate(['user_id' => $this->owner->id, 'title' => 'Tags test', 'privacy' => 'private']);
+        $project = Project::query()
+            ->forceCreate(['user_id' => $this->owner->id, 'title' => 'Tags test', 'privacy' => 'private']);
 
-        return $project->tracks()->forceCreate(['title' => 'Night Run', 'privacy' => 'private']);
+        return $project
+            ->tracks()
+            ->forceCreate(['title' => 'Night Run', 'privacy' => 'private']);
     }
 
     protected function tag(Track|ProjectTrack $owner, bool $inherit = false): void
     {
-        app()->call([new TagAudio($owner, $inherit), 'handle']);
+        app()
+            ->call([new TagAudio($owner, $inherit), 'handle']);
     }
 
     /**
@@ -122,7 +130,8 @@ class AudioTagsTest extends TestCase
     public function test_the_analyzer_finds_the_tempo_and_key(): void
     {
         foreach ([128, 95] as $bpm) {
-            $tags = app(AudioAnalyzer::class)->analyze($this->song($bpm), 30);
+            $tags = app(AudioAnalyzer::class)
+                ->analyze($this->song($bpm), 30);
 
             $this->assertEqualsWithDelta($bpm, $tags->bpm, 1, "Tempo of the {$bpm} BPM song");
             $this->assertSame(MusicalKey::A_MINOR, $tags->key);
@@ -138,14 +147,14 @@ class AudioTagsTest extends TestCase
         $this->assertSame(MusicalKey::A_MINOR, MusicalKey::parse('8a'));
         $this->assertSame(MusicalKey::BB_MAJOR, MusicalKey::parse('Bb'));
         $this->assertNull(MusicalKey::parse('H minor'));
-        $this->assertSame(['Am', 'C', 'Dm', 'Em'], array_map(fn ($key) => $key->short(), MusicalKey::A_MINOR->compatible()));
+        $this->assertSame(['Am', 'C', 'Dm', 'Em'], array_map(fn($key) => $key->short(), MusicalKey::A_MINOR->compatible()));
     }
 
     public function test_uploaded_tracks_are_tagged_and_show_their_tags(): void
     {
         $track = $this->release(['audio' => $this->upload($this->song(128)), 'duration' => 30]);
 
-        Bus::assertDispatched(TagAudio::class, fn (TagAudio $job) => $job->owner->is($track) && ! $job->inherit);
+        Bus::assertDispatched(TagAudio::class, fn(TagAudio $job) => $job->owner->is($track) && ! $job->inherit);
         $this->tag($track);
 
         $track->refresh();
@@ -186,28 +195,38 @@ class AudioTagsTest extends TestCase
         $this->assertSame(MusicalKey::C_MAJOR, $track->musical_key);
         $this->assertSame(Track::TAGS_MANUAL, $track->tags_source);
 
-        $this->putJson("/api/creator/tracks/{$track->id}/tags", ['key' => 'H minor'])->assertUnprocessable();
+        $this
+            ->putJson("/api/creator/tracks/{$track->id}/tags", ['key' => 'H minor'])
+            ->assertUnprocessable();
 
         Bus::fake([TagAudio::class]);
         $this->unlock($track);
-        $this->putJson("/api/creator/tracks/{$track->id}/tags", ['bpm' => null, 'key' => null])->assertAccepted();
+        $this
+            ->putJson("/api/creator/tracks/{$track->id}/tags", ['bpm' => null, 'key' => null])
+            ->assertAccepted();
         $this->assertNull($track->fresh()->tags_source);
-        Bus::assertDispatched(TagAudio::class, fn (TagAudio $job) => $job->owner->is($track));
+        Bus::assertDispatched(TagAudio::class, fn(TagAudio $job) => $job->owner->is($track));
 
         Sanctum::actingAs(User::factory()->create());
-        $this->putJson("/api/creator/tracks/{$track->id}/tags", ['bpm' => 100])->assertNotFound();
+        $this
+            ->putJson("/api/creator/tracks/{$track->id}/tags", ['bpm' => 100])
+            ->assertNotFound();
     }
 
     public function test_studio_mixes_are_tagged_and_pass_their_tags_on(): void
     {
         $projectTrack = $this->projectTrack();
-        $projectTrack->forceFill(['preview' => $this->upload($this->song(95))])->save();
+        $projectTrack
+            ->forceFill(['preview' => $this->upload($this->song(95))])
+            ->save();
 
-        Bus::assertDispatched(TagAudio::class, fn (TagAudio $job) => $job->owner->is($projectTrack));
+        Bus::assertDispatched(TagAudio::class, fn(TagAudio $job) => $job->owner->is($projectTrack));
 
         $draft = $this->release(['project_track_id' => $projectTrack->id], draft: true);
         $published = $this->release(['project_track_id' => $projectTrack->id]);
-        $published->forceFill(['bpm' => 90, 'tags_source' => Track::TAGS_DETECTED])->saveQuietly();
+        $published
+            ->forceFill(['bpm' => 90, 'tags_source' => Track::TAGS_DETECTED])
+            ->saveQuietly();
 
         $this->tag($projectTrack);
 
@@ -217,7 +236,7 @@ class AudioTagsTest extends TestCase
         $this->assertSame(90.0, $published->fresh()->bpm);
 
         $released = $this->release(['project_track_id' => $projectTrack->id]);
-        Bus::assertDispatched(TagAudio::class, fn (TagAudio $job) => $job->owner->is($released) && $job->inherit);
+        Bus::assertDispatched(TagAudio::class, fn(TagAudio $job) => $job->owner->is($released) && $job->inherit);
         $this->tag($released, inherit: true);
 
         $this->assertEqualsWithDelta(95, $released->fresh()->bpm, 1);
@@ -234,10 +253,14 @@ class AudioTagsTest extends TestCase
     {
         $fast = $this->release(['title' => 'Fast one']);
         $slow = $this->release(['title' => 'Slow one']);
-        $fast->forceFill(['bpm' => 140, 'musical_key' => MusicalKey::A_MINOR, 'tags_source' => Track::TAGS_DETECTED])->saveQuietly();
-        $slow->forceFill(['bpm' => 82, 'musical_key' => MusicalKey::C_MAJOR, 'tags_source' => Track::TAGS_DETECTED])->saveQuietly();
+        $fast
+            ->forceFill(['bpm' => 140, 'musical_key' => MusicalKey::A_MINOR, 'tags_source' => Track::TAGS_DETECTED])
+            ->saveQuietly();
+        $slow
+            ->forceFill(['bpm' => 82, 'musical_key' => MusicalKey::C_MAJOR, 'tags_source' => Track::TAGS_DETECTED])
+            ->saveQuietly();
 
-        $ids = fn (string $query) => collect($this->getJson("/api/tracks?limit=100&{$query}")->assertOk()->json('data'))->pluck('id')->all();
+        $ids = fn(string $query) => collect($this->getJson("/api/tracks?limit=100&{$query}")->assertOk()->json('data'))->pluck('id')->all();
 
         $this->assertEqualsCanonicalizing([$fast->id], array_intersect($ids('bpm_min=120&bpm_max=150'), [$fast->id, $slow->id]));
         $this->assertEqualsCanonicalizing([$slow->id], array_intersect($ids('key=8B'), [$fast->id, $slow->id]));
@@ -251,8 +274,10 @@ class AudioTagsTest extends TestCase
         Bus::fake([TagAudio::class]);
         $this->unlock($track);
 
-        $this->artisan('tags:detect')->assertSuccessful();
+        $this
+            ->artisan('tags:detect')
+            ->assertSuccessful();
 
-        Bus::assertDispatched(TagAudio::class, fn (TagAudio $job) => $job->owner->is($track));
+        Bus::assertDispatched(TagAudio::class, fn(TagAudio $job) => $job->owner->is($track));
     }
 }

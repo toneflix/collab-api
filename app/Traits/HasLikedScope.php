@@ -15,7 +15,7 @@ trait HasLikedScope
     {
         $query->whereHas(
             'socialInteractions',
-            fn (Builder $q) => $q->where('interactor_type', $interactor->getMorphClass())
+            fn(Builder $q) => $q->where('interactor_type', $interactor->getMorphClass())
                 ->where('interactor_id', $interactor->getKey())
                 ->where('liked', true)
         );

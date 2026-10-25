@@ -31,8 +31,8 @@ class ProcessAudioTest extends TestCase
 
     public function test_lossless_uploads_are_encoded(): void
     {
-        $wav = tempnam(sys_get_temp_dir(), 'audio').'.wav';
-        exec('ffmpeg -loglevel error -y -i '.escapeshellarg(base_path('tests/fixtures/audio.mp3')).' '.escapeshellarg($wav));
+        $wav = tempnam(sys_get_temp_dir(), 'audio') . '.wav';
+        exec('ffmpeg -loglevel error -y -i ' . escapeshellarg(base_path('tests/fixtures/audio.mp3')) . ' ' . escapeshellarg($wav));
 
         $track = $this->upload($wav, 'wav');
 
@@ -47,15 +47,19 @@ class ProcessAudioTest extends TestCase
 
         // libfdk_aac is not always installed, so use FFmpeg's native AAC encoder here
         config(['settings.encoding.output' => 'aac', 'settings.encoding.output_codec' => 'aac']);
-        $genre = Genre::factory()->create();
-        $artist = Artist::factory()->create();
-        $user = User::factory()->create();
-        $release = Release::factory()->create(['user_id' => $user->id, 'genre_id' => $genre->id, 'artist_id' => $artist->id]);
+        $genre = Genre::factory()
+            ->create();
+        $artist = Artist::factory()
+            ->create();
+        $user = User::factory()
+            ->create();
+        $release = Release::factory()
+            ->create(['user_id' => $user->id, 'genre_id' => $genre->id, 'artist_id' => $artist->id]);
 
         Sanctum::actingAs($user, ['*']);
 
         // Work on a copy so the upload does not move the source away
-        $path = tempnam(sys_get_temp_dir(), 'audio').".{$ext}";
+        $path = tempnam(sys_get_temp_dir(), 'audio') . ".{$ext}";
         copy($source, $path);
 
         $response = $this->post("api/creator/releases/{$release->id}/tracks", [
@@ -70,6 +74,7 @@ class ProcessAudioTest extends TestCase
 
         $response->assertCreated();
 
-        return Track::query()->findOrFail($response->json('data.id'));
+        return Track::query()
+            ->findOrFail($response->json('data.id'));
     }
 }

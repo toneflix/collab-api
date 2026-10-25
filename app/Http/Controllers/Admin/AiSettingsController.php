@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Enums\HttpStatus;
 use App\Helpers\Providers;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\SettingsResource;
 use App\Services\Ai\AiSettings;
 use App\Services\Ai\Music\MusicModel;
 use Closure;
@@ -43,7 +44,7 @@ class AiSettingsController extends Controller
             'ai_credit_price' => ['nullable', 'numeric', 'min:0', 'max:1000000'],
             'ai_credit_packs' => ['nullable', 'string', 'max:200', 'regex:/^\s*\d+(\s*:\s*\d+(\.\d+)?)?(\s*,\s*\d+(\s*:\s*\d+(\.\d+)?)?)*\s*$/'],
             'ai_music_model' => ['nullable', 'string', Rule::in(array_keys(MusicModel::all()))],
-            ...collect(MusicModel::all())->mapWithKeys(fn (MusicModel $model) => [
+            ...collect(MusicModel::all())->mapWithKeys(fn(MusicModel $model) => [
                 $model::CREDITS_SETTING => ['nullable', 'integer', 'between:1,1000'],
             ])->all(),
             'ai_stems_credits' => ['nullable', 'integer', 'between:1,1000'],
@@ -71,15 +72,21 @@ class AiSettingsController extends Controller
 
     protected function settings(string $message = 'OK', HttpStatus $status = HttpStatus::OK)
     {
-        return Providers::response()->success([
-            'data' => [
-                'fields' => AiSettings::forAdmin(),
-                'keys' => AiSettings::keys(),
-                'client' => AiSettings::clientConfig(),
-                'models' => AiSettings::musicModels(),
-                'currency' => (string) Providers::config('app_currency', 'USD'),
-            ],
-            'message' => $message,
-        ], $status);
+        $settings = [
+            'fields' => AiSettings::forAdmin(),
+            'keys' => AiSettings::keys(),
+            'client' => AiSettings::clientConfig(),
+            'models' => AiSettings::musicModels(),
+            'currency' => (string) Providers::config('app_currency', 'USD'),
+        ];
+
+        return (new SettingsResource($settings))
+            ->additional([
+                'message' => $message,
+                'status' => 'success',
+                'status_code' => $status,
+            ])
+            ->response()
+            ->setStatusCode($status->value);
     }
 }

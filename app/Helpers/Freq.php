@@ -35,12 +35,12 @@ class Freq
 
     public static function period(?string $period): int
     {
-        if (!$period) {
+        if (! $period) {
             $period = 'year';
         }
 
         return collect(PeriodDays::cases())
-            ->firstWhere(fn (PeriodDays $p) => $p->name === mb_strtoupper($period))
+            ->firstWhere(fn(PeriodDays $p) => $p->name === mb_strtoupper($period))
             ?->value ?: PeriodDays::YEARS_2->value;
     }
 }

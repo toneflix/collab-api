@@ -28,20 +28,32 @@ class ProjectShowTest extends TestCase
 
         $this->seed(ConfigurationSeeder::class);
 
-        $this->owner = User::factory()->create();
-        $this->collaborator = User::factory()->create();
-        $this->stranger = User::factory()->create();
+        $this->owner = User::factory()
+            ->create();
+        $this->collaborator = User::factory()
+            ->create();
+        $this->stranger = User::factory()
+            ->create();
 
-        $this->project = Project::query()->forceCreate([
-            'user_id' => $this->owner->id,
-            'title' => 'Show test',
-            'privacy' => 'public',
-        ]);
-        $this->project->collaborators()->forceCreate(['user_id' => $this->collaborator->id, 'role' => 'keys', 'accepted' => true]);
-        $this->project->collaborators()->forceCreate(['user_id' => $this->stranger->id, 'role' => 'bass', 'accepted' => false]);
+        $this->project = Project::query()
+            ->forceCreate([
+                'user_id' => $this->owner->id,
+                'title' => 'Show test',
+                'privacy' => 'public',
+            ]);
+        $this->project
+            ->collaborators()
+            ->forceCreate(['user_id' => $this->collaborator->id, 'role' => 'keys', 'accepted' => true]);
+        $this->project
+            ->collaborators()
+            ->forceCreate(['user_id' => $this->stranger->id, 'role' => 'bass', 'accepted' => false]);
 
-        $this->project->tracks()->forceCreate(['title' => 'Open', 'privacy' => 'public']);
-        $this->project->tracks()->forceCreate(['title' => 'Hidden', 'privacy' => 'private']);
+        $this->project
+            ->tracks()
+            ->forceCreate(['title' => 'Open', 'privacy' => 'public']);
+        $this->project
+            ->tracks()
+            ->forceCreate(['title' => 'Hidden', 'privacy' => 'private']);
     }
 
     public function test_collaber_gets_tracks_and_collaborators_with_the_project(): void
@@ -71,7 +83,9 @@ class ProjectShowTest extends TestCase
     public function test_embedded_tracks_are_bounded(): void
     {
         foreach (range(1, ProjectResource::LIST_LIMIT) as $i) {
-            $this->project->tracks()->forceCreate(['title' => "Extra {$i}", 'privacy' => 'public']);
+            $this->project
+                ->tracks()
+                ->forceCreate(['title' => "Extra {$i}", 'privacy' => 'public']);
         }
 
         Sanctum::actingAs($this->owner);

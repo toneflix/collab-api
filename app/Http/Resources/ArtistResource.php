@@ -4,7 +4,7 @@ namespace App\Http\Resources;
 
 use App\Services\Artists\ArtistClaims;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
+use Toneflix\ResourceModifier\Services\Json\JsonResource;
 
 class ArtistResource extends JsonResource
 {
@@ -29,8 +29,8 @@ class ArtistResource extends JsonResource
             'coverUrl' => $this->cover ? $this->images['cover'] : null,
             'followers' => $this->whenLoaded(
                 'followers',
-                fn () => $this->followers->count(),
-                fn () => $this->followers()->count(),
+                fn() => $this->followers->count(),
+                fn() => $this->followers()->count(),
             ),
             'following' => 0,
             'youFollow' => $viewer ? $this->isFollowedBy($viewer) : false,
@@ -42,7 +42,7 @@ class ArtistResource extends JsonResource
             'claimable' => $this->isClaimable(),
             'yourClaim' => $this->when(
                 $request->routeIs('artists.show') && $this->isClaimable(),
-                fn () => ($claim = app(ArtistClaims::class)->latestFor($viewer, $this->resource))
+                fn() => ($claim = app(ArtistClaims::class)->latestFor($viewer, $this->resource))
                     ? (new ArtistClaimResource($claim))->resolve($request)
                     : null,
             ),

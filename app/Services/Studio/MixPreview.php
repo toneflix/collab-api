@@ -36,7 +36,8 @@ class MixPreview
 
         $this->status($track, ['status' => self::RENDERING, 'id' => $id]);
 
-        RenderMix::dispatch($track, $id)->afterCommit();
+        RenderMix::dispatch($track, $id)
+            ->afterCommit();
     }
 
     /**

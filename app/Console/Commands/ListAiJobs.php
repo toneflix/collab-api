@@ -24,7 +24,7 @@ class ListAiJobs extends Command
         $status = $this->option('status');
 
         if ($status && ! in_array($status, $statuses, true)) {
-            $this->error('The status must be one of: '.implode(', ', $statuses).'.');
+            $this->error('The status must be one of: ' . implode(', ', $statuses) . '.');
 
             return self::INVALID;
         }
@@ -34,9 +34,9 @@ class ListAiJobs extends Command
 
         do {
             $jobs = AiJob::query()
-                ->when($status, fn ($query) => $query->where('status', $status))
-                ->when($this->option('failures'), fn ($query) => $query->whereNotNull('failure'))
-                ->when($this->option('user'), fn ($query, $user) => $query->where('user_id', $user))
+                ->when($status, fn($query) => $query->where('status', $status))
+                ->when($this->option('failures'), fn($query) => $query->whereNotNull('failure'))
+                ->when($this->option('user'), fn($query, $user) => $query->where('user_id', $user))
                 ->latest('id')
                 ->paginate($perPage, ['*'], 'page', $page);
 
@@ -48,7 +48,7 @@ class ListAiJobs extends Command
 
             $this->table(
                 ['ID', 'User', 'Kind', 'Status', 'Credits', 'Started', 'What went wrong'],
-                $jobs->getCollection()->map(fn (AiJob $job) => [
+                $jobs->getCollection()->map(fn(AiJob $job) => [
                     $job->id,
                     $job->user_id,
                     $job->kind,

@@ -24,7 +24,8 @@ class PayoutWebhookController extends Controller
             $this->sync($payouts, 'flutterwave', (string) $request->input('data.reference'));
         }
 
-        return response()->json(['status' => 'ok']);
+        return response()
+            ->json(['status' => 'ok']);
     }
 
     public function stripe(Request $request, StripeConnectGateway $gateway, Payouts $payouts)
@@ -38,7 +39,8 @@ class PayoutWebhookController extends Controller
             $this->sync($payouts, 'stripe', (string) ($transfer->metadata->reference ?? $transfer->transfer_group ?? ''));
         }
 
-        return response()->json(['status' => 'ok']);
+        return response()
+            ->json(['status' => 'ok']);
     }
 
     protected function sync(Payouts $payouts, string $provider, string $reference): void
@@ -47,7 +49,9 @@ class PayoutWebhookController extends Controller
             return;
         }
 
-        $payout = Payout::where('reference', $reference)->where('provider', $provider)->first();
+        $payout = Payout::where('reference', $reference)
+            ->where('provider', $provider)
+            ->first();
 
         if ($payout) {
             $payouts->sync($payout);

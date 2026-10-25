@@ -43,23 +43,28 @@ class ClearDummyUserData extends Command
         //        SocialInteractions
         //        SocialInteractionSave
 
-        User::whereJsonContains('data->fake', true)->each(function (User $user) {
-            $user->delete();
-        });
+        User::whereJsonContains('data->fake', true)
+            ->each(function (User $user) {
+                $user->delete();
+            });
 
-        Release::whereNull('user_id')->where('image', 'like', '%via.placeholder.com%')->each(function (Release $model) {
-            $model->delete();
-        });
+        Release::whereNull('user_id')
+            ->where('image', 'like', '%via.placeholder.com%')
+            ->each(function (Release $model) {
+                $model->delete();
+            });
 
-        Artist::whereNull('user_id')->where('image', 'like', '%via.placeholder.com%')->each(function (Artist $model) {
-            $model->delete();
-        });
+        Artist::whereNull('user_id')
+            ->where('image', 'like', '%via.placeholder.com%')
+            ->each(function (Artist $model) {
+                $model->delete();
+            });
 
         collect([
             'Artist', 'User', 'Transaction', 'Release', 'Track', 'TrackArtist', 'Project', 'ProjectTrack', 'Followable',
             'ProjectCollaborator', 'SocialInteractions', 'SocialInteractionSave', 'ApprovableNotification', 'Laravisit',
             'Recommendation',
-        ])->each(fn (string $t) => $this->resetAutoincrement($t));
+        ])->each(fn(string $t) => $this->resetAutoincrement($t));
     }
 
     protected function resetAutoincrement(string $table): void
@@ -67,7 +72,7 @@ class ClearDummyUserData extends Command
         $table = str($table)->snake()->lower()->when(! in_array(
             $table,
             ['TrackArtist']
-        ), fn ($s) => $s->plural(2))->toString();
+        ), fn($s) => $s->plural(2))->toString();
 
         $max = DB::table($table)->max('id') + 1;
 

@@ -34,6 +34,7 @@ class RenderMix implements ShouldQueue
 
     public function failed(Throwable $error): void
     {
-        app(MixPreview::class)->fail($this->track, $this->id, $error);
+        app(MixPreview::class)
+            ->fail($this->track, $this->id, $error);
     }
 }

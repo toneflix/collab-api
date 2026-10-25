@@ -2,7 +2,6 @@
 
 namespace App\Services\Explorers;
 
-use App\Helpers\Providers;
 use App\Http\Controllers\ProjectController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -25,7 +24,7 @@ class Projects
 
             $this->instance->put(
                 'new_projects',
-                Providers::paginator($resource->resource, ['data' => 'list'], ['links', 'meta' => ['links', 'path']])
+                Section::from($resource)
             );
         }
 
@@ -38,7 +37,7 @@ class Projects
 
             $this->instance->put(
                 'top_projects',
-                Providers::paginator($resource->resource, ['data' => 'list'], ['links', 'meta' => ['links', 'path']])
+                Section::from($resource)
             );
         }
 
@@ -51,7 +50,7 @@ class Projects
 
             $this->instance->put(
                 'active_projects',
-                Providers::paginator($resource->resource, ['data' => 'list'], ['links', 'meta' => ['links', 'path']])
+                Section::from($resource)
             );
         }
         if ($this->request->has('random_projects')) {
@@ -63,7 +62,7 @@ class Projects
 
             $this->instance->put(
                 'random_projects',
-                Providers::paginator($resource->resource, ['data' => 'list'], ['links', 'meta' => ['links', 'path']])
+                Section::from($resource)
             );
         }
     }

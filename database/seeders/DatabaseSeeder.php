@@ -15,11 +15,12 @@ class DatabaseSeeder extends Seeder
     {
         // User::factory(10)->create();
 
-        User::factory()->create([
-            'firstname' => 'Super',
-            'lastname' => 'Admin',
-            'email' => 'admin@toneflix.ng',
-        ]);
+        User::factory()
+            ->create([
+                'firstname' => 'Super',
+                'lastname' => 'Admin',
+                'email' => 'admin@toneflix.ng',
+            ]);
 
         $this->call([
             GenreSeeder::class,

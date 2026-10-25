@@ -20,9 +20,9 @@ trait FilterByPlayPopularityTimeFrame
     public function scopeWithTotalPlaysCount(Builder $builder): Builder
     {
         return $builder->withCount([
-            'visits as visit_count_total' => fn (Builder $q) => $q
+            'visits as visit_count_total' => fn(Builder $q) => $q
                 ->where('data->duration', '>', 0)
-                ->when($this->userThatPlayedId, fn (Builder $q) => $q->where('data->user', $this->userThatPlayedId)),
+                ->when($this->userThatPlayedId, fn(Builder $q) => $q->where('data->user', $this->userThatPlayedId)),
         ]);
     }
 
@@ -144,8 +144,8 @@ trait FilterByPlayPopularityTimeFrame
      */
     protected function betweenPlayedScope(Carbon $from, Carbon $to): Closure
     {
-        return fn ($query) => $query
-            ->when($this->userThatPlayedId, fn (Builder $q) => $q->where('data->user', $this->userThatPlayedId))
+        return fn($query) => $query
+            ->when($this->userThatPlayedId, fn(Builder $q) => $q->where('data->user', $this->userThatPlayedId))
             ->where('data->duration', '>', 0)
             ->whereBetween('created_at', [$from, $to]);
     }

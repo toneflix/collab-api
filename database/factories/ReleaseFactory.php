@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 use Valorin\Random\Random;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Release>
+ * @extends Factory<Release>
  */
 class ReleaseFactory extends Factory
 {
@@ -36,7 +36,7 @@ class ReleaseFactory extends Factory
             'isrc' => "{$ran}{$one}{$ran1}{$sev}",
             'iswc' => "T-{$thr1}.{$thr2}.{$thr3}-$one",
             'title' => ucwords($this->faker->words(rand(2, 4), true)),
-            'pline' => date('Y')." $lets Music Limited",
+            'pline' => date('Y') . " $lets Music Limited",
             'draft' => false,
             'image' => $this->faker->imageUrl(480, 480, 'album', true),
             'privacy' => 'public',
@@ -60,7 +60,7 @@ class ReleaseFactory extends Factory
         return $this->afterCreating(function (Release $model) {
             User::inRandomOrder()->limit(rand(1, 10))
                 ->get()
-                ->each(fn (User $user) => $model->stream(rand(10, 320), $user));
+                ->each(fn(User $user) => $model->stream(rand(10, 320), $user));
         });
     }
 }

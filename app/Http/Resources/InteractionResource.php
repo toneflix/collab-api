@@ -4,7 +4,7 @@ namespace App\Http\Resources;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
+use Toneflix\ResourceModifier\Services\Json\JsonResource;
 
 class InteractionResource extends JsonResource
 {
@@ -15,7 +15,9 @@ class InteractionResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        $with = str($request->input('with'))->remove(' ')->explode(',');
+        $with = str($request->input('with'))
+            ->remove(' ')
+            ->explode(',');
 
         return [
             'id' => $this->id,
@@ -26,8 +28,8 @@ class InteractionResource extends JsonResource
             'liked' => $this->liked,
             'disliked' => $this->disliked,
             'reaction' => $this->saved,
-            'created_at' => $this->created_at,
-            'updated_at' => $this->updated_at,
+            'createdAt' => $this->created_at,
+            'updatedAt' => $this->updated_at,
         ];
     }
 

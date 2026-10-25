@@ -22,10 +22,10 @@ class StemFiles
     public function put(string $path, string $ext = 'mp3'): string
     {
         $media = $this->media();
-        $name = Initiator::generateStringFromPattern(config('toneflix-fileable.file_name_pattern', '000000000-000000000')).'.'.$ext;
+        $name = Initiator::generateStringFromPattern(config('toneflix-fileable.file_name_pattern', '000000000-000000000')) . '.' . $ext;
 
         $stream = fopen($path, 'r');
-        $media->disk->writeStream($this->directory($media).$name, $stream);
+        $media->disk->writeStream($this->directory($media) . $name, $stream);
         fclose($stream);
 
         return $name;
@@ -37,7 +37,7 @@ class StemFiles
     public function local(ProjectTrackStem $stem): ?string
     {
         $media = $this->media();
-        $path = $this->directory($media).$stem->src;
+        $path = $this->directory($media) . $stem->src;
 
         if (! $stem->src || ! $media->disk->exists($path)) {
             return null;
@@ -49,7 +49,7 @@ class StemFiles
             return null;
         }
 
-        $local = sys_get_temp_dir().'/stem-'.Str::random(16).'.'.(pathinfo($path, PATHINFO_EXTENSION) ?: 'mp3');
+        $local = sys_get_temp_dir() . '/stem-' . Str::random(16) . '.' . (pathinfo($path, PATHINFO_EXTENSION) ?: 'mp3');
         file_put_contents($local, $stream);
         fclose($stream);
 
@@ -63,10 +63,12 @@ class StemFiles
      */
     public function addStem(ProjectTrack $track, User $user, string $path, string $title, array $meta = [], string $ext = 'mp3'): ProjectTrackStem
     {
-        $stem = $track->stems()->make([
-            'title' => str($title)->limit(180, '')->toString(),
-            'user_id' => $user->id,
-        ]);
+        $stem = $track
+            ->stems()
+            ->make([
+                'title' => str($title)->limit(180, '')->toString(),
+                'user_id' => $user->id,
+            ]);
         $stem->src = $this->put($path, $ext);
         $stem->meta = ['gain' => 1, 'start' => 0, ...$meta];
         $stem->save();
@@ -84,6 +86,6 @@ class StemFiles
 
     protected function directory(Media $media): string
     {
-        return $media->getPrefix('stem_files').Arr::get($media->namespaces, 'stem_files.path');
+        return $media->getPrefix('stem_files') . Arr::get($media->namespaces, 'stem_files.path');
     }
 }

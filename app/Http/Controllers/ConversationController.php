@@ -3,11 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Enums\HttpStatus;
-use App\Helpers\Providers;
+use App\Http\Resources\ConversationCollection;
+use App\Http\Resources\ConversationMessageCollection;
+use App\Http\Resources\ConversationMessageResource;
+use App\Http\Resources\ConversationResource;
 use App\Models\Comment;
 use App\Models\Project;
 use App\Models\ProjectTrack;
-use App\Models\Release;
 use App\Models\Track;
 use App\Services\Conversations\Conversations;
 use Illuminate\Database\Eloquent\Model;
@@ -25,13 +27,20 @@ class ConversationController extends Controller
      */
     public function index(Request $request)
     {
-        $list = Conversations::forUser($request->user());
+        $request->validate(['limit' => ['nullable', 'integer', 'between:1,50']]);
 
-        return Providers::response()->success([
-            'data' => $list->all(),
-            'meta' => ['unread' => $list->sum('unread')],
-            'message' => HttpStatus::message(HttpStatus::OK),
-        ]);
+        $conversations = Conversations::forUser($request->user(), $request->perPage(50, 50));
+        $unread = $conversations
+            ->getCollection()
+            ->sum('unread_count');
+
+        return (new ConversationCollection($conversations))
+            ->additional([
+                'unread' => $unread,
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -41,38 +50,32 @@ class ConversationController extends Controller
     {
         $root = Conversations::find($type, $id, $request->user());
 
-        return Providers::response()->success([
-            'data' => Conversations::subject($root) + [
-                'unread' => Conversations::unreadCount($root, $request->user()),
-                'canDeleteAny' => $this->ownsRoot($request, $root),
-            ],
-            'message' => HttpStatus::message(HttpStatus::OK),
-        ]);
+        return (new ConversationResource($root))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
-     * A page of messages, oldest first. Without `before` it's the newest
-     * page; pass the oldest id you have as `before` for the page above it.
+     * A page of messages, oldest first. Without a cursor it's the newest
+     * page; pass `meta.next_cursor` as `cursor` for the page above it.
      */
     public function messages(Request $request, string $type, string $id)
     {
+        $request->validate(['limit' => ['nullable', 'integer', 'between:1,100']]);
+
         $root = Conversations::find($type, $id, $request->user());
-        $limit = min(100, max(1, (int) $request->input('limit', 30)));
 
-        $page = Conversations::messages($root)
-            ->with('commentator')
-            ->when($request->filled('before'), fn ($q) => $q->where('id', '<', (int) $request->input('before')))
-            ->orderByDesc('id')
-            ->limit($limit + 1)
-            ->get();
+        $messages = Conversations::messagesPage($root, (int) $request->input('limit', 30));
 
-        $hasMore = $page->count() > $limit;
-
-        return Providers::response()->success([
-            'data' => $page->take($limit)->reverse()->values()->map(fn (Comment $c) => Conversations::message($c))->all(),
-            'meta' => ['hasMore' => $hasMore],
-            'message' => HttpStatus::message(HttpStatus::OK),
-        ]);
+        return (new ConversationMessageCollection($messages))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -111,7 +114,8 @@ class ConversationController extends Controller
 
         $target = $root;
         if (! empty($valid['reply_to'])) {
-            $target = Conversations::messages($root)->find($valid['reply_to']);
+            $target = Conversations::messages($root)
+                ->find($valid['reply_to']);
             abort_unless($target, HttpStatus::UNPROCESSABLE_ENTITY->value, 'The message you replied to is gone.');
         }
 
@@ -130,10 +134,14 @@ class ConversationController extends Controller
         Conversations::markRead($root, $request->user());
         Conversations::posted($comment);
 
-        return Providers::response()->success([
-            'data' => Conversations::message($comment),
-            'message' => 'Message sent.',
-        ], HttpStatus::CREATED);
+        return (new ConversationMessageResource($comment))
+            ->additional([
+                'message' => 'Message sent.',
+                'status' => 'success',
+                'status_code' => HttpStatus::CREATED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::CREATED->value);
     }
 
     /**
@@ -153,7 +161,9 @@ class ConversationController extends Controller
 
         $stem = null;
         if (! empty($region['stem_id'])) {
-            $stem = $root->stems()->find($region['stem_id']);
+            $stem = $root
+                ->stems()
+                ->find($region['stem_id']);
             abort_unless($stem, HttpStatus::UNPROCESSABLE_ENTITY->value, 'That stem isn\'t on this track.');
         }
 
@@ -181,7 +191,7 @@ class ConversationController extends Controller
         return [
             'file' => is_array($saved) ? $saved['new_name'] : $saved,
             'duration' => round((float) $valid['duration'], 2),
-            'waveform' => collect($valid['waveform'] ?? [])->map(fn ($v) => round((float) $v, 2))->values()->all(),
+            'waveform' => collect($valid['waveform'] ?? [])->map(fn($v) => round((float) $v, 2))->values()->all(),
             'mime' => $file->getMimeType(),
         ];
     }
@@ -194,10 +204,12 @@ class ConversationController extends Controller
         $root = Conversations::find($type, $id, $request->user());
 
         /** @var Comment|null $comment */
-        $comment = Conversations::messages($root)->find($message);
+        $comment = Conversations::messages($root)
+            ->find($message);
+
         abort_unless($comment, HttpStatus::NOT_FOUND->value, 'This message no longer exists.');
         abort_unless(
-            (int) $comment->user_id === (int) $request->user()->id || $this->ownsRoot($request, $root),
+            (int) $comment->user_id === (int) $request->user()->id || Conversations::ownedBy($root, $request->user()),
             HttpStatus::FORBIDDEN->value,
             'You can only delete your own messages.'
         );
@@ -206,10 +218,14 @@ class ConversationController extends Controller
         Conversations::forgetVoice($comment);
         $comment->delete();
 
-        return Providers::response()->success([
-            'data' => ['id' => (int) $message],
-            'message' => 'Message deleted.',
-        ], HttpStatus::ACCEPTED);
+        return (new ConversationMessageResource($comment))
+            ->additional([
+                'message' => 'Message deleted.',
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 
     /**
@@ -218,24 +234,14 @@ class ConversationController extends Controller
     public function read(Request $request, string $type, string $id)
     {
         $root = Conversations::find($type, $id, $request->user());
+
         Conversations::markRead($root, $request->user());
 
-        return Providers::response()->success([
-            'data' => ['unread' => 0],
-            'message' => HttpStatus::message(HttpStatus::OK),
-        ]);
-    }
-
-    protected function ownsRoot(Request $request, Model $root): bool
-    {
-        $userId = (int) $request->user()->id;
-
-        return match (true) {
-            $root instanceof ProjectTrack => (int) $root->project?->user_id === $userId,
-            $root instanceof Project => (int) $root->user_id === $userId,
-            $root instanceof Release => (int) $root->user_id === $userId,
-            $root instanceof Track => (int) $root->release?->user_id === $userId,
-            default => false,
-        };
+        return (new ConversationResource($root))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 }

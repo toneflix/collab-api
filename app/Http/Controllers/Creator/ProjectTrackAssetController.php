@@ -21,15 +21,18 @@ class ProjectTrackAssetController extends Controller
     {
         $this->authorize('view', $track);
 
-        $query = $track->assets()->getQuery();
+        $query = $track
+            ->assets()
+            ->getQuery();
 
         $assets = $query->get();
 
-        return (new FileCollection($assets))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new FileCollection($assets))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -51,13 +54,18 @@ class ProjectTrackAssetController extends Controller
             'description' => ['nullable', 'string'],
         ]);
 
-        $file = $track->assets()->create($valid);
+        $file = $track
+            ->assets()
+            ->create($valid);
 
-        return (new FileResource($file))->additional([
-            'message' => 'Track asset uploaded successfully.',
-            'status' => 'success',
-            'status_code' => HttpStatus::CREATED,
-        ])->response()->setStatusCode(HttpStatus::CREATED->value);
+        return (new FileResource($file))
+            ->additional([
+                'message' => 'Track asset uploaded successfully.',
+                'status' => 'success',
+                'status_code' => HttpStatus::CREATED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::CREATED->value);
     }
 
     /**
@@ -67,11 +75,12 @@ class ProjectTrackAssetController extends Controller
     {
         $this->authorize('view', $track);
 
-        return (new FileResource($asset))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new FileResource($asset))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -93,17 +102,20 @@ class ProjectTrackAssetController extends Controller
             'description' => ['nullable', 'string'],
         ]);
 
-        if (!collect(Providers::config('allow_file_updates', false))) {
+        if (! collect(Providers::config('allow_file_updates', false))) {
             unset($valid['file']);
         }
 
         $asset->update($valid);
 
-        return (new FileResource($asset))->additional([
-            'message' => 'Track asset updated successfully.',
-            'status' => 'success',
-            'status_code' => HttpStatus::ACCEPTED,
-        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
+        return (new FileResource($asset))
+            ->additional([
+                'message' => 'Track asset updated successfully.',
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 
     /**
@@ -115,10 +127,13 @@ class ProjectTrackAssetController extends Controller
 
         $asset->delete();
 
-        return (new FileCollection([]))->additional([
-            'message' => 'Track asset deleted successfully.',
-            'status' => 'success',
-            'status_code' => HttpStatus::ACCEPTED,
-        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
+        return (new FileCollection([]))
+            ->additional([
+                'message' => 'Track asset deleted successfully.',
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 }

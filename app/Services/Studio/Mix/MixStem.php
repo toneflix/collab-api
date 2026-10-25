@@ -46,7 +46,7 @@ class MixStem
     public function mixEffects(int $channels): array
     {
         return array_values(array_filter(array_map(
-            fn (array $effect) => MixEffect::from($effect, $channels),
+            fn(array $effect) => MixEffect::from($effect, $channels),
             $this->effects,
         )));
     }
@@ -61,7 +61,7 @@ class MixStem
     protected static function clips(array $meta): array
     {
         if (! empty($meta['clips']) && is_array($meta['clips'])) {
-            return array_values(array_map(fn ($clip) => [
+            return array_values(array_map(fn($clip) => [
                 'start' => max(0, self::num($clip['start'] ?? 0)),
                 'offset' => max(0, self::num($clip['offset'] ?? 0)),
                 'duration' => self::num($clip['duration'] ?? 0) > 0 ? self::num($clip['duration']) : null,

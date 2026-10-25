@@ -4,7 +4,7 @@ namespace App\Http\Resources;
 
 use App\Enums\Feature;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
+use Toneflix\ResourceModifier\Services\Json\JsonResource;
 
 class UserResource extends JsonResource
 {
@@ -25,7 +25,10 @@ class UserResource extends JsonResource
 
         $permissions = [];
         if ($previleged) {
-            $permQuery = $this->getPermissionsViaRoles()->pluck('name')->unique();
+            $permQuery = $this
+                ->getPermissionsViaRoles()
+                ->pluck('name')
+                ->unique();
             $permissions = $permQuery->count() ? $permQuery->values() : $this->getPermissionNames();
         }
 
@@ -43,13 +46,13 @@ class UserResource extends JsonResource
             'firstname' => $this->firstname,
             'followers' => $this->whenLoaded(
                 'followers',
-                fn () => $this->followers->count(),
-                fn () => $this->followers()->count(),
+                fn() => $this->followers->count(),
+                fn() => $this->followers()->count(),
             ),
             'following' => $this->whenLoaded(
                 'followings',
-                fn () => $this->followings->count(),
-                fn () => $this->followings()->count(),
+                fn() => $this->followings->count(),
+                fn() => $this->followings()->count(),
             ),
             'reputation' => $this->reputation,
             'isPremium' => $this->is_premium,
@@ -61,7 +64,7 @@ class UserResource extends JsonResource
             'youFollow' => $user ? $this->isFollowedBy($user) : false,
             'country' => $this->country,
             'state' => $this->state,
-            $this->mergeWhen($previleged, fn () => [
+            $this->mergeWhen($previleged, fn() => [
                 'city' => $this->city,
                 'address' => $this->address,
                 'roles' => $this->getRoleNames(),

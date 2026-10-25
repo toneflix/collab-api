@@ -3,6 +3,7 @@
 namespace App\Services\Ai;
 
 use App\Broadcasting\Channels;
+use App\Http\Resources\AiJobResource;
 use App\Jobs\RunAiJob;
 use App\Models\AiCreditEntry;
 use App\Models\AiJob;
@@ -52,7 +53,8 @@ class AiStudio
             return $job;
         });
 
-        RunAiJob::dispatch($job)->afterCommit();
+        RunAiJob::dispatch($job)
+            ->afterCommit();
 
         $this->announce($job);
 
@@ -65,19 +67,25 @@ class AiStudio
             return $job;
         }
 
-        $job->forceFill(['status' => AiJob::RUNNING, 'started_at' => now()])->save();
+        $job
+            ->forceFill(['status' => AiJob::RUNNING, 'started_at' => now()])
+            ->save();
         $this->announce($job);
 
         $history = TrackHistory::for($job->track);
         $history->baseline();
 
         try {
-            $output = $job->task()->handle($job);
+            $output = $job
+                ->task()
+                ->handle($job);
         } catch (Throwable $e) {
             return $this->fail($job, $e);
         }
 
-        $job->forceFill(['status' => AiJob::SUCCEEDED, 'output' => $output, 'finished_at' => now()])->save();
+        $job
+            ->forceFill(['status' => AiJob::SUCCEEDED, 'output' => $output, 'finished_at' => now()])
+            ->save();
 
         $history->record($job->user, ProjectTrackVersion::ADDED);
 
@@ -107,10 +115,13 @@ class AiStudio
             'finished_at' => now(),
         ])->save();
 
-        $spend = $job->creditEntries()->where('type', AiCreditEntry::SPEND)->first();
+        $spend = $job
+            ->creditEntries()
+            ->where('type', AiCreditEntry::SPEND)
+            ->first();
 
         if ($spend) {
-            Credits::for($job->user)->refund($spend, 'Refund: '.$job->task()->describe($job->input ?? []));
+            Credits::for($job->user)->refund($spend, 'Refund: ' . $job->task()->describe($job->input ?? []));
         }
 
         $this->announce($job);
@@ -126,9 +137,14 @@ class AiStudio
     {
         $this->log($job, $error, $step);
 
-        $job->forceFill(['failure' => "{$step}: ".$this->reason($error)])->save();
+        $job
+            ->forceFill(['failure' => "{$step}: " . $this->reason($error)])
+            ->save();
 
-        $spend = $job->creditEntries()->where('type', AiCreditEntry::SPEND)->first();
+        $spend = $job
+            ->creditEntries()
+            ->where('type', AiCreditEntry::SPEND)
+            ->first();
 
         if ($spend && $credits > 0) {
             Credits::for($job->user)->refund($spend, "Refund: {$step}", $credits);
@@ -149,12 +165,14 @@ class AiStudio
     protected function reason(Throwable|string $error): string
     {
         $reason = match (true) {
-            $error instanceof RequestException => "HTTP {$error->response->status()}: ".($error->response->json('detail') ?? $error->response->body()),
-            $error instanceof Throwable => class_basename($error).': '.$error->getMessage(),
+            $error instanceof RequestException => "HTTP {$error->response->status()}: " . ($error->response->json('detail') ?? $error->response->body()),
+            $error instanceof Throwable => class_basename($error) . ': ' . $error->getMessage(),
             default => $error,
         };
 
-        return str($reason)->limit(2000)->toString();
+        return str($reason)
+            ->limit(2000)
+            ->toString();
     }
 
     /**
@@ -165,7 +183,7 @@ class AiStudio
         Realtime::send(
             [Channels::projectTrack($job->project_track_id), Channels::user($job->user_id)],
             'ai.job',
-            $job->present(),
+            (new AiJobResource($job))->resolve(),
             $job->user,
         );
     }

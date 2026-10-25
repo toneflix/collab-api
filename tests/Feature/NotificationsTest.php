@@ -46,14 +46,17 @@ class NotificationsTest extends TestCase
             'webpush.vapid.private_key' => 'private-key-for-tests',
         ]);
 
-        $this->owner = User::factory()->create(['firstname' => 'Ada']);
-        $this->collaborator = User::factory()->create(['firstname' => 'Ben']);
+        $this->owner = User::factory()
+            ->create(['firstname' => 'Ada']);
+        $this->collaborator = User::factory()
+            ->create(['firstname' => 'Ben']);
 
-        $this->project = Project::query()->forceCreate([
-            'user_id' => $this->owner->id,
-            'title' => 'Night Drive',
-            'privacy' => 'private',
-        ]);
+        $this->project = Project::query()
+            ->forceCreate([
+                'user_id' => $this->owner->id,
+                'title' => 'Night Drive',
+                'privacy' => 'private',
+            ]);
     }
 
     /**
@@ -146,7 +149,9 @@ class NotificationsTest extends TestCase
         $this->project->update(['privacy' => 'public']);
         $this->actingAsFresh($this->collaborator);
 
-        $this->postJson("/api/projects/{$this->project->id}/collaborators", ['role' => 'vocals'])->assertCreated();
+        $this
+            ->postJson("/api/projects/{$this->project->id}/collaborators", ['role' => 'vocals'])
+            ->assertCreated();
 
         Notification::assertSentTo($this->owner, JoinProjectRequestNotification::class, function ($n) {
             return str_contains($n->content($this->owner)['body'], 'asked to join your project "Night Drive" as vocals');
@@ -160,7 +165,7 @@ class NotificationsTest extends TestCase
         config(['app.frontend_url' => 'https://app.test']);
 
         $transaction = new Transaction([
-            'reference' => 'TRX-'.uniqid(),
+            'reference' => 'TRX-' . uniqid(),
             'purpose' => 'tip',
             'method' => 'paystack',
             'status' => 'pending',
@@ -172,7 +177,9 @@ class NotificationsTest extends TestCase
             'meta' => ['message' => 'Love the record'],
         ]);
         $transaction->user_id = $this->collaborator->id;
-        $transaction->transactable()->associate($this->owner);
+        $transaction
+            ->transactable()
+            ->associate($this->owner);
         $transaction->save();
 
         (new Checkout(Mockery::mock(PaymentGateway::class)))->settle($transaction, true, 1000);
@@ -192,7 +199,7 @@ class NotificationsTest extends TestCase
         Notification::fake();
 
         $transaction = new Transaction([
-            'reference' => 'TRX-'.uniqid(),
+            'reference' => 'TRX-' . uniqid(),
             'purpose' => 'tip',
             'method' => 'paystack',
             'status' => 'pending',
@@ -201,7 +208,9 @@ class NotificationsTest extends TestCase
             'recipient_id' => $this->owner->id,
         ]);
         $transaction->user_id = $this->collaborator->id;
-        $transaction->transactable()->associate($this->owner);
+        $transaction
+            ->transactable()
+            ->associate($this->owner);
         $transaction->save();
 
         (new Checkout(Mockery::mock(PaymentGateway::class)))->settle($transaction, false, 0);
@@ -212,14 +221,20 @@ class NotificationsTest extends TestCase
     public function test_a_message_queues_one_delayed_notification_per_member(): void
     {
         Queue::fake();
-        $this->project->collaborators()->forceCreate(['user_id' => $this->collaborator->id, 'role' => 'vocals', 'accepted' => true]);
-        $track = $this->project->tracks()->forceCreate(['title' => 'Hook', 'privacy' => 'private']);
+        $this->project
+            ->collaborators()
+            ->forceCreate(['user_id' => $this->collaborator->id, 'role' => 'vocals', 'accepted' => true]);
+        $track = $this->project
+            ->tracks()
+            ->forceCreate(['title' => 'Hook', 'privacy' => 'private']);
         $this->actingAsFresh($this->collaborator);
 
-        $this->postJson("/api/conversations/project-track/{$track->id}/messages", ['body' => 'New take is up'])->assertSuccessful();
+        $this
+            ->postJson("/api/conversations/project-track/{$track->id}/messages", ['body' => 'New take is up'])
+            ->assertSuccessful();
 
         Queue::assertPushed(NotifyUnreadMessages::class, 1);
-        Queue::assertPushed(NotifyUnreadMessages::class, fn (NotifyUnreadMessages $job) => $job->userId === $this->owner->id
+        Queue::assertPushed(NotifyUnreadMessages::class, fn(NotifyUnreadMessages $job) => $job->userId === $this->owner->id
             && $job->rootType === ProjectTrack::class
             && $job->delay !== null);
     }
@@ -227,8 +242,12 @@ class NotificationsTest extends TestCase
     public function test_unread_messages_are_summed_up_and_read_ones_are_skipped(): void
     {
         Notification::fake();
-        $this->project->collaborators()->forceCreate(['user_id' => $this->collaborator->id, 'role' => 'vocals', 'accepted' => true]);
-        $track = $this->project->tracks()->forceCreate(['title' => 'Hook', 'privacy' => 'private']);
+        $this->project
+            ->collaborators()
+            ->forceCreate(['user_id' => $this->collaborator->id, 'role' => 'vocals', 'accepted' => true]);
+        $track = $this->project
+            ->tracks()
+            ->forceCreate(['title' => 'Hook', 'privacy' => 'private']);
 
         $track->commentAsUser($this->collaborator, 'First idea');
         $track->commentAsUser($this->collaborator, 'Second idea');
@@ -252,8 +271,12 @@ class NotificationsTest extends TestCase
     public function test_a_conversation_notifies_a_user_at_most_once_per_delay(): void
     {
         Notification::fake();
-        $this->project->collaborators()->forceCreate(['user_id' => $this->collaborator->id, 'role' => 'vocals', 'accepted' => true]);
-        $track = $this->project->tracks()->forceCreate(['title' => 'Hook', 'privacy' => 'private']);
+        $this->project
+            ->collaborators()
+            ->forceCreate(['user_id' => $this->collaborator->id, 'role' => 'vocals', 'accepted' => true]);
+        $track = $this->project
+            ->tracks()
+            ->forceCreate(['title' => 'Hook', 'privacy' => 'private']);
 
         $track->commentAsUser($this->collaborator, 'One');
         (new NotifyUnreadMessages($this->owner->id, ProjectTrack::class, $track->id))->handle();
@@ -265,8 +288,12 @@ class NotificationsTest extends TestCase
 
     public function test_a_new_summary_replaces_the_unread_one_for_the_same_conversation(): void
     {
-        $this->project->collaborators()->forceCreate(['user_id' => $this->collaborator->id, 'role' => 'vocals', 'accepted' => true]);
-        $track = $this->project->tracks()->forceCreate(['title' => 'Hook', 'privacy' => 'private']);
+        $this->project
+            ->collaborators()
+            ->forceCreate(['user_id' => $this->collaborator->id, 'role' => 'vocals', 'accepted' => true]);
+        $track = $this->project
+            ->tracks()
+            ->forceCreate(['title' => 'Hook', 'privacy' => 'private']);
 
         $track->commentAsUser($this->collaborator, 'One');
         (new NotifyUnreadMessages($this->owner->id, ProjectTrack::class, $track->id))->handle();
@@ -280,8 +307,11 @@ class NotificationsTest extends TestCase
     public function test_people_who_cant_see_a_conversation_are_not_notified(): void
     {
         Notification::fake();
-        $stranger = User::factory()->create();
-        $track = $this->project->tracks()->forceCreate(['title' => 'Hook', 'privacy' => 'private']);
+        $stranger = User::factory()
+            ->create();
+        $track = $this->project
+            ->tracks()
+            ->forceCreate(['title' => 'Hook', 'privacy' => 'private']);
         $track->commentAsUser($this->owner, 'Secret');
 
         (new NotifyUnreadMessages($stranger->id, ProjectTrack::class, $track->id))->handle();
@@ -303,10 +333,16 @@ class NotificationsTest extends TestCase
             ->assertJsonPath('data.0.path', "/messages/project/{$this->project->id}")
             ->json('data.0.id');
 
-        $this->patchJson("/api/account/notifications/{$id}")->assertAccepted()->assertJsonPath('stats.unread', 0);
+        $this
+            ->patchJson("/api/account/notifications/{$id}")
+            ->assertAccepted()
+            ->assertJsonPath('stats.unread', 0);
 
         $this->owner->notify(new NewMessagesNotification('project', $this->project->id, 'Night Drive', 3, ['Ben', 'Cy', 'Di'], 'Hi'));
-        $this->postJson('/api/account/notifications/read')->assertAccepted()->assertJsonPath('stats.unread', 0);
+        $this
+            ->postJson('/api/account/notifications/read')
+            ->assertAccepted()
+            ->assertJsonPath('stats.unread', 0);
     }
 
     public function test_push_subscriptions_can_be_added_and_removed(): void
@@ -325,7 +361,9 @@ class NotificationsTest extends TestCase
 
     public function test_push_message_links_to_the_app(): void
     {
-        $push = (new SaleNotification($this->tipFrom($this->collaborator)))->toWebPush($this->owner)->toArray();
+        $push = (new SaleNotification($this->tipFrom($this->collaborator)))
+            ->toWebPush($this->owner)
+            ->toArray();
 
         $this->assertSame("{$this->collaborator->fullname} sent you a tip", $push['title']);
         $this->assertSame('https://app.test/studio/earnings', $push['data']['url']);
@@ -342,15 +380,21 @@ class NotificationsTest extends TestCase
 
         $url = ActivityNotification::unsubscribeUrl($this->owner, NotificationCategory::SALES);
 
-        $this->get($url)->assertRedirect('https://app.test/account/notifications?unsubscribed=sales');
+        $this
+            ->get($url)
+            ->assertRedirect('https://app.test/account/notifications?unsubscribed=sales');
         $this->assertFalse(NotificationPreferences::for($this->owner->fresh())->allows(NotificationCategory::SALES, 'mail'));
         $this->assertTrue(NotificationPreferences::for($this->owner->fresh())->allows(NotificationCategory::COLLABS, 'mail'));
     }
 
     public function test_unsigned_unsubscribe_links_are_refused(): void
     {
-        $this->get("/api/notifications/unsubscribe/{$this->owner->id}/sales")->assertForbidden();
-        $this->post(URL::signedRoute('notifications.unsubscribe', ['user' => $this->owner->id, 'category' => 'nope']))->assertNotFound();
+        $this
+            ->get("/api/notifications/unsubscribe/{$this->owner->id}/sales")
+            ->assertForbidden();
+        $this
+            ->post(URL::signedRoute('notifications.unsubscribe', ['user' => $this->owner->id, 'category' => 'nope']))
+            ->assertNotFound();
     }
 
     protected function tipFrom(User $payer): Transaction

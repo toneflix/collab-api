@@ -19,24 +19,27 @@ class ProjectController extends Controller
     {
         $query = Project::query();
 
-        $filters = str($request->filters)->remove(' ')->explode(',');
+        $filters = str($request->filters)
+            ->remove(' ')
+            ->explode(',');
         $days = Freq::period($request->period);
 
         $query
             ->visibleTo($filters->contains('open') ? null : $request->user('sanctum'))
-            ->when($request->has('genre'), fn (Builder $q) => $q->genre($request->genre))
-            ->when($filters->contains('top'), fn ($q) => $q->top(true))
-            ->when($filters->contains('latest'), fn ($q) => $q->orderByLastDays($days, 'desc'))
-            ->when($filters->contains('active'), fn ($q) => $q->released(false)->latest())
-            ->when($request->has('creator_id'), fn ($q) => $q->collaber($request->creator_id)->latest());
+            ->when($request->has('genre'), fn(Builder $q) => $q->genre($request->genre))
+            ->when($filters->contains('top'), fn($q) => $q->top(true))
+            ->when($filters->contains('latest'), fn($q) => $q->orderByLastDays($days, 'desc'))
+            ->when($filters->contains('active'), fn($q) => $q->released(false)->latest())
+            ->when($request->has('creator_id'), fn($q) => $q->collaber($request->creator_id)->latest());
 
-        $projects = $query->paginate($request->input('limit', 45));
+        $projects = $query->paginate($request->perPage(45));
 
-        return (new ProjectCollection($projects))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new ProjectCollection($projects))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -51,11 +54,12 @@ class ProjectController extends Controller
     {
         $this->authorizeForUser($request->user('sanctum'), 'view', $project);
 
-        return (new ProjectResource($project))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new ProjectResource($project))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**

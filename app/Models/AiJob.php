@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Services\Ai\Music\MusicModel;
 use App\Services\Ai\Tasks\AiTask;
 use App\Services\Ai\Tasks\GenerateMusic;
 use App\Services\Ai\Tasks\SplitStems;
@@ -87,32 +86,5 @@ class AiJob extends Model
     public function scopeUnfinished(Builder $query): void
     {
         $query->whereIn('status', [self::QUEUED, self::RUNNING]);
-    }
-
-    /**
-     * The job as the studio shows it.
-     *
-     * @return array<string, mixed>
-     */
-    public function present(): array
-    {
-        return [
-            'id' => $this->id,
-            'kind' => $this->kind,
-            'status' => $this->status,
-            'trackId' => $this->project_track_id,
-            'prompt' => $this->input['prompt'] ?? null,
-            'model' => isset($this->input['model']) ? (MusicModel::find($this->input['model'])?->name() ?? $this->input['model']) : null,
-            'seconds' => $this->input['seconds'] ?? null,
-            'split' => (bool) ($this->input['split'] ?? $this->kind === 'stems'),
-            'title' => $this->input['title'] ?? null,
-            'lines' => $this->output['lines'] ?? null,
-            'credits' => $this->credits,
-            'stems' => $this->output['stems'] ?? [],
-            'error' => $this->error,
-            'notice' => $this->output['notice'] ?? null,
-            'createdAt' => $this->created_at,
-            'finishedAt' => $this->finished_at,
-        ];
     }
 }

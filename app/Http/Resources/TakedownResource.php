@@ -5,7 +5,7 @@ namespace App\Http\Resources;
 use App\Models\Takedown;
 use App\Services\Moderation\ModerationQueue;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
+use Toneflix\ResourceModifier\Services\Json\JsonResource;
 
 /**
  * @mixin Takedown
@@ -28,7 +28,7 @@ class TakedownResource extends JsonResource
             'canAppeal' => $this->status === 'active' && ! $this->appealed_at,
             'resolution' => $this->resolution,
             'resolvedAt' => $this->resolved_at,
-            'moderator' => $this->whenLoaded('moderator', fn () => $this->moderator ? [
+            'moderator' => $this->whenLoaded('moderator', fn() => $this->moderator ? [
                 'id' => $this->moderator->id,
                 'name' => $this->moderator->fullname,
             ] : null),

@@ -53,7 +53,7 @@ class ArtistClaimCase extends ReviewCase
             ->limit(10)
             ->get(['title', 'record_label', 'publisher', 'user_id']);
 
-        $catalogue = $releases->map(fn (Release $release) => sprintf(
+        $catalogue = $releases->map(fn(Release $release) => sprintf(
             '- "%s", label: %s, publisher: %s, %s',
             $release->title,
             $release->record_label ?: 'none',
@@ -61,26 +61,30 @@ class ArtistClaimCase extends ReviewCase
             $release->user_id ? 'uploaded by another account' : 'owned by no account',
         ))->join("\n") ?: '- (no releases)';
 
-        $others = ArtistClaim::query()->pending()->where('artist_id', $artist->id)->whereKeyNot($claim->id)->count();
+        $others = ArtistClaim::query()
+            ->pending()
+            ->where('artist_id', $artist->id)
+            ->whereKeyNot($claim->id)
+            ->count();
 
         return implode("\n", [
             'ARTIST',
             "Name: {$artist->name}",
             "Username: @{$artist->username}",
-            'About: '.$this->clip($artist->about, 600),
+            'About: ' . $this->clip($artist->about, 600),
             'Latest releases:',
             $catalogue,
             '',
             'CLAIMANT',
-            'Says they are: '.$claim->role,
-            'Name given: '.$this->clip($claim->name, 120),
-            'Contact email: '.$claim->email,
-            'Account: @'.($user?->username ?? 'deleted').', name "'.($user?->fullname ?? '').'", email '.($user?->email ?? 'unknown')
-                .', joined '.($user?->created_at?->toDateString() ?? 'unknown'),
+            'Says they are: ' . $claim->role,
+            'Name given: ' . $this->clip($claim->name, 120),
+            'Contact email: ' . $claim->email,
+            'Account: @' . ($user?->username ?? 'deleted') . ', name "' . ($user?->fullname ?? '') . '", email ' . ($user?->email ?? 'unknown')
+                . ', joined ' . ($user?->created_at?->toDateString() ?? 'unknown'),
             'Proof links:',
-            collect($claim->links)->map(fn ($link) => '- '.$link)->join("\n"),
-            'Their note: '.$this->clip($claim->message),
-            'Supporting document attached: '.($claim->document ? 'yes (you cannot read it)' : 'no'),
+            collect($claim->links)->map(fn($link) => '- ' . $link)->join("\n"),
+            'Their note: ' . $this->clip($claim->message),
+            'Supporting document attached: ' . ($claim->document ? 'yes (you cannot read it)' : 'no'),
             "Other people also claiming this artist right now: {$others}",
         ]);
     }

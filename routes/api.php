@@ -28,7 +28,8 @@ use Symfony\Component\Finder\SplFileInfo;
 if (file_exists(base_path('routes/api'))) {
     array_filter(File::files(base_path('routes/api')), function (SplFileInfo $file) {
         if ($file->getExtension() === 'php') {
-            Route::middleware('api')->group($file->getPathName());
+            Route::middleware('api')
+                ->group($file->getPathName());
         }
     });
 }
@@ -52,73 +53,87 @@ Route::get('/initialize', function () {
     ];
 });
 
-Route::apiResource('users', UserController::class)->only(['index', 'show']);
-Route::apiResource('tracks', TrackController::class)->only(['index', 'show']);
-Route::get('tracks/{track}/lyrics', [LyricsController::class, 'show'])->name('tracks.lyrics');
-Route::apiResource('genres', GenreController::class)->only(['index', 'show']);
-Route::apiResource('artists', ArtistController::class)->only(['index', 'show']);
-Route::apiResource('explore', ExploreController::class)->only(['index']);
+Route::apiResource('users', UserController::class)
+    ->only(['index', 'show']);
+Route::apiResource('tracks', TrackController::class)
+    ->only(['index', 'show']);
+Route::get('tracks/{track}/lyrics', [LyricsController::class, 'show'])
+    ->name('tracks.lyrics');
+Route::apiResource('genres', GenreController::class)
+    ->only(['index', 'show']);
+Route::apiResource('artists', ArtistController::class)
+    ->only(['index', 'show']);
+Route::apiResource('explore', ExploreController::class)
+    ->only(['index']);
 
-Route::apiResource('releases', ReleaseController::class)->only(['index', 'show']);
+Route::apiResource('releases', ReleaseController::class)
+    ->only(['index', 'show']);
 Route::apiResource('releases/{release}/tracks', TrackController::class)
     ->only(['index', 'show'])
     ->names('releases.tracks');
 
-Route::apiResource('projects', ProjectController::class)->only(['index', 'show']);
-Route::apiResource('playlist', PlaylistController::class)->only(['index']);
+Route::apiResource('projects', ProjectController::class)
+    ->only(['index', 'show']);
+Route::apiResource('playlist', PlaylistController::class)
+    ->only(['index']);
 
 // Subscription plans on offer
-Route::get('plans', [PlanController::class, 'index'])->name('plans.index');
+Route::get('plans', [PlanController::class, 'index'])
+    ->name('plans.index');
 
 // Paystack tells us about payments here; the signature is checked in the controller.
-Route::post('payments/paystack/webhook', [PaymentController::class, 'webhook'])->name('payments.webhook');
+Route::post('payments/paystack/webhook', [PaymentController::class, 'webhook'])
+    ->name('payments.webhook');
 
 // Flutterwave and Stripe tell us about payout transfers here.
-Route::post('payouts/flutterwave/webhook', [PayoutWebhookController::class, 'flutterwave'])->name('payouts.webhook.flutterwave');
-Route::post('payouts/stripe/webhook', [PayoutWebhookController::class, 'stripe'])->name('payouts.webhook.stripe');
+Route::post('payouts/flutterwave/webhook', [PayoutWebhookController::class, 'flutterwave'])
+    ->name('payouts.webhook.flutterwave');
+Route::post('payouts/stripe/webhook', [PayoutWebhookController::class, 'stripe'])
+    ->name('payouts.webhook.stripe');
 
-Route::middleware(['auth:sanctum'])->group(function () {
-    // Payments for Premium, paid releases, stems and tips
-    Route::post('payments', [PaymentController::class, 'store'])->name('payments.store');
-    Route::post('payments/{reference}/verify', [PaymentController::class, 'verify'])->name('payments.verify');
+Route::middleware(['auth:sanctum'])
+    ->group(function () {
+        // Payments for Premium, paid releases, stems and tips
+        Route::post('payments', [PaymentController::class, 'store'])->name('payments.store');
+        Route::post('payments/{reference}/verify', [PaymentController::class, 'verify'])->name('payments.verify');
 
-    // Paid downloads
-    Route::get('tracks/{track}/stems', [TrackController::class, 'stems'])->name('tracks.stems');
-    Route::get('tracks/{track}/download', [TrackController::class, 'download'])->name('tracks.download');
+        // Paid downloads
+        Route::get('tracks/{track}/stems', [TrackController::class, 'stems'])->name('tracks.stems');
+        Route::get('tracks/{track}/download', [TrackController::class, 'download'])->name('tracks.download');
 
-    // Collaborators Routes
-    Route::apiResource(
-        'projects/{project}/collaborators',
-        ProjectCollaboratorController::class
-    )->except(['update', 'show']);
-
-    foreach (['releases', 'projects', 'tracks'] as $path) {
-        $param = str($path)->singular()->toString();
-
-        // Comments routes
+        // Collaborators Routes
         Route::apiResource(
-            "$path/{{$param}}/comments",
-            CommentController::class
-        )->names("$path.comments");
+            'projects/{project}/collaborators',
+            ProjectCollaboratorController::class
+        )->except(['update', 'show']);
 
-        // Interaction Routes
-        Route::apiResource(
-            "$path/{{$param}}/interactions",
-            SocialInteractionController::class
-        )->only(['store', 'index'])->names("$path.interactions");
-    }
+        foreach (['releases', 'projects', 'tracks'] as $path) {
+            $param = str($path)->singular()->toString();
 
-    // Ask to manage an artist no account manages yet
-    Route::post('artists/{artist}/claims', [ArtistClaimController::class, 'store'])
-        ->middleware('throttle:5,1')
-        ->name('artists.claims.store');
+            // Comments routes
+            Route::apiResource(
+                "$path/{{$param}}/comments",
+                CommentController::class
+            )->names("$path.comments");
 
-    foreach (['users', 'artists'] as $path) {
-        $param = str($path)->singular()->toString();
+            // Interaction Routes
+            Route::apiResource(
+                "$path/{{$param}}/interactions",
+                SocialInteractionController::class
+            )->only(['store', 'index'])->names("$path.interactions");
+        }
 
-        // Follows Routes
-        Route::apiResource("$path/{{$param}}/follows", FollowController::class)
-            ->only(['store', 'index'])
-            ->names("$path.follows");
-    }
-});
+        // Ask to manage an artist no account manages yet
+        Route::post('artists/{artist}/claims', [ArtistClaimController::class, 'store'])
+            ->middleware('throttle:5,1')
+            ->name('artists.claims.store');
+
+        foreach (['users', 'artists'] as $path) {
+            $param = str($path)->singular()->toString();
+
+            // Follows Routes
+            Route::apiResource("$path/{{$param}}/follows", FollowController::class)
+                ->only(['store', 'index'])
+                ->names("$path.follows");
+        }
+    });

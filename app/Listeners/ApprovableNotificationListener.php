@@ -3,17 +3,17 @@
 namespace App\Listeners;
 
 use App\Models\ProjectCollaborator;
+use App\Models\User;
 use App\Notifications\JoinProjectRequestNotification;
 use App\Services\Reputation;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Queue\InteractsWithQueue;
 use Toneflix\ApprovableNotifications\Events\ApprovableNotificationCreated;
 use Toneflix\ApprovableNotifications\Events\ApprovableNotificationUpdated;
-use Toneflix\ApprovableNotifications\Models\Notification;
 
 class ApprovableNotificationListener implements ShouldQueue
 {
-    //use InteractsWithQueue;
+    // use InteractsWithQueue;
 
     /**
      * Create the event listener.
@@ -25,8 +25,6 @@ class ApprovableNotificationListener implements ShouldQueue
 
     /**
      * Handle the event.
-     *
-     * @param ApprovableNotificationCreated|ApprovableNotificationUpdated $event
      */
     public function handle(ApprovableNotificationCreated|ApprovableNotificationUpdated $event): void
     {
@@ -35,7 +33,7 @@ class ApprovableNotificationListener implements ShouldQueue
              * Project collaboration request
              */
             if ($event->notification->actionable instanceof ProjectCollaborator) {
-                /** @var \App\Models\User $recipient */
+                /** @var User $recipient */
                 $recipient = $event->notification->notifiable;
 
                 $recipient->notify(new JoinProjectRequestNotification(
@@ -49,7 +47,7 @@ class ApprovableNotificationListener implements ShouldQueue
              * Project collaboration request approval/rejection
              */
             if ($event->notification->actionable instanceof ProjectCollaborator) {
-                /** @var \App\Models\User $user */
+                /** @var User $user */
                 $user = $event->notification->notifier;
                 $collaborator = $event->notification->actionable;
 

@@ -30,13 +30,14 @@ class TranscribeLyrics implements AiTask
 
     public function describe(array $input): string
     {
-        return 'Lyrics: '.($input['title'] ?? 'stem');
+        return 'Lyrics: ' . ($input['title'] ?? 'stem');
     }
 
     public function handle(AiJob $job): array
     {
         /** @var ProjectTrackStem $stem */
-        $stem = ProjectTrackStem::query()->findOrFail($job->input['stem_id']);
+        $stem = ProjectTrackStem::query()
+            ->findOrFail($job->input['stem_id']);
 
         $path = $this->files->local($stem) ?? throw new ReplicateException('That stem\'s audio file is missing.');
 
@@ -76,8 +77,8 @@ class TranscribeLyrics implements AiTask
         $cueOut = isset($meta['cueout']) && (float) $meta['cueout'] > 0 ? (float) $meta['cueout'] : null;
 
         return collect($lines)
-            ->filter(fn (array $line) => $line['end'] > $cueIn && ($cueOut === null || $line['start'] < $cueOut))
-            ->map(fn (array $line) => [
+            ->filter(fn(array $line) => $line['end'] > $cueIn && ($cueOut === null || $line['start'] < $cueOut))
+            ->map(fn(array $line) => [
                 'start' => round($start + max(0, $line['start'] - $cueIn), 2),
                 'end' => round($start + ($cueOut === null ? $line['end'] : min($line['end'], $cueOut)) - $cueIn, 2),
                 'text' => $line['text'],

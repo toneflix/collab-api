@@ -58,15 +58,18 @@ class EndpointSmokeTest extends TestCase
     }
 
     #[DataProvider('publicRoutes')]
-    public function testPublicEndpointDoesNotFail(string $uri): void
+    public function test_public_endpoint_does_not_fail(string $uri): void
     {
-        $this->get($this->resolve($uri))->assertSuccessful();
+        $this
+            ->get($this->resolve($uri))
+            ->assertSuccessful();
     }
 
     #[DataProvider('privateRoutes')]
-    public function testPrivateEndpointDoesNotFail(string $uri): void
+    public function test_private_endpoint_does_not_fail(string $uri): void
     {
-        $user = User::query()->first();
+        $user = User::query()
+            ->first();
 
         if (! $user) {
             $this->markTestSkipped('The test database has no users.');
@@ -74,7 +77,9 @@ class EndpointSmokeTest extends TestCase
 
         Sanctum::actingAs($user, ['*']);
 
-        $this->get($this->resolve($uri))->assertSuccessful();
+        $this
+            ->get($this->resolve($uri))
+            ->assertSuccessful();
     }
 
     protected function resolve(string $uri): string
@@ -90,7 +95,8 @@ class EndpointSmokeTest extends TestCase
 
         foreach ($models as $param => $model) {
             if (str_contains($uri, $param)) {
-                $record = $model::query()->first();
+                $record = $model::query()
+                    ->first();
 
                 if (! $record) {
                     $this->markTestSkipped("The test database has no {$param} records.");

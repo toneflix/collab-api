@@ -3,6 +3,7 @@
 namespace App\Services\Conversations;
 
 use App\Broadcasting\Channels;
+use App\Http\Resources\ConversationMessageResource;
 use App\Jobs\NotifyUnreadMessages;
 use App\Models\Comment;
 use App\Models\Project;
@@ -11,6 +12,8 @@ use App\Models\Release;
 use App\Models\Track;
 use App\Models\User;
 use App\Services\Realtime\Realtime;
+use Illuminate\Contracts\Pagination\CursorPaginator;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -47,7 +50,8 @@ class Conversations
         $class = static::classFor($type);
         abort_unless($class, 404, 'There is no such conversation.');
 
-        $model = $class::query()->find($id);
+        $model = $class::query()
+            ->find($id);
         abort_unless($model, 404, 'This conversation no longer exists.');
         abort_unless(Channels::canView($user, $model), 403, 'You can\'t see this conversation.');
 
@@ -74,48 +78,6 @@ class Conversations
             'username' => $user->username,
             'imageUrl' => $user->images['image'] ?? null,
         ] : null;
-    }
-
-    /**
-     * A message for the chat. Also carries the fields the older comment
-     * views read (`cid`, `type`, `userId`, `comment`, `repliesCount`).
-     *
-     * @return array<string, mixed>
-     */
-    public static function message(Comment $comment): array
-    {
-        $comment->loadMissing(['commentator']);
-        $isReply = $comment->commentable_type === Comment::class;
-        $parent = $isReply ? Comment::withoutGlobalScopes()->with('commentator')->find($comment->commentable_id) : null;
-
-        return [
-            'id' => $comment->id,
-            'cid' => $comment->commentable_id,
-            'type' => $isReply ? 'reply' : 'comment',
-            'body' => $comment->comment,
-            'comment' => $comment->comment,
-            'user' => static::person($comment->commentator),
-            'userId' => $comment->user_id,
-            'parent' => $parent ? [
-                'id' => $parent->id,
-                'body' => static::preview($parent, 140),
-                'user' => static::person($parent->commentator),
-                'region' => static::region($parent),
-                'hasVoice' => ! empty($parent->meta['voice']),
-            ] : null,
-            'voice' => static::voice($comment),
-            'region' => static::region($comment),
-            'conversation' => $comment->root_type ? [
-                'type' => static::typeOf($comment->root_type),
-                'id' => $comment->root_id,
-            ] : null,
-            'isApproved' => (bool) $comment->is_approved,
-            'repliesCount' => Comment::query()
-                ->where('commentable_type', Comment::class)
-                ->where('commentable_id', $comment->id)
-                ->count(),
-            'createdAt' => $comment->created_at,
-        ];
     }
 
     /**
@@ -161,7 +123,9 @@ class Conversations
             $text = sprintf('Voice note (%d:%02d)', intdiv($seconds, 60), $seconds % 60);
         }
 
-        return str($text)->limit($limit)->toString();
+        return str($text)
+            ->limit($limit)
+            ->toString();
     }
 
     /**
@@ -221,61 +185,95 @@ class Conversations
     /**
      * Conversations the user is part of, most recent first: ones they wrote
      * in, and those on the projects and project tracks they own or
-     * collaborate on.
-     *
-     * @return Collection<int, array<string, mixed>>
+     * collaborate on. Each item is the conversation's subject, with its
+     * latest message and the user's unread count.
      */
-    public static function forUser(User $user, int $limit = 50): Collection
+    public static function forUser(User $user, int $perPage = 50): LengthAwarePaginator
     {
         $projectIds = Project::query()
-            ->where('user_id', $user->id)
-            ->orWhereHas('collaborators', fn ($q) => $q->where('user_id', $user->id)->where('accepted', true))
-            ->pluck('id');
-        $trackIds = ProjectTrack::query()->whereIn('project_id', $projectIds)->pluck('id');
+            ->withoutGlobalScopes()
+            ->select('projects.id')
+            ->where(fn($q) => $q
+                ->where('user_id', $user->id)
+                ->orWhereHas('collaborators', fn($q) => $q->where('user_id', $user->id)->where('accepted', true)));
+        $trackIds = ProjectTrack::query()
+            ->withoutGlobalScopes()
+            ->select('project_tracks.id')
+            ->whereIn('project_id', $projectIds);
 
-        $latest = Comment::query()
+        $page = Comment::query()
             ->whereNotNull('comments.root_type')
             ->where(function ($q) use ($user, $projectIds, $trackIds) {
-                $q->whereExists(fn ($sub) => $sub->select(DB::raw(1))
+                $q->whereExists(fn($sub) => $sub->select(DB::raw(1))
                     ->from('comments as mine')
                     ->where('mine.user_id', $user->id)
                     ->whereColumn('mine.root_type', 'comments.root_type')
                     ->whereColumn('mine.root_id', 'comments.root_id'))
-                    ->orWhere(fn ($q) => $q->where('comments.root_type', ProjectTrack::class)->whereIn('comments.root_id', $trackIds))
-                    ->orWhere(fn ($q) => $q->where('comments.root_type', Project::class)->whereIn('comments.root_id', $projectIds));
+                    ->orWhere(fn($q) => $q->where('comments.root_type', ProjectTrack::class)->whereIn('comments.root_id', $trackIds))
+                    ->orWhere(fn($q) => $q->where('comments.root_type', Project::class)->whereIn('comments.root_id', $projectIds));
             })
             ->groupBy('comments.root_type', 'comments.root_id')
             ->selectRaw('comments.root_type, comments.root_id, max(comments.id) as last_id')
             ->orderByDesc('last_id')
-            ->limit($limit)
             ->toBase()
-            ->get();
+            ->paginate($perPage);
 
-        $last = Comment::query()->with('commentator')->whereIn('id', $latest->pluck('last_id'))->get()->keyBy('id');
-        $reads = DB::table('conversation_reads')->where('user_id', $user->id)->get()
-            ->keyBy(fn ($r) => $r->root_type.'#'.$r->root_id);
+        $rows = $page->getCollection();
+        $last = Comment::query()
+            ->with('commentator')
+            ->whereIn('id', $rows->pluck('last_id'))
+            ->get()
+            ->keyBy('id');
+        $reads = $rows->isEmpty() ? collect() : DB::table('conversation_reads')
+            ->where('user_id', $user->id)
+            ->where(fn($q) => $rows->each(fn($row) => $q->orWhere(fn($q) => $q
+                ->where('root_type', $row->root_type)
+                ->where('root_id', $row->root_id))))
+            ->get()
+            ->keyBy(fn($r) => $r->root_type . '#' . $r->root_id);
 
-        return $latest->map(function ($row) use ($user, $last, $reads) {
+        return $page->setCollection($rows->map(function ($row) use ($user, $last, $reads) {
             $class = $row->root_type;
             $root = class_exists($class) ? $class::query()->find($row->root_id) : null;
             if (! $root || ! Channels::canView($user, $root)) {
                 return null;
             }
 
-            $message = $last->get($row->last_id);
-            $readAt = $reads->get($class.'#'.$row->root_id)?->read_at;
+            $readAt = $reads->get($class . '#' . $row->root_id)?->read_at;
 
-            return static::subject($root) + [
-                'lastMessage' => $message ? [
-                    'id' => $message->id,
-                    'body' => static::preview($message, 120),
-                    'user' => static::person($message->commentator),
-                    'createdAt' => $message->created_at,
-                ] : null,
-                'unread' => static::unreadCount($root, $user, $readAt),
-                'updatedAt' => $message?->created_at,
-            ];
-        })->filter()->values();
+            return $root
+                ->setRelation('latestMessage', $last->get($row->last_id))
+                ->setAttribute('unread_count', static::unreadCount($root, $user, $readAt));
+        })->filter()->values());
+    }
+
+    /**
+     * A page of a conversation's messages, newest first.
+     */
+    public static function messagesPage(Model $root, int $perPage = 30): CursorPaginator
+    {
+        return static::messages($root)
+            ->with('commentator')
+            ->withCount('comments as replies_count')
+            ->orderByDesc('id')
+            ->cursorPaginate($perPage);
+    }
+
+    /**
+     * Whether the user owns what the conversation is about, so may delete
+     * anyone's messages in it.
+     */
+    public static function ownedBy(Model $root, ?User $user): bool
+    {
+        $userId = (int) $user?->id;
+
+        return $userId > 0 && match (true) {
+            $root instanceof ProjectTrack => (int) $root->project?->user_id === $userId,
+            $root instanceof Project => (int) $root->user_id === $userId,
+            $root instanceof Release => (int) $root->user_id === $userId,
+            $root instanceof Track => (int) $root->release?->user_id === $userId,
+            default => false,
+        };
     }
 
     public static function unreadCount(Model $root, User $user, mixed $readAt = false): int
@@ -288,16 +286,17 @@ class Conversations
 
         return static::messages($root)
             ->where('user_id', '!=', $user->id)
-            ->when($readAt, fn ($q) => $q->where('created_at', '>', $readAt))
+            ->when($readAt, fn($q) => $q->where('created_at', '>', $readAt))
             ->count();
     }
 
     public static function markRead(Model $root, User $user): void
     {
-        DB::table('conversation_reads')->updateOrInsert(
-            ['user_id' => $user->id, 'root_type' => $root::class, 'root_id' => $root->getKey()],
-            ['read_at' => now()],
-        );
+        DB::table('conversation_reads')
+            ->updateOrInsert(
+                ['user_id' => $user->id, 'root_type' => $root::class, 'root_id' => $root->getKey()],
+                ['read_at' => now()],
+            );
     }
 
     /**
@@ -308,7 +307,11 @@ class Conversations
      */
     public static function participants(Model $root): Collection
     {
-        $ids = static::messages($root)->withoutGlobalScopes()->whereNotNull('user_id')->distinct()->pluck('user_id');
+        $ids = static::messages($root)
+            ->withoutGlobalScopes()
+            ->whereNotNull('user_id')
+            ->distinct()
+            ->pluck('user_id');
 
         $project = match (true) {
             $root instanceof ProjectTrack => $root->project,
@@ -325,7 +328,11 @@ class Conversations
             $ids->push($root->user_id);
         }
 
-        return $ids->filter()->map(fn ($id) => (int) $id)->unique()->values();
+        return $ids
+            ->filter()
+            ->map(fn($id) => (int) $id)
+            ->unique()
+            ->values();
     }
 
     /**
@@ -344,11 +351,12 @@ class Conversations
             return;
         }
 
-        $delay = now()->addMinutes(NotifyUnreadMessages::waitMinutes());
+        $delay = now()
+            ->addMinutes(NotifyUnreadMessages::waitMinutes());
 
         static::recipients($root, $comment)
-            ->reject(fn (int $id) => $id === (int) $comment->user_id)
-            ->each(fn (int $id) => NotifyUnreadMessages::dispatch($id, $root::class, $root->getKey())->delay($delay));
+            ->reject(fn(int $id) => $id === (int) $comment->user_id)
+            ->each(fn(int $id) => NotifyUnreadMessages::dispatch($id, $root::class, $root->getKey())->delay($delay));
     }
 
     /**
@@ -385,7 +393,11 @@ class Conversations
             $ids->push(Comment::withoutGlobalScopes()->whereKey($comment->commentable_id)->value('user_id'));
         }
 
-        return $ids->filter()->map(fn ($id) => (int) $id)->unique()->values();
+        return $ids
+            ->filter()
+            ->map(fn($id) => (int) $id)
+            ->unique()
+            ->values();
     }
 
     /**
@@ -403,7 +415,7 @@ class Conversations
         $root = $comment->root_type && class_exists($comment->root_type)
             ? $comment->root_type::query()->find($comment->root_id)
             : null;
-        $message = static::message($comment);
+        $message = (new ConversationMessageResource($comment))->resolve();
 
         Realtime::send(Channels::conversation($root ?? $comment->commentable), $event, ['comment' => $message]);
 
@@ -413,12 +425,12 @@ class Conversations
 
         $sender = (int) $comment->user_id;
         $channels = static::participants($root)
-            ->reject(fn ($id) => $event === 'comment.posted' && $id === $sender)
+            ->reject(fn($id) => $event === 'comment.posted' && $id === $sender)
             ->take(100)
-            ->map(fn ($id) => Channels::user($id))
+            ->map(fn($id) => Channels::user($id))
             ->all();
 
-        Realtime::send($channels, 'conversation.'.str($event)->after('.'), [
+        Realtime::send($channels, 'conversation.' . str($event)->after('.'), [
             'conversation' => static::subject($root),
             'message' => $message,
         ]);

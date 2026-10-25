@@ -23,7 +23,7 @@ class ImageFallbackTest extends TestCase
             $default = $collection['default'] ?? null;
 
             if (is_string($default) && str_contains($default, '/defaults/')) {
-                $this->assertFileExists(public_path('defaults/'.basename($default)), "Missing placeholder for {$name}");
+                $this->assertFileExists(public_path('defaults/' . basename($default)), "Missing placeholder for {$name}");
             }
         }
     }

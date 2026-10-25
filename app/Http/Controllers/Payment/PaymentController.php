@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Payment;
 
 use App\Enums\HttpStatus;
-use App\Helpers\Providers;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\PaymentSessionResource;
 use App\Http\Resources\TransactionResource;
 use App\Models\Payout;
 use App\Models\Transaction;
@@ -33,15 +33,14 @@ class PaymentController extends Controller
 
         $session = $checkout->start($this->user, $valid['purpose'], $valid);
 
-        return Providers::response()->success([
-            'data' => [
-                'reference' => $session['transaction']->reference,
-                'amount' => $session['transaction']->due,
-                'access_code' => $session['access_code'],
-                'authorization_url' => $session['authorization_url'],
-            ],
-            'message' => 'Payment started.',
-        ], HttpStatus::CREATED);
+        return (new PaymentSessionResource($session))
+            ->additional([
+                'message' => 'Payment started.',
+                'status' => 'success',
+                'status_code' => HttpStatus::CREATED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::CREATED->value);
     }
 
     /**
@@ -50,17 +49,23 @@ class PaymentController extends Controller
     public function verify(Checkout $checkout, string $reference)
     {
         /** @var Transaction $transaction */
-        $transaction = $this->user->transactions()->where('reference', $reference)->firstOrFail();
+        $transaction = $this->user
+            ->transactions()
+            ->where('reference', $reference)
+            ->firstOrFail();
 
         $transaction = $checkout->verify($transaction);
 
         $paid = $transaction->status === 'complete';
 
-        return (new TransactionResource($transaction))->additional([
-            'message' => $paid ? 'Payment successful.' : 'We could not confirm this payment.',
-            'status' => $paid ? 'success' : 'error',
-            'status_code' => $paid ? HttpStatus::OK : HttpStatus::BAD_REQUEST,
-        ])->response()->setStatusCode($paid ? HttpStatus::OK->value : HttpStatus::BAD_REQUEST->value);
+        return (new TransactionResource($transaction))
+            ->additional([
+                'message' => $paid ? 'Payment successful.' : 'We could not confirm this payment.',
+                'status' => $paid ? 'success' : 'error',
+                'status_code' => $paid ? HttpStatus::OK : HttpStatus::BAD_REQUEST,
+            ])
+            ->response()
+            ->setStatusCode($paid ? HttpStatus::OK->value : HttpStatus::BAD_REQUEST->value);
     }
 
     /**
@@ -74,7 +79,8 @@ class PaymentController extends Controller
         }
 
         if ($request->input('event') === 'charge.success') {
-            $transaction = Transaction::where('reference', $request->input('data.reference'))->first();
+            $transaction = Transaction::where('reference', $request->input('data.reference'))
+                ->first();
 
             // Ask Paystack directly rather than trusting the webhook body.
             if ($transaction) {
@@ -83,13 +89,15 @@ class PaymentController extends Controller
         }
 
         if (str_starts_with((string) $request->input('event'), 'transfer.')) {
-            $payout = Payout::where('reference', $request->input('data.reference'))->first();
+            $payout = Payout::where('reference', $request->input('data.reference'))
+                ->first();
 
             if ($payout) {
                 $payouts->sync($payout);
             }
         }
 
-        return response()->json(['status' => 'ok']);
+        return response()
+            ->json(['status' => 'ok']);
     }
 }

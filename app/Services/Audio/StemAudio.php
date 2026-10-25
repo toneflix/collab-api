@@ -60,9 +60,9 @@ class StemAudio
     public function mp3(string $path, float $gain = 0.0): string
     {
         $out = $this->temp('mp3');
-        $volume = $gain != 0.0 ? ['-af', 'volume='.round($gain, 4).'dB'] : [];
+        $volume = $gain != 0.0 ? ['-af', 'volume=' . round($gain, 4) . 'dB'] : [];
 
-        $this->run(['-i', $path, ...$volume, '-c:a', 'libmp3lame', '-b:a', self::BITRATE.'k', $out], $out);
+        $this->run(['-i', $path, ...$volume, '-c:a', 'libmp3lame', '-b:a', self::BITRATE . 'k', $out], $out);
 
         return $out;
     }
@@ -128,7 +128,7 @@ class StemAudio
         $process->setTimeout(300);
         $process->run();
 
-        if (! preg_match('/'.preg_quote($label, '/').':\s*(-?[\d.]+|-inf)/', $process->getErrorOutput(), $match)) {
+        if (! preg_match('/' . preg_quote($label, '/') . ':\s*(-?[\d.]+|-inf)/', $process->getErrorOutput(), $match)) {
             return null;
         }
 
@@ -137,7 +137,7 @@ class StemAudio
 
     protected function format(): string
     {
-        return 'aresample='.self::RATE.',aformat=sample_fmts=fltp:channel_layouts=stereo';
+        return 'aresample=' . self::RATE . ',aformat=sample_fmts=fltp:channel_layouts=stereo';
     }
 
     /**
@@ -152,7 +152,7 @@ class StemAudio
         if (! $process->isSuccessful() || ! is_file($out) || filesize($out) === 0) {
             @unlink($out);
 
-            throw new RuntimeException('FFmpeg failed: '.trim($process->getErrorOutput()));
+            throw new RuntimeException('FFmpeg failed: ' . trim($process->getErrorOutput()));
         }
     }
 

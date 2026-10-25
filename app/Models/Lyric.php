@@ -52,23 +52,7 @@ class Lyric extends Model
      */
     public function synced(): bool
     {
-        return collect($this->lines)->contains(fn (array $line) => $line['start'] !== null);
-    }
-
-    /**
-     * The lyrics as the player and studio show them.
-     *
-     * @return array<string, mixed>
-     */
-    public function present(): array
-    {
-        return [
-            'lines' => $this->lines,
-            'synced' => $this->synced(),
-            'language' => $this->language,
-            'source' => $this->source,
-            'explicit' => $this->explicit,
-            'updatedAt' => $this->updated_at,
-        ];
+        return collect($this->lines)
+            ->contains(fn(array $line) => $line['start'] !== null);
     }
 }

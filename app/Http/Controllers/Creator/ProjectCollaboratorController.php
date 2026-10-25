@@ -23,15 +23,16 @@ class ProjectCollaboratorController extends Controller
     public function index(Request $request, Project $project)
     {
         $query = $project->collaborators()->getQuery()
-            ->when($request->has('accepted'), fn (Builder $q) => $q->whereAccepted(true));
+            ->when($request->has('accepted'), fn(Builder $q) => $q->whereAccepted(true));
 
-        $collaborators = $query->paginate($request->input('limit', 45));
+        $collaborators = $query->paginate($request->perPage(45));
 
-        return (new ProjectCollaboratorCollection($collaborators))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new ProjectCollaboratorCollection($collaborators))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -65,7 +66,9 @@ class ProjectCollaboratorController extends Controller
         );
 
         /** @var ProjectCollaborator $collaborator */
-        $collaborator = $project->collaborators()->create($valid);
+        $collaborator = $project
+            ->collaborators()
+            ->create($valid);
 
         /** @var User $user */
         $user = $request->user();
@@ -78,11 +81,14 @@ class ProjectCollaboratorController extends Controller
             $collaborator
         );
 
-        return (new ProjectCollaboratorResource($collaborator))->additional([
-            'message' => __('An invitation has been sent to :0 to join this project.', [$collaborator->user->fullname]),
-            'status' => 'success',
-            'status_code' => HttpStatus::CREATED,
-        ])->response()->setStatusCode(HttpStatus::CREATED->value);
+        return (new ProjectCollaboratorResource($collaborator))
+            ->additional([
+                'message' => __('An invitation has been sent to :0 to join this project.', [$collaborator->user->fullname]),
+                'status' => 'success',
+                'status_code' => HttpStatus::CREATED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::CREATED->value);
     }
 
     /**
@@ -90,11 +96,12 @@ class ProjectCollaboratorController extends Controller
      */
     public function show(Project $project, ProjectCollaborator $collaborator)
     {
-        return (new ProjectCollaboratorCollection($collaborator))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new ProjectCollaboratorCollection($collaborator))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -113,11 +120,14 @@ class ProjectCollaboratorController extends Controller
 
         $collaborator->update($valid);
 
-        return (new ProjectCollaboratorResource($collaborator))->additional([
-            'message' => __('Collaber updated'),
-            'status' => 'success',
-            'status_code' => HttpStatus::ACCEPTED,
-        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
+        return (new ProjectCollaboratorResource($collaborator))
+            ->additional([
+                'message' => __('Collaber updated'),
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 
     /**
@@ -127,10 +137,13 @@ class ProjectCollaboratorController extends Controller
     {
         $collaborator->delete();
 
-        return (new ProjectCollaboratorResource($collaborator))->additional([
-            'message' => __(':0 has been removed from the project', [$collaborator->user->fullname]),
-            'status' => 'success',
-            'status_code' => HttpStatus::ACCEPTED,
-        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
+        return (new ProjectCollaboratorResource($collaborator))
+            ->additional([
+                'message' => __(':0 has been removed from the project', [$collaborator->user->fullname]),
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 }

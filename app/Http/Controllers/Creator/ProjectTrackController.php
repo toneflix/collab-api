@@ -27,15 +27,19 @@ class ProjectTrackController extends Controller
     {
         $this->authorize('view', $project);
 
-        $query = $project->tracks()->visibleTo($request->user())->getQuery();
+        $query = $project
+            ->tracks()
+            ->visibleTo($request->user())
+            ->getQuery();
 
-        $tracks = $query->paginate($request->input('limit', 45));
+        $tracks = $query->paginate($request->perPage(45));
 
-        return (new ProjectTrackCollection($tracks))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new ProjectTrackCollection($tracks))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -60,16 +64,21 @@ class ProjectTrackController extends Controller
             'meta' => ['nullable', 'array'],
         ]);
 
-        $track = $project->tracks()->create($valid);
+        $track = $project
+            ->tracks()
+            ->create($valid);
 
         // Add reputation for the owner
         (new Reputation($this->user, 'create_project_track'))->add();
 
-        return (new ProjectTrackResource($track))->additional([
-            'message' => 'Project track created successfully',
-            'status' => 'success',
-            'status_code' => HttpStatus::CREATED,
-        ])->response()->setStatusCode(HttpStatus::CREATED->value);
+        return (new ProjectTrackResource($track))
+            ->additional([
+                'message' => 'Project track created successfully',
+                'status' => 'success',
+                'status_code' => HttpStatus::CREATED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::CREATED->value);
     }
 
     /**
@@ -79,11 +88,12 @@ class ProjectTrackController extends Controller
     {
         $this->authorize('view', $track);
 
-        return (new ProjectTrackResource($track))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new ProjectTrackResource($track))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -108,13 +118,14 @@ class ProjectTrackController extends Controller
             'meta' => ['nullable', 'array'],
             'stems' => ['nullable', 'array'],
             'bpm' => ['nullable', 'numeric', 'between:20,300'],
-            'time_signature' => ['nullable', 'string', 'in:'.implode(',', ProjectTrack::TIME_SIGNATURES)],
+            'time_signature' => ['nullable', 'string', 'in:' . implode(',', ProjectTrack::TIME_SIGNATURES)],
             'mix_volume' => ['nullable', 'numeric', 'between:0,1'],
             'render' => ['nullable', 'boolean'],
         ]);
 
         // Tempo and meter live in the track's meta, next to whatever else is there.
-        $meta = collect($track->meta ?? [])->merge($valid['meta'] ?? []);
+        $meta = collect($track->meta ?? [])
+            ->merge($valid['meta'] ?? []);
         foreach (['bpm' => 'bpm', 'time_signature' => 'timeSignature'] as $field => $key) {
             if ($request->filled($field)) {
                 $meta[$key] = $field === 'bpm' ? round((float) $valid[$field], 2) : $valid[$field];
@@ -139,14 +150,18 @@ class ProjectTrackController extends Controller
         $history->record($this->user, ProjectTrackVersion::SAVED);
 
         if ($request->boolean('render')) {
-            app(MixPreview::class)->queue($track);
+            app(MixPreview::class)
+                ->queue($track);
         }
 
         // Everyone else on the track now has this as the saved state. A
         // message too big for the driver carries no stems; clients reload.
-        $stems = $track->stems()->get()->mapWithKeys(fn ($stem) => [
-            $stem->id => collect($stem->meta)->except('src')->all(),
-        ]);
+        $stems = $track
+            ->stems()
+            ->get()
+            ->mapWithKeys(fn($stem) => [
+                $stem->id => collect($stem->meta)->except('src')->all(),
+            ]);
 
         Realtime::send(Channels::projectTrack($track), 'track.saved', [
             'track_id' => $track->id,
@@ -156,11 +171,14 @@ class ProjectTrackController extends Controller
             'stems' => strlen((string) json_encode($stems)) > 8000 ? null : $stems->all(),
         ]);
 
-        return (new ProjectTrackResource($track))->additional([
-            'message' => 'Project track updated successfully',
-            'status' => 'success',
-            'status_code' => HttpStatus::ACCEPTED,
-        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
+        return (new ProjectTrackResource($track))
+            ->additional([
+                'message' => 'Project track updated successfully',
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 
     protected function saveStems(Request $request, ProjectTrack $track): void
@@ -188,18 +206,19 @@ class ProjectTrackController extends Controller
             'stems.*.stem_id' => 'parent',
         ]);
 
-        collect($stems)->each(function ($form, $i) use ($track) {
-            /** @var ProjectTrack $stem */
-            $stem = $track->stems()->find($form['id']);
+        collect($stems)
+            ->each(function ($form, $i) use ($track) {
+                /** @var ProjectTrack $stem */
+                $stem = $track->stems()->find($form['id']);
 
-            // Add reputation for the owner
-            (new Reputation($this->user, 'create_project_track_stem'))->add();
+                // Add reputation for the owner
+                (new Reputation($this->user, 'create_project_track_stem'))->add();
 
-            if ($stem) {
-                $form['src'] = (new Media)->save('stem_files', 'stems.*.src', $stem->src, $i);
-                $stem->updateQuietly($form);
-            }
-        });
+                if ($stem) {
+                    $form['src'] = (new Media)->save('stem_files', 'stems.*.src', $stem->src, $i);
+                    $stem->updateQuietly($form);
+                }
+            });
     }
 
     /**
@@ -211,10 +230,13 @@ class ProjectTrackController extends Controller
 
         $track->delete();
 
-        return (new ProjectTrackResource($track))->additional([
-            'message' => 'Project track deleted successfully',
-            'status' => 'success',
-            'status_code' => HttpStatus::ACCEPTED,
-        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
+        return (new ProjectTrackResource($track))
+            ->additional([
+                'message' => 'Project track deleted successfully',
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 }

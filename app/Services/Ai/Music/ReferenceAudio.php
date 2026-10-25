@@ -37,14 +37,16 @@ class ReferenceAudio
         if ($file) {
             $this->ensureLongEnough($model, $file->getRealPath());
 
-            $name = Str::random(40).'.'.($file->guessExtension() === 'wav' ? 'wav' : 'mp3');
+            $name = Str::random(40) . '.' . ($file->guessExtension() === 'wav' ? 'wav' : 'mp3');
 
             return ['reference_file' => $this->disk()->putFileAs(self::DIRECTORY, $file, $name)];
         }
 
         if ($stemId) {
             /** @var ProjectTrackStem $stem */
-            $stem = $track->stems()->findOrFail($stemId);
+            $stem = $track
+                ->stems()
+                ->findOrFail($stemId);
             $path = $this->files->local($stem) ?? throw ValidationException::withMessages(['reference_stem_id' => 'That stem has no audio.']);
 
             try {
@@ -67,14 +69,16 @@ class ReferenceAudio
     public function local(array $input, ProjectTrack $track): ?string
     {
         if (! empty($input['reference_file']) && $this->disk()->exists($input['reference_file'])) {
-            $path = sys_get_temp_dir().'/reference-'.Str::random(16).'.'.pathinfo($input['reference_file'], PATHINFO_EXTENSION);
+            $path = sys_get_temp_dir() . '/reference-' . Str::random(16) . '.' . pathinfo($input['reference_file'], PATHINFO_EXTENSION);
             file_put_contents($path, $this->disk()->readStream($input['reference_file']));
 
             return $path;
         }
 
         if (! empty($input['reference_stem_id'])) {
-            $stem = $track->stems()->find($input['reference_stem_id']);
+            $stem = $track
+                ->stems()
+                ->find($input['reference_stem_id']);
 
             return $stem ? $this->files->local($stem) : null;
         }
@@ -90,7 +94,9 @@ class ReferenceAudio
     public function forget(array $input): void
     {
         if (! empty($input['reference_file'])) {
-            $this->disk()->delete($input['reference_file']);
+            $this
+                ->disk()
+                ->delete($input['reference_file']);
         }
     }
 
@@ -98,7 +104,7 @@ class ReferenceAudio
     {
         if ($this->audio->probe($path)['duration'] <= $model::REFERENCE_MIN_SECONDS) {
             throw ValidationException::withMessages([
-                'reference' => 'The reference needs to be longer than '.$model::REFERENCE_MIN_SECONDS.' seconds.',
+                'reference' => 'The reference needs to be longer than ' . $model::REFERENCE_MIN_SECONDS . ' seconds.',
             ]);
         }
     }

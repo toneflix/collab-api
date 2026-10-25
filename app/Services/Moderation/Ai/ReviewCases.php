@@ -24,7 +24,7 @@ class ReviewCases
         return match (true) {
             $subject instanceof ArtistClaim => new ArtistClaimCase($subject, $this->claims),
             $subject instanceof Release => new ReleaseCase($subject, $this->versions),
-            default => throw new InvalidArgumentException('The AI moderator can\'t review '.$subject::class.'.'),
+            default => throw new InvalidArgumentException('The AI moderator can\'t review ' . $subject::class . '.'),
         };
     }
 }

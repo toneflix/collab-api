@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Account;
 
 use App\Enums\HttpStatus;
 use App\Enums\NotificationCategory;
-use App\Helpers\Providers;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\SettingsResource;
 use App\Models\User;
 use App\Services\Notifications\NotificationPreferences;
 use App\Services\Notifications\WebPush;
@@ -25,7 +25,8 @@ class NotificationSettingsController extends Controller
 
     public function update(Request $request)
     {
-        $categories = collect(NotificationCategory::cases())->map->value->all();
+        $categories = collect(NotificationCategory::cases())->map->value
+            ->all();
 
         $valid = $request->validate([
             'categories' => ['required', 'array'],
@@ -34,7 +35,9 @@ class NotificationSettingsController extends Controller
             'categories.*.push' => ['sometimes', 'boolean'],
         ]);
 
-        $values = collect($valid['categories'])->only($categories)->all();
+        $values = collect($valid['categories'])
+            ->only($categories)
+            ->all();
 
         NotificationPreferences::for($request->user())->update($values);
 
@@ -55,12 +58,14 @@ class NotificationSettingsController extends Controller
             'contentEncoding' => ['nullable', Rule::in(['aesgcm', 'aes128gcm'])],
         ]);
 
-        $request->user()->updatePushSubscription(
-            $valid['endpoint'],
-            $valid['keys']['p256dh'],
-            $valid['keys']['auth'],
-            $valid['contentEncoding'] ?? 'aes128gcm',
-        );
+        $request
+            ->user()
+            ->updatePushSubscription(
+                $valid['endpoint'],
+                $valid['keys']['p256dh'],
+                $valid['keys']['auth'],
+                $valid['contentEncoding'] ?? 'aes128gcm',
+            );
 
         return $this->settings($request->user(), 'Push notifications are on for this device.', HttpStatus::CREATED);
     }
@@ -72,19 +77,32 @@ class NotificationSettingsController extends Controller
     {
         $valid = $request->validate(['endpoint' => ['required', 'string', 'max:500']]);
 
-        $request->user()->deletePushSubscription($valid['endpoint']);
+        $request
+            ->user()
+            ->deletePushSubscription($valid['endpoint']);
 
         return $this->settings($request->user(), 'Push notifications are off for this device.', HttpStatus::ACCEPTED);
     }
 
     protected function settings(User $user, string $message = 'OK', HttpStatus $status = HttpStatus::OK)
     {
-        return Providers::response()->success([
-            'data' => [
-                'categories' => NotificationPreferences::for($user)->forClient(),
-                'push' => WebPush::clientConfig() + ['devices' => $user->pushSubscriptions()->count()],
-            ],
-            'message' => $message,
-        ], $status);
+        $categories = NotificationPreferences::for($user)->forClient();
+        $devices = $user
+            ->pushSubscriptions()
+            ->count();
+
+        $settings = [
+            'categories' => $categories,
+            'push' => WebPush::clientConfig() + ['devices' => $devices],
+        ];
+
+        return (new SettingsResource($settings))
+            ->additional([
+                'message' => $message,
+                'status' => 'success',
+                'status_code' => $status,
+            ])
+            ->response()
+            ->setStatusCode($status->value);
     }
 }

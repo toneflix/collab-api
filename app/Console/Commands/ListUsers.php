@@ -32,13 +32,13 @@ class ListUsers extends Command
         ];
 
         if ($filters['status'] && ! in_array($filters['status'], UserDirectory::STATUSES)) {
-            $this->error('The status must be one of: '.implode(', ', UserDirectory::STATUSES).'.');
+            $this->error('The status must be one of: ' . implode(', ', UserDirectory::STATUSES) . '.');
 
             return self::INVALID;
         }
 
         if (! in_array($filters['sort'], UserDirectory::SORTS)) {
-            $this->error('The sort must be one of: '.implode(', ', UserDirectory::SORTS).'.');
+            $this->error('The sort must be one of: ' . implode(', ', UserDirectory::SORTS) . '.');
 
             return self::INVALID;
         }
@@ -59,7 +59,7 @@ class ListUsers extends Command
 
             $this->table(
                 ['ID', 'Username', 'Name', 'Email', 'Roles', 'Verified', 'Status', 'Joined'],
-                $users->getCollection()->map(fn (User $user) => [
+                $users->getCollection()->map(fn(User $user) => [
                     $user->id,
                     $user->username,
                     $user->fullname,
@@ -84,6 +84,6 @@ class ListUsers extends Command
             return 'active';
         }
 
-        return $user->suspended_until ? 'suspended until '.$user->suspended_until->toDateString() : 'banned';
+        return $user->suspended_until ? 'suspended until ' . $user->suspended_until->toDateString() : 'banned';
     }
 }

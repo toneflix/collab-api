@@ -52,7 +52,8 @@ class NotifyUnreadMessages implements ShouldBeUnique, ShouldQueue
 
     public function handle(): void
     {
-        $user = User::query()->find($this->userId);
+        $user = User::query()
+            ->find($this->userId);
         $root = class_exists($this->rootType) ? $this->rootType::query()->find($this->rootId) : null;
 
         if (! $user || ! $root || ! Channels::canView($user, $root)) {
@@ -65,19 +66,21 @@ class NotifyUnreadMessages implements ShouldBeUnique, ShouldQueue
 
         $unread = Conversations::messages($root)
             ->where('user_id', '!=', $user->id)
-            ->when($readAt, fn ($q) => $q->where('created_at', '>', $readAt));
+            ->when($readAt, fn($q) => $q->where('created_at', '>', $readAt));
 
         $count = (clone $unread)->count();
-        if ($count === 0 || ! Cache::add('notified-messages:'.$this->uniqueId(), true, max(1, static::waitMinutes()) * 60)) {
+        if ($count === 0 || ! Cache::add('notified-messages:' . $this->uniqueId(), true, max(1, static::waitMinutes()) * 60)) {
             return;
         }
 
-        $latest = (clone $unread)->latest('id')->first();
+        $latest = (clone $unread)
+            ->latest('id')
+            ->first();
         $senders = User::query()
             ->whereIn('id', (clone $unread)->select('user_id')->distinct()->limit(5))
             ->limit(5)
             ->get()
-            ->map(fn (User $u) => $u->fullname ?: $u->username)
+            ->map(fn(User $u) => $u->fullname ?: $u->username)
             ->all();
 
         $subject = Conversations::subject($root);

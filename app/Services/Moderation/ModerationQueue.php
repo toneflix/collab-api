@@ -3,8 +3,6 @@
 namespace App\Services\Moderation;
 
 use App\Contracts\CanBeTakenDown;
-use App\Http\Resources\SafetyResource;
-use App\Http\Resources\TakedownResource;
 use App\Models\Release;
 use App\Models\Safety;
 use App\Models\Scopes\RestrictBlockedUserScope;
@@ -30,7 +28,8 @@ class ModerationQueue
     ) {}
 
     /**
-     * Content with pending reports, most reported first.
+     * Content with pending reports, most reported first. Each row carries its
+     * reason counts, latest reports and takedown in force.
      *
      * @param  array{type?: ?string, reason?: ?string, source?: ?string, search?: ?string}  $filters
      */
@@ -48,35 +47,27 @@ class ModerationQueue
 
         $reasons = $this->reasonCounts($page->getCollection());
 
-        $page->setCollection($page->getCollection()->map(function (Safety $row) use ($reasons) {
-            $key = $row->model_type.':'.$row->model_id;
-            $reports = Safety::query()
-                ->pending()
-                ->where('model_type', $row->model_type)
-                ->where('model_id', $row->model_id)
-                ->with('user')
-                ->latest('id')
-                ->limit(self::REPORTS_PER_ITEM)
-                ->get();
+        $page
+            ->getCollection()
+            ->each(function (Safety $row) use ($reasons) {
+                $row->setAttribute('reason_counts', $reasons[$row->model_type . ':' . $row->model_id] ?? []);
 
-            $takedown = Takedown::query()
-                ->where('model_type', $row->model_type)
-                ->where('model_id', $row->model_id)
-                ->inForce()
-                ->latest('id')
-                ->first();
+                $row->setRelation('latestReports', Safety::query()
+                    ->pending()
+                    ->where('model_type', $row->model_type)
+                    ->where('model_id', $row->model_id)
+                    ->with('user')
+                    ->latest('id')
+                    ->limit(self::REPORTS_PER_ITEM)
+                    ->get());
 
-            return [
-                'key' => $key,
-                'item' => $this->item($row->model_type, $row->model_id),
-                'reportsCount' => (int) $row->reports_count,
-                'matchesCount' => (int) $row->matches_count,
-                'lastReportedAt' => $row->last_reported_at,
-                'reasons' => $reasons[$key] ?? [],
-                'reports' => SafetyResource::collection($reports)->resolve(),
-                'takedown' => $takedown ? (new TakedownResource($takedown))->resolve() : null,
-            ];
-        }));
+                $row->setRelation('activeTakedown', Takedown::query()
+                    ->where('model_type', $row->model_type)
+                    ->where('model_id', $row->model_id)
+                    ->inForce()
+                    ->latest('id')
+                    ->first());
+            });
 
         return $page;
     }
@@ -107,10 +98,10 @@ class ModerationQueue
         return Release::query()
             ->withoutGlobalScope(RestrictBlockedUserScope::class)
             ->inReview()
-            ->when($search, fn (Builder $q, string $search) => $q->where(fn (Builder $q) => $q
+            ->when($search, fn(Builder $q, string $search) => $q->where(fn(Builder $q) => $q
                 ->whereLike('title', "%{$search}%")
                 ->orWhereLike('version', "%{$search}%")
-                ->orWhereHas('user', fn (Builder $q) => $q->withoutGlobalScopes()->where(fn (Builder $q) => $q
+                ->orWhereHas('user', fn(Builder $q) => $q->withoutGlobalScopes()->where(fn(Builder $q) => $q
                     ->whereLike('username', "%{$search}%")
                     ->orWhereLike('firstname', "%{$search}%")
                     ->orWhereLike('lastname', "%{$search}%")))))
@@ -122,10 +113,10 @@ class ModerationQueue
     public function takedowns(?string $status = null, ?string $search = null, int $perPage = 20): LengthAwarePaginator
     {
         return Takedown::query()
-            ->when($status, fn (Builder $q) => $q->where('status', $status))
-            ->when($search, fn (Builder $q, string $search) => $this->reportables->whereContentMatches($q, $search))
+            ->when($status, fn(Builder $q) => $q->where('status', $status))
+            ->when($search, fn(Builder $q, string $search) => $this->reportables->whereContentMatches($q, $search))
             ->with('moderator')
-            ->when($status === Takedown::APPEALED, fn (Builder $q) => $q->oldest('appealed_at'), fn (Builder $q) => $q->latest('id'))
+            ->when($status === Takedown::APPEALED, fn(Builder $q) => $q->oldest('appealed_at'), fn(Builder $q) => $q->latest('id'))
             ->paginate($perPage);
     }
 
@@ -145,7 +136,7 @@ class ModerationQueue
                     $owned = $class::query()->withoutGlobalScopes()->select($model->qualifyColumn('id'));
                     $model->whereOwnedBy($owned, (int) $user->id);
 
-                    $query->orWhere(fn (Builder $q) => $q
+                    $query->orWhere(fn(Builder $q) => $q
                         ->where('model_type', $model->getMorphClass())
                         ->whereIn('model_id', $owned));
                 }
@@ -190,10 +181,10 @@ class ModerationQueue
     protected function filtered(Builder $query, array $filters): Builder
     {
         return $query
-            ->when($filters['type'] ?? null, fn (Builder $q, string $type) => $q->where('model_type', $this->reportables->classFor($type)))
-            ->when($filters['reason'] ?? null, fn (Builder $q, string $reason) => $q->where('reason', $reason))
-            ->when($filters['source'] ?? null, fn (Builder $q, string $source) => $q->where('type', $source))
-            ->when($filters['search'] ?? null, fn (Builder $q, string $search) => $this->reportables->whereContentMatches($q, $search));
+            ->when($filters['type'] ?? null, fn(Builder $q, string $type) => $q->where('model_type', $this->reportables->classFor($type)))
+            ->when($filters['reason'] ?? null, fn(Builder $q, string $reason) => $q->where('reason', $reason))
+            ->when($filters['source'] ?? null, fn(Builder $q, string $source) => $q->where('type', $source))
+            ->when($filters['search'] ?? null, fn(Builder $q, string $search) => $this->reportables->whereContentMatches($q, $search));
     }
 
     /**
@@ -211,7 +202,7 @@ class ModerationQueue
             ->pending()
             ->where(function (Builder $query) use ($rows) {
                 foreach ($rows as $row) {
-                    $query->orWhere(fn (Builder $q) => $q
+                    $query->orWhere(fn(Builder $q) => $q
                         ->where('model_type', $row->model_type)
                         ->where('model_id', $row->model_id));
                 }
@@ -223,7 +214,7 @@ class ModerationQueue
 
         $grouped = [];
         foreach ($counts as $count) {
-            $grouped[$count->model_type.':'.$count->model_id][$count->reason] = (int) $count->total;
+            $grouped[$count->model_type . ':' . $count->model_id][$count->reason] = (int) $count->total;
         }
 
         return $grouped;

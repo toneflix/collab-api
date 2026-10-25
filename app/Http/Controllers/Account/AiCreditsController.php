@@ -4,8 +4,9 @@ namespace App\Http\Controllers\Account;
 
 use App\Enums\Feature;
 use App\Enums\HttpStatus;
-use App\Helpers\Providers;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\AiAccountResource;
+use App\Http\Resources\AiCreditEntryCollection;
 use App\Models\AiCreditEntry;
 use App\Services\Ai\AiSettings;
 use App\Services\Ai\Credits;
@@ -19,14 +20,20 @@ class AiCreditsController extends Controller
 {
     public function show(Request $request)
     {
-        return Providers::response()->success([
-            'data' => [
-                'access' => (bool) $request->user()->feature(Feature::AI_TOOLS),
-                'balance' => Credits::for($request->user())->balance(),
-                ...AiSettings::clientConfig(),
-            ],
-            'message' => HttpStatus::message(HttpStatus::OK),
-        ]);
+        $user = $request->user();
+
+        $account = [
+            'access' => (bool) $user->feature(Feature::AI_TOOLS),
+            'balance' => Credits::for($user)->balance(),
+            ...AiSettings::clientConfig(),
+        ];
+
+        return (new AiAccountResource($account))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     public function history(Request $request)
@@ -38,18 +45,13 @@ class AiCreditsController extends Controller
         $entries = AiCreditEntry::query()
             ->where('user_id', $request->user()->id)
             ->latest('id')
-            ->paginate((int) $request->input('limit', 20));
+            ->paginate($request->perPage(20));
 
-        return Providers::response()->success([
-            'data' => collect($entries->items())->map(fn (AiCreditEntry $entry) => [
-                'id' => $entry->id,
-                'type' => $entry->type,
-                'credits' => $entry->credits,
-                'description' => $entry->description,
-                'createdAt' => $entry->created_at,
-            ])->all(),
-            'meta' => ['total' => $entries->total(), 'page' => $entries->currentPage(), 'lastPage' => $entries->lastPage()],
-            'message' => HttpStatus::message(HttpStatus::OK),
-        ]);
+        return (new AiCreditEntryCollection($entries))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 }

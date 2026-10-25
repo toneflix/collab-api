@@ -5,7 +5,7 @@ namespace App\Http\Resources;
 use App\Models\Plan;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
+use Toneflix\ResourceModifier\Services\Json\JsonResource;
 
 /**
  * A user account as admins see it.
@@ -29,7 +29,7 @@ class AdminUserResource extends JsonResource
             'email' => $this->email,
             'phone' => $this->phone,
             'imageUrl' => $this->images['image'] ?? null,
-            'roles' => $this->whenLoaded('roles', fn () => $this->roles->pluck('name')),
+            'roles' => $this->whenLoaded('roles', fn() => $this->roles->pluck('name')),
             'verified' => (bool) $this->verified,
             'emailVerifiedAt' => $this->email_verified_at,
             'suspended' => $this->isSuspended(),

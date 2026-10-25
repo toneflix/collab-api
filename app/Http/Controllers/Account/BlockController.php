@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Account;
 
 use App\Enums\HttpStatus;
-use App\Helpers\Providers;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\BlockCollection;
 use App\Http\Resources\BlockResource;
@@ -45,11 +44,14 @@ class BlockController extends Controller
             })
             ->paginate();
 
-        return (new BlockCollection($list))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ])->response()->setStatusCode(HttpStatus::OK->value);
+        return (new BlockCollection($list))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::OK->value);
     }
 
     /**
@@ -67,29 +69,32 @@ class BlockController extends Controller
         $user = $request->user();
 
         /** @var User|Project $model */
-        $model = app(str($request->type)->ucfirst()->prepend('\\App\\Models\\')->toString())->find($request->id);
+        $model = app(str($request->type)->ucfirst()->prepend('\\App\\Models\\')->toString())
+            ->find($request->id);
 
         if ($model) {
-            $item = $user->blocklist()->firstOrNew([
-                'blockable_type' => $model->getMorphClass(),
-                'blockable_id' => $model->id,
-            ], [
-                'reason' => $request->reason,
-            ]);
+            $item = $user
+                ->blocklist()
+                ->firstOrNew([
+                    'blockable_type' => $model->getMorphClass(),
+                    'blockable_id' => $model->id,
+                ], [
+                    'reason' => $request->reason,
+                ]);
 
             $item->save();
 
-            return (new BlockResource($item))->additional([
-                'message' => __('This :0 has been blocked and will no longer bother you.', [$request->type]),
-                'status' => 'success',
-                'status_code' => HttpStatus::CREATED,
-            ])->response()->setStatusCode(HttpStatus::CREATED->value);
+            return (new BlockResource($item))
+                ->additional([
+                    'message' => __('This :0 has been blocked and will no longer bother you.', [$request->type]),
+                    'status' => 'success',
+                    'status_code' => HttpStatus::CREATED,
+                ])
+                ->response()
+                ->setStatusCode(HttpStatus::CREATED->value);
         }
 
-        return Providers::response()->error([
-            'message' => __('This :0 is currently not available.', [$request->type]),
-            'status_code' => HttpStatus::UNPROCESSABLE_ENTITY,
-        ]);
+        abort(HttpStatus::UNPROCESSABLE_ENTITY->value, __('This :0 is currently not available.', [$request->type]));
     }
 
     /**
@@ -101,18 +106,30 @@ class BlockController extends Controller
         $user = $request->user();
 
         if ($request->type) {
-            $type = str($request->type)->ucfirst()->prepend('App\\Models\\')->toString();
-            $item = $user->blocklist()->whereBlockableType($type)->whereBlockableId($id)->firstOrFail();
+            $type = str($request->type)
+                ->ucfirst()
+                ->prepend('App\\Models\\')
+                ->toString();
+            $item = $user
+                ->blocklist()
+                ->whereBlockableType($type)
+                ->whereBlockableId($id)
+                ->firstOrFail();
         } else {
-            $item = $user->blocklist()->findOrFail($id);
+            $item = $user
+                ->blocklist()
+                ->findOrFail($id);
         }
 
         $item->delete();
 
-        return (new BlockResource($item))->additional([
-            'message' => __(':0 has now been unblocked.', [$item->name]),
-            'status' => 'success',
-            'status_code' => HttpStatus::ACCEPTED,
-        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
+        return (new BlockResource($item))
+            ->additional([
+                'message' => __(':0 has now been unblocked.', [$item->name]),
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 }

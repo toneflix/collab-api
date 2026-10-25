@@ -39,7 +39,7 @@ class GenerateMusic implements AiTask
 
     public function describe(array $input): string
     {
-        return 'Music: '.str((string) $input['prompt'])->limit(80);
+        return 'Music: ' . str((string) $input['prompt'])->limit(80);
     }
 
     public function handle(AiJob $job): array
@@ -61,7 +61,9 @@ class GenerateMusic implements AiTask
         file_put_contents($path, $audio->content());
         $temp = [$path];
 
-        $title = str((string) $input['prompt'])->limit(60, '')->toString();
+        $title = str((string) $input['prompt'])
+            ->limit(60, '')
+            ->toString();
         $meta = [
             'duration' => (float) ($input['seconds'] ?? 0) ?: round($this->audio->probe($path)['duration'], 3),
             'ai' => array_filter([
@@ -69,7 +71,7 @@ class GenerateMusic implements AiTask
                 'seed' => $input['seed'] ?? null,
                 'model' => $audio->meta->model,
                 'job' => $job->id,
-            ], fn ($value) => $value !== null),
+            ], fn($value) => $value !== null),
         ];
 
         $notice = null;
@@ -89,11 +91,11 @@ class GenerateMusic implements AiTask
                     : null;
             }
         } finally {
-            array_map(fn (string $file) => @unlink($file), $temp);
+            array_map(fn(string $file) => @unlink($file), $temp);
         }
 
         return array_filter([
-            'stems' => array_map(fn (ProjectTrackStem $stem) => $stem->id, $stems),
+            'stems' => array_map(fn(ProjectTrackStem $stem) => $stem->id, $stems),
             'notice' => $notice,
         ]);
     }

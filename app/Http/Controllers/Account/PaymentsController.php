@@ -5,8 +5,7 @@ namespace App\Http\Controllers\Account;
 use App\Enums\HttpStatus;
 use App\Helpers\Providers;
 use App\Http\Controllers\Controller;
-use App\Http\Resources\PlanResource;
-use App\Http\Resources\SubscriptionResource;
+use App\Http\Resources\SubscriptionOverviewResource;
 use App\Http\Resources\TransactionCollection;
 use Illuminate\Http\Request;
 
@@ -20,15 +19,16 @@ class PaymentsController extends Controller
         $purchases = $this->user->transactions()
             ->where('status', 'complete')
             ->whereNotNull('purpose')
-            ->when($request->purpose, fn ($q, $purpose) => $q->where('purpose', $purpose))
+            ->when($request->purpose, fn($q, $purpose) => $q->where('purpose', $purpose))
             ->latest('paid_at')
-            ->paginate($request->input('limit', 15));
+            ->paginate($request->perPage(15));
 
-        return (new TransactionCollection($purchases))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new TransactionCollection($purchases))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -43,27 +43,28 @@ class PaymentsController extends Controller
             ->groupBy('purpose')
             ->get()
             ->keyBy('purpose')
-            ->map(fn ($row) => [
+            ->map(fn($row) => [
                 'count' => (int) $row->count,
                 'gross' => (float) $row->gross,
                 'earned' => (float) $row->earned,
             ]);
 
         $list = $earnings
-            ->when($request->purpose, fn ($q, $purpose) => $q->where('purpose', $purpose))
+            ->when($request->purpose, fn($q, $purpose) => $q->where('purpose', $purpose))
             ->latest('paid_at')
-            ->paginate($request->input('limit', 15));
+            ->paginate($request->perPage(15));
 
-        return (new TransactionCollection($list))->additional([
-            'summary' => [
-                'earned' => (float) $totals->sum('earned'),
-                'currency' => Providers::config('app_currency', 'NGN'),
-                'byPurpose' => $totals,
-            ],
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new TransactionCollection($list))
+            ->additional([
+                'summary' => [
+                    'earned' => (float) $totals->sum('earned'),
+                    'currency' => Providers::config('app_currency', 'NGN'),
+                    'byPurpose' => $totals,
+                ],
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -71,22 +72,13 @@ class PaymentsController extends Controller
      */
     public function subscription()
     {
-        $current = $this->user->subscriptions()->active()->first();
-        $latest = $this->user->subscriptions()->first();
-        $plan = $this->user->current_plan;
+        $user = $this->user;
 
-        return Providers::response()->success([
-            'data' => [
-                'premium' => (bool) $current,
-                // When the paid time runs out, including periods paid in advance
-                'endsAt' => $current ? $latest?->ends_at : null,
-                'current' => $current ? new SubscriptionResource($current) : null,
-                'plan' => new PlanResource($plan),
-                // 0 means no limit
-                'features' => $plan->allFeatures(),
-                'currency' => Providers::config('app_currency', 'NGN'),
-            ],
-            'message' => HttpStatus::message(HttpStatus::OK),
-        ]);
+        return (new SubscriptionOverviewResource($user))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 }

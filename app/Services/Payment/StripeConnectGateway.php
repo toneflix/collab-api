@@ -67,7 +67,7 @@ class StripeConnectGateway implements HostsPayoutAccounts, PayoutGateway
         $rate = (float) PayoutSettings::get('stripe_exchange_rate');
 
         if ($rate <= 0) {
-            throw ValidationException::withMessages(['payout' => 'Set the Stripe exchange rate from '.strtoupper($from).' to '.$this->currency().' first.']);
+            throw ValidationException::withMessages(['payout' => 'Set the Stripe exchange rate from ' . strtoupper($from) . ' to ' . $this->currency() . ' first.']);
         }
 
         return $rate;
@@ -113,7 +113,7 @@ class StripeConnectGateway implements HostsPayoutAccounts, PayoutGateway
 
     public function ready(string $accountId): bool
     {
-        $account = $this->call('account', fn (StripeClient $stripe) => $stripe->accounts->retrieve($accountId));
+        $account = $this->call('account', fn(StripeClient $stripe) => $stripe->accounts->retrieve($accountId));
 
         return ($account->capabilities->transfers ?? null) === 'active';
     }
@@ -121,14 +121,16 @@ class StripeConnectGateway implements HostsPayoutAccounts, PayoutGateway
     public function transfer(PayoutTransfer $transfer): array
     {
         try {
-            $result = $this->client()->transfers->create([
-                'amount' => $this->minor($transfer->amount, $transfer->currency),
-                'currency' => strtolower($transfer->currency),
-                'destination' => $transfer->recipient,
-                'transfer_group' => $transfer->reference,
-                'description' => $transfer->reason,
-                'metadata' => ['reference' => $transfer->reference],
-            ], ['idempotency_key' => $transfer->reference]);
+            $result = $this
+                ->client()->transfers
+                ->create([
+                    'amount' => $this->minor($transfer->amount, $transfer->currency),
+                    'currency' => strtolower($transfer->currency),
+                    'destination' => $transfer->recipient,
+                    'transfer_group' => $transfer->reference,
+                    'description' => $transfer->reason,
+                    'metadata' => ['reference' => $transfer->reference],
+                ], ['idempotency_key' => $transfer->reference]);
         } catch (ApiConnectionException $e) {
             // The outcome is unknown, so leave it processing for payouts:sync to settle.
             report($e);

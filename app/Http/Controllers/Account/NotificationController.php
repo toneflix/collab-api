@@ -3,23 +3,29 @@
 namespace App\Http\Controllers\Account;
 
 use App\Enums\HttpStatus;
-use App\Helpers\Providers;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\ActionResource;
 use App\Http\Resources\NotificationCollection;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 
 class NotificationController extends Controller
 {
+    /** Unread important notifications pinned above the list */
+    public const IMPORTANT_LIMIT = 20;
+
     /**
      * Display a listing of the resource.
      */
     public function index(Request $request)
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
 
-        $query = $user->notifications()->getQuery();
+        $query = $user
+            ->notifications()
+            ->getQuery();
 
         $query
             ->where(function (Builder $q) {
@@ -44,8 +50,14 @@ class NotificationController extends Controller
         if ($request->boolean('statsOnly')) {
             $additional['stats'] = $stats;
         } else {
-            $notifications = $query->paginate($request->input('limit', 30));
-            $important = $user->notifications()->unread()->whereJsonContains('data->important', true)->get();
+            $notifications = $query->paginate($request->perPage(30));
+            $important = $user
+                ->notifications()
+                ->unread()
+                ->whereJsonContains('data->important', true)
+                ->latest()
+                ->limit(self::IMPORTANT_LIMIT)
+                ->get();
 
             if ($request->boolean('withStats')) {
                 $additional['stats'] = $stats;
@@ -61,7 +73,11 @@ class NotificationController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        $request->user()->notifications()->findOrFail($id)->markAsRead();
+        $request
+            ->user()
+            ->notifications()
+            ->findOrFail($id)
+            ->markAsRead();
 
         return $this->stats($request, 'Notification marked as read.');
     }
@@ -71,20 +87,32 @@ class NotificationController extends Controller
      */
     public function readAll(Request $request)
     {
-        $request->user()->unreadNotifications()->update(['read_at' => now()]);
+        $request
+            ->user()
+            ->unreadNotifications()
+            ->update(['read_at' => now()]);
 
         return $this->stats($request, 'All notifications marked as read.');
     }
 
     protected function stats(Request $request, string $message)
     {
-        return Providers::response()->success([
-            'data' => [],
-            'stats' => [
-                'unread' => $request->user()->unreadNotifications()->count(),
-            ],
-            'message' => $message,
-        ], HttpStatus::ACCEPTED);
+        $unread = $request
+            ->user()
+            ->unreadNotifications()
+            ->count();
+
+        $result = [];
+
+        return (new ActionResource($result))
+            ->additional([
+                'stats' => ['unread' => $unread],
+                'message' => $message,
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 
     /**
@@ -92,12 +120,19 @@ class NotificationController extends Controller
      */
     public function destroy(Request $request, string $id)
     {
-        $request->user()->notifications()->findOrFail($id)->delete();
+        $request
+            ->user()
+            ->notifications()
+            ->findOrFail($id)
+            ->delete();
 
-        return (new NotificationCollection([]))->additional([
-            'message' => __('Notification Deleted'),
-            'status' => 'success',
-            'status_code' => HttpStatus::ACCEPTED,
-        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
+        return (new NotificationCollection([]))
+            ->additional([
+                'message' => __('Notification Deleted'),
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 }

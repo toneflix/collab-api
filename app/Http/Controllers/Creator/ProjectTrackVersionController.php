@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Creator;
 use App\Broadcasting\Channels;
 use App\Enums\HttpStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\ProjectTrackVersionCollection;
 use App\Http\Resources\ProjectTrackVersionResource;
 use App\Models\Project;
 use App\Models\ProjectTrack;
@@ -22,19 +23,23 @@ class ProjectTrackVersionController extends Controller
     {
         $this->authorize('viewHistory', $track);
 
-        $limit = min(50, max(1, (int) $request->input('limit', 20)));
-
-        $versions = $track->versions()
+        $versions = $track
+            ->versions()
             ->with(['user', 'restoredFrom'])
             ->latest('id')
-            ->paginate($limit);
+            ->paginate($request->perPage(20, 50));
 
-        return ProjectTrackVersionResource::collection($versions)->additional([
-            'currentId' => $track->versions()->max('id'),
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        $currentId = $track
+            ->versions()
+            ->max('id');
+
+        return (new ProjectTrackVersionCollection($versions))
+            ->additional([
+                'currentId' => $currentId,
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -54,12 +59,15 @@ class ProjectTrackVersionController extends Controller
             'restored_from_id' => $version->id,
         ]);
 
-        return (new ProjectTrackVersionResource($result['version']->load(['user', 'restoredFrom'])))->additional([
-            'missing' => $result['missing'],
-            'keptAudio' => $result['kept_audio'],
-            'message' => 'Version restored.',
-            'status' => 'success',
-            'status_code' => HttpStatus::ACCEPTED,
-        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
+        return (new ProjectTrackVersionResource($result['version']->load(['user', 'restoredFrom'])))
+            ->additional([
+                'missing' => $result['missing'],
+                'keptAudio' => $result['kept_audio'],
+                'message' => 'Version restored.',
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 }

@@ -17,13 +17,14 @@ class GenreController extends Controller
     {
         $query = Genre::query();
 
-        $genres = $query->paginate($request->input('limit', 15));
+        $genres = $query->paginate($request->perPage(15));
 
-        return (new GenreCollection($genres))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new GenreCollection($genres))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -39,11 +40,12 @@ class GenreController extends Controller
      */
     public function show(Genre $genre)
     {
-        return (new GenreResource($genre))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new GenreResource($genre))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**

@@ -45,7 +45,9 @@ class WebPush
             'pemFile' => $vapid['pem_file'] ?? null,
         ])] : [];
 
-        $client = Http::timeout(30)->withOptions(config('webpush.client_options', []))->buildClient();
+        $client = Http::timeout(30)
+            ->withOptions(config('webpush.client_options', []))
+            ->buildClient();
 
         return (new WebPushClient($auth, [], $client, logger: Log::channel()))
             ->setReuseVAPIDHeaders(true)

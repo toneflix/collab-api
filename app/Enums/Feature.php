@@ -118,7 +118,7 @@ enum Feature: string
      */
     public static function catalogue(): array
     {
-        return array_map(fn (self $f) => [
+        return array_map(fn(self $f) => [
             'key' => $f->value,
             'title' => $f->title(),
             'description' => $f->description(),

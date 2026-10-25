@@ -35,14 +35,14 @@ class Recommend extends Command
     {
         /** @var PeriodDays $days */
         $days = config('settings.recommendation_expiry');
-        $fresh = fn (Builder $q) => $q->where('created_at', '>=', now()->subDays($days->value));
+        $fresh = fn(Builder $q) => $q->where('created_at', '>=', now()->subDays($days->value));
 
         // Only users with some activity to learn from, whose recommendations have expired.
         $users = User::query()
             ->when(
                 count($this->argument('user_ids')),
-                fn (Builder $q) => $q->whereIn('id', $this->argument('user_ids')),
-                fn (Builder $q) => $q->whereDoesntHave('recommendations', $fresh)->limit(1000)
+                fn(Builder $q) => $q->whereIn('id', $this->argument('user_ids')),
+                fn(Builder $q) => $q->whereDoesntHave('recommendations', $fresh)->limit(1000)
             )
             ->where(function (Builder $q) {
                 $q->has('followings')

@@ -5,7 +5,11 @@ namespace App\Http\Controllers;
 use App\Enums\HttpStatus;
 use App\Http\Resources\FollowCollection;
 use App\Http\Resources\FollowResource;
+use App\Models\Artist;
+use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Overtrue\LaravelFollow\Followable;
 
 class FollowController extends Controller
 {
@@ -17,20 +21,21 @@ class FollowController extends Controller
         [$followable] = $this->resolver($request, $pid, $follow_id);
 
         if ($request->type === 'followings') {
-            /** @var \Illuminate\Database\Eloquent\Builder $query */
+            /** @var Builder $query */
             $query = $followable->followings();
         } else {
-            /** @var \Illuminate\Database\Eloquent\Builder $query */
+            /** @var Builder $query */
             $query = $followable->followers();
         }
 
-        $follows = $query->paginate($request->input('limit', 45));
+        $follows = $query->paginate($request->perPage(45));
 
-        return (new FollowCollection($follows))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new FollowCollection($follows))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -46,19 +51,20 @@ class FollowController extends Controller
 
         $action = $followable->isFollowedBy($user) ? 'followed' : 'unfollowed';
 
-        return (new FollowResource($followable))->additional([
-            'message' => __("You have :0 this $name", [$action]),
-            'status' => 'success',
-            'status_code' => HttpStatus::ACCEPTED,
-        ]);
+        return (new FollowResource($followable))
+            ->additional([
+                'message' => __("You have :0 this $name", [$action]),
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ]);
     }
 
     /**
      * Resolve the interaction interface
      *
      * @return array{
-     *  0:\App\Models\User|\App\Models\Artist,
-     *  1:\Overtrue\LaravelFollow\Followable|null,
+     *  0:User|Artist,
+     *  1:Followable|null,
      *  2:string
      * }
      */
@@ -74,15 +80,17 @@ class FollowController extends Controller
             ->prepend('\\App\\Models\\')
             ->toString();
 
-        /** @var \App\Models\User|\App\Models\Artist $followable */
-        $followable = (new $className())->resolveRouteBinding($followable_id);
+        /** @var User|Artist $followable */
+        $followable = (new $className)->resolveRouteBinding($followable_id);
 
         $follow = null;
 
         if ($followable) {
             if ($follow_id) {
-                /** @var \Overtrue\LaravelFollow\Followable $follow */
-                $follow = $followable->followers()->findOrFail($followable_id);
+                /** @var Followable $follow */
+                $follow = $followable
+                    ->followers()
+                    ->findOrFail($followable_id);
             }
         }
 

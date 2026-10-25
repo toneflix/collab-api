@@ -28,9 +28,12 @@ class MixRenderer
      */
     public function render(ProjectTrack $track): ?string
     {
-        $stems = $track->stems()->get()->map(fn (ProjectTrackStem $stem) => [$stem, MixStem::fromMeta(collect($stem->meta)->all())]);
-        $soloed = $stems->contains(fn (array $item) => $item[1]->soloed);
-        $audible = $stems->filter(fn (array $item) => $soloed ? $item[1]->soloed : ! $item[1]->muted);
+        $stems = $track
+            ->stems()
+            ->get()
+            ->map(fn(ProjectTrackStem $stem) => [$stem, MixStem::fromMeta(collect($stem->meta)->all())]);
+        $soloed = $stems->contains(fn(array $item) => $item[1]->soloed);
+        $audible = $stems->filter(fn(array $item) => $soloed ? $item[1]->soloed : ! $item[1]->muted);
 
         $graph = new MixGraph;
         $pads = [];
@@ -57,7 +60,7 @@ class MixRenderer
             }
 
             $master = count($pads) > 1
-                ? $graph->chain($pads, 'amix=inputs='.count($pads).':normalize=0:duration=longest', 'mix')
+                ? $graph->chain($pads, 'amix=inputs=' . count($pads) . ':normalize=0:duration=longest', 'mix')
                 : $pads[0];
             $master = $graph->chain($master, sprintf('volume=%s,atrim=end=%s', round(self::masterVolume($track), 4), round($length, 4)), 'out');
 
@@ -96,7 +99,7 @@ class MixRenderer
 
         $source = $graph->chain(
             $graph->input($path),
-            'aresample='.MixGraph::RATE.',aformat=sample_fmts=fltp:channel_layouts='.($channels === 1 ? 'mono' : 'stereo'),
+            'aresample=' . MixGraph::RATE . ',aformat=sample_fmts=fltp:channel_layouts=' . ($channels === 1 ? 'mono' : 'stereo'),
             'src',
         );
 
@@ -107,14 +110,14 @@ class MixRenderer
         }
 
         $pad = count($pads) > 1
-            ? $graph->chain($pads, 'amix=inputs='.count($pads).':normalize=0:duration=longest', 'stem')
+            ? $graph->chain($pads, 'amix=inputs=' . count($pads) . ':normalize=0:duration=longest', 'stem')
             : $pads[0];
 
         foreach ($mix->mixEffects($channels) as $effect) {
             $pad = $effect->apply($graph, $pad);
         }
 
-        return $graph->chain($pad, 'volume='.round($mix->volume, 4).','.$this->pan($mix->pan, $channels), 'track');
+        return $graph->chain($pad, 'volume=' . round($mix->volume, 4) . ',' . $this->pan($mix->pan, $channels), 'track');
     }
 
     /**
@@ -160,7 +163,7 @@ class MixRenderer
         $filters = [
             sprintf('atrim=start=%s:duration=%s', round($clip['offset'], 6), round($clip['duration'], 6)),
             'asetpts=PTS-STARTPTS',
-            'volume='.round($clip['gain'], 4),
+            'volume=' . round($clip['gain'], 4),
         ];
 
         if ($clip['fadeIn'] > 0) {
@@ -171,7 +174,7 @@ class MixRenderer
             $filters[] = sprintf('afade=t=out:st=%s:d=%s:curve=tri', round($clip['duration'] - $clip['fadeOut'], 6), round($clip['fadeOut'], 6));
         }
 
-        $filters[] = 'adelay=delays='.(int) round($clip['start'] * MixGraph::RATE).'S:all=1';
+        $filters[] = 'adelay=delays=' . (int) round($clip['start'] * MixGraph::RATE) . 'S:all=1';
 
         return implode(',', $filters);
     }

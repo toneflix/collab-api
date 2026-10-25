@@ -14,7 +14,7 @@ class EnsureEmailIsVerified
     /**
      * Handle an incoming request.
      *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
+     * @param  Closure(Request): (Response)  $next
      */
     public function handle(Request $request, Closure $next): Response
     {
@@ -23,9 +23,10 @@ class EnsureEmailIsVerified
             ($request->user() instanceof MustVerifyEmail &&
             ! $request->user()->hasVerifiedEmail())
         ) {
-            return Providers::response()->error([
-                'message' => 'Your email address is not verified.',
-            ], HttpStatus::FORBIDDEN);
+            return Providers::response()
+                ->error([
+                    'message' => 'Your email address is not verified.',
+                ], HttpStatus::FORBIDDEN);
         }
 
         return $next($request);

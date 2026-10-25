@@ -64,15 +64,18 @@ class AiCreditsTest extends TestCase
     protected function member(int $credits = 50, bool $tools = true): User
     {
         $plan = Plan::create([
-            'slug' => 'ai-'.uniqid(), 'name' => 'AI', 'price' => 1000, 'interval' => 'month',
+            'slug' => 'ai-' . uniqid(), 'name' => 'AI', 'price' => 1000, 'interval' => 'month',
             'features' => [Feature::AI_TOOLS->value => $tools, Feature::AI_CREDITS->value => $credits],
         ]);
 
-        $user = User::factory()->create();
-        $user->subscriptions()->create([
-            'plan' => $plan->slug, 'plan_id' => $plan->id, 'amount' => 1000,
-            'starts_at' => now()->subDay(), 'ends_at' => now()->addYear(),
-        ]);
+        $user = User::factory()
+            ->create();
+        $user
+            ->subscriptions()
+            ->create([
+                'plan' => $plan->slug, 'plan_id' => $plan->id, 'amount' => 1000,
+                'starts_at' => now()->subDay(), 'ends_at' => now()->addYear(),
+            ]);
 
         return $user->fresh();
     }
@@ -90,32 +93,39 @@ class AiCreditsTest extends TestCase
 
     public function test_plans_can_grant_ai_tools_and_monthly_credits(): void
     {
-        $catalogue = collect(Feature::catalogue())->keyBy('key');
+        $catalogue = collect(Feature::catalogue())
+            ->keyBy('key');
 
         $this->assertSame('toggle', $catalogue['ai_tools']['type']);
         $this->assertSame('credits', $catalogue['ai_credits']['type']);
         $this->assertFalse(Plan::default()->feature(Feature::AI_TOOLS));
         $this->assertSame(0, Plan::default()->feature(Feature::AI_CREDITS));
 
-        $premium = Plan::where('slug', 'premium')->first();
+        $premium = Plan::where('slug', 'premium')
+            ->first();
         $this->assertTrue($premium->feature(Feature::AI_TOOLS));
         $this->assertSame(100, $premium->feature(Feature::AI_CREDITS));
     }
 
     public function test_the_migration_grants_premium_on_a_fresh_install_but_keeps_admin_choices(): void
     {
-        $premium = Plan::where('slug', 'premium')->first();
+        $premium = Plan::where('slug', 'premium')
+            ->first();
         $migration = require database_path('migrations/2026_10_29_000001_create_ai_credits_tables.php');
-        $grant = fn () => (fn () => $this->grantPremium())->call($migration);
+        $grant = fn() => (fn() => $this->grantPremium())->call($migration);
 
         // A fresh install already holds the off defaults from the plans migration.
-        $premium->forceFill(['features' => [...$premium->features, 'ai_tools' => false, 'ai_credits' => 0]])->save();
+        $premium
+            ->forceFill(['features' => [...$premium->features, 'ai_tools' => false, 'ai_credits' => 0]])
+            ->save();
         $grant();
         $premium->refresh();
         $this->assertTrue($premium->feature(Feature::AI_TOOLS));
         $this->assertSame(100, $premium->feature(Feature::AI_CREDITS));
 
-        $premium->forceFill(['features' => [...$premium->features, 'ai_credits' => 250]])->save();
+        $premium
+            ->forceFill(['features' => [...$premium->features, 'ai_credits' => 250]])
+            ->save();
         $grant();
         $this->assertSame(250, $premium->refresh()->feature(Feature::AI_CREDITS));
     }
@@ -186,20 +196,27 @@ class AiCreditsTest extends TestCase
             ->assertJsonPath('data.amount', 9)
             ->json('data.reference');
 
-        $this->postJson("/api/payments/{$reference}/verify")->assertOk();
-        app(Checkout::class)->verify(Transaction::where('reference', $reference)->first());
+        $this
+            ->postJson("/api/payments/{$reference}/verify")
+            ->assertOk();
+        app(Checkout::class)
+            ->verify(Transaction::where('reference', $reference)->first());
 
         $this->assertSame(500, Credits::for($user)->balance()['purchased']);
         $this->assertSame(1, AiCreditEntry::where('user_id', $user->id)->where('type', 'purchase')->count());
 
-        $this->postJson('/api/payments', ['purpose' => 'credits', 'credits' => 123])->assertJsonValidationErrors('credits');
+        $this
+            ->postJson('/api/payments', ['purpose' => 'credits', 'credits' => 123])
+            ->assertJsonValidationErrors('credits');
     }
 
     public function test_people_without_ai_tools_cannot_buy_credits(): void
     {
         $this->actingAsFresh(User::factory()->create());
 
-        $this->postJson('/api/payments', ['purpose' => 'credits', 'credits' => 100])->assertJsonValidationErrors('credits');
+        $this
+            ->postJson('/api/payments', ['purpose' => 'credits', 'credits' => 100])
+            ->assertJsonValidationErrors('credits');
     }
 
     public function test_the_account_shows_the_balance_packs_and_history(): void
@@ -222,8 +239,11 @@ class AiCreditsTest extends TestCase
 
     public function test_the_credit_price_follows_the_app_currency_until_set(): void
     {
-        Configuration::where('key', 'ai_credit_price')->delete();
-        Configuration::where('key', 'app_currency')->first()->update(['value' => 'NGN']);
+        Configuration::where('key', 'ai_credit_price')
+            ->delete();
+        Configuration::where('key', 'app_currency')
+            ->first()
+            ->update(['value' => 'NGN']);
         AiSettings::flush();
 
         $this->assertSame(30.0, AiSettings::creditPrice());
@@ -231,16 +251,22 @@ class AiCreditsTest extends TestCase
 
     public function test_admins_change_ai_settings(): void
     {
-        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        app(PermissionRegistrar::class)
+            ->forgetCachedPermissions();
         Permission::findOrCreate('manage-configuration', 'web');
-        $admin = User::factory()->create();
+        $admin = User::factory()
+            ->create();
         $admin->givePermissionTo('manage-configuration');
 
         $this->actingAsFresh(User::factory()->create());
-        $this->getJson('/api/admin/ai')->assertForbidden();
+        $this
+            ->getJson('/api/admin/ai')
+            ->assertForbidden();
 
         $this->actingAsFresh($admin);
-        $this->putJson('/api/admin/ai', ['ai_credit_packs' => 'lots'])->assertJsonValidationErrors('ai_credit_packs');
+        $this
+            ->putJson('/api/admin/ai', ['ai_credit_packs' => 'lots'])
+            ->assertJsonValidationErrors('ai_credit_packs');
         $this->putJson('/api/admin/ai', ['ai_credit_packs' => '50, 1000:25', 'ai_stems_credits' => 8])
             ->assertAccepted()
             ->assertJsonPath('data.client.packs.1.price', 15)

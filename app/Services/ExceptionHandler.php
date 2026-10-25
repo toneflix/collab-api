@@ -32,9 +32,9 @@ class ExceptionHandler // extends Handler
         static::$message = null;
 
         if ($request->isXmlHttpRequest() || request()->is('api/*')) {
-            $line = method_exists($e, 'getFile') ? ' in '.$e->getFile() : '';
-            $line .= method_exists($e, 'getLine') ? ' on line '.$e->getLine() : '';
-            $msg = method_exists($e, 'getMessage') ? $e->getMessage().$line : 'An error occured'.$line;
+            $line = method_exists($e, 'getFile') ? ' in ' . $e->getFile() : '';
+            $line .= method_exists($e, 'getLine') ? ' on line ' . $e->getLine() : '';
+            $msg = method_exists($e, 'getMessage') ? $e->getMessage() . $line : 'An error occured' . $line;
             $getCode = method_exists($e, 'getCode') ? $e->getCode() : null;
             $plainMessage = method_exists($e, 'getMessage') ? $e->getMessage() : null;
 
@@ -51,7 +51,7 @@ class ExceptionHandler // extends Handler
                     $e instanceof ModelNotFoundException ||
                     $e->getPrevious() instanceof ModelNotFoundException => static::renderException(
                         str(str($msg)->contains('The route')
-                            ? str($msg)->before('.').'.'
+                            ? str($msg)->before('.') . '.'
                             : HttpStatus::message(HttpStatus::NOT_FOUND))->replace('resource', $prefix ?: 'resource'),
                         HttpStatus::NOT_FOUND
                     ),
@@ -93,23 +93,25 @@ class ExceptionHandler // extends Handler
         } elseif (static::isHttpException($e) && $e->getStatusCode() !== 401) {
             static::registerErrorViewPaths();
 
-            return response()->view(
-                'errors.generic',
-                [
-                    'message' => $e->getMessage(),
-                    'code' => $e->getStatusCode(),
-                ],
-                $e->getStatusCode()
-            );
+            return response()
+                ->view(
+                    'errors.generic',
+                    [
+                        'message' => $e->getMessage(),
+                        'code' => $e->getStatusCode(),
+                    ],
+                    $e->getStatusCode()
+                );
         }
     }
 
     protected static function renderException(string $msg, $code = 404, array $misc = [])
     {
-        return Providers::response()->error([
-            'message' => static::$message ?? $msg,
-            ...array_merge($misc, ['data' => new \stdClass]),
-        ], $code);
+        return Providers::response()
+            ->error([
+                'message' => static::$message ?? $msg,
+                ...array_merge($misc, ['data' => new \stdClass]),
+            ], $code);
     }
 
     /**

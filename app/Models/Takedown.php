@@ -77,6 +77,7 @@ class Takedown extends Model
      */
     public function item(): ?Model
     {
-        return app(Reportables::class)->find($this->model_type, $this->model_id);
+        return app(Reportables::class)
+            ->find($this->model_type, $this->model_id);
     }
 }

@@ -22,16 +22,21 @@ class ArtistController extends Controller
             'cover' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:8192'],
         ]);
 
-        $artist = $this->user->artists()->make();
+        $artist = $this->user
+            ->artists()
+            ->make();
         $artist->name = $request->input('name');
         $artist->about = $request->input('about');
         $artist->save();
 
-        return (new ArtistResource($artist))->additional([
-            'message' => 'New artist created successfully.',
-            'status' => 'success',
-            'status_code' => HttpStatus::CREATED,
-        ])->response()->setStatusCode(HttpStatus::CREATED->value);
+        return (new ArtistResource($artist))
+            ->additional([
+                'message' => 'New artist created successfully.',
+                'status' => 'success',
+                'status_code' => HttpStatus::CREATED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::CREATED->value);
     }
 
     /**
@@ -59,10 +64,13 @@ class ArtistController extends Controller
 
         $artist->save();
 
-        return (new ArtistResource($artist->refresh()))->additional([
-            'message' => 'Artist profile updated.',
-            'status' => 'success',
-            'status_code' => HttpStatus::ACCEPTED,
-        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
+        return (new ArtistResource($artist->refresh()))
+            ->additional([
+                'message' => 'Artist profile updated.',
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 }

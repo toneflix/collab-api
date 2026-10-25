@@ -3,8 +3,9 @@
 namespace App\Http\Controllers\Creator;
 
 use App\Enums\HttpStatus;
-use App\Helpers\Providers;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\AiJobCollection;
+use App\Http\Resources\AiJobResource;
 use App\Models\AiJob;
 use App\Models\Project;
 use App\Models\ProjectTrack;
@@ -32,8 +33,8 @@ class AiController extends Controller
             'reference' => $model->references() ? ['nullable', 'file', 'mimes:mp3,wav', 'max:20480'] : ['prohibited'],
             'reference_stem_id' => $model->references() ? ['nullable', 'integer'] : ['prohibited'],
         ], [
-            'reference.prohibited' => $model::NAME.' doesn\'t take reference audio.',
-            'reference_stem_id.prohibited' => $model::NAME.' doesn\'t take reference audio.',
+            'reference.prohibited' => $model::NAME . ' doesn\'t take reference audio.',
+            'reference_stem_id.prohibited' => $model::NAME . ' doesn\'t take reference audio.',
         ]);
 
         $reference = $references->keep($model, $track, $request->file('reference'), $valid['reference_stem_id'] ?? null);
@@ -48,7 +49,7 @@ class AiController extends Controller
             'split' => (bool) ($valid['split'] ?? false),
             'reference_kind' => $reference ? ($valid['reference_kind'] ?? $model->references()[0]) : null,
             ...$reference,
-        ], fn ($value) => $value !== null);
+        ], fn($value) => $value !== null);
 
         try {
             $job = $studio->start($request->user(), $track, 'music', $input);
@@ -80,29 +81,42 @@ class AiController extends Controller
     {
         $this->authorize('update', $track);
 
-        $jobs = AiJob::query()->where('project_track_id', $track->id)->latest('id')->limit(20)->get();
+        $request->validate(['limit' => ['nullable', 'integer', 'between:1,50']]);
 
-        return Providers::response()->success([
-            'data' => $jobs->map(fn (AiJob $job) => $job->present())->all(),
-            'message' => HttpStatus::message(HttpStatus::OK),
-        ]);
+        $jobs = AiJob::query()
+            ->where('project_track_id', $track->id)
+            ->latest('id')
+            ->paginate($request->perPage(20, 50));
+
+        return (new AiJobCollection($jobs))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     public function show(Request $request, AiJob $job)
     {
         abort_unless((int) $job->user_id === (int) $request->user()->id, HttpStatus::NOT_FOUND->value, 'Job not found.');
 
-        return Providers::response()->success([
-            'data' => $job->present(),
-            'message' => HttpStatus::message(HttpStatus::OK),
-        ]);
+        return (new AiJobResource($job))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     protected function started(AiJob $job, string $message)
     {
-        return Providers::response()->success([
-            'data' => $job->present(),
-            'message' => $message,
-        ], HttpStatus::CREATED);
+        return (new AiJobResource($job))
+            ->additional([
+                'message' => $message,
+                'status' => 'success',
+                'status_code' => HttpStatus::CREATED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::CREATED->value);
     }
 }

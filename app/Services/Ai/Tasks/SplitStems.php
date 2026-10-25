@@ -39,13 +39,14 @@ class SplitStems implements AiTask
 
     public function describe(array $input): string
     {
-        return 'Split into stems: '.($input['title'] ?? 'stem');
+        return 'Split into stems: ' . ($input['title'] ?? 'stem');
     }
 
     public function handle(AiJob $job): array
     {
         /** @var ProjectTrackStem $stem */
-        $stem = ProjectTrackStem::query()->findOrFail($job->input['stem_id']);
+        $stem = ProjectTrackStem::query()
+            ->findOrFail($job->input['stem_id']);
 
         $path = $this->files->local($stem) ?? throw new ReplicateException('That stem\'s audio file is missing.');
 
@@ -58,7 +59,7 @@ class SplitStems implements AiTask
             @unlink($path);
         }
 
-        return ['stems' => array_map(fn (ProjectTrackStem $s) => $s->id, $stems)];
+        return ['stems' => array_map(fn(ProjectTrackStem $s) => $s->id, $stems)];
     }
 
     /**
@@ -99,14 +100,14 @@ class SplitStems implements AiTask
                 $files[$part] = $temp[] = $this->audio->mp3($file);
             }
 
-            return array_values(array_map(fn (string $part, string $file) => $this->files->addStem(
-                $track, $user, $file, trim("{$title} ".ucfirst($part)), [
+            return array_values(array_map(fn(string $part, string $file) => $this->files->addStem(
+                $track, $user, $file, trim("{$title} " . ucfirst($part)), [
                     ...$meta,
                     'ai' => [...($meta['ai'] ?? []), 'part' => $part, 'model' => $this->model()],
                 ]
             ), array_keys($files), $files));
         } finally {
-            array_map(fn (string $file) => @unlink($file), array_unique($temp));
+            array_map(fn(string $file) => @unlink($file), array_unique($temp));
         }
     }
 

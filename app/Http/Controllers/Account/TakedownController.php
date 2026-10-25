@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Account;
 
 use App\Enums\HttpStatus;
-use App\Helpers\Providers;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\TakedownCollection;
 use App\Http\Resources\TakedownResource;
 use App\Models\Takedown;
 use App\Services\Moderation\Moderation;
@@ -20,17 +20,14 @@ class TakedownController extends Controller
     {
         $request->validate(['limit' => ['nullable', 'integer', 'between:1,50']]);
 
-        $page = $queue->takedownsFor($request->user(), (int) $request->input('limit', 20));
+        $takedowns = $queue->takedownsFor($request->user(), (int) $request->input('limit', 20));
 
-        return Providers::response()->success([
-            'data' => TakedownResource::collection($page->items())->resolve(),
-            'meta' => [
-                'total' => $page->total(),
-                'page' => $page->currentPage(),
-                'lastPage' => $page->lastPage(),
-            ],
-            'message' => HttpStatus::message(HttpStatus::OK),
-        ]);
+        return (new TakedownCollection($takedowns))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     public function appeal(Request $request, Takedown $takedown, Moderation $moderation)
@@ -43,9 +40,15 @@ class TakedownController extends Controller
 
         $moderation->appeal($takedown, $request->user(), $valid['message']);
 
-        return Providers::response()->success([
-            'data' => (new TakedownResource($takedown->fresh()))->resolve(),
-            'message' => 'Appeal sent. A moderator will look at it again.',
-        ], HttpStatus::ACCEPTED);
+        $takedown->refresh();
+
+        return (new TakedownResource($takedown))
+            ->additional([
+                'message' => 'Appeal sent. A moderator will look at it again.',
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 }

@@ -2,7 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Helpers\Providers;
+use App\Enums\HttpStatus;
+use App\Http\Resources\ExploreResource;
 use App\Services\Explorers\Albums;
 use App\Services\Explorers\Artists;
 use App\Services\Explorers\Creators;
@@ -22,8 +23,11 @@ class ExploreController extends Controller
         new Albums($request, $data);
         new Artists($request, $data);
 
-        return Providers::response()->success([
-            'data' => $data,
-        ]);
+        return (new ExploreResource($data))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 }

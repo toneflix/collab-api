@@ -25,16 +25,17 @@ class ReleaseController extends Controller
     public function index(Request $request)
     {
         $query = $this->user->releases()->getQuery()
-            ->when($request->filled('project_id'), fn ($q) => $q->where('project_id', $request->input('project_id')))
+            ->when($request->filled('project_id'), fn($q) => $q->where('project_id', $request->input('project_id')))
             ->latest('id');
 
-        $releases = $query->paginate($request->input('limit', 15));
+        $releases = $query->paginate($request->perPage(15));
 
-        return (new ReleaseCollection($releases))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new ReleaseCollection($releases))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -85,7 +86,12 @@ class ReleaseController extends Controller
 
             // Pick up an unfinished version of this project before starting a new one.
             /** @var Release $release */
-            $release = $this->user->releases()->whereProjectId($request->project_id)->where('draft', true)->latest('id')->first();
+            $release = $this->user
+                ->releases()
+                ->whereProjectId($request->project_id)
+                ->where('draft', true)
+                ->latest('id')
+                ->first();
         }
 
         $release ??= $this->user->releases()->make();
@@ -119,11 +125,14 @@ class ReleaseController extends Controller
             $versions->published($release, $request->input('retire', []));
         }
 
-        return (new ReleaseResource($release))->additional([
-            'message' => 'New release created successfully.',
-            'status' => 'success',
-            'status_code' => HttpStatus::CREATED,
-        ])->response()->setStatusCode(HttpStatus::CREATED->value);
+        return (new ReleaseResource($release))
+            ->additional([
+                'message' => 'New release created successfully.',
+                'status' => 'success',
+                'status_code' => HttpStatus::CREATED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::CREATED->value);
     }
 
     /**
@@ -141,7 +150,7 @@ class ReleaseController extends Controller
     {
         /** @var Release $release */
         $release = $this->user->releases()
-            ->where(fn ($q) => $q->where('slug', $id)->when(is_numeric($id), fn ($q) => $q->orWhere('releases.id', $id)))
+            ->where(fn($q) => $q->where('slug', $id)->when(is_numeric($id), fn($q) => $q->orWhere('releases.id', $id)))
             ->firstOrFail();
 
         $request->merge(['release_date', $request->input('releaseDate', now())]);
@@ -226,13 +235,16 @@ class ReleaseController extends Controller
             (new Reputation($this->user, $repType))->add();
         }
 
-        return (new ReleaseResource($release))->additional([
-            'message' => $release->isInReview() && $request->boolean('publish')
-                ? 'Release submitted for review. It goes live once an admin approves it.'
-                : __('Release :0 successfully.', [$request->publish ? 'published' : 'updated']),
-            'status' => 'success',
-            'status_code' => HttpStatus::ACCEPTED,
-        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
+        return (new ReleaseResource($release))
+            ->additional([
+                'message' => $release->isInReview() && $request->boolean('publish')
+                    ? 'Release submitted for review. It goes live once an admin approves it.'
+                    : __('Release :0 successfully.', [$request->publish ? 'published' : 'updated']),
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 
     public function saveTracks(Request $request, Release $release): void
@@ -274,60 +286,61 @@ class ReleaseController extends Controller
             Limits::for($this->user)->ensureCanCharge(Feature::SELL_STEMS, $form['stems_price'] ?? null, $current, "tracks.{$i}.stems_price");
         }
 
-        collect($tracks)->each(function ($form, $i) use ($release, $request) {
-            if (isset($form['project_track_id']) && ! isset($form['id'])) {
-                /** @var Track $track */
-                $track = $release->tracks()->firstOrNew(['project_track_id' => $form['project_track_id']], $form);
-                $track->slug = $track->gusm($track->title, '-');
-                if (empty($track->duration) && $track->projectTrack) {
-                    $track->duration = $track->projectTrack->duration;
-                }
-                $track->saveQuietly();
-            } else {
-                /** @var Track $track */
-                $track = $release->tracks()->find($form['id']);
-            }
-
-            if ($track) {
-                if (isset(Arr::dot($request->allFiles())["tracks.$i.image"])) {
-                    $form['image'] = (new Media)->save('artwork', 'tracks.*.image', $track->image, $i);
-                }
-
-                if (isset(Arr::dot($request->allFiles())["tracks.$i.audio"]) && (! $track->exists || ! $track->audio)) {
-                    $form['audio'] = (new Media)->save('music_tracks', 'tracks.*.audio', $track->audio, $i);
-                } else {
-                    unset($form['audio']);
-                }
-
-                if ($track->exists) {
-                    $track->updateQuietly($form);
-                } else {
+        collect($tracks)
+            ->each(function ($form, $i) use ($release, $request) {
+                if (isset($form['project_track_id']) && ! isset($form['id'])) {
+                    /** @var Track $track */
+                    $track = $release->tracks()->firstOrNew(['project_track_id' => $form['project_track_id']], $form);
+                    $track->slug = $track->gusm($track->title, '-');
+                    if (empty($track->duration) && $track->projectTrack) {
+                        $track->duration = $track->projectTrack->duration;
+                    }
                     $track->saveQuietly();
+                } else {
+                    /** @var Track $track */
+                    $track = $release->tracks()->find($form['id']);
                 }
 
-                $artists = [];
+                if ($track) {
+                    if (isset(Arr::dot($request->allFiles())["tracks.$i.image"])) {
+                        $form['image'] = (new Media)->save('artwork', 'tracks.*.image', $track->image, $i);
+                    }
 
-                // Update the track artist
-                if (isset($form['artist_id'])) {
-                    $artists[$form['artist_id']] = ['type' => 'primary'];
+                    if (isset(Arr::dot($request->allFiles())["tracks.$i.audio"]) && (! $track->exists || ! $track->audio)) {
+                        $form['audio'] = (new Media)->save('music_tracks', 'tracks.*.audio', $track->audio, $i);
+                    } else {
+                        unset($form['audio']);
+                    }
+
+                    if ($track->exists) {
+                        $track->updateQuietly($form);
+                    } else {
+                        $track->saveQuietly();
+                    }
+
+                    $artists = [];
+
+                    // Update the track artist
+                    if (isset($form['artist_id'])) {
+                        $artists[$form['artist_id']] = ['type' => 'primary'];
+                        if ($track->projectTrack) {
+                            $track->projectTrack->artist_id = $form['artist_id'];
+                        }
+                    }
+
+                    // Update the related project track
                     if ($track->projectTrack) {
-                        $track->projectTrack->artist_id = $form['artist_id'];
+                        $track->projectTrack->genre_id = $form['genre_id'];
+                        $track->projectTrack->saveQuietly();
+                    }
+                    $track->artists()->sync($artists);
+
+                    // Saved quietly above, so the lyrics and tags from the studio are queued here.
+                    if ($track->wasRecentlyCreated) {
+                        $track->queueSoundChecks(isset($form['audio']));
                     }
                 }
-
-                // Update the related project track
-                if ($track->projectTrack) {
-                    $track->projectTrack->genre_id = $form['genre_id'];
-                    $track->projectTrack->saveQuietly();
-                }
-                $track->artists()->sync($artists);
-
-                // Saved quietly above, so the lyrics and tags from the studio are queued here.
-                if ($track->wasRecentlyCreated) {
-                    $track->queueSoundChecks(isset($form['audio']));
-                }
-            }
-        });
+            });
     }
 
     /**
@@ -338,7 +351,7 @@ class ReleaseController extends Controller
     {
         /** @var Release $release */
         $release = $this->user->releases()
-            ->where(fn ($q) => $q->where('slug', $id)->when(is_numeric($id), fn ($q) => $q->orWhere('releases.id', $id)))
+            ->where(fn($q) => $q->where('slug', $id)->when(is_numeric($id), fn($q) => $q->orWhere('releases.id', $id)))
             ->firstOrFail();
 
         $this->validate($request, ['retired' => ['required', 'boolean']]);
@@ -347,11 +360,14 @@ class ReleaseController extends Controller
 
         $versions->retire($release, $request->boolean('retired'));
 
-        return (new ReleaseResource($release))->additional([
-            'message' => $release->isRetired() ? 'Release retired.' : 'Release restored.',
-            'status' => 'success',
-            'status_code' => HttpStatus::ACCEPTED,
-        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
+        return (new ReleaseResource($release))
+            ->additional([
+                'message' => $release->isRetired() ? 'Release retired.' : 'Release restored.',
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 
     /**
@@ -361,15 +377,18 @@ class ReleaseController extends Controller
     {
         /** @var Release $release */
         $release = $this->user->releases()
-            ->where(fn ($q) => $q->where('slug', $id)->when(is_numeric($id), fn ($q) => $q->orWhere('releases.id', $id)))
+            ->where(fn($q) => $q->where('slug', $id)->when(is_numeric($id), fn($q) => $q->orWhere('releases.id', $id)))
             ->firstOrFail();
 
         $release->delete();
 
-        return (new ReleaseCollection([]))->additional([
-            'message' => 'Release deleted successfully.',
-            'status' => 'success',
-            'status_code' => HttpStatus::ACCEPTED,
-        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
+        return (new ReleaseCollection([]))
+            ->additional([
+                'message' => 'Release deleted successfully.',
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 }

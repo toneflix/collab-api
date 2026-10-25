@@ -39,7 +39,8 @@ class RunAiJob implements ShouldQueue
         $job = $this->aiJob->fresh();
 
         if ($job?->status === AiJob::QUEUED) {
-            app(AiStudio::class)->fail($job, $e ?? 'The job stopped.');
+            app(AiStudio::class)
+                ->fail($job, $e ?? 'The job stopped.');
         }
     }
 }

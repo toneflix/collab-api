@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Foundation\Validation\ValidatesRequests;
 use Illuminate\Routing\Controller as BaseController;
@@ -20,11 +21,12 @@ abstract class Controller extends BaseController
      * @\return \App\Models\User
      */
     // public \Closure $user;
-    public ?\App\Models\User $user;
+    public ?User $user;
 
     public function __construct()
     {
-        $this->user = auth('sanctum')->user();
+        $this->user = auth('sanctum')
+            ->user();
         // $this->user = fn () => auth('sanctum')->user();
     }
 }

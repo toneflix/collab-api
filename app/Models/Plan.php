@@ -54,8 +54,8 @@ class Plan extends Model
 
     protected static function booted(): void
     {
-        static::saved(fn () => Cache::forget('plans::default'));
-        static::deleted(fn () => Cache::forget('plans::default'));
+        static::saved(fn() => Cache::forget('plans::default'));
+        static::deleted(fn() => Cache::forget('plans::default'));
     }
 
     /**
@@ -64,7 +64,7 @@ class Plan extends Model
      */
     public static function default(): self
     {
-        $plan = Cache::remember('plans::default', 3600, fn () => static::where('is_default', true)->first());
+        $plan = Cache::remember('plans::default', 3600, fn() => static::where('is_default', true)->first());
 
         return $plan ?? new self(['slug' => 'free', 'name' => 'Free', 'price' => 0, 'features' => [], 'is_default' => true]);
     }
@@ -81,7 +81,10 @@ class Plan extends Model
 
     public function scopeOrdered(Builder $query): void
     {
-        $query->orderBy('sort')->orderBy('price')->orderBy('id');
+        $query
+            ->orderBy('sort')
+            ->orderBy('price')
+            ->orderBy('id');
     }
 
     /**
@@ -103,7 +106,9 @@ class Plan extends Model
      */
     public function allFeatures(): array
     {
-        return collect(Feature::cases())->mapWithKeys(fn (Feature $f) => [$f->value => $this->feature($f)])->all();
+        return collect(Feature::cases())
+            ->mapWithKeys(fn(Feature $f) => [$f->value => $this->feature($f)])
+            ->all();
     }
 
     /**
@@ -111,7 +116,7 @@ class Plan extends Model
      */
     public function period(int $cycles = 1): string
     {
-        return max(1, $this->interval_count ?: 1) * max(1, $cycles).' '.($this->interval ?: 'month');
+        return max(1, $this->interval_count ?: 1) * max(1, $cycles) . ' ' . ($this->interval ?: 'month');
     }
 
     /**
@@ -123,7 +128,7 @@ class Plan extends Model
     public function billingOptions(): array
     {
         return collect([['cycles' => 1, 'discount' => 0], ...($this->billing_options ?? [])])
-            ->map(fn ($option) => [
+            ->map(fn($option) => [
                 'cycles' => max(1, (int) ($option['cycles'] ?? 1)),
                 'discount' => min(100, max(0, round((float) ($option['discount'] ?? 0), 2))),
             ])
@@ -186,11 +191,11 @@ class Plan extends Model
         $names = ['day' => 'Daily', 'week' => 'Weekly', 'month' => 'Monthly', 'year' => 'Annual'];
 
         return collect($plans)
-            ->reject(fn (Plan $plan) => $plan->isFree())
-            ->flatMap(fn (Plan $plan) => collect($plan->billingOptions())->map(fn ($option) => $plan->periodLength($option['cycles'])))
-            ->unique(fn ($length) => "{$length[1]}-{$length[0]}")
-            ->sortBy(fn ($length) => $length[1] * ($days[$length[0]] ?? 30))
-            ->map(fn ($length) => [
+            ->reject(fn(Plan $plan) => $plan->isFree())
+            ->flatMap(fn(Plan $plan) => collect($plan->billingOptions())->map(fn($option) => $plan->periodLength($option['cycles'])))
+            ->unique(fn($length) => "{$length[1]}-{$length[0]}")
+            ->sortBy(fn($length) => $length[1] * ($days[$length[0]] ?? 30))
+            ->map(fn($length) => [
                 'key' => "{$length[1]}-{$length[0]}",
                 'interval' => $length[0],
                 'count' => $length[1],
@@ -207,7 +212,8 @@ class Plan extends Model
      */
     public function billingOption(int $cycles): ?array
     {
-        return collect($this->billingOptions())->firstWhere('cycles', $cycles);
+        return collect($this->billingOptions())
+            ->firstWhere('cycles', $cycles);
     }
 
     public function isFree(): bool

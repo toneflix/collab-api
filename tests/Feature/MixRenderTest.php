@@ -36,14 +36,18 @@ class MixRenderTest extends TestCase
         Storage::fake(config('filesystems.default'));
         Bus::fake([TagAudio::class]);
 
-        $this->owner = User::factory()->create();
-        $project = Project::query()->forceCreate(['user_id' => $this->owner->id, 'title' => 'Mix test', 'privacy' => 'private']);
-        $this->track = $project->tracks()->forceCreate(['title' => 'Mix', 'privacy' => 'private']);
+        $this->owner = User::factory()
+            ->create();
+        $project = Project::query()
+            ->forceCreate(['user_id' => $this->owner->id, 'title' => 'Mix test', 'privacy' => 'private']);
+        $this->track = $project
+            ->tracks()
+            ->forceCreate(['title' => 'Mix', 'privacy' => 'private']);
     }
 
     protected function tearDown(): void
     {
-        array_map(fn ($file) => @unlink($file), $this->files);
+        array_map(fn($file) => @unlink($file), $this->files);
 
         parent::tearDown();
     }
@@ -53,7 +57,7 @@ class MixRenderTest extends TestCase
      */
     protected function tone(float $seconds, int $frequency = 440, float $volume = 0.9, string $layout = 'stereo'): string
     {
-        $path = $this->files[] = tempnam(sys_get_temp_dir(), 'tone-').'.wav';
+        $path = $this->files[] = tempnam(sys_get_temp_dir(), 'tone-') . '.wav';
         exec(sprintf(
             'ffmpeg -loglevel error -y -f lavfi -i "aevalsrc=%s*sin(2*PI*%d*t):d=%s:s=44100" -af "aformat=channel_layouts=%s" %s',
             $volume, $frequency, $seconds, $layout, escapeshellarg($path)
@@ -67,7 +71,8 @@ class MixRenderTest extends TestCase
      */
     protected function stem(string $path, array $meta = []): void
     {
-        app(StemFiles::class)->addStem($this->track, $this->owner, $path, 'Stem', $meta, 'wav');
+        app(StemFiles::class)
+            ->addStem($this->track, $this->owner, $path, 'Stem', $meta, 'wav');
     }
 
     protected function save(array $data = []): void
@@ -91,7 +96,7 @@ class MixRenderTest extends TestCase
         $track = $this->track->fresh();
         $path = (new Media)->mediaInfo('music_tracks', $track->preview)['path'];
 
-        $local = $this->files[] = tempnam(sys_get_temp_dir(), 'preview-').'.mp3';
+        $local = $this->files[] = tempnam(sys_get_temp_dir(), 'preview-') . '.mp3';
         file_put_contents($local, Storage::disk(config('filesystems.default'))->get($path));
 
         return $local;
@@ -157,9 +162,12 @@ class MixRenderTest extends TestCase
     public function test_only_the_newest_render_is_kept(): void
     {
         $this->stem($this->tone(2));
-        $this->track->forceFill(['meta' => ['mix' => ['status' => MixPreview::RENDERING, 'id' => 'newer']]])->saveQuietly();
+        $this->track
+            ->forceFill(['meta' => ['mix' => ['status' => MixPreview::RENDERING, 'id' => 'newer']]])
+            ->saveQuietly();
 
-        app(MixPreview::class)->render($this->track, 'older');
+        app(MixPreview::class)
+            ->render($this->track, 'older');
 
         $this->assertNull($this->track->fresh()->preview);
         $this->assertSame(MixPreview::RENDERING, $this->track->fresh()->meta['mix']['status']);

@@ -29,12 +29,13 @@ class UserAccess extends Command
         $user = $directory->find((string) $this->argument('user'));
 
         if (! $user) {
-            $this->error('No user matches "'.$this->argument('user').'".');
+            $this->error('No user matches "' . $this->argument('user') . '".');
 
             return self::FAILURE;
         }
 
-        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        app(PermissionRegistrar::class)
+            ->forgetCachedPermissions();
 
         $roles = $this->resolve(Role::class, 'role');
         $permissions = $this->resolve(Permission::class, 'permission');
@@ -48,7 +49,9 @@ class UserAccess extends Command
         }
 
         if ($permissions['grant']->isNotEmpty() || $permissions['revoke']->isNotEmpty()) {
-            $current = $user->getDirectPermissions()->pluck('name');
+            $current = $user
+                ->getDirectPermissions()
+                ->pluck('name');
             $manager->syncPermissions(null, $user, $current->merge($permissions['grant'])->diff($permissions['revoke'])->values()->all());
         }
 
@@ -68,22 +71,27 @@ class UserAccess extends Command
         $resolved = [];
 
         foreach (['grant', 'revoke'] as $action) {
-            $values = collect((array) $this->option("{$action}-{$kind}"))->filter()->unique()->values();
+            $values = collect((array) $this->option("{$action}-{$kind}"))
+                ->filter()
+                ->unique()
+                ->values();
 
-            [$ids, $names] = $values->partition(fn ($value) => ctype_digit((string) $value));
+            [$ids, $names] = $values->partition(fn($value) => ctype_digit((string) $value));
             $found = $model::query()
-                ->where(fn ($q) => $q->whereIn('name', $names->all())->orWhereIn('id', $ids->all()))
+                ->where(fn($q) => $q->whereIn('name', $names->all())->orWhereIn('id', $ids->all()))
                 ->get(['id', 'name']);
 
-            $missing = $values->reject(fn ($value) => $found->contains(fn ($m) => $m->name === $value || (string) $m->id === (string) $value));
+            $missing = $values->reject(fn($value) => $found->contains(fn($m) => $m->name === $value || (string) $m->id === (string) $value));
 
             if ($missing->isNotEmpty()) {
-                $this->error("Unknown {$kind}: ".$missing->implode(', ').'. Run app:sync-roles to create the defaults.');
+                $this->error("Unknown {$kind}: " . $missing->implode(', ') . '. Run app:sync-roles to create the defaults.');
 
                 return null;
             }
 
-            $resolved[$action] = $found->pluck('name')->values();
+            $resolved[$action] = $found
+                ->pluck('name')
+                ->values();
         }
 
         return $resolved;

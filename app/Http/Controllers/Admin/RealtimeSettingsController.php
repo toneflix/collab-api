@@ -5,8 +5,9 @@ namespace App\Http\Controllers\Admin;
 use App\Broadcasting\Channels;
 use App\Enums\HttpStatus;
 use App\Events\RealtimeMessage;
-use App\Helpers\Providers;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\ActionResource;
+use App\Http\Resources\SettingsResource;
 use App\Services\Realtime\Realtime;
 use App\Services\Realtime\RealtimeSettings;
 use Closure;
@@ -50,7 +51,7 @@ class RealtimeSettingsController extends Controller
         $missing = $this->missing();
 
         return $this->settings(
-            $missing ? 'Saved, but '.$valid['realtime_driver'].' still needs these in .env: '.implode(', ', $missing).'.' : 'Realtime settings saved.',
+            $missing ? 'Saved, but ' . $valid['realtime_driver'] . ' still needs these in .env: ' . implode(', ', $missing) . '.' : 'Realtime settings saved.',
             HttpStatus::ACCEPTED
         );
     }
@@ -60,32 +61,39 @@ class RealtimeSettingsController extends Controller
      */
     public function test(Request $request)
     {
-        if (! Realtime::enabled()) {
-            return Providers::response()->error(['message' => 'Realtime is turned off.'], HttpStatus::UNPROCESSABLE_ENTITY);
-        }
+        abort_unless(Realtime::enabled(), HttpStatus::UNPROCESSABLE_ENTITY->value, 'Realtime is turned off.');
 
-        if ($missing = $this->missing()) {
-            return Providers::response()->error([
-                'message' => 'Set '.implode(', ', $missing).' in .env first.',
-            ], HttpStatus::UNPROCESSABLE_ENTITY);
-        }
+        $missing = $this->missing();
+
+        abort_if(
+            (bool) $missing,
+            HttpStatus::UNPROCESSABLE_ENTITY->value,
+            'Set ' . implode(', ', $missing) . ' in .env first.',
+        );
+
+        $event = new RealtimeMessage([Channels::user($request->user())], 'realtime.test', [
+            'message' => 'Realtime is working.',
+            'at' => now()->toIso8601String(),
+            'origin' => Realtime::origin(),
+        ]);
 
         try {
-            broadcast(new RealtimeMessage([Channels::user($request->user())], 'realtime.test', [
-                'message' => 'Realtime is working.',
-                'at' => now()->toIso8601String(),
-                'origin' => Realtime::origin(),
-            ]));
+            broadcast($event);
         } catch (\Throwable $e) {
-            return Providers::response()->error([
-                'message' => 'The test event could not be sent: '.$e->getMessage(),
-            ], HttpStatus::UNPROCESSABLE_ENTITY);
+            abort(HttpStatus::UNPROCESSABLE_ENTITY->value, 'The test event could not be sent: ' . $e->getMessage());
         }
 
-        return Providers::response()->success([
-            'data' => ['channel' => 'private-user.'.$request->user()->id, 'event' => 'realtime.test'],
-            'message' => 'Test event sent.',
-        ]);
+        $result = [
+            'channel' => 'private-user.' . $request->user()->id,
+            'event' => 'realtime.test',
+        ];
+
+        return (new ActionResource($result))
+            ->additional([
+                'message' => 'Test event sent.',
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -100,15 +108,21 @@ class RealtimeSettingsController extends Controller
 
     protected function settings(string $message = 'OK', HttpStatus $status = HttpStatus::OK)
     {
-        return Providers::response()->success([
-            'data' => [
-                'driver' => RealtimeSettings::driver(),
-                'drivers' => RealtimeSettings::DRIVERS,
-                'keys' => RealtimeSettings::keys(),
-                'missing' => $this->missing(),
-                'client' => Realtime::clientConfig(),
-            ],
-            'message' => $message,
-        ], $status);
+        $settings = [
+            'driver' => RealtimeSettings::driver(),
+            'drivers' => RealtimeSettings::DRIVERS,
+            'keys' => RealtimeSettings::keys(),
+            'missing' => $this->missing(),
+            'client' => Realtime::clientConfig(),
+        ];
+
+        return (new SettingsResource($settings))
+            ->additional([
+                'message' => $message,
+                'status' => 'success',
+                'status_code' => $status,
+            ])
+            ->response()
+            ->setStatusCode($status->value);
     }
 }

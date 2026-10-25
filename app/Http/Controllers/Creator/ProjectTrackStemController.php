@@ -27,15 +27,18 @@ class ProjectTrackStemController extends Controller
     {
         $this->authorize('view', $track);
 
-        $query = $track->stems()->getQuery();
+        $query = $track
+            ->stems()
+            ->getQuery();
 
         $stems = $query->get();
 
-        return (new ProjectTrackStemCollection($stems))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new ProjectTrackStemCollection($stems))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -62,7 +65,9 @@ class ProjectTrackStemController extends Controller
         $history = TrackHistory::for($track);
         $history->baseline();
 
-        $stem = $track->stems()->create($valid);
+        $stem = $track
+            ->stems()
+            ->create($valid);
 
         $history->record($request->user(), ProjectTrackVersion::ADDED);
 
@@ -75,11 +80,14 @@ class ProjectTrackStemController extends Controller
             'stem_id' => $stem->id,
         ]);
 
-        return (new ProjectTrackStemResource($stem))->additional([
-            'message' => 'Track stem created successfully.',
-            'status' => 'success',
-            'status_code' => HttpStatus::CREATED,
-        ])->response()->setStatusCode(HttpStatus::CREATED->value);
+        return (new ProjectTrackStemResource($stem))
+            ->additional([
+                'message' => 'Track stem created successfully.',
+                'status' => 'success',
+                'status_code' => HttpStatus::CREATED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::CREATED->value);
     }
 
     /**
@@ -89,11 +97,12 @@ class ProjectTrackStemController extends Controller
     {
         $this->authorize('view', $track);
 
-        return (new ProjectTrackStemResource($stem))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new ProjectTrackStemResource($stem))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -131,11 +140,14 @@ class ProjectTrackStemController extends Controller
             'meta' => collect($stem->meta)->except('src')->all(),
         ]);
 
-        return (new ProjectTrackStemResource($stem))->additional([
-            'message' => 'Track stem updated successfully.',
-            'status' => 'success',
-            'status_code' => HttpStatus::ACCEPTED,
-        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
+        return (new ProjectTrackStemResource($stem))
+            ->additional([
+                'message' => 'Track stem updated successfully.',
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 
     /**
@@ -157,10 +169,13 @@ class ProjectTrackStemController extends Controller
             'stem_id' => $stem->id,
         ]);
 
-        return (new ProjectTrackStemCollection([]))->additional([
-            'message' => 'Track stem deleted successfully.',
-            'status' => 'success',
-            'status_code' => HttpStatus::ACCEPTED,
-        ])->response()->setStatusCode(HttpStatus::ACCEPTED->value);
+        return (new ProjectTrackStemCollection([]))
+            ->additional([
+                'message' => 'Track stem deleted successfully.',
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 }

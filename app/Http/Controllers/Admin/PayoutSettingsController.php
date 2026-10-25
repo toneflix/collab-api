@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Enums\HttpStatus;
-use App\Helpers\Providers;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\SettingsResource;
 use App\Services\Payment\Payouts;
 use App\Services\Payment\PayoutSettings;
 use Closure;
@@ -59,25 +59,35 @@ class PayoutSettingsController extends Controller
 
     protected function settings(Payouts $payouts, string $message = 'OK', HttpStatus $status = HttpStatus::OK)
     {
-        return Providers::response()->success([
-            'data' => [
-                'fields' => PayoutSettings::forAdmin(),
-                'keys' => PayoutSettings::keys(),
-                'currency' => $payouts->currency(),
-                'webhooks' => [
-                    'paystack' => route('payments.webhook'),
-                    'flutterwave' => route('payouts.webhook.flutterwave'),
-                    'stripe' => route('payouts.webhook.stripe'),
-                ],
-                // Which provider pays each country with the current settings
-                'countries' => collect($payouts->countries())->map(fn ($c) => [
-                    'code' => $c['code'],
-                    'name' => $c['name'],
-                    'provider' => $c['provider'],
-                    'currency' => $c['currency'],
-                ])->all(),
+        // Which provider pays each country with the current settings
+        $countries = collect($payouts->countries())
+            ->map(fn($c) => [
+                'code' => $c['code'],
+                'name' => $c['name'],
+                'provider' => $c['provider'],
+                'currency' => $c['currency'],
+            ])
+            ->all();
+
+        $settings = [
+            'fields' => PayoutSettings::forAdmin(),
+            'keys' => PayoutSettings::keys(),
+            'currency' => $payouts->currency(),
+            'webhooks' => [
+                'paystack' => route('payments.webhook'),
+                'flutterwave' => route('payouts.webhook.flutterwave'),
+                'stripe' => route('payouts.webhook.stripe'),
             ],
-            'message' => $message,
-        ], $status);
+            'countries' => $countries,
+        ];
+
+        return (new SettingsResource($settings))
+            ->additional([
+                'message' => $message,
+                'status' => 'success',
+                'status_code' => $status,
+            ])
+            ->response()
+            ->setStatusCode($status->value);
     }
 }

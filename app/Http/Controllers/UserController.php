@@ -42,17 +42,19 @@ class UserController extends Controller
             }
         })->when(
             $request->has('skip'),
-            fn (Builder $q) => $q->whereNotIn('id', str($request->skip)->remove(' ')->explode(','))
+            fn(Builder $q) => $q->whereNotIn('id', str($request->skip)->remove(' ')->explode(','))
         );
 
-        $filters = str($request->filters)->remove(' ')->explode(',');
+        $filters = str($request->filters)
+            ->remove(' ')
+            ->explode(',');
 
         $query
-            ->when($request->has('genre'), fn (Builder $q) => $q->genre($request->genre))
-            ->when($request->has('project_id'), fn (Builder $q) => $q->forProject($request->project_id))
-            ->when($filters->contains('creator'), fn (Builder $q) => $q->creator())
-            ->when($filters->contains('collabing'), fn (Builder $q) => $q->collabing($request->user('sanctum')))
-            ->when($filters->contains('random'), fn (Builder $q) => $q->inRandomOrder())
+            ->when($request->has('genre'), fn(Builder $q) => $q->genre($request->genre))
+            ->when($request->has('project_id'), fn(Builder $q) => $q->forProject($request->project_id))
+            ->when($filters->contains('creator'), fn(Builder $q) => $q->creator())
+            ->when($filters->contains('collabing'), fn(Builder $q) => $q->collabing($request->user('sanctum')))
+            ->when($filters->contains('random'), fn(Builder $q) => $q->inRandomOrder())
             ->when(
                 $filters->contains('top'),
                 function (Builder $q) use ($filters, $request) {
@@ -78,13 +80,14 @@ class UserController extends Controller
                 }
             );
 
-        $users = $query->paginate($request->input('limit', 15));
+        $users = $query->paginate($request->perPage(15));
 
-        return (new UserCollection($users))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new UserCollection($users))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**
@@ -100,11 +103,12 @@ class UserController extends Controller
      */
     public function show(User $user)
     {
-        return (new UserResource($user))->additional([
-            'message' => HttpStatus::message(HttpStatus::OK),
-            'status' => 'success',
-            'status_code' => HttpStatus::OK,
-        ]);
+        return (new UserResource($user))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**

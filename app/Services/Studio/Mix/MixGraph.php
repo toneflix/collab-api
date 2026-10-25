@@ -29,7 +29,7 @@ class MixGraph
     {
         $this->inputs[] = $path;
 
-        return '['.(count($this->inputs) - 1).':a]';
+        return '[' . (count($this->inputs) - 1) . ':a]';
     }
 
     /**
@@ -37,7 +37,7 @@ class MixGraph
      */
     public function label(string $prefix = 'x'): string
     {
-        return '['.$prefix.$this->labels++.']';
+        return '[' . $prefix . $this->labels++ . ']';
     }
 
     /**
@@ -48,7 +48,7 @@ class MixGraph
     public function chain(string|array $from, string $filters, string $prefix = 'x'): string
     {
         $out = $this->label($prefix);
-        $this->chains[] = implode('', (array) $from).$filters.$out;
+        $this->chains[] = implode('', (array) $from) . $filters . $out;
 
         return $out;
     }
@@ -64,8 +64,8 @@ class MixGraph
             return [$from];
         }
 
-        $outs = array_map(fn () => $this->label('split'), range(1, $count));
-        $this->chains[] = "{$from}asplit={$count}".implode('', $outs);
+        $outs = array_map(fn() => $this->label('split'), range(1, $count));
+        $this->chains[] = "{$from}asplit={$count}" . implode('', $outs);
 
         return $outs;
     }
@@ -106,7 +106,7 @@ class MixGraph
 
     public function cleanup(): void
     {
-        array_map(fn (string $file) => @unlink($file), $this->temp);
+        array_map(fn(string $file) => @unlink($file), $this->temp);
         $this->temp = [];
     }
 }

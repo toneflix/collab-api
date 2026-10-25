@@ -38,7 +38,8 @@ class TempUser extends Model
         parent::boot();
         self::deleting(function (TempUser $tempuser) {
             /** @var User */
-            $user = User::whereEmail($tempuser->email)->first();
+            $user = User::whereEmail($tempuser->email)
+                ->first();
             if ($user && $tempuser->transactions()->count() > 0) {
                 $tempuser->transactions->each(function (Transaction $transaction) use ($user) {
                     $transaction->user_id = $user->id;
@@ -57,10 +58,14 @@ class TempUser extends Model
             ]);
         }
 
-        $fname = str($data['name'])->explode(' ')->first(null, $data['firstname'] ?? '');
-        $lname = str($data['name'])->explode(' ')->last(fn ($n) => $n !== $fname, $data['lastname'] ?? '');
+        $fname = str($data['name'])
+            ->explode(' ')
+            ->first(null, $data['firstname'] ?? '');
+        $lname = str($data['name'])
+            ->explode(' ')
+            ->last(fn($n) => $n !== $fname, $data['lastname'] ?? '');
 
-        /** @var \App\Models\TempUser $user */
+        /** @var TempUser $user */
         return static::updateOrCreate(
             [
                 'email' => $data['email'],
@@ -86,7 +91,7 @@ class TempUser extends Model
     protected function fullname(): Attribute
     {
         return Attribute::make(
-            get: fn () => collect([$this->firstname, $this->lastname])->join(' '),
+            get: fn() => collect([$this->firstname, $this->lastname])->join(' '),
         );
     }
 

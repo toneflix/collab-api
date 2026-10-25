@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Enums\HttpStatus;
-use App\Helpers\Providers;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\AdminStatsResource;
 use App\Services\Admin\AdminStats;
 use Illuminate\Http\Request;
 
@@ -17,9 +17,13 @@ class StatsController extends Controller
     {
         abort_unless(AdminStats::allows($request->user()), HttpStatus::FORBIDDEN->value, 'You do not have access to the admin overview.');
 
-        return Providers::response()->success([
-            'data' => $stats->for($request->user()),
-            'message' => 'OK',
-        ]);
+        $overview = $stats->for($request->user());
+
+        return (new AdminStatsResource($overview))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 }

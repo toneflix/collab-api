@@ -19,17 +19,22 @@ class Subscriptions
      */
     public function extend(User $user, ?Plan $plan, int $cycles = 1, float $amount = 0, ?Transaction $transaction = null, ?string $slug = null): Subscription
     {
-        $paidUntil = Subscription::query()->where('user_id', $user->id)->where('ends_at', '>', now())->max('ends_at');
+        $paidUntil = Subscription::query()
+            ->where('user_id', $user->id)
+            ->where('ends_at', '>', now())
+            ->max('ends_at');
         $starts = $paidUntil ? Carbon::parse($paidUntil) : now();
 
-        return $user->subscriptions()->create([
-            'plan' => $plan->slug ?? $slug ?? 'premium',
-            'plan_id' => $plan?->id,
-            'amount' => $amount,
-            'starts_at' => $starts,
-            'ends_at' => $starts->copy()->add($plan?->period($cycles) ?? '1 month'),
-            'transaction_id' => $transaction?->id,
-        ]);
+        return $user
+            ->subscriptions()
+            ->create([
+                'plan' => $plan->slug ?? $slug ?? 'premium',
+                'plan_id' => $plan?->id,
+                'amount' => $amount,
+                'starts_at' => $starts,
+                'ends_at' => $starts->copy()->add($plan?->period($cycles) ?? '1 month'),
+                'transaction_id' => $transaction?->id,
+            ]);
     }
 
     /**
@@ -53,15 +58,21 @@ class Subscriptions
     public function end(User $user): int
     {
         $now = now();
-        $open = fn () => Subscription::query()->where('user_id', $user->id)->where('ends_at', '>', $now);
+        $open = fn() => Subscription::query()->where('user_id', $user->id)->where('ends_at', '>', $now);
 
-        $queued = $open()->where('starts_at', '>', $now)->update(['starts_at' => $now, 'ends_at' => $now]);
+        $queued = $open()
+            ->where('starts_at', '>', $now)
+            ->update(['starts_at' => $now, 'ends_at' => $now]);
 
         return $queued + $open()->update(['ends_at' => $now]);
     }
 
     public function current(User $user): ?Subscription
     {
-        return $user->subscriptions()->active()->with('planModel')->first();
+        return $user
+            ->subscriptions()
+            ->active()
+            ->with('planModel')
+            ->first();
     }
 }

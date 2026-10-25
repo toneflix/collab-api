@@ -108,7 +108,7 @@ class NotificationPreferences
     {
         $all = $this->all();
 
-        return collect(NotificationCategory::cases())->map(fn (NotificationCategory $c) => [
+        return collect(NotificationCategory::cases())->map(fn(NotificationCategory $c) => [
             'key' => $c->value,
             'title' => $c->title(),
             'description' => $c->description(),

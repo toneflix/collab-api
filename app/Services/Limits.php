@@ -43,7 +43,7 @@ class Limits
 
         if ($limit > 0 && $current >= $limit) {
             throw ValidationException::withMessages([
-                $field => __($message, ['limit' => $limit]).($this->canUpgrade() ? ' Upgrade your plan for more.' : ''),
+                $field => __($message, ['limit' => $limit]) . ($this->canUpgrade() ? ' Upgrade your plan for more.' : ''),
             ]);
         }
     }
@@ -78,7 +78,7 @@ class Limits
     {
         $mb = $this->get(Feature::MAX_STEM_SIZE);
 
-        return $mb > 0 ? 'max:'.($mb * 1024) : null;
+        return $mb > 0 ? 'max:' . ($mb * 1024) : null;
     }
 
     /**
@@ -112,7 +112,7 @@ class Limits
                     'need' => self::readable($bytes),
                     'free' => self::readable(max(0, $limit - $used)),
                     'limit' => self::readable($limit),
-                ]).($this->canUpgrade() ? ' Upgrade your plan for more.' : ' Remove some sounds to make room.'),
+                ]) . ($this->canUpgrade() ? ' Upgrade your plan for more.' : ' Remove some sounds to make room.'),
             ]);
         }
     }
@@ -120,14 +120,16 @@ class Limits
     public static function readable(int $bytes): string
     {
         return match (true) {
-            $bytes >= 1024 ** 3 => round($bytes / 1024 ** 3, 1).' GB',
-            $bytes >= 1024 ** 2 => round($bytes / 1024 ** 2, 1).' MB',
-            default => max(1, (int) round($bytes / 1024)).' KB',
+            $bytes >= 1024 ** 3 => round($bytes / 1024 ** 3, 1) . ' GB',
+            $bytes >= 1024 ** 2 => round($bytes / 1024 ** 2, 1) . ' MB',
+            default => max(1, (int) round($bytes / 1024)) . ' KB',
         };
     }
 
     protected function canUpgrade(): bool
     {
-        return Plan::active()->where('price', '>', $this->plan()->price)->exists();
+        return Plan::active()
+            ->where('price', '>', $this->plan()->price)
+            ->exists();
     }
 }

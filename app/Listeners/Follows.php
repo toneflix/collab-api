@@ -2,8 +2,11 @@
 
 namespace App\Listeners;
 
+use App\Models\Artist;
 use App\Models\User;
 use App\Services\Reputation;
+use Overtrue\LaravelFollow\Events\Followed;
+use Overtrue\LaravelFollow\Events\Unfollowed;
 
 class Follows
 {
@@ -18,17 +21,17 @@ class Follows
     /**
      * Handle the event.
      *
-     * @param \Overtrue\LaravelFollow\Events\Followed|\Overtrue\LaravelFollow\Events\Unfollowed $event
+     * @param  Followed|Unfollowed  $event
      */
     public function handle(object $event): void
     {
-        /** @var \App\Models\Artist|\App\Models\User */
+        /** @var Artist|User */
         $followable = $event->followable_type::find($event->followable_id);
 
         $reputation = new Reputation($followable, 'profile_follows');
 
         if ($followable) {
-            if ($event instanceof \Overtrue\LaravelFollow\Events\Followed) {
+            if ($event instanceof Followed) {
                 // Add reputation for the owner
                 $reputation->add();
             } else {

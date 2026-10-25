@@ -3,6 +3,7 @@
 namespace App\Services\Lyrics;
 
 use App\Broadcasting\Channels;
+use App\Http\Resources\LyricResource;
 use App\Models\Lyric;
 use App\Models\ProjectTrack;
 use App\Models\Track;
@@ -30,7 +31,9 @@ class Lyrics
 
     public function for(Track|ProjectTrack $owner): ?Lyric
     {
-        return Lyric::query()->whereMorphedTo('lyricable', $owner)->first();
+        return Lyric::query()
+            ->whereMorphedTo('lyricable', $owner)
+            ->first();
     }
 
     /**
@@ -46,7 +49,9 @@ class Lyrics
 
         $lyric = DB::transaction(function () use ($owner, $lines, $text, $source, $by, $extra) {
             if (! $lines) {
-                Lyric::query()->whereMorphedTo('lyricable', $owner)->delete();
+                Lyric::query()
+                    ->whereMorphedTo('lyricable', $owner)
+                    ->delete();
 
                 return null;
             }
@@ -54,7 +59,9 @@ class Lyrics
             $flagged = $this->check->scan($text);
 
             $lyric = Lyric::query()->whereMorphedTo('lyricable', $owner)->first() ?? new Lyric;
-            $lyric->lyricable()->associate($owner);
+            $lyric
+                ->lyricable()
+                ->associate($owner);
             $lyric->fill([
                 'lines' => $lines,
                 'text' => $text,
@@ -76,7 +83,7 @@ class Lyrics
 
             Realtime::send(Channels::projectTrack($owner), 'lyrics.updated', [
                 'track_id' => $owner->id,
-                'lyrics' => $lyric?->present(),
+                'lyrics' => $lyric ? (new LyricResource($lyric))->resolve() : null,
             ], $by);
         }
 
@@ -112,13 +119,13 @@ class Lyrics
     public function normalize(array $lines): array
     {
         return collect($lines)
-            ->map(fn ($line) => is_string($line) ? ['text' => $line] : (array) $line)
-            ->map(fn (array $line) => [
+            ->map(fn($line) => is_string($line) ? ['text' => $line] : (array) $line)
+            ->map(fn(array $line) => [
                 'start' => $this->time($line['start'] ?? null),
                 'end' => $this->time($line['end'] ?? null),
                 'text' => str(preg_replace('/\s+/u', ' ', (string) ($line['text'] ?? '')))->trim()->limit(self::MAX_LINE_LENGTH, '')->toString(),
             ])
-            ->filter(fn (array $line) => $line['text'] !== '')
+            ->filter(fn(array $line) => $line['text'] !== '')
             ->take(self::MAX_LINES)
             ->values()
             ->all();
@@ -134,7 +141,9 @@ class Lyrics
         $explicit = (bool) $lyric?->explicit;
 
         if ((bool) $track->explicit !== $explicit) {
-            $track->forceFill(['explicit' => $explicit])->saveQuietly();
+            $track
+                ->forceFill(['explicit' => $explicit])
+                ->saveQuietly();
         }
 
         if ($review = $lyric?->flagged['review'] ?? []) {
