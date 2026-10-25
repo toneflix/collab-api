@@ -22,6 +22,7 @@ class WordResource extends JsonResource
             'syllables' => $word['syllables'] ?? null,
             'score' => $word['score'] ?? null,
             'stress' => $word['stress'] ?? null,
+            'vowelKey' => $word['vowelKey'] ?? null,
             'known' => $word['known'] ?? null,
         ], fn($value) => $value !== null);
     }

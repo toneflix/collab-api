@@ -82,11 +82,11 @@ class Words
     }
 
     /**
-     * Syllable counts and stress for a batch of words, from the dictionary
-     * when it knows the word and from the spelling when it does not.
+     * Syllable counts, stress and rhyme sound for a batch of words, from the
+     * dictionary when it knows the word and from the spelling when it does not.
      *
      * @param  list<string>  $words
-     * @return list<array{word: string, syllables: int, stress: ?string, known: bool}>
+     * @return list<array{word: string, syllables: int, stress: ?string, vowelKey: ?string, known: bool}>
      */
     public function syllables(array $words): array
     {
@@ -98,13 +98,25 @@ class Words
 
         $known = Word::query()
             ->whereIn('word', $wanted->all())
-            ->get(['word', 'syllables', 'stress'])
+            ->get(['word', 'syllables', 'stress', 'vowel_key'])
             ->keyBy('word');
 
         return $wanted
             ->map(fn(string $word) => $known->has($word)
-                ? ['word' => $word, 'syllables' => $known[$word]->syllables, 'stress' => $known[$word]->stress, 'known' => true]
-                : ['word' => $word, 'syllables' => SyllableGuess::count($word), 'stress' => null, 'known' => false])
+                ? [
+                    'word' => $word,
+                    'syllables' => $known[$word]->syllables,
+                    'stress' => $known[$word]->stress,
+                    'vowelKey' => $known[$word]->vowel_key,
+                    'known' => true,
+                ]
+                : [
+                    'word' => $word,
+                    'syllables' => SyllableGuess::count($word),
+                    'stress' => null,
+                    'vowelKey' => null,
+                    'known' => false,
+                ])
             ->all();
     }
 

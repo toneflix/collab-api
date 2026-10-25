@@ -42,6 +42,6 @@ All need a signed-in user and are limited to 120 requests a minute. `limit` sets
 | GET | `/api/words/{word}/rhymes?type=perfect` | `perfect`, `near`, `sounds` or `multi`; up to 60 (max 100). `{word}` may be a phrase for `multi` |
 | GET | `/api/words/{word}/related?type=means` | `means`, `follows` or `triggers` |
 | GET | `/api/words/{word}/definitions` | `{ partOfSpeech, text }` per meaning |
-| POST | `/api/words/syllables` | `{ words: [...] }`, up to 200; each comes back with `syllables`, `stress` (such as `010`) and `known` |
+| POST | `/api/words/syllables` | `{ words: [...] }`, up to 200; each comes back with `syllables`, `stress` (such as `010`), `vowelKey` (words sharing it rhyme; dictionary words only) and `known` |
 
 Lookup answers carry `source` (`datamuse` or `local`) beside `data`, so the app can show the Datamuse credit only when it applies.

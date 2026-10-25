@@ -232,6 +232,8 @@ class ComposerWordsTest extends TestCase
         $this->assertSame(3, $rows['tomorrow']['syllables']);
         $this->assertSame('012', $rows['tomorrow']['stress']);
         $this->assertTrue($rows['tomorrow']['known']);
+        $this->assertSame('AA OW', $rows['tomorrow']['vowelKey']);
+        $this->assertArrayNotHasKey('vowelKey', $rows['gyalchester']);
         $this->assertFalse($rows['gyalchester']['known']);
         $this->assertSame(3, $rows['gyalchester']['syllables']);
     }
