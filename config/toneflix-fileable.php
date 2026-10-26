@@ -35,6 +35,9 @@ return [
             'path' => 'media/banners/',
             'default' => $defaults . 'banner.svg',
         ],
+        'auth_banner' => [
+            'path' => 'media/auth/',
+        ],
         'default' => [
             'path' => 'media/default/',
             'default' => $defaults . 'image.svg',

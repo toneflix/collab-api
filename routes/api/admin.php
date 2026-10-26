@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AiSettingsController;
+use App\Http\Controllers\Admin\AuthPagesController;
 use App\Http\Controllers\Admin\ConfigurationController;
 use App\Http\Controllers\Admin\ContentAgentController;
 use App\Http\Controllers\Admin\GenreController;
@@ -33,6 +34,16 @@ Route::middleware(['auth:sanctum'])
         // General app settings
         Route::get('configuration', [ConfigurationController::class, 'show'])->name('configuration.show');
         Route::put('configuration', [ConfigurationController::class, 'update'])->name('configuration.update');
+
+        // Layout, banner and text of the auth pages
+        Route::get('auth-pages', [AuthPagesController::class, 'show'])
+            ->name('auth-pages.show');
+        Route::put('auth-pages', [AuthPagesController::class, 'update'])
+            ->name('auth-pages.update');
+        Route::post('auth-pages/banner', [AuthPagesController::class, 'banner'])
+            ->name('auth-pages.banner');
+        Route::delete('auth-pages/banner', [AuthPagesController::class, 'removeBanner'])
+            ->name('auth-pages.banner.destroy');
 
         // Realtime driver and keys
         Route::get('realtime', [RealtimeSettingsController::class, 'show'])->name('realtime.show');
