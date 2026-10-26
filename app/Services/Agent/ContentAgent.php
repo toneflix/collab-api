@@ -2,6 +2,7 @@
 
 namespace App\Services\Agent;
 
+use App\Broadcasting\Channels;
 use App\Enums\Feature;
 use App\Jobs\AdvanceAgentRun;
 use App\Models\AgentRun;
@@ -9,6 +10,7 @@ use App\Models\AgentStep;
 use App\Models\User;
 use App\Services\Ai\Credits;
 use App\Services\Limits;
+use App\Services\Realtime\Realtime;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -52,6 +54,7 @@ class ContentAgent
             'options' => $options,
         ]);
 
+        $this->announce($run);
         $this->next();
 
         return $run->refresh();
@@ -91,6 +94,8 @@ class ContentAgent
         if ($run) {
             AdvanceAgentRun::dispatch($run)
                 ->afterCommit();
+
+            $this->announce($run);
         }
 
         return $run;
@@ -122,6 +127,8 @@ class ContentAgent
             $lock->release();
         }
 
+        $this->announce($run);
+
         if ($run->isActive()) {
             AdvanceAgentRun::dispatch($run)
                 ->delay(now()->addSeconds(self::WAIT_SECONDS));
@@ -149,6 +156,7 @@ class ContentAgent
             ->forceFill(['status' => AgentRun::CANCELLED, 'finished_at' => now()])
             ->save();
 
+        $this->announce($run);
         $this->next();
 
         return $run;
@@ -178,6 +186,7 @@ class ContentAgent
             ->forceFill(['status' => AgentRun::QUEUED, 'error' => null, 'failure' => null, 'finished_at' => null])
             ->save();
 
+        $this->announce($run);
         $this->next();
 
         return $run->refresh();
@@ -351,6 +360,10 @@ class ContentAgent
             ])
             ->save();
 
+        if ($finished) {
+            $this->announce($step->run);
+        }
+
         return true;
     }
 
@@ -375,6 +388,18 @@ class ContentAgent
                 'finished_at' => now(),
             ])
             ->save();
+    }
+
+    /**
+     * Tell content admins and the owner account that a run moved on.
+     */
+    protected function announce(AgentRun $run): void
+    {
+        Realtime::send([Channels::adminContent(), Channels::user($run->owner_id)], 'agent.run', [
+            'id' => $run->id,
+            'owner_id' => $run->owner_id,
+            'status' => $run->status,
+        ]);
     }
 
     protected function reason(Throwable $e): string

@@ -22,15 +22,17 @@ All channels are private. Their rules are in `App\Broadcasting\Channels`.
 
 | Channel | Who can join | Used for |
 | --- | --- | --- |
-| `project-track.{id}` | The project's owner and collaborators | Stem changes in the studio |
+| `project-track.{id}` | The project's owner and collaborators | Stem changes and AI jobs in the studio |
 | `conversation.{type}.{id}` | People who can see the thing being discussed | New messages |
-| `user.{id}` | That user | Notifications and new-message alerts |
+| `user.{id}` | That user | Notifications, new-message alerts, their AI jobs (`ai.job`) and agent runs (`agent.run`) |
+| `admin.content` | Admins with `manage-content` | Content agent runs (`agent.run`) and AI moderator reviews (`ai.review`) |
 
 ## How events flow
 
 - The API sends events with `Realtime::send()`, which never throws, so a realtime outage never breaks a request.
 - Each browser tab sends an `X-Realtime-Origin` id with its requests. Events carry that `origin`, and tabs skip events they caused themselves.
 - In the app, `useRealtimeChannel` in `src/utils/realtime.ts` subscribes to a channel. SDKs are passed in through `importModule`, because Vite cannot resolve the package's dynamic imports.
+- `useRealtimeChannel` returns `live`, which is true while the connection is up and the channel was joined. AI jobs, agent runs and AI moderator reviews poll for updates only while it is false (driver `none`, missing keys, or a dropped connection), through `useFallbackPoll`.
 
 ## Try it locally
 

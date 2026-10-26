@@ -2,12 +2,14 @@
 
 namespace App\Services\Moderation\Ai;
 
+use App\Broadcasting\Channels;
 use App\Jobs\RunAiReview;
 use App\Models\AiReview;
 use App\Models\ArtistClaim;
 use App\Models\Release;
 use App\Models\User;
 use App\Services\Ai\AiSettings;
+use App\Services\Realtime\Realtime;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -159,6 +161,8 @@ class AiModerator
                 'model' => $this->model->name(),
             ]);
 
+        $this->announce($review);
+
         RunAiReview::dispatch($review->id)
             ->afterCommit();
 
@@ -174,6 +178,21 @@ class AiModerator
             ->fill($attributes)
             ->save();
 
+        $this->announce($review);
+
         return $review;
+    }
+
+    /**
+     * Tell content admins that a review was queued or finished.
+     */
+    protected function announce(AiReview $review): void
+    {
+        Realtime::send(Channels::adminContent(), 'ai.review', [
+            'id' => $review->id,
+            'subject_type' => $review->subject_type,
+            'subject_id' => $review->subject_id,
+            'status' => $review->status,
+        ]);
     }
 }
