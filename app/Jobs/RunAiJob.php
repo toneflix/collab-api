@@ -20,7 +20,7 @@ class RunAiJob implements ShouldQueue
 
     public int $tries = 1;
 
-    public int $timeout = 1500;
+    public int $timeout = 2100;
 
     public function __construct(public AiJob $aiJob) {}
 
