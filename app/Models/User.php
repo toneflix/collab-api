@@ -426,6 +426,15 @@ class User extends Authenticatable implements Commentator, Reportable
     }
 
     /**
+     * Music topics the user picked as interests.
+     */
+    public function topics(): BelongsToMany
+    {
+        return $this->belongsToMany(Topic::class)
+            ->withTimestamps();
+    }
+
+    /**
      * The user's own sounds, for adding to tracks.
      */
     public function sounds(): HasMany

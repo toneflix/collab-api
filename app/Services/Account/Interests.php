@@ -9,7 +9,7 @@ use Illuminate\Validation\Rule;
 
 /**
  * Validates and saves who a user is (account type and identities) and the
- * genres they want to hear more of.
+ * genres and topics they want more of.
  */
 class Interests
 {
@@ -17,6 +17,11 @@ class Interests
      * How many genres one account can pick.
      */
     public const MAX_GENRES = 20;
+
+    /**
+     * How many topics one account can pick.
+     */
+    public const MAX_TOPICS = 30;
 
     /**
      * Rules for the account type and identities; `$required` makes the type required.
@@ -35,22 +40,37 @@ class Interests
     }
 
     /**
-     * Rules for the picked genres.
+     * Rules for the picked genres and topics.
      *
      * @return array<string, mixed>
      */
-    public static function genreRules(): array
+    public static function pickRules(): array
     {
         return [
-            'genres' => ['sometimes', 'array', 'min:1', 'max:' . self::MAX_GENRES],
+            'genres' => ['sometimes', 'array', 'max:' . self::MAX_GENRES],
             'genres.*' => ['integer', 'distinct', 'exists:genres,id'],
+            'topics' => ['sometimes', 'array', 'max:' . self::MAX_TOPICS],
+            'topics.*' => ['integer', 'distinct', 'exists:topics,id'],
         ];
     }
 
     /**
-     * Save validated values. Genres mark the interests as set.
+     * Whether the values pick nothing while saving picks: at least one
+     * genre or topic is needed.
      *
-     * @param  array{account_type?: string, identities?: list<string>|null, genres?: list<int>}  $values
+     * @param  array<string, mixed>  $values
+     */
+    public static function picksNothing(array $values): bool
+    {
+        return (Arr::has($values, 'genres') || Arr::has($values, 'topics'))
+            && empty($values['genres'] ?? [])
+            && empty($values['topics'] ?? []);
+    }
+
+    /**
+     * Save validated values. Genres or topics mark the interests as set.
+     *
+     * @param  array{account_type?: string, identities?: list<string>|null, genres?: list<int>, topics?: list<int>}  $values
      */
     public static function apply(User $user, array $values): User
     {
@@ -70,6 +90,11 @@ class Interests
 
         if (Arr::has($values, 'genres')) {
             $user->interests()->sync($values['genres']);
+            $user->interests_at = now();
+        }
+
+        if (Arr::has($values, 'topics')) {
+            $user->topics()->sync($values['topics']);
             $user->interests_at = now();
         }
 

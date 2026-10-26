@@ -7,10 +7,11 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\InterestsResource;
 use App\Services\Account\Interests;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 /**
- * Who the signed-in user is and the genres they want to hear, which curate
- * their playlists.
+ * Who the signed-in user is and the genres and topics they like, which
+ * curate their playlists.
  */
 class InterestsController extends Controller
 {
@@ -33,11 +34,14 @@ class InterestsController extends Controller
 
         $valid = $request->validate([
             ...Interests::identityRules($type),
-            ...Interests::genreRules(),
+            ...Interests::pickRules(),
         ], [
-            'genres.min' => 'Pick at least one genre.',
             'identities.*.in' => 'Pick from the options for your account type.',
         ]);
+
+        if (Interests::picksNothing($valid)) {
+            throw ValidationException::withMessages(['genres' => 'Pick at least one genre or topic.']);
+        }
 
         Interests::apply($user, $valid);
 

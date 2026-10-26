@@ -6,6 +6,7 @@ use App\Enums\AccountType;
 use App\Models\Artist;
 use App\Models\Genre;
 use App\Models\Release;
+use App\Models\Topic;
 use App\Models\Track;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -219,5 +220,84 @@ class InterestsTest extends TestCase
 
         $this->assertCount(5, $ids);
         $this->assertEqualsCanonicalizing($picked->all(), $ids->take(2)->all());
+    }
+
+    public function test_topics_list_most_picked_first(): void
+    {
+        $topic = Topic::query()
+            ->where('slug', 'vinyl')
+            ->firstOrFail();
+        $users = User::factory()
+            ->count(2)
+            ->create();
+
+        $users->each(fn(User $user) => $user->topics()->attach($topic));
+
+        $this->getJson('/api/topics?limit=5')
+            ->assertOk()
+            ->assertJsonPath('data.0.slug', 'vinyl')
+            ->assertJsonPath('data.0.usersCount', 2);
+
+        $this->getJson('/api/topics?search=beat')
+            ->assertOk()
+            ->assertJsonPath('data.0.slug', 'beatmaking');
+    }
+
+    public function test_people_can_add_a_missing_topic_for_everyone(): void
+    {
+        $user = User::factory()
+            ->create();
+
+        Sanctum::actingAs($user);
+
+        $id = $this->postJson('/api/topics', ['title' => '  bedroom   pop  '])
+            ->assertCreated()
+            ->assertJsonPath('data.title', 'Bedroom pop')
+            ->assertJsonPath('data.custom', true)
+            ->json('data.id');
+
+        $this->postJson('/api/topics', ['title' => 'Bedroom Pop'])
+            ->assertOk()
+            ->assertJsonPath('data.id', $id);
+
+        $this->getJson('/api/topics?search=bedroom')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $id);
+    }
+
+    public function test_topics_with_explicit_words_are_refused(): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+
+        $this->postJson('/api/topics', ['title' => 'Shit music'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('title');
+    }
+
+    public function test_guests_cannot_add_topics(): void
+    {
+        $this->postJson('/api/topics', ['title' => 'Lo-fi beats'])
+            ->assertUnauthorized();
+    }
+
+    public function test_topics_alone_set_the_interests(): void
+    {
+        $user = User::factory()
+            ->create();
+        $topics = Topic::query()
+            ->whereIn('slug', ['vinyl', 'djing'])
+            ->pluck('id');
+
+        Sanctum::actingAs($user);
+
+        $this->putJson('/api/account/interests', ['topics' => $topics->all()])
+            ->assertAccepted()
+            ->assertJsonCount(2, 'data.topics');
+
+        $this->assertNotNull($user->refresh()->interests_at);
+
+        $this->putJson('/api/account/interests', ['genres' => [], 'topics' => []])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('genres');
     }
 }

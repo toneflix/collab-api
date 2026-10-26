@@ -24,12 +24,16 @@ Sign-up has three steps:
 
 All three go to `POST /api/auth/register` together.
 
-After sign-up, or a sign-in while the account has none, the app opens `/account/interests` to pick genres (after any pending verification). It can be skipped, and changed later in account settings.
+After sign-up, or a sign-in while the account has none, the app opens `/account/interests` to pick genres and topics (after any pending verification). It can be skipped, and changed later in account settings.
+
+Topics are music subjects like Live music, Beatmaking or Vinyl. `database/data/topics.php` holds the built-in ones. Anyone signed in can add a missing topic, and everyone can pick it after that. Names with explicit or review words (the lyrics word lists) are refused, and one person can add up to 20.
 
 | Endpoint | What it does |
 | --- | --- |
-| `GET /api/account/interests` | Account type, identities, picked genres and `interestsAt`. |
-| `PUT /api/account/interests` | Saves any of `account_type`, `identities` and `genres` (1 to 20 genre ids). Saving genres sets `interestsAt`. |
+| `GET /api/account/interests` | Account type, identities, picked genres and topics, and `interestsAt`. |
+| `PUT /api/account/interests` | Saves any of `account_type`, `identities`, `genres` (up to 20 ids) and `topics` (up to 30 ids). Saving picks needs at least one genre or topic, and sets `interestsAt`. |
+| `GET /api/topics` | Topics, most picked first. Takes `search` and `limit`. |
+| `POST /api/topics` | Adds a topic by `title`, or returns the one with the same name. |
 
 Interests curate what people hear: `GET /api/tracks?filters=for_you` (and `for_you` on `GET /api/explore`, the home page's "Made for you" shelf) returns tracks in those genres, and the player's up-next queue plays them before unrelated tracks.
 

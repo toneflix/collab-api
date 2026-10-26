@@ -21,6 +21,7 @@ use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ReleaseController;
 use App\Http\Controllers\SocialInteractionController;
 use App\Http\Controllers\SunoCallbackController;
+use App\Http\Controllers\TopicController;
 use App\Http\Controllers\TrackController;
 use App\Http\Controllers\UserController;
 use App\Services\Notifications\WebPush;
@@ -69,6 +70,11 @@ Route::get('tracks/{track}/lyrics', [LyricsController::class, 'show'])
     ->name('tracks.lyrics');
 Route::apiResource('genres', GenreController::class)
     ->only(['index', 'show']);
+Route::get('topics', [TopicController::class, 'index'])
+    ->name('topics.index');
+Route::post('topics', [TopicController::class, 'store'])
+    ->middleware(['auth:sanctum', 'throttle:10,1'])
+    ->name('topics.store');
 Route::apiResource('artists', ArtistController::class)
     ->only(['index', 'show']);
 Route::apiResource('explore', ExploreController::class)
