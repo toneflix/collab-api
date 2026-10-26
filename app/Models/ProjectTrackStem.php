@@ -3,19 +3,22 @@
 namespace App\Models;
 
 use App\Casts\StemMeta;
+use App\Contracts\StoresFileMeta;
 use App\Services\Studio\StemFiles;
+use App\Traits\RemembersFileMeta;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Toneflix\LaravelFileable\Traits\Fileable;
 
-class ProjectTrackStem extends Model
+class ProjectTrackStem extends Model implements StoresFileMeta
 {
     use Fileable {
         removeFile as protected removeFileNow;
     }
     use HasFactory;
+    use RemembersFileMeta;
     use SoftDeletes;
 
     /**
@@ -71,6 +74,11 @@ class ProjectTrackStem extends Model
         $this->fileableLoader([
             'src' => 'stem_files',
         ], 'default', true);
+    }
+
+    public function fileMetaFields(): array
+    {
+        return ['src' => 'stem_files'];
     }
 
     /**

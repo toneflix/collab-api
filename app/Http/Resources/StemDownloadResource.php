@@ -21,7 +21,7 @@ class StemDownloadResource extends JsonResource
         return [
             'id' => $this->id,
             'title' => $this->title ?: $this->meta['name'] ?? 'Stem',
-            'size' => $this->mediaFileInfo['src']['size'] ?? null,
+            'size' => $this->fileSize('src') ?? $this->mediaFileInfo['src']['size'] ?? null,
             'url' => $this->mediaFileInfo['src']['dynamicLink'] ?? null,
         ];
     }
