@@ -175,7 +175,7 @@ class AiSunoTest extends TestCase
             ->assertJsonPath('data.client.music.maxSeconds', 300)
             ->assertJsonPath('data.client.stemsEngine', 'suno')
             ->assertJsonPath('data.client.costs.stems', 50)
-            ->assertJsonPath('data.client.engines', ['replicate' => true, 'suno' => true])
+            ->assertJsonPath('data.client.engines', ['replicate' => true, 'suno' => true, 'cloudflare' => false])
             ->assertJsonPath('data.keys.suno.0.env', 'SUNO_API_KEY')
             ->assertJsonPath('data.options.sunoVersions.V5_5', 'v5.5');
 

@@ -134,7 +134,7 @@ class AiMusicModelsTest extends TestCase
             ->assertJsonPath('data.client.music.credits', 24)
             ->assertJsonPath('data.client.music.pricing', 'song')
             ->assertJsonPath('data.client.music.lyricsLength', [1, 3500])
-            ->assertJsonCount(5, 'data.models');
+            ->assertJsonCount(7, 'data.models');
 
         Sanctum::actingAs($this->owner);
         $this

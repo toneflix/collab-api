@@ -2,12 +2,16 @@
 
 namespace App\Services\Lyrics;
 
+use App\Enums\AiEngine;
+use App\Services\Ai\AiSettings;
+use App\Services\Ai\Cloudflare\CloudflareClient;
 use App\Services\Ai\Replicate\ReplicateClient;
-use App\Services\Ai\Replicate\ReplicateException;
+use App\Services\Audio\StemAudio;
+use RuntimeException;
 
 /**
- * Writes out the words sung in an audio file with Whisper on Replicate, as
- * lines timed to the audio.
+ * Writes out the words sung in an audio file with Whisper, on the engine
+ * admins picked for lyrics, as lines timed to the audio.
  */
 class Transcriber
 {
@@ -18,14 +22,38 @@ class Transcriber
 
     protected const LOW_CONFIDENCE = -1.0;
 
+    public function __construct(protected StemAudio $audio) {}
+
     /**
      * @return array{lines: list<array{start: float, end: float, text: string}>, language: ?string, model: string}
      */
     public function transcribe(string $path): array
     {
+        $engine = AiSettings::lyricsEngine();
+
+        $output = $engine === AiEngine::CLOUDFLARE
+            ? $this->onCloudflare($path)
+            : $this->onReplicate($path);
+
+        if (! isset($output['segments']) && ! isset($output['transcription']) && ! isset($output['text'])) {
+            throw new RuntimeException('Whisper returned no transcription.');
+        }
+
+        return [
+            'lines' => $this->lines($output),
+            'language' => $output['language'] ?? null,
+            'model' => $this->model($engine),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function onReplicate(string $path): array
+    {
         $client = ReplicateClient::make();
 
-        $prediction = $client->run($this->model(), [
+        $prediction = $client->run($this->model(AiEngine::REPLICATE), [
             'audio' => $client->upload($path, mime_content_type($path) ?: 'audio/mpeg'),
             'model' => 'large-v3',
             'transcription' => 'plain text',
@@ -35,16 +63,34 @@ class Transcriber
         ]);
 
         $output = (array) $prediction['output'];
+        $language = $output['detected_language'] ?? null;
 
-        if (! isset($output['segments']) && ! isset($output['transcription'])) {
-            throw new ReplicateException('Whisper returned no transcription.');
+        return [...$output, 'language' => $language !== null ? (string) $language : null];
+    }
+
+    /**
+     * Workers AI takes the audio inline, so it is sent as small mono speech audio.
+     *
+     * @return array<string, mixed>
+     */
+    protected function onCloudflare(string $path): array
+    {
+        $speech = $this->audio->speech($path);
+
+        try {
+            $output = CloudflareClient::make()
+                ->run($this->model(AiEngine::CLOUDFLARE), [
+                    'audio' => base64_encode((string) file_get_contents($speech)),
+                    'task' => 'transcribe',
+                    'condition_on_previous_text' => false,
+                ]);
+        } finally {
+            @unlink($speech);
         }
 
-        return [
-            'lines' => $this->lines($output),
-            'language' => isset($output['detected_language']) ? (string) $output['detected_language'] : null,
-            'model' => $this->model(),
-        ];
+        $language = data_get($output, 'transcription_info.language');
+
+        return [...$output, 'language' => $language !== null ? (string) $language : null];
     }
 
     /**
@@ -74,8 +120,10 @@ class Transcriber
             && (float) ($segment['avg_logprob'] ?? 0) < self::LOW_CONFIDENCE;
     }
 
-    protected function model(): string
+    protected function model(AiEngine $engine): string
     {
-        return (string) config('ai.providers.replicate.models.lyrics.default', 'openai/whisper');
+        return $engine === AiEngine::CLOUDFLARE
+            ? (string) config('ai.providers.cloudflare.models.lyrics.default', '@cf/openai/whisper-large-v3-turbo')
+            : (string) config('ai.providers.replicate.models.lyrics.default', 'openai/whisper');
     }
 }

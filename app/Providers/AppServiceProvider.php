@@ -2,11 +2,15 @@
 
 namespace App\Providers;
 
+use App\Enums\AiEngine;
 use App\Helpers\Providers;
 use App\Notifications\Channels\PushChannel;
+use App\Services\Ai\AiSettings;
 use App\Services\Ai\Replicate\ReplicateProvider;
+use App\Services\Composer\Ai\CloudflareLyricModel;
 use App\Services\Composer\Ai\LyricModel;
 use App\Services\Composer\Ai\ReplicateLyricModel;
+use App\Services\Moderation\Ai\CloudflareModeratorModel;
 use App\Services\Moderation\Ai\ModeratorModel;
 use App\Services\Moderation\Ai\ReplicateModeratorModel;
 use App\Services\Notifications\WebPush;
@@ -37,8 +41,12 @@ class AppServiceProvider extends ServiceProvider
             PaystackGateway::class
         );
 
-        $this->app->bind(ModeratorModel::class, ReplicateModeratorModel::class);
-        $this->app->bind(LyricModel::class, ReplicateLyricModel::class);
+        $this->app->bind(ModeratorModel::class, fn($app) => $app->make(
+            AiSettings::engine('ai_moderator_engine') === AiEngine::CLOUDFLARE ? CloudflareModeratorModel::class : ReplicateModeratorModel::class
+        ));
+        $this->app->bind(LyricModel::class, fn($app) => $app->make(
+            AiSettings::engine('ai_composer_engine') === AiEngine::CLOUDFLARE ? CloudflareLyricModel::class : ReplicateLyricModel::class
+        ));
 
         $this->app->singleton(PayoutProviders::class, fn($app) => new PayoutProviders([
             $app->make(PaystackGateway::class),

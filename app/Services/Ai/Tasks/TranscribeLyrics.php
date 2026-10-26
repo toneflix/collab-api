@@ -39,7 +39,7 @@ class TranscribeLyrics implements AiTask
 
     public function engine(array $input): AiEngine
     {
-        return AiEngine::REPLICATE;
+        return AiSettings::lyricsEngine();
     }
 
     public function handle(AiJob $job): array
