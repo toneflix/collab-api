@@ -1,6 +1,6 @@
 # Notifications
 
-People hear about activity three ways: in the app (the bell and `/notifications`), by email, and by browser push.
+People hear about activity three ways: in the app (the bell and `/notifications`), by email, and by push to browsers and the Android app.
 
 ## Categories
 
@@ -28,6 +28,10 @@ Keep the keys once they are live. New keys drop every existing push subscription
 
 The app registers `public/push-sw.js` as its service worker when someone turns push on. Push needs HTTPS (or `localhost`).
 
+## Android app push
+
+The Android app registers its Firebase Cloud Messaging token at `POST /api/account/device-tokens` (and removes it with `DELETE` on sign-out or when push is turned off). Notifications go out through `App\Notifications\Channels\FcmChannel` when `FIREBASE_CREDENTIALS` is set and the person has push on for the category. Each message uses the category as its Android channel and carries the page to open. Tokens Firebase no longer knows are removed after a send. See [Android app](../guide/android) for the app side.
+
 ## Email
 
 Email uses the standard Laravel mail settings in `.env` and goes through the queue.
@@ -36,6 +40,6 @@ Email uses the standard Laravel mail settings in `.env` and goes through the que
 
 1. Extend `App\Notifications\ActivityNotification` and set `category()`, `key()` (like `sales.tip`), `params()` and `path()`.
 2. Add its subject, body and action text to `config/messages.php` under `activity::{category}`.
-3. Send it with `$user->notify(...)`. The base class picks the channels: database always, plus mail and push when the person has them on.
+3. Send it with `$user->notify(...)`. The base class picks the channels: database always, plus mail, browser push and app push when the person has them on.
 
 Listeners are registered in `EventServiceProvider`. Event discovery is off, because it ran each listener twice.
