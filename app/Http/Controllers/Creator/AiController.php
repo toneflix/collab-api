@@ -37,8 +37,8 @@ class AiController extends Controller
             'reference' => $model->references() ? ['nullable', 'file', 'mimes:mp3,wav', 'max:20480'] : ['prohibited'],
             'reference_stem_id' => $model->references() ? ['nullable', 'integer'] : ['prohibited'],
         ], [
-            'reference.prohibited' => $model::NAME . ' doesn\'t take reference audio.',
-            'reference_stem_id.prohibited' => $model::NAME . ' doesn\'t take reference audio.',
+            'reference.prohibited' => 'Reference audio can\'t be used right now.',
+            'reference_stem_id.prohibited' => 'Reference audio can\'t be used right now.',
         ]);
 
         $reference = $references->keep($model, $track, $request->file('reference'), $valid['reference_stem_id'] ?? null);

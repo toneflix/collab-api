@@ -51,7 +51,7 @@ class AiStudio
         $engine = $task->engine($input);
 
         if (! $engine->available()) {
-            throw ValidationException::withMessages(['ai' => "{$engine->label()} isn't set up yet, so this tool can't run."]);
+            throw ValidationException::withMessages(['ai' => "This AI tool isn't available right now."]);
         }
 
         $job = DB::transaction(function () use ($job, $task, $credits, $input) {

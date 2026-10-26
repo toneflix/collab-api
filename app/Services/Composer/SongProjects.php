@@ -135,10 +135,8 @@ class SongProjects
         $credits = Credits::for($user);
         $credits->ensureAccess('generate');
 
-        $name = $model->name();
-
         if (! $model->engine()->available()) {
-            throw ValidationException::withMessages(['generate' => "{$name} isn't set up yet, so AI can't sing this song."]);
+            throw ValidationException::withMessages(['generate' => "AI singing isn't available right now."]);
         }
 
         $lyrics = trim((string) $song->body);
@@ -147,7 +145,7 @@ class SongProjects
         $prompt = trim((string) ($data['prompt'] ?? ''));
 
         if (mb_strlen($lyrics) < $min || mb_strlen($lyrics) > $max) {
-            throw ValidationException::withMessages(['generate' => "{$name} takes lyrics of {$min} to {$max} characters. This song has " . mb_strlen($lyrics) . '.']);
+            throw ValidationException::withMessages(['generate' => "AI sings lyrics of {$min} to {$max} characters. This song has " . mb_strlen($lyrics) . '.']);
         }
 
         if (mb_strlen($prompt) < $promptMin || mb_strlen($prompt) > $promptMax) {

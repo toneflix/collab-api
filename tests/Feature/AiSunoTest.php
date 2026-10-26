@@ -193,7 +193,7 @@ class AiSunoTest extends TestCase
 
         $this
             ->postJson($this->url(), ['prompt' => 'Afrobeats love song', 'seconds' => 30])
-            ->assertJsonValidationErrors(['ai' => 'Suno isn\'t set up yet']);
+            ->assertJsonValidationErrors(['ai' => 'This AI tool isn\'t available right now.']);
 
         $this->assertSame(0, AiJob::query()->count());
         $this->assertSame(100, Credits::for($this->owner)->total());
