@@ -10,6 +10,7 @@ use App\Services\Ai\Music\ElevenLabsMusic;
 use App\Services\Ai\Music\MiniMaxMusic25;
 use App\Services\Ai\Music\MusicModel;
 use App\Services\Ai\Music\SunoMusic;
+use App\Services\Ai\Tasks\EditSection;
 use App\Services\Settings\SettingsStore;
 
 /**
@@ -53,6 +54,7 @@ class AiSettings extends SettingsStore
         'ai_stems_credits' => ['Demucs Stem Split Credits', '5', 'Credits one split into stems uses on Replicate.'],
         'ai_stems_suno_type' => ['Suno Stems', 'split_stem', 'Vocals and instrumental only (about $0.05 a split on sunoapi.org), or up to 12 stems (about $0.25).'],
         'ai_stems_suno_credits' => ['Suno Stem Split Credits', '50', 'Credits one split into stems uses on Suno.'],
+        'ai_edit_credits' => ['Section Edit Credits', '5', 'Credits one AI edit of a part of a stem uses. It runs on Suno\'s replace section.'],
         'ai_music_max_seconds' => ['Longest Generated Track (seconds)', '300', 'The longest track people can generate at once.'],
         'ai_lyrics_engine' => ['Lyrics Engine', 'replicate', 'Where Whisper writes out lyrics: Replicate, or Cloudflare Workers AI.'],
         'ai_lyrics_credits' => ['Lyrics Credits', '2', 'Credits one lyrics transcription in the studio uses.'],
@@ -339,6 +341,14 @@ class AiSettings extends SettingsStore
         return array_values(array_filter(MusicModel::all(), fn(MusicModel $model) => $model->takesLyrics()));
     }
 
+    /**
+     * Credits one AI edit of a part of a stem uses.
+     */
+    public static function editCredits(): int
+    {
+        return max(1, (int) self::get('ai_edit_credits'));
+    }
+
     public static function musicMaxSeconds(): int
     {
         return min(300, max(10, (int) self::get('ai_music_max_seconds')));
@@ -347,10 +357,12 @@ class AiSettings extends SettingsStore
     /**
      * What the app needs to show the AI tools and their costs.
      *
-     * @return array{enabled: bool, creditPrice: float, packs: list<array{credits: int, discount: float, price: float}>, costs: array<string, int>, music: array<string, mixed>, stemsEngine: string, engines: array<string, bool>}
+     * @return array{enabled: bool, creditPrice: float, packs: list<array{credits: int, discount: float, price: float}>, costs: array<string, int>, music: array<string, mixed>, stemsEngine: string, edit: array{engine: string, minSeconds: float, maxShare: float}, engines: array<string, bool>}
      */
     public static function clientConfig(): array
     {
+        $editor = EditSection::editor();
+
         return [
             'enabled' => self::enabled(),
             'creditPrice' => self::creditPrice(),
@@ -358,12 +370,18 @@ class AiSettings extends SettingsStore
             'costs' => [
                 'stems' => self::stemsCredits(),
                 'lyrics' => self::lyricsCredits(),
+                'edit' => self::editCredits(),
                 'composer' => collect(['line', 'block', 'verse', 'rewrite'])
                     ->mapWithKeys(fn(string $kind) => [$kind => self::composerCredits($kind)])
                     ->all(),
             ],
             'music' => self::musicModel()->toClient(),
             'stemsEngine' => self::stemsEngine()->value,
+            'edit' => [
+                'engine' => $editor->engine()->value,
+                'minSeconds' => $editor->minSeconds(),
+                'maxShare' => $editor->maxShare(),
+            ],
             'engines' => collect(AiEngine::cases())
                 ->mapWithKeys(fn(AiEngine $engine) => [$engine->value => $engine->available()])
                 ->all(),

@@ -7,7 +7,8 @@ use Symfony\Component\Process\Process;
 
 /**
  * FFmpeg work on stem audio: rebuilding the part of a song the other stems
- * leave out, reading levels and encoding once at a high bitrate.
+ * leave out, cutting and splicing sections, reading levels and encoding once
+ * at a high bitrate.
  */
 class StemAudio
 {
@@ -80,6 +81,77 @@ class StemAudio
     }
 
     /**
+     * A part of the audio, between two times in seconds, as a 320 kbps MP3.
+     */
+    public function cut(string $path, float $from, float $to): string
+    {
+        $out = $this->temp('mp3');
+
+        $this->run([
+            '-i', $path,
+            '-af', "{$this->format()},atrim=start={$this->time($from)}:end={$this->time($to)},asetpts=PTS-STARTPTS",
+            '-c:a', 'libmp3lame', '-b:a', self::BITRATE . 'k', $out,
+        ], $out);
+
+        return $out;
+    }
+
+    /**
+     * A part of the audio stretched or squeezed in time, keeping its pitch,
+     * to exactly this many seconds, as a 32 bit float WAV.
+     */
+    public function fit(string $path, float $from, float $to, float $length): string
+    {
+        $tempo = min(2, max(0.5, ($to - $from) / $length));
+        $stretch = abs($tempo - 1) > 0.001 ? ',atempo=' . round($tempo, 6) : '';
+        $samples = (int) round($length * self::RATE);
+
+        return $this->wav([
+            '-i', $path,
+            '-af', "{$this->format()},atrim=start={$this->time($from)}:end={$this->time($to)},asetpts=PTS-STARTPTS{$stretch},apad,atrim=end_sample={$samples}",
+        ]);
+    }
+
+    /**
+     * The audio with the part between two times swapped for the same part
+     * of a section, crossfaded at each end. The section starts at
+     * `$sectionStart` seconds into the audio and covers the part plus the
+     * fades. Returns a 32 bit float WAV as long as the audio.
+     */
+    public function splice(string $path, string $section, float $sectionStart, float $from, float $to, float $duration, float $fade): string
+    {
+        $fadeIn = $from > 0 ? min($fade, $from) : 0.0;
+        $fadeOut = $to < $duration ? min($fade, $duration - $to) : 0.0;
+        $parts = [];
+        $chains = [];
+
+        $piece = "[1:a]{$this->format()},atrim=start={$this->time($from - $sectionStart)}:end={$this->time($to + $fadeOut - $sectionStart)},asetpts=PTS-STARTPTS";
+        $piece .= $fadeIn > 0 ? ",afade=t=in:d={$this->time($fadeIn)}" : '';
+        $piece .= $fadeOut > 0 ? ",afade=t=out:st={$this->time($to - $from)}:d={$this->time($fadeOut)}" : '';
+        $chains[] = "{$piece},{$this->delay($from)}[section]";
+        $parts[] = '[section]';
+
+        if ($fadeIn > 0) {
+            $chains[] = "[0:a]{$this->format()},atrim=end={$this->time($from + $fadeIn)},asetpts=PTS-STARTPTS,afade=t=out:st={$this->time($from)}:d={$this->time($fadeIn)}[head]";
+            $parts[] = '[head]';
+        }
+
+        if ($fadeOut > 0) {
+            $chains[] = "[2:a]{$this->format()},atrim=start={$this->time($to)},asetpts=PTS-STARTPTS,afade=t=in:d={$this->time($fadeOut)},{$this->delay($to)}[tail]";
+            $parts[] = '[tail]';
+        }
+
+        $samples = (int) round($duration * self::RATE);
+        $chains[] = implode('', $parts) . 'amix=inputs=' . count($parts) . ":normalize=0:duration=longest:dropout_transition=0,apad,atrim=end_sample={$samples}[out]";
+
+        return $this->wav([
+            '-i', $path, '-i', $section, '-i', $path,
+            '-filter_complex', implode(';', $chains),
+            '-map', '[out]',
+        ]);
+    }
+
+    /**
      * Render FFmpeg arguments into a 32 bit float WAV.
      *
      * @param  list<string>  $args
@@ -145,6 +217,22 @@ class StemAudio
         }
 
         return $match[1] === '-inf' ? -INF : (float) $match[1];
+    }
+
+    /**
+     * Seconds as FFmpeg takes them, with no exponent.
+     */
+    protected function time(float $seconds): string
+    {
+        return number_format(max(0, $seconds), 6, '.', '');
+    }
+
+    /**
+     * A filter that starts audio this many seconds in, to the sample.
+     */
+    protected function delay(float $seconds): string
+    {
+        return 'adelay=delays=' . (int) round($seconds * self::RATE) . 'S:all=1';
     }
 
     protected function format(): string

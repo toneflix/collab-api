@@ -46,7 +46,30 @@ class SunoClient
      */
     public function generate(array $body): array
     {
-        $task = $this->start('api/v1/generate', $body);
+        return $this->songs('api/v1/generate', $body);
+    }
+
+    /**
+     * Make a new version of uploaded audio with one section of it written
+     * again, between `infillStartS` and `infillEndS`.
+     *
+     * @param  array<string, mixed>  $body
+     * @return list<SunoSong>
+     */
+    public function replaceSection(array $body): array
+    {
+        return $this->songs('api/v1/generate/replace-section', $body);
+    }
+
+    /**
+     * Start a task that makes songs and wait for them.
+     *
+     * @param  array<string, mixed>  $body
+     * @return list<SunoSong>
+     */
+    protected function songs(string $path, array $body): array
+    {
+        $task = $this->start($path, $body);
         $data = $this->wait('api/v1/generate/record-info', $task, 'status');
 
         $songs = collect((array) data_get($data, 'response.sunoData', []))
