@@ -45,6 +45,8 @@ class AiSettings extends SettingsStore
         'ai_music_minimax_15_credits' => ['MiniMax Music 1.5 Credits per Song', '10', 'Credits one MiniMax Music 1.5 song uses, whatever its length.'],
         'ai_music_stable_audio_credits' => ['Stable Audio 2.5 Credits per Track', '40', 'Credits one Stable Audio 2.5 track uses, whatever its length.'],
         'ai_music_suno_credits' => ['Suno Credits per Song', '12', 'Credits one Suno song uses, whatever its length. A request costs about $0.06 on sunoapi.org and makes two versions.'],
+        'ai_music_cf_elevenlabs_credits' => ['ElevenLabs Music v2 Credits per 10 Seconds', '5', 'Credits an ElevenLabs v2 track on Workers AI uses for every 10 seconds of audio. About $0.075 for 30 seconds on Cloudflare.'],
+        'ai_music_minimax_26_credits' => ['MiniMax Music 2.6 Credits per Song', '30', 'Credits one MiniMax Music 2.6 song uses, whatever its length. About $0.15 a song on Cloudflare.'],
         'ai_suno_model' => ['Suno Model Version', 'V5_5', 'The Suno version songs are made with. v5.5 and v6 follow the length people ask for.'],
         'ai_suno_keep_both' => ['Keep Both Suno Versions', '0', 'Suno makes two versions of every song. Keep both and let people pick the one that goes on the track, or keep only the first.'],
         'ai_stems_engine' => ['Stem Split Engine', 'replicate', 'Where songs are split into stems: Demucs on Replicate, or Suno.'],
@@ -52,6 +54,7 @@ class AiSettings extends SettingsStore
         'ai_stems_suno_type' => ['Suno Stems', 'split_stem', 'Vocals and instrumental only (about $0.05 a split on sunoapi.org), or up to 12 stems (about $0.25).'],
         'ai_stems_suno_credits' => ['Suno Stem Split Credits', '50', 'Credits one split into stems uses on Suno.'],
         'ai_music_max_seconds' => ['Longest Generated Track (seconds)', '300', 'The longest track people can generate at once.'],
+        'ai_lyrics_engine' => ['Lyrics Engine', 'replicate', 'Where Whisper writes out lyrics: Replicate, or Cloudflare Workers AI.'],
         'ai_lyrics_credits' => ['Lyrics Credits', '2', 'Credits one lyrics transcription in the studio uses.'],
         'ai_lyrics_auto' => ['Transcribe Released Tracks', '1', 'Write out the lyrics of newly released tracks automatically. The app pays for these, not the creator.'],
         'ai_lyrics_explicit_words' => ['More Explicit Words', null, 'Comma separated words that mark a track explicit, on top of the built-in list.'],
@@ -59,8 +62,11 @@ class AiSettings extends SettingsStore
         'ai_tags_auto' => ['Detect Tempo and Key', '1', 'Tag new tracks and studio mixes with their BPM and key. This runs on your own server and uses no credits.'],
         'ai_moderator_claims_auto' => ['Review Artist Claims Automatically', '0', 'Send every new artist claim to the AI moderator. Claims it isn\'t confident about are flagged for a person.'],
         'ai_moderator_releases_auto' => ['Review Releases Automatically', '0', 'Send every release waiting for approval to the AI moderator. Releases it isn\'t confident about are flagged for a person.'],
+        'ai_moderator_engine' => ['AI Moderator Engine', 'replicate', 'Where the AI moderator\'s language model runs: Replicate, or Cloudflare Workers AI.'],
         'ai_moderator_confidence' => ['Confidence Needed', '80', 'How sure (0 to 100) the AI moderator must be to decide an automatic review on its own.'],
+        'ai_composer_engine' => ['Composer Engine', 'replicate', 'Where Composer\'s writing model runs: Replicate, or Cloudflare Workers AI.'],
         'ai_composer_model' => ['Composer Writing Model', null, 'The Replicate language model that suggests lyrics in Composer, like anthropic/claude-4.5-haiku.'],
+        'ai_composer_cloudflare_model' => ['Composer Writing Model on Cloudflare', null, 'The Workers AI language model that suggests lyrics in Composer, like anthropic/claude-haiku-4.5 or @cf/openai/gpt-oss-120b.'],
         'ai_composer_line_credits' => ['Composer Line Credits', '1', 'Credits one ask for the next line uses. It returns three options.'],
         'ai_composer_block_credits' => ['Composer Block Credits', '1', 'Credits one ask for the next four lines uses.'],
         'ai_composer_verse_credits' => ['Composer Verse Credits', '2', 'Credits one ask for a full verse uses.'],
@@ -75,6 +81,22 @@ class AiSettings extends SettingsStore
         'suno' => [
             'SUNO_API_KEY' => ['Suno API Key', 'ai.providers.suno.key'],
         ],
+        'cloudflare' => [
+            'CLOUDFLARE_ACCOUNT_ID' => ['Cloudflare Account ID', 'ai.providers.cloudflare.account'],
+            'CLOUDFLARE_API_TOKEN' => ['Cloudflare API Token', 'ai.providers.cloudflare.key'],
+        ],
+    ];
+
+    /**
+     * The engines each switchable tool can run on, by its setting.
+     *
+     * @var array<string, list<AiEngine>>
+     */
+    public const ENGINES = [
+        'ai_stems_engine' => [AiEngine::REPLICATE, AiEngine::SUNO],
+        'ai_lyrics_engine' => [AiEngine::REPLICATE, AiEngine::CLOUDFLARE],
+        'ai_composer_engine' => [AiEngine::REPLICATE, AiEngine::CLOUDFLARE],
+        'ai_moderator_engine' => [AiEngine::REPLICATE, AiEngine::CLOUDFLARE],
     ];
 
     /** Kinds of Suno stem splits, with the label admins see */
@@ -144,11 +166,44 @@ class AiSettings extends SettingsStore
     }
 
     /**
+     * The engine a switchable tool runs on, by its setting in ENGINES.
+     */
+    public static function engine(string $setting): AiEngine
+    {
+        $engine = AiEngine::tryFrom((string) self::get($setting));
+
+        return in_array($engine, self::ENGINES[$setting] ?? [], true) ? $engine : AiEngine::REPLICATE;
+    }
+
+    /**
      * The engine new stem splits run on.
      */
     public static function stemsEngine(): AiEngine
     {
-        return AiEngine::tryFrom((string) self::get('ai_stems_engine')) ?? AiEngine::REPLICATE;
+        return self::engine('ai_stems_engine');
+    }
+
+    /**
+     * The engine Whisper writes out lyrics on.
+     */
+    public static function lyricsEngine(): AiEngine
+    {
+        return self::engine('ai_lyrics_engine');
+    }
+
+    /**
+     * Every engine the admin's choices use, the music model's included.
+     *
+     * @return list<AiEngine>
+     */
+    public static function chosenEngines(): array
+    {
+        return collect(array_keys(self::ENGINES))
+            ->map(fn(string $setting) => self::engine($setting))
+            ->push(self::musicModel()->engine())
+            ->unique(fn(AiEngine $engine) => $engine->value)
+            ->values()
+            ->all();
     }
 
     /**
@@ -199,7 +254,7 @@ class AiSettings extends SettingsStore
      */
     public static function autoLyrics(): bool
     {
-        return self::enabled() && AiEngine::REPLICATE->available() && filter_var(self::get('ai_lyrics_auto'), FILTER_VALIDATE_BOOL);
+        return self::enabled() && self::lyricsEngine()->available() && filter_var(self::get('ai_lyrics_auto'), FILTER_VALIDATE_BOOL);
     }
 
     /**
@@ -246,6 +301,14 @@ class AiSettings extends SettingsStore
     public static function composerModel(): string
     {
         return trim((string) self::get('ai_composer_model'));
+    }
+
+    /**
+     * The Workers AI language model that suggests lyrics in Composer.
+     */
+    public static function composerCloudflareModel(): string
+    {
+        return trim((string) self::get('ai_composer_cloudflare_model'));
     }
 
     /**
@@ -332,6 +395,10 @@ class AiSettings extends SettingsStore
 
         if ($key === 'ai_composer_model') {
             return (string) config('ai.providers.replicate.models.composer.default');
+        }
+
+        if ($key === 'ai_composer_cloudflare_model') {
+            return (string) config('ai.providers.cloudflare.models.composer.default');
         }
 
         if ($key === 'ai_credit_price') {

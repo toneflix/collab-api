@@ -68,6 +68,18 @@ class StemAudio
     }
 
     /**
+     * Encode audio as a small 16 kHz mono MP3, enough for speech recognition.
+     */
+    public function speech(string $path): string
+    {
+        $out = $this->temp('mp3');
+
+        $this->run(['-i', $path, '-vn', '-ac', '1', '-ar', '16000', '-c:a', 'libmp3lame', '-b:a', '64k', $out], $out);
+
+        return $out;
+    }
+
+    /**
      * Render FFmpeg arguments into a 32 bit float WAV.
      *
      * @param  list<string>  $args

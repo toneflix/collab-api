@@ -39,7 +39,9 @@ class AiModerator
     public function send(ArtistClaim|Release $subject, User $admin): AiReview
     {
         if (! $this->available()) {
-            throw ValidationException::withMessages(['ai' => 'The AI moderator needs REPLICATE_API_TOKEN set in .env.']);
+            $keys = AiSettings::engine('ai_moderator_engine')->missingKeys() ?: 'its model';
+
+            throw ValidationException::withMessages(['ai' => "The AI moderator needs {$keys} set in .env."]);
         }
 
         if (! $this->cases->for($subject)->isPending()) {

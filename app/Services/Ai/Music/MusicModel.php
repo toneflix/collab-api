@@ -22,6 +22,8 @@ abstract class MusicModel
         MiniMaxMusic15::class,
         StableAudio25::class,
         SunoMusic::class,
+        ElevenLabsMusicV2::class,
+        MiniMaxMusic26::class,
     ];
 
     /** Credits are charged for every 10 seconds asked for */

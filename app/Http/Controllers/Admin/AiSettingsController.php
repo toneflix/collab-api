@@ -53,7 +53,9 @@ class AiSettingsController extends Controller
             ])->all(),
             'ai_suno_model' => ['nullable', 'string', Rule::in(array_keys(SunoMusic::VERSIONS))],
             'ai_suno_keep_both' => ['nullable', 'boolean'],
-            'ai_stems_engine' => ['nullable', 'string', Rule::enum(AiEngine::class)],
+            ...collect(AiSettings::ENGINES)
+                ->map(fn(array $engines) => ['nullable', 'string', Rule::in(array_map(fn(AiEngine $engine) => $engine->value, $engines))])
+                ->all(),
             'ai_stems_credits' => ['nullable', 'integer', 'between:1,1000'],
             'ai_stems_suno_type' => ['nullable', 'string', Rule::in(array_keys(AiSettings::SUNO_STEM_TYPES))],
             'ai_stems_suno_credits' => ['nullable', 'integer', 'between:1,1000'],
@@ -67,6 +69,7 @@ class AiSettingsController extends Controller
             'ai_moderator_releases_auto' => ['nullable', 'boolean'],
             'ai_moderator_confidence' => ['nullable', 'integer', 'between:0,100'],
             'ai_composer_model' => ['nullable', 'string', 'max:150', 'regex:/^[\w.-]+\/[\w.-]+(:[\w]+)?$/'],
+            'ai_composer_cloudflare_model' => ['nullable', 'string', 'max:150', 'regex:/^(@cf\/)?[\w.-]+\/[\w.-]+$/'],
             'ai_composer_line_credits' => ['nullable', 'integer', 'between:1,1000'],
             'ai_composer_block_credits' => ['nullable', 'integer', 'between:1,1000'],
             'ai_composer_verse_credits' => ['nullable', 'integer', 'between:1,1000'],
@@ -79,6 +82,7 @@ class AiSettingsController extends Controller
             ],
         ], [
             'ai_composer_model.regex' => 'Use a Replicate model name like anthropic/claude-4.5-haiku.',
+            'ai_composer_cloudflare_model.regex' => 'Use a Workers AI model name like anthropic/claude-haiku-4.5 or @cf/openai/gpt-oss-120b.',
             'ai_composer_music_model.in' => 'Pick a music model that sings lyrics.',
             'ai_credit_packs.regex' => 'List pack sizes like "100, 500:10, 2000:20".',
         ]);
@@ -94,8 +98,7 @@ class AiSettingsController extends Controller
      */
     protected function savedMessage(): string
     {
-        $missing = collect([AiEngine::REPLICATE, AiSettings::musicModel()->engine(), AiSettings::stemsEngine()])
-            ->unique(fn(AiEngine $engine) => $engine->value)
+        $missing = collect(AiSettings::chosenEngines())
             ->reject(fn(AiEngine $engine) => $engine->available())
             ->map(fn(AiEngine $engine) => $engine->missingKeys());
 
@@ -118,6 +121,9 @@ class AiSettingsController extends Controller
                 'composerMusicModels' => array_map(fn(MusicModel $model) => $model::ID, AiSettings::lyricMusicModels()),
                 'engines' => collect(AiEngine::cases())
                     ->mapWithKeys(fn(AiEngine $engine) => [$engine->value => $engine->label()])
+                    ->all(),
+                'toolEngines' => collect(AiSettings::ENGINES)
+                    ->map(fn(array $engines) => array_map(fn(AiEngine $engine) => $engine->value, $engines))
                     ->all(),
             ],
             'currency' => (string) Providers::config('app_currency', 'USD'),

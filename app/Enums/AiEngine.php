@@ -12,12 +12,14 @@ enum AiEngine: string
 {
     case REPLICATE = 'replicate';
     case SUNO = 'suno';
+    case CLOUDFLARE = 'cloudflare';
 
     public function label(): string
     {
         return match ($this) {
             self::REPLICATE => 'Replicate',
             self::SUNO => 'Suno',
+            self::CLOUDFLARE => 'Cloudflare Workers AI',
         };
     }
 

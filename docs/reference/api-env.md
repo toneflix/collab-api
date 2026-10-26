@@ -159,6 +159,13 @@ See [Payment providers](../guide/payments) for webhooks and dashboard settings.
 | `SUNO_URL` | `https://api.sunoapi.org` | Suno API base URL. |
 | `SUNO_UPLOAD_URL` | `https://sunoapiorg.redpandaai.co` | sunoapi.org's file host, for audio Suno needs to read. |
 | `SUNO_TIMEOUT` | `600` | Seconds to wait for one Suno task. |
+| `CLOUDFLARE_ACCOUNT_ID` | | Cloudflare account that runs Workers AI. Needed only when admins pick Workers AI for a tool. |
+| `CLOUDFLARE_API_TOKEN` | | A Cloudflare API token with the Workers AI permission. |
+| `CLOUDFLARE_AI_URL` | `https://api.cloudflare.com/client/v4` | Cloudflare API base URL. |
+| `CLOUDFLARE_AI_TIMEOUT` | `600` | Seconds to wait for one Workers AI run. |
+| `CLOUDFLARE_LYRICS_MODEL` | `@cf/openai/whisper-large-v3-turbo` | Whisper model for lyrics on Workers AI. |
+| `CLOUDFLARE_COMPOSER_MODEL` | `anthropic/claude-haiku-4.5` | Composer's writing model on Workers AI, until an admin picks one on `/admin/ai`. |
+| `CLOUDFLARE_MODERATOR_MODEL` | `anthropic/claude-haiku-4.5` | AI moderator model on Workers AI. It must read images. |
 
 ## Notifications
 

@@ -85,6 +85,20 @@ return [
             'timeout' => (int) env('SUNO_TIMEOUT', 600),
         ],
 
+        // Music, lyrics and language models on Cloudflare Workers AI, through App\Services\Ai\Cloudflare.
+        'cloudflare' => [
+            'account' => env('CLOUDFLARE_ACCOUNT_ID'),
+            'key' => env('CLOUDFLARE_API_TOKEN'),
+            'url' => env('CLOUDFLARE_AI_URL', 'https://api.cloudflare.com/client/v4'),
+            // Longest wait for one run, in seconds
+            'timeout' => (int) env('CLOUDFLARE_AI_TIMEOUT', 600),
+            'models' => [
+                'lyrics' => ['default' => env('CLOUDFLARE_LYRICS_MODEL', '@cf/openai/whisper-large-v3-turbo')],
+                'moderator' => ['default' => env('CLOUDFLARE_MODERATOR_MODEL', 'anthropic/claude-haiku-4.5')],
+                'composer' => ['default' => env('CLOUDFLARE_COMPOSER_MODEL', 'anthropic/claude-haiku-4.5')],
+            ],
+        ],
+
         'anthropic' => [
             'driver' => 'anthropic',
             'key' => env('ANTHROPIC_API_KEY'),

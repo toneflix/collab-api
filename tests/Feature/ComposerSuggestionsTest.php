@@ -274,7 +274,7 @@ class ComposerSuggestionsTest extends TestCase
             ->assertJsonPath('data.fields.composer_word_source.value', 'local')
             ->assertJsonPath('data.fields.ai_composer_model.value', 'anthropic/claude-4.5-sonnet')
             ->assertJsonPath('data.client.costs.composer.verse', 4)
-            ->assertJsonPath('data.options.composerMusicModels', ['minimax/music-2.5', 'minimax/music-1.5', 'suno/music'])
+            ->assertJsonPath('data.options.composerMusicModels', ['minimax/music-2.5', 'minimax/music-1.5', 'suno/music', 'minimax/music-2.6'])
             ->assertJsonPath('data.keys.datamuse.0.env', 'DATAMUSE_API_KEY');
 
         $this->assertSame('local', ComposerSettings::wordSource());

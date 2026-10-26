@@ -1,10 +1,10 @@
 # AI tools and credits
 
-The studio's AI panel can **generate music** from a prompt and **split a track into stems**, and the lyric sheet can **write out the lyrics** sung on a stem. They run on two engines, [Replicate](https://replicate.com) (the default for everything) and [Suno](#suno) (optional, for music and stems), and are paid for with AI credits. Released tracks also get their lyrics written out automatically, paid for by the app (see [Lyrics](#lyrics)).
+The studio's AI panel can **generate music** from a prompt and **split a track into stems**, and the lyric sheet can **write out the lyrics** sung on a stem. They run on three engines, [Replicate](https://replicate.com) (the default for everything), [Suno](#suno) (optional, for music and stems) and [Cloudflare Workers AI](#cloudflare-workers-ai) (optional, for music, lyrics, Composer and the AI moderator), and are paid for with AI credits. Released tracks also get their lyrics written out automatically, paid for by the app (see [Lyrics](#lyrics)).
 
 ## Setup
 
-1. Set `REPLICATE_API_TOKEN` in the API's `.env`, and `SUNO_API_KEY` to use Suno. Replicate allows only 6 new predictions a minute with a burst of 1 while the account has under $5 of credit or no payment method, which throttles the split that follows a song. Add a payment method and turn on auto-reload. Throttled requests wait and are tried again up to 3 times.
+1. Set `REPLICATE_API_TOKEN` in the API's `.env`, `SUNO_API_KEY` to use Suno, and `CLOUDFLARE_ACCOUNT_ID` with `CLOUDFLARE_API_TOKEN` to use Workers AI. Replicate allows only 6 new predictions a minute with a burst of 1 while the account has under $5 of credit or no payment method, which throttles the split that follows a song. Add a payment method and turn on auto-reload. Throttled requests wait and are tried again up to 3 times.
 2. Keep a queue worker running. Each AI request is a queued `RunAiJob` that can take up to 25 minutes.
 3. Keep the scheduler running. `ai:sweep` refunds jobs that stopped without finishing.
 4. On `/admin/ai` (needs `manage-configuration`), check that AI Tools is on and set prices.
@@ -18,7 +18,7 @@ The tools stay hidden unless admins turned them on, an engine's key is set, and 
 | --- | --- | --- |
 | Music generation | `elevenlabs/music` | "Music model" on `/admin/ai` (`REPLICATE_MUSIC_MODEL` sets the default) |
 | Stem separation | `ryan5453/demucs` | "Stem split engine" on `/admin/ai` (Demucs or Suno); `REPLICATE_STEMS_MODEL` |
-| Lyrics transcription | `openai/whisper` (large-v3) | `REPLICATE_LYRICS_MODEL` |
+| Lyrics transcription | `openai/whisper` (large-v3) | "Lyrics engine" on `/admin/ai` (Replicate or Workers AI); `REPLICATE_LYRICS_MODEL`, `CLOUDFLARE_LYRICS_MODEL` |
 
 Generated music is added to the project track as a stem, or split into stems first if the person asks.
 
@@ -33,10 +33,12 @@ Admins pick one music model on `/admin/ai`, and each has its own credit price. A
 | `minimax/music-1.5` | 10 per song | Model decides, up to 4 min | Required, 10 to 600 characters | Song, voice or instrumental, over 15 s |
 | `stability-ai/stable-audio-2.5` | 40 per track | Chosen, up to 190 s | No vocals | No |
 | `suno/music` (Suno engine) | 12 per song | Chosen on v5.5 and v6, 10 s to 5 min | Optional, up to 5000 characters; Suno writes them when left out | Song, over 6 s |
+| `elevenlabs/music-v2` (Workers AI) | 5 per 10 seconds | Chosen, up to the longest generated track | In the prompt | No |
+| `minimax/music-2.6` (Workers AI) | 30 per song | Model decides | Optional, up to 3500 characters; MiniMax writes them when left out | No |
 
 - MiniMax 2.5 is asked for lossless WAV. WAV output is split as it is and stored once as a 320 kbps MP3.
 - A reference is a stem on the track (`reference_stem_id`) or an uploaded MP3 or WAV up to 20 MB (`reference`), with `reference_kind`. Uploads wait on the uploads disk under `ai/references/` and are deleted once the job has run.
-- Models are classes in `App\Services\Ai\Music`. `MusicModel` holds what every model shares; `ReplicateMusic` runs a Replicate model through the Laravel AI SDK, and `SunoMusic` runs Suno. A subclass sets its id, engine, credit setting, pricing, the form rules, how the form maps to the model's inputs and how a song is made (`generate()`). Add one to `MusicModel::MODELS` and its credit setting to `AiSettings::FIELDS`.
+- Models are classes in `App\Services\Ai\Music`. `MusicModel` holds what every model shares; `ReplicateMusic` runs a Replicate model through the Laravel AI SDK, `SunoMusic` runs Suno, and `CloudflareMusic` runs a Workers AI partner model. A subclass sets its id, engine, credit setting, pricing, the form rules, how the form maps to the model's inputs and how a song is made (`generate()`). Add one to `MusicModel::MODELS` and its credit setting to `AiSettings::FIELDS`.
 - The default prices are rough, since Replicate doesn't publish all of these. Check the cost of a run on Replicate and adjust.
 - Licensing: ElevenLabs Music is cleared for commercial use under its music terms, and Stable Audio is trained on licensed music. MiniMax's terms only say the customer owns outputs "to the extent permitted by law", with no explicit commercial grant. Demucs and Whisper are MIT.
 
@@ -51,6 +53,18 @@ Suno is an optional second engine, through [sunoapi.org](https://sunoapi.org). R
 - **Stems.** Suno splits into vocals and instrumental, or up to 12 stems ("Suno stems"). A song Suno made is split by its Suno id; other audio is uploaded to sunoapi.org's file host first (kept 3 days). Parts come back as MP3 and are stored as they are.
 - **Polling.** Suno requires a callback URL for every task. It points at `POST /api/ai/suno/callback`, which only answers, because callbacks carry no signature. Jobs poll Suno every 5 seconds instead, up to `SUNO_TIMEOUT`.
 - **Prices.** A Suno credit costs $0.005. A song request is 12 Suno credits (about $0.06), vocals/instrumental 10 ($0.05), 12 stems 50 ($0.25). Default AI credit prices keep the usual margin: 12 per song, 50 per Suno split. sunoapi.org allows 20 requests per 10 seconds.
+
+## Cloudflare Workers AI
+
+[Workers AI](https://developers.cloudflare.com/ai/models/) is an optional third engine. Replicate stays the default; admins move each tool over on `/admin/ai`.
+
+- **Keys.** `CLOUDFLARE_ACCOUNT_ID` and an API token with the Workers AI permission in `CLOUDFLARE_API_TOKEN`. Partner models (ElevenLabs, MiniMax, Anthropic) are billed through Cloudflare's unified billing, so the account needs credit for them.
+- **Music.** "Music model" offers ElevenLabs Music v2 (`elevenlabs/music-v2`, $0.0025 per second, so the default 5 credits per 10 seconds keeps the usual margin) and MiniMax Music 2.6 (`minimax/music-2.6`, $0.15 a song plus $0.01 when it writes the lyrics; 30 credits by default). Both answer with a link to the finished song in the same request.
+- **Lyrics.** "Lyrics engine" runs Whisper (`@cf/openai/whisper-large-v3-turbo`, `CLOUDFLARE_LYRICS_MODEL`). Workers AI takes the audio inside the request, so it is first made into a 16 kHz mono MP3.
+- **Composer.** "Composer engine" with "Composer writing model on Cloudflare" (`anthropic/claude-haiku-4.5` by default, `CLOUDFLARE_COMPOSER_MODEL`). Any Workers AI text model works: Anthropic models go through the Messages API, the others through the OpenAI-style chat API.
+- **AI moderator.** "AI moderator engine", with `CLOUDFLARE_MODERATOR_MODEL` (`anthropic/claude-haiku-4.5`). Release covers are sent as image links, so the model must read images.
+- **Not on Workers AI.** Stem splitting: Workers AI has no source separation model, so stems stay on Demucs or Suno.
+- **In code.** `App\Services\Ai\Cloudflare\CloudflareClient` runs models (`ai/run`), and chats with language models. `AiSettings::ENGINES` lists which engines each switchable tool can use.
 
 ## Audio quality
 
@@ -81,10 +95,13 @@ Admin settings on `/admin/ai`:
 | Price per credit | By app currency, for example 0.02 USD or 30 NGN |
 | Credit packs | `100, 500:10, 2000:20` (pack size, then an optional discount in percent) |
 | Music model | `elevenlabs/music` |
+| Lyrics, Composer and AI moderator engines | Replicate |
 | ElevenLabs Music credits per 10 seconds | 5 |
 | MiniMax Music 2.5 credits per song | 30 |
 | MiniMax Music 1.5 credits per song | 10 |
 | Stable Audio 2.5 credits per track | 40 |
+| ElevenLabs Music v2 credits per 10 seconds | 5 |
+| MiniMax Music 2.6 credits per song | 30 |
 | Stem split credits | 5 |
 | Longest generated track | 300 seconds |
 | Lyrics credits | 2 |

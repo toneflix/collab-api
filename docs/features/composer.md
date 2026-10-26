@@ -61,11 +61,11 @@ POST /api/creator/songs/{song}/suggestions
 
 Suggestions need the **AI studio tools** plan feature (`ai_tools`, on Premium by default) and credits. Each kind has its own cost on `/admin/ai` (`ai_composer_line_credits` 1, `ai_composer_block_credits` 1, `ai_composer_verse_credits` 2, `ai_composer_rewrite_credits` 1). When the model fails or every option is dropped, the credits go back.
 
-The model is Claude Haiku on Replicate by default (**Composer Writing Model**, `ai_composer_model`, starting from `REPLICATE_COMPOSER_MODEL`), with the same `REPLICATE_API_TOKEN` as the other AI tools. It sees the song's title, mood, language, tempo, about 60 lines before the cursor and 12 after, and the typical syllable count of nearby lines. It is told to write original lines only and to keep songs not marked explicit clean. Options with words on the lyrics review list are dropped, and so are options with explicit words on songs not marked explicit.
+The model is Claude Haiku on Replicate by default (**Composer Writing Model**, `ai_composer_model`, starting from `REPLICATE_COMPOSER_MODEL`), with the same `REPLICATE_API_TOKEN` as the other AI tools. **Composer Engine** moves it to Cloudflare Workers AI, where **Composer Writing Model on Cloudflare** (`ai_composer_cloudflare_model`, starting from `CLOUDFLARE_COMPOSER_MODEL`) picks the model. It sees the song's title, mood, language, tempo, about 60 lines before the cursor and 12 after, and the typical syllable count of nearby lines. It is told to write original lines only and to keep songs not marked explicit clean. Options with words on the lyrics review list are dropped, and so are options with explicit words on songs not marked explicit.
 
 Before a block or verse suggestion the song is saved as a `before_ai` version, so the writer can go back.
 
-**Composer Song Model** (`ai_composer_music_model`, MiniMax Music 2.5 by default) is the music model that sings songs made from Composer lyrics. Only models that take lyrics can be picked (MiniMax 2.5, MiniMax 1.5 and Suno).
+**Composer Song Model** (`ai_composer_music_model`, MiniMax Music 2.5 by default) is the music model that sings songs made from Composer lyrics. Only models that take lyrics can be picked (MiniMax 2.5, MiniMax 1.5, Suno and MiniMax 2.6 on Workers AI).
 
 ## Song to project
 
