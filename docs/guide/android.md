@@ -30,7 +30,9 @@ Each notification category has its own Android channel, so people can mute one k
 
 ## Publishing to Google Play
 
-`.github/workflows/android.yml` builds a signed app bundle (AAB) and uploads it to Google Play on every push to the `playstore` branch. It can also be started by hand from the Actions tab. Pull requests that touch the app only check that it builds.
+`.github/workflows/android.yml` builds a signed app bundle (AAB) and uploads it to Google Play on every push to the `playstore` branch. Pull requests that touch the app only check that it builds.
+
+To build without publishing, start the workflow by hand from the Actions tab (*Android > Run workflow*) and leave **deploy** unticked. The run keeps the signed bundle and APK as an artifact for 30 days; the APK installs directly on a phone. Tick **deploy** to also upload the bundle to Google Play.
 
 ### One-time setup
 
@@ -42,7 +44,7 @@ Each notification category has its own Android channel, so people can mute one k
    base64 -w0 upload.keystore   # the value for ANDROID_KEYSTORE_BASE64
    ```
 
-2. **Create the app in the Play Console** with package name `com.toneflix.music.app`, turn on Play App Signing, and upload the first bundle by hand (Google Play doesn't accept API uploads for an app that has never had a release). The workflow keeps each bundle as a run artifact, so the first one can come from a manual run.
+2. **Create the app in the Play Console** with package name `com.toneflix.music.app`, turn on Play App Signing, and upload the first bundle by hand (Google Play doesn't accept API uploads for an app that has never had a release). A manual run without deploy gives you that first bundle.
 3. **Create a service account for uploads**: in Google Cloud, create a service account with a JSON key and enable the Google Play Android Developer API. In the Play Console, invite the service account's email under *Users and permissions* with permission to release to testing tracks (and production if the workflow should publish there).
 
 ### Secrets and variables
