@@ -36,8 +36,6 @@ class UserResource extends JsonResource
             'id' => $this->id,
             'name' => $this->fullname,
             'type' => 'user',
-            'email' => $this->email,
-            'phone' => $this->phone,
             'about' => $this->about,
             'imageUrl' => $this->images['image'],
             'fullname' => $this->fullname,
@@ -65,6 +63,8 @@ class UserResource extends JsonResource
             'country' => $this->country,
             'state' => $this->state,
             $this->mergeWhen($previleged, fn() => [
+                'email' => $this->email,
+                'phone' => $this->phone,
                 'city' => $this->city,
                 'address' => $this->address,
                 'roles' => $this->getRoleNames(),
