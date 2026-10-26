@@ -192,6 +192,35 @@ class LyricsTest extends TestCase
             && $request['input']['translate'] === false);
     }
 
+    public function test_a_written_sheet_is_timed_from_a_stem_without_changing_its_words(): void
+    {
+        $this->fakeWhisper();
+        $stem = $this->stem(['start' => 10]);
+        Sanctum::actingAs($this->owner);
+
+        $this->putJson($this->url(), ['lines' => [
+            ['text' => 'The sun is rising over Lagos!'],
+            ['text' => 'We dey shine, we dey shine'],
+            ['text' => 'A line nobody sang'],
+        ]])
+            ->assertAccepted();
+
+        $id = $this->postJson($this->url("stems/{$stem}/lyrics"), ['mode' => 'sync'])
+            ->assertCreated()
+            ->json('data.id');
+
+        $this->assertSame(2, AiJob::findOrFail($id)->output['lines']);
+
+        $lyric = app(Lyrics::class)->for($this->track);
+        $this->assertSame(Lyric::WRITTEN, $lyric->source);
+        $this->assertSame(['The sun is rising over Lagos!', 'We dey shine, we dey shine', 'A line nobody sang'], array_column($lyric->lines, 'text'));
+        $this->assertSame(11.0, (float) $lyric->lines[0]['start']);
+        $this->assertSame(14.5, (float) $lyric->lines[0]['end']);
+        $this->assertSame(14.5, (float) $lyric->lines[1]['start']);
+        $this->assertSame(18.25, (float) $lyric->lines[1]['end']);
+        $this->assertNull($lyric->lines[2]['start']);
+    }
+
     public function test_words_in_trimmed_off_audio_are_left_out(): void
     {
         $this->fakeWhisper();

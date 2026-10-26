@@ -41,20 +41,32 @@ class LyricsController extends Controller
     }
 
     /**
-     * Start writing out the lyrics sung on a stem, as an AI job.
+     * Start writing out the lyrics sung on a stem, as an AI job. With mode
+     * `sync` it times the lines already on the sheet instead.
      */
     public function transcribe(Request $request, AiStudio $studio, Project $project, ProjectTrack $track, ProjectTrackStem $stem)
     {
         $this->authorize('update', $track);
 
+        $data = $request->validate([
+            'mode' => ['nullable', 'string', 'in:replace,sync'],
+        ]);
+
+        $sync = ($data['mode'] ?? null) === 'sync';
+
         $job = $studio->start($request->user(), $track, 'lyrics', [
             'stem_id' => $stem->id,
             'title' => (string) $stem->title,
+            'mode' => $sync ? 'sync' : 'replace',
         ]);
+
+        $message = $sync
+            ? 'Timing the lyric sheet to the stem. The times show up when they\'re ready.'
+            : 'Writing out the lyrics. They show up on the lyric sheet when they\'re ready.';
 
         return (new AiJobResource($job))
             ->additional([
-                'message' => 'Writing out the lyrics. They show up on the lyric sheet when they\'re ready.',
+                'message' => $message,
                 'status' => 'success',
                 'status_code' => HttpStatus::CREATED,
             ])

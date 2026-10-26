@@ -13,6 +13,7 @@ use App\Services\Ai\AiSettings;
 use App\Services\Ai\AiStudio;
 use App\Services\Ai\Credits;
 use App\Services\Limits;
+use App\Services\Lyrics\LyricAligner;
 use App\Services\Lyrics\Lyrics;
 use App\Services\Reputation;
 use Illuminate\Support\Facades\DB;
@@ -30,6 +31,7 @@ class SongProjects
 
     public function __construct(
         protected Lyrics $lyrics,
+        protected LyricAligner $aligner,
         protected AiStudio $studio,
     ) {}
 
@@ -103,7 +105,8 @@ class SongProjects
     }
 
     /**
-     * Put the song's current lyrics on its track's lyric sheet.
+     * Put the song's current lyrics on its track's lyric sheet, keeping the
+     * times of lines that are still there. Released tracks follow the sheet.
      */
     public function syncLyrics(Song $song, User $user): ?Lyric
     {
@@ -113,7 +116,10 @@ class SongProjects
             throw ValidationException::withMessages(['song' => 'This song has no project yet.']);
         }
 
-        return $this->lyrics->save($track, $song->lyricLines(), Lyric::WRITTEN, $user, ['language' => $song->editorSettings()['language']]);
+        $before = $this->lyrics->for($track)?->lines ?? [];
+        $lines = $this->aligner->keepTimes($before, $song->lyricLines());
+
+        return $this->lyrics->save($track, $lines, Lyric::WRITTEN, $user, ['language' => $song->editorSettings()['language']]);
     }
 
     /**
