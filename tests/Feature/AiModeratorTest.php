@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Events\RealtimeMessage;
 use App\Models\AiReview;
 use App\Models\Artist;
 use App\Models\ArtistClaim;
@@ -11,8 +12,10 @@ use App\Models\User;
 use App\Notifications\ModerationNotice;
 use App\Services\Ai\AiSettings;
 use App\Services\Moderation\Ai\ModeratorModel;
+use App\Services\Realtime\RealtimeSettings;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Notification;
 use Laravel\Sanctum\Sanctum;
 use Spatie\Permission\Models\Permission;
@@ -73,6 +76,7 @@ class AiModeratorTest extends TestCase
     protected function tearDown(): void
     {
         AiSettings::flush();
+        RealtimeSettings::flush();
         Cache::forget('configuration::build');
 
         parent::tearDown();
@@ -133,6 +137,28 @@ class AiModeratorTest extends TestCase
         $this->getJson('/api/admin/moderation/claims?status=approved')
             ->assertJsonPath('data.0.reviewer', 'AI moderator')
             ->assertJsonPath('data.0.aiReview.decision', 'approve');
+    }
+
+    public function test_reviews_are_announced_to_content_admins(): void
+    {
+        $claim = $this->claim();
+        $this->answers = [$this->verdict('approve', 95)];
+
+        RealtimeSettings::update(['realtime_driver' => 'reverb']);
+        Event::fake([RealtimeMessage::class]);
+
+        Sanctum::actingAs($this->admin);
+        $this
+            ->postJson("/api/admin/moderation/claims/{$claim->id}/ai-review")
+            ->assertAccepted();
+
+        $sent = Event::dispatched(RealtimeMessage::class, fn(RealtimeMessage $m) => $m->event === 'ai.review')
+            ->map(fn(array $event) => $event[0])
+            ->values();
+
+        $this->assertSame([AiReview::QUEUED, AiReview::DECIDED], $sent->map(fn(RealtimeMessage $m) => $m->data['status'])->all());
+        $this->assertSame('private-admin.content', (string) $sent[0]->channels[0]);
+        $this->assertSame($claim->id, $sent[1]->data['subject_id']);
     }
 
     public function test_manual_reviews_always_decide(): void

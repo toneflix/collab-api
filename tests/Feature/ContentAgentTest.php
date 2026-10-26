@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\Feature;
+use App\Events\RealtimeMessage;
 use App\Jobs\AdvanceAgentRun;
 use App\Jobs\RenderMix;
 use App\Jobs\RunAiJob;
@@ -23,8 +24,10 @@ use App\Services\Ai\AiSettings;
 use App\Services\Ai\Credits;
 use App\Services\Ai\Music\MusicVersions;
 use App\Services\Composer\Ai\LyricModel;
+use App\Services\Realtime\RealtimeSettings;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
@@ -102,6 +105,7 @@ class ContentAgentTest extends TestCase
     protected function tearDown(): void
     {
         AiSettings::flush();
+        RealtimeSettings::flush();
 
         parent::tearDown();
     }
@@ -536,6 +540,29 @@ class ContentAgentTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.steps.0.key', 'artist:a1')
             ->assertJsonPath('data.counts.tracks', 2);
+    }
+
+    public function test_runs_are_announced_to_content_admins_and_the_owner(): void
+    {
+        $owner = $this->ownerWith(500);
+        $this->answers[] = $this->plan();
+
+        RealtimeSettings::update(['realtime_driver' => 'reverb']);
+        Event::fake([RealtimeMessage::class]);
+
+        $run = $this->advance($this->queueRun($owner));
+
+        $sent = Event::dispatched(RealtimeMessage::class, fn(RealtimeMessage $m) => $m->event === 'agent.run')
+            ->map(fn(array $event) => $event[0])
+            ->values();
+
+        $this->assertSame(
+            ['private-admin.content', 'private-user.' . $owner->id],
+            array_map('strval', $sent[0]->channels),
+        );
+        $this->assertSame(AgentRun::QUEUED, $sent[0]->data['status']);
+        $this->assertSame($run->status, $sent->last()->data['status']);
+        $this->assertTrue($sent->every(fn(RealtimeMessage $m) => $m->data['id'] === $run->id));
     }
 
     public function test_a_plan_that_is_not_json_fails_and_refunds(): void

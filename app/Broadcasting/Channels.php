@@ -53,6 +53,11 @@ class Channels
         $broadcaster->channel('user.{id}', function (User $user, string $id) {
             return (string) $user->id === $id;
         });
+
+        // Content agent runs and AI moderator reviews, for content admins.
+        $broadcaster->channel('admin.content', function (User $user) {
+            return (bool) $user->checkPermissionTo('manage-content');
+        });
     }
 
     /**
@@ -108,5 +113,10 @@ class Channels
         $id = $user instanceof User ? $user->getKey() : $user;
 
         return new PrivateChannel("user.{$id}");
+    }
+
+    public static function adminContent(): PrivateChannel
+    {
+        return new PrivateChannel('admin.content');
     }
 }

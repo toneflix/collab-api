@@ -227,6 +227,15 @@ class RealtimeTest extends TestCase
         $this
             ->postJson('/api/realtime/auth', ['channel_name' => 'private-user.' . $this->stranger->id, 'socket_id' => '1.1'])
             ->assertOk();
+        $this
+            ->postJson('/api/realtime/auth', ['channel_name' => 'private-admin.content', 'socket_id' => '1.1'])
+            ->assertForbidden();
+
+        $this->stranger->givePermissionTo(Permission::findOrCreate('manage-content', 'web'));
+
+        $this
+            ->postJson('/api/realtime/auth', ['channel_name' => 'private-admin.content', 'socket_id' => '1.1'])
+            ->assertOk();
     }
 
     public function test_auth_is_unavailable_when_realtime_is_off(): void
