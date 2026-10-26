@@ -3,6 +3,7 @@
 namespace App\Services\Studio\Mix;
 
 use App\Services\Studio\Mix\Effects\MixEffect;
+use App\Services\Studio\StudioPlugins;
 
 /**
  * A stem's place in the mix, read from the `meta` the studio saves: its
@@ -137,7 +138,7 @@ class MixStem
             fn(array $e) => ($e['type'] ?? null) === 'wam' && ! self::bool($e['bypassed'] ?? false),
         );
 
-        if (! $plugin || ! is_array($print) || ! is_string($print['file'] ?? null) || $print['file'] === '') {
+        if (! $plugin || ! StudioPlugins::enabled() || ! is_array($print) || ! is_string($print['file'] ?? null) || $print['file'] === '') {
             return null;
         }
 

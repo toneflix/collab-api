@@ -10,6 +10,7 @@ use App\Models\ProjectTrack;
 use App\Models\ProjectTrackStem;
 use App\Models\User;
 use App\Services\Audio\StemAudio;
+use App\Services\Settings\AppConfiguration;
 use App\Services\Studio\StemFiles;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\UploadedFile;
@@ -40,6 +41,7 @@ class StemPrintTest extends TestCase
 
         Storage::fake(config('filesystems.default'));
         Bus::fake([TagAudio::class]);
+        AppConfiguration::update(['studio_plugins' => true]);
 
         $this->owner = User::factory()
             ->create();
@@ -220,6 +222,29 @@ class StemPrintTest extends TestCase
         $this->stem->save();
 
         $this->assertEqualsWithDelta(2, $this->mixLength(), 0.1);
+    }
+
+    public function test_the_mix_plays_the_stem_while_studio_plugins_are_turned_off(): void
+    {
+        Sanctum::actingAs($this->owner);
+
+        $this->print(3, 1)->assertAccepted();
+
+        AppConfiguration::update(['studio_plugins' => false]);
+
+        $this->assertEqualsWithDelta(2, $this->mixLength(), 0.1);
+    }
+
+    public function test_prints_are_refused_while_studio_plugins_are_turned_off(): void
+    {
+        Sanctum::actingAs($this->owner);
+
+        AppConfiguration::update(['studio_plugins' => false]);
+
+        $this
+            ->print(1)
+            ->assertForbidden()
+            ->assertJsonPath('message', 'Studio plugins are turned off.');
     }
 
     public function test_copies_of_a_stem_leave_its_print_behind(): void

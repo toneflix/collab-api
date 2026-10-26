@@ -273,6 +273,18 @@ class ConfigurationSeeder extends Seeder
                 'hint' => 'Hold published releases in a review queue until an admin approves them.',
                 'secret' => false,
             ],
+            [
+                'key' => 'studio_plugins',
+                'title' => 'Studio Plugins',
+                'value' => false,
+                'type' => 'boolean',
+                'count' => null,
+                'max' => null,
+                'col' => 6,
+                'autogrow' => false,
+                'hint' => 'Let people add Web Audio Module plugins from other sites to their stems.',
+                'secret' => false,
+            ],
         ]);
     }
 }
