@@ -49,11 +49,11 @@ class SongProjects
         $writer = $song->user_id === $user->id;
 
         if ($writer && $song->track) {
-            throw ValidationException::withMessages(['song' => 'This song already has a project. Update its lyric sheet instead.']);
+            throw ValidationException::withMessages(['song' => 'This composition already has a project. Update its lyric sheet instead.']);
         }
 
         if ($song->lyricLines() === []) {
-            throw ValidationException::withMessages(['song' => 'Write some lyrics before making a project from this song.']);
+            throw ValidationException::withMessages(['song' => 'Write some lyrics before making a project from this composition.']);
         }
 
         if (! $project) {
@@ -118,7 +118,7 @@ class SongProjects
     public function generate(Song $song, User $user, array $data): AiJob
     {
         if (! $song->track) {
-            throw ValidationException::withMessages(['song' => 'This song has no project yet.']);
+            throw ValidationException::withMessages(['song' => 'This composition has no project yet.']);
         }
 
         $input = $this->musicInput($song, $user, $data);
@@ -135,7 +135,7 @@ class SongProjects
         $track = $song->track;
 
         if (! $track) {
-            throw ValidationException::withMessages(['song' => 'This song has no project yet.']);
+            throw ValidationException::withMessages(['song' => 'This composition has no project yet.']);
         }
 
         $before = $this->lyrics->for($track)?->lines ?? [];
@@ -167,7 +167,7 @@ class SongProjects
         $prompt = trim((string) ($data['prompt'] ?? ''));
 
         if (mb_strlen($lyrics) < $min || mb_strlen($lyrics) > $max) {
-            throw ValidationException::withMessages(['generate' => "AI sings lyrics of {$min} to {$max} characters. This song has " . mb_strlen($lyrics) . '.']);
+            throw ValidationException::withMessages(['generate' => "AI sings lyrics of {$min} to {$max} characters. This composition has " . mb_strlen($lyrics) . '.']);
         }
 
         if (mb_strlen($prompt) < $promptMin || mb_strlen($prompt) > $promptMax) {

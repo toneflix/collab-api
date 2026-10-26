@@ -45,7 +45,7 @@ class SongController extends Controller
 
         return (new SongResource($song))
             ->additional([
-                'message' => 'Song created.',
+                'message' => 'Composition created.',
                 'status' => 'success',
                 'status_code' => HttpStatus::CREATED,
             ])
@@ -93,7 +93,7 @@ class SongController extends Controller
 
         return (new SongResource($song))
             ->additional([
-                'message' => $synced ? 'Song saved and its lyric sheet updated.' : 'Song saved.',
+                'message' => $synced ? 'Composition saved and its lyric sheet updated.' : 'Composition saved.',
                 'status' => 'success',
                 'status_code' => HttpStatus::ACCEPTED,
             ])
@@ -109,7 +109,7 @@ class SongController extends Controller
 
         return (new SongResource($song))
             ->additional([
-                'message' => 'Song deleted.',
+                'message' => 'Composition deleted.',
                 'status' => 'success',
                 'status_code' => HttpStatus::ACCEPTED,
             ])

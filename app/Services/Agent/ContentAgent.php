@@ -248,7 +248,7 @@ class ContentAgent
             ->count();
 
         if ($songs > 0 && $hasSongs + $newSongs > $songs) {
-            throw new RuntimeException("The plan needs {$newSongs} new songs, more than the account's plan allows ({$songs}).");
+            throw new RuntimeException("The plan needs {$newSongs} new compositions, more than the account's plan allows ({$songs}).");
         }
     }
 

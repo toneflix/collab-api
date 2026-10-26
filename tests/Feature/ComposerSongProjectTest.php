@@ -183,7 +183,7 @@ class ComposerSongProjectTest extends TestCase
             'body' => "[Verse 1]\nA new opening line\nFirst line here\nSecond line, changed",
         ])
             ->assertAccepted()
-            ->assertJsonPath('message', 'Song saved and its lyric sheet updated.');
+            ->assertJsonPath('message', 'Composition saved and its lyric sheet updated.');
 
         $this->getJson("/api/tracks/{$released->id}/lyrics")
             ->assertOk()
@@ -278,7 +278,7 @@ class ComposerSongProjectTest extends TestCase
             'body' => "[Verse 1]\nA line written after the project",
         ])
             ->assertAccepted()
-            ->assertJsonPath('message', 'Song saved and its lyric sheet updated.');
+            ->assertJsonPath('message', 'Composition saved and its lyric sheet updated.');
 
         $lyric = Lyric::query()
             ->whereMorphedTo('lyricable', $track)
@@ -290,7 +290,7 @@ class ComposerSongProjectTest extends TestCase
             'title' => 'A new title',
         ])
             ->assertAccepted()
-            ->assertJsonPath('message', 'Song saved.');
+            ->assertJsonPath('message', 'Composition saved.');
 
         $this->getJson("/api/creator/projects/{$track->project_id}/tracks/{$track->id}")
             ->assertOk()
