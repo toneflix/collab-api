@@ -22,7 +22,7 @@ class SongForkController extends Controller
 
         return (new SongResource($fork))
             ->additional([
-                'message' => 'Song forked.',
+                'message' => 'Composition forked.',
                 'status' => 'success',
                 'status_code' => HttpStatus::CREATED,
             ])

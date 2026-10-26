@@ -29,8 +29,8 @@ class SongPublishingController extends Controller
         $song->load(['beat', 'track.project', 'forkedFrom']);
 
         $message = match (true) {
-            ! $was && $song->isPublished() => 'Song published.',
-            $was && ! $song->isPublished() => 'Song unpublished.',
+            ! $was && $song->isPublished() => 'Composition published.',
+            $was && ! $song->isPublished() => 'Composition unpublished.',
             default => 'Publishing settings saved.',
         };
 

@@ -71,7 +71,7 @@ class ComposerPublishingTest extends TestCase
 
         $this->putJson("/api/creator/songs/{$song->id}/publishing", ['published' => true, 'allow_forks' => true])
             ->assertAccepted()
-            ->assertJsonPath('message', 'Song published.')
+            ->assertJsonPath('message', 'Composition published.')
             ->assertJsonPath('data.allowForks', true)
             ->assertJsonPath('data.allowProjects', false)
             ->assertJsonPath('data.slug', "late-night-train-{$song->id}");
@@ -105,7 +105,7 @@ class ComposerPublishingTest extends TestCase
             ->assertAccepted();
         $this->putJson("/api/creator/songs/{$song->id}/publishing", ['published' => false])
             ->assertAccepted()
-            ->assertJsonPath('message', 'Song unpublished.');
+            ->assertJsonPath('message', 'Composition unpublished.');
         $this->putJson("/api/creator/songs/{$song->id}/publishing", ['published' => true])
             ->assertAccepted()
             ->assertJsonPath('data.slug', $slug);
