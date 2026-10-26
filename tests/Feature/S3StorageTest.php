@@ -163,6 +163,8 @@ class S3StorageTest extends TestCase
 
         $stem = $files->addStem($projectTrack, $owner, base_path('tests/fixtures/audio.mp3'), 'Split vocals');
         $this->assertTrue(Storage::disk('s3')->exists('media/music/stem/' . $stem->src));
+        $this->assertSame(filesize(base_path('tests/fixtures/audio.mp3')), $stem->fileSize('src'));
+        $this->assertSame('audio/mpeg', $stem->fileMime('src'));
 
         $local = $files->local($stem);
         $this->assertFileEquals(base_path('tests/fixtures/audio.mp3'), $local);

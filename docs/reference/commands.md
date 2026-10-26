@@ -29,6 +29,7 @@ These run from `php artisan schedule:run`, which cron calls every minute (see [P
 | `php artisan reverb:restart` | After a deploy, when Reverb runs on the server. |
 | `php artisan cache:forget audio::chromaprint` | After installing or changing FFmpeg. |
 | `php artisan tracks:durations` | Once, to measure released tracks that show 0:00. `--all` measures every track again. New tracks are measured when their audio is saved. |
+| `php artisan files:meta` | Once, to save the size and mime type of files and stems uploaded before they were stored. New uploads save them when written, so file sizes never ask the bucket. |
 
 ## Run a scheduled task by hand
 

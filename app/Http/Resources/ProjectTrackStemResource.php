@@ -25,7 +25,7 @@ class ProjectTrackStemResource extends JsonResource
         return [
             'id' => $this->id,
             'src' => $this->src,
-            'size' => $this->mediaFileInfo['src']['size'],
+            'size' => $this->fileSize('src') ?? $this->mediaFileInfo['src']['size'],
             'name' => $this->meta['name'] ?? '',
             'title' => $this->title,
             'stemId' => $this->stem_id,

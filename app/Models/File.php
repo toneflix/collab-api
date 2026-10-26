@@ -2,15 +2,19 @@
 
 namespace App\Models;
 
+use App\Contracts\StoresFileMeta;
 use App\Helpers\Providers;
+use App\Traits\RemembersFileMeta;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Facades\Auth;
 use Toneflix\LaravelFileable\Media;
 
-class File extends Model
+class File extends Model implements StoresFileMeta
 {
+    use RemembersFileMeta;
+
     protected $fillable = [
         'model',
         'meta',
@@ -61,11 +65,7 @@ class File extends Model
     {
         static::saving(function (File $model) {
             if (! $model->exists || ((bool) Providers::config('allow_file_updates'))) {
-                $meta_type = isset($model->meta['type']) ? ".{$model->meta['type']}" : '';
-
-                $mediaPath = $model->mediaPaths[$model->fileable_type . $meta_type] ?? 'default';
-
-                $model->file = (new Media)->save($mediaPath, 'file', $model->file, $model->fileIndex);
+                $model->file = (new Media)->save($model->mediaCollection(), 'file', $model->file, $model->fileIndex);
 
                 if (! $model->file) {
                     unset($model->file);
@@ -77,12 +77,10 @@ class File extends Model
             }
         });
 
+        static::saved(fn(File $file) => $file->rememberFileMeta());
+
         static::deleted(function (File $file) {
-            $meta_type = isset($file->meta['type']) ? ".{$file->meta['type']}" : '';
-
-            $mediaPath = $file->mediaPaths[$file->fileable_type . $meta_type] ?? 'default';
-
-            $file->file = (new Media)->delete($mediaPath, $file->file);
+            $file->file = (new Media)->delete($file->mediaCollection(), $file->file);
         });
     }
 
@@ -101,9 +99,7 @@ class File extends Model
     {
         return Attribute::make(
             get: function () {
-                $meta_type = isset($this->meta['type']) ? ".{$this->meta['type']}" : '';
-
-                $mediaPath = $this->mediaPaths[$this->fileable_type . $meta_type] ?? 'default';
+                $mediaPath = $this->mediaCollection();
 
                 $wt = '';
                 if (! str($mediaPath)->exactly('default')) {
@@ -163,9 +159,7 @@ class File extends Model
     {
         return Attribute::make(
             get: function () {
-                $meta_type = isset($this->meta['type']) ? ".{$this->meta['type']}" : '';
-
-                $mediaPath = $this->mediaPaths[$this->fileable_type . $meta_type] ?? 'default';
+                $mediaPath = $this->mediaCollection();
 
                 $wt = '';
                 if (! str($mediaPath)->exactly('default')) {
@@ -192,12 +186,31 @@ class File extends Model
     {
         return Attribute::make(
             get: function () {
-                $meta_type = isset($this->meta['type']) ? ".{$this->meta['type']}" : '';
+                $mediaPath = $this->mediaCollection();
 
-                $mediaPath = $this->mediaPaths[$this->fileable_type . $meta_type] ?? 'default';
+                $info = (new Media)->mediaInfo($mediaPath, $this->file);
 
-                return (new Media)->mediaInfo($mediaPath, $this->file);
+                return [
+                    ...$info,
+                    'size' => $this->fileSize('file') ?? $info['size'],
+                    'mime' => $this->fileMime('file') ?? $info['mime'],
+                ];
             },
         );
+    }
+
+    /**
+     * The fileable collection this file is stored in.
+     */
+    public function mediaCollection(): string
+    {
+        $metaType = isset($this->meta['type']) ? ".{$this->meta['type']}" : '';
+
+        return $this->mediaPaths[$this->fileable_type . $metaType] ?? 'default';
+    }
+
+    public function fileMetaFields(): array
+    {
+        return ['file' => $this->mediaCollection()];
     }
 }
