@@ -44,26 +44,20 @@ enum ArtworkKind: string
     }
 
     /**
-     * The full prompt for the model, from the person's own words and what
-     * the artwork is for.
+     * The full prompt for the model, from the person's own words, the kind
+     * of picture and the genre. Titles and names stay out, since image
+     * models write any quoted words onto the picture.
      *
-     * @param  array{title?: ?string, artist?: ?string, genre?: ?string}  $context
+     * @param  array{genre?: ?string}  $context
      */
     public function prompt(string $prompt, array $context = []): string
     {
-        $about = collect([
-            filled($context['title'] ?? null) ? "titled \"{$context['title']}\"" : null,
-            filled($context['artist'] ?? null) ? "by {$context['artist']}" : null,
-            filled($context['genre'] ?? null) ? "in the {$context['genre']} genre" : null,
-        ])
-            ->filter()
-            ->join(', ');
+        $genre = filled($context['genre'] ?? null) ? " for {$context['genre']} music" : '';
 
         return collect([
-            $this->subject() . ($about ? ", {$about}" : '') . '.',
+            $this->subject() . $genre . '.',
             rtrim(trim($prompt), '.') . '.',
-            'Striking composition, rich detail, professional quality.',
-            'No text, letters, words, logos or watermarks.',
+            'A purely visual image with a striking composition, rich detail and professional quality.',
         ])
             ->join(' ');
     }
