@@ -8,6 +8,7 @@ use App\Services\Explorers\Albums;
 use App\Services\Explorers\Artists;
 use App\Services\Explorers\Creators;
 use App\Services\Explorers\Projects;
+use App\Services\Explorers\Songs;
 use App\Services\Explorers\Tracks;
 use Illuminate\Http\Request;
 
@@ -22,6 +23,7 @@ class ExploreController extends Controller
         new Projects($request, $data);
         new Albums($request, $data);
         new Artists($request, $data);
+        new Songs($request, $data);
 
         return (new ExploreResource($data))
             ->additional([

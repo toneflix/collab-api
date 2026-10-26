@@ -2,22 +2,31 @@
 
 namespace App\Models;
 
+use App\Contracts\CanBeTakenDown;
 use App\Enums\MusicalKey;
+use App\Traits\TakesDown;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
+use Toneflix\LaravelFileable\Traits\Fileable;
 
 /**
  * A song written in Composer: lyrics with [Section] tags, a private
  * scratchpad and notes, an optional beat and the writer's editor settings.
+ * A published song's lyrics and artwork are public, and its writer chooses
+ * whether others may fork it or start a project with it.
  *
  * @property array<string, mixed>|null $settings
+ * @property Carbon|null $published_at
  */
-class Song extends Model
+class Song extends Model implements CanBeTakenDown
 {
+    use Fileable;
     use SoftDeletes;
+    use TakesDown;
 
     /**
      * Editor settings a writer can change, with their defaults.
@@ -55,6 +64,9 @@ class Song extends Model
             'line_count' => 'integer',
             'word_count' => 'integer',
             'versioned_at' => 'datetime',
+            'published_at' => 'datetime',
+            'allow_forks' => 'boolean',
+            'allow_projects' => 'boolean',
         ];
     }
 
@@ -64,6 +76,13 @@ class Song extends Model
             $song->line_count = count($song->lyricLines());
             $song->word_count = preg_match_all("/[\\p{L}\\p{N}']+/u", implode(' ', $song->lyricLines()));
         });
+    }
+
+    public function registerFileable()
+    {
+        $this->fileableLoader([
+            'image' => 'artwork',
+        ], 'default', true, false);
     }
 
     public function user(): BelongsTo
@@ -87,6 +106,49 @@ class Song extends Model
     public function versions(): HasMany
     {
         return $this->hasMany(SongVersion::class);
+    }
+
+    /**
+     * The song this one was forked from.
+     */
+    public function forkedFrom(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'forked_from_id');
+    }
+
+    public function forks(): HasMany
+    {
+        return $this->hasMany(self::class, 'forked_from_id');
+    }
+
+    public function scopePublished(Builder $query): Builder
+    {
+        return $query->whereNotNull($this->qualifyColumn('published_at'));
+    }
+
+    public function isPublished(): bool
+    {
+        return $this->published_at !== null;
+    }
+
+    public function whereOwnedBy(Builder $query, int $userId): void
+    {
+        $query->where($this->qualifyColumn('user_id'), $userId);
+    }
+
+    public function moderationOwnerId(): ?int
+    {
+        return (int) $this->user_id;
+    }
+
+    public function moderationSummary(): array
+    {
+        return [
+            'title' => (string) $this->title,
+            'subtitle' => 'Composer song',
+            'image' => $this->images['image'] ?? null,
+            'link' => $this->slug ? '/songs/' . $this->slug : null,
+        ];
     }
 
     public function scopeSearch(Builder $query, ?string $term): Builder

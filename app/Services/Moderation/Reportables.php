@@ -5,6 +5,7 @@ namespace App\Services\Moderation;
 use App\Contracts\Reportable;
 use App\Models\Comment;
 use App\Models\Release;
+use App\Models\Song;
 use App\Models\Sound;
 use App\Models\Track;
 use App\Models\User;
@@ -23,6 +24,7 @@ class Reportables
         'release' => Release::class,
         'track' => Track::class,
         'sound' => Sound::class,
+        'song' => Song::class,
         'comment' => Comment::class,
         'user' => User::class,
     ];
@@ -36,6 +38,7 @@ class Reportables
         'release' => ['title', 'version'],
         'track' => ['title'],
         'sound' => ['name'],
+        'song' => ['title'],
         'comment' => ['comment'],
         'user' => ['firstname', 'lastname', 'username', 'email'],
     ];
