@@ -110,13 +110,15 @@ class S3StorageTest extends TestCase
         $this->assertSame(200, $this->http($url));
     }
 
-    public function test_missing_files_fall_back_to_a_default(): void
+    public function test_links_are_built_without_asking_the_bucket(): void
     {
         $user = User::factory()
             ->create(['image' => 'not-there.png']);
 
-        $this->assertNotEmpty($user->files['image']);
-        $this->assertStringNotContainsString('not-there.png', $user->files['image']);
+        // Stored names are trusted on S3, so a missing file gets a link that answers 404.
+        $url = $user->files['image'];
+        $this->assertStringStartsWith($this->bucketUrl() . '/avatars/not-there.png', $url);
+        $this->assertSame(404, $this->http($url));
     }
 
     public function test_stems_upload_to_s3_and_get_working_links(): void
@@ -134,7 +136,7 @@ class S3StorageTest extends TestCase
             ->firstOrFail();
         $this->assertTrue(Storage::disk('s3')->exists('media/music/stem/' . $stem->src));
 
-        $this->assertRedirectsToS3($stem->getFiles['src']['dynamicLink']);
+        $this->assertLoadsFromS3($stem->getFiles['src']['dynamicLink']);
     }
 
     public function test_track_previews_upload_to_s3(): void
@@ -151,7 +153,7 @@ class S3StorageTest extends TestCase
 
         $projectTrack->refresh();
         $this->assertTrue(Storage::disk('s3')->exists('media/music/tracks/' . $projectTrack->preview));
-        $this->assertRedirectsToS3($projectTrack->getFiles['preview']['dynamicLink']);
+        $this->assertLoadsFromS3($projectTrack->getFiles['preview']['dynamicLink']);
     }
 
     public function test_stems_made_by_tools_are_written_to_and_read_from_s3(): void
@@ -182,7 +184,7 @@ class S3StorageTest extends TestCase
 
         $path = (new Media)->mediaInfo('voice_notes', Comment::find($id)->meta['voice']['file'])['path'];
         $this->assertTrue(Storage::disk('s3')->exists($path));
-        $this->assertRedirectsToS3($this->getJson($url)->json('data.0.voice.url'));
+        $this->assertLoadsFromS3($this->getJson($url)->json('data.0.voice.url'));
 
         $this
             ->deleteJson("{$url}/{$id}")
@@ -203,7 +205,7 @@ class S3StorageTest extends TestCase
 
         $file = Sound::findOrFail($sound['id'])->file;
         $this->assertTrue(Storage::disk('s3')->exists('media/sounds/' . $file));
-        $this->assertRedirectsToS3($sound['url']);
+        $this->assertLoadsFromS3($sound['url']);
 
         $stemId = $this->postJson("/api/creator/projects/{$project->id}/tracks/{$projectTrack->id}/sounds", ['sound_id' => $sound['id']])
             ->assertCreated()
@@ -280,11 +282,18 @@ class S3StorageTest extends TestCase
     }
 
     /**
-     * Dynamic links go through the API, which sends the browser on to a
-     * short-lived S3 link that other origins can load.
+     * The link loads the file from S3: either it is a signed bucket link, or it goes
+     * through the API, which sends the browser on to one that other origins can load.
      */
-    protected function assertRedirectsToS3(string $url): void
+    protected function assertLoadsFromS3(string $url): void
     {
+        if (str_starts_with($url, $this->bucketUrl())) {
+            $this->assertStringContainsString('X-Amz-Signature', $url);
+            $this->assertSame(200, $this->http($url));
+
+            return;
+        }
+
         $response = $this->get($url);
         $response->assertRedirect();
         $response->assertHeader('Access-Control-Allow-Origin', '*');

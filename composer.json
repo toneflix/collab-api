@@ -36,7 +36,7 @@
         "stripe/stripe-php": "^22.0",
         "toneflix/approvable-notifications": "^2.0",
         "toneflix/kudisms-notification": "^2.0",
-        "toneflix/laravel-fileable": "^3.1",
+        "toneflix/laravel-fileable": "^3.1.1",
         "toneflix/laravel-resource-modifier": "^2.0",
         "toneflix/paystack-php": "^1.0",
         "toneflix/social-interactions": "^2.0",
