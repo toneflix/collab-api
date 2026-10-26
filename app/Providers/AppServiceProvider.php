@@ -13,6 +13,7 @@ use App\Services\Composer\Ai\ReplicateLyricModel;
 use App\Services\Moderation\Ai\CloudflareModeratorModel;
 use App\Services\Moderation\Ai\ModeratorModel;
 use App\Services\Moderation\Ai\ReplicateModeratorModel;
+use App\Services\Notifications\Fcm;
 use App\Services\Notifications\WebPush;
 use App\Services\Payment\FlutterwaveGateway;
 use App\Services\Payment\PaymentGateway;
@@ -24,6 +25,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
+use Kreait\Firebase\Contract\Messaging;
 use Laravel\Ai\Ai;
 use Minishlink\WebPush\WebPush as WebPushClient;
 use NotificationChannels\WebPush\ReportHandler;
@@ -62,6 +64,7 @@ class AppServiceProvider extends ServiceProvider
             ->when(PushChannel::class)
             ->needs(ReportHandlerInterface::class)
             ->give(ReportHandler::class);
+        $this->app->bind(Messaging::class, fn() => Fcm::messaging());
     }
 
     /**
