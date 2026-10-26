@@ -80,13 +80,13 @@ class LyricWriter
             $credits->refund($spend, 'Composer suggestion failed');
             report($e);
 
-            abort(HttpStatus::BAD_GATEWAY->value, 'No suggestion this time. Your credits were put back, so try again.');
+            abort(HttpStatus::BAD_GATEWAY->value, 'No suggestion this time. Credits refunded.');
         }
 
         if ($options === []) {
             $credits->refund($spend, 'Composer suggestion failed');
 
-            abort(HttpStatus::BAD_GATEWAY->value, 'No suggestion this time. Your credits were put back, so try again.');
+            abort(HttpStatus::BAD_GATEWAY->value, 'No suggestion this time. Credits refunded.');
         }
 
         if (in_array($kind, [self::BLOCK, self::VERSE], true)) {

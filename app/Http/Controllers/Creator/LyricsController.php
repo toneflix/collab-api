@@ -61,8 +61,8 @@ class LyricsController extends Controller
         ]);
 
         $message = $sync
-            ? 'Timing the lyric sheet to the stem. The times show up when they\'re ready.'
-            : 'Writing out the lyrics. They show up on the lyric sheet when they\'re ready.';
+            ? 'Timing the lyric sheet.'
+            : 'Writing out the lyrics.';
 
         return (new AiJobResource($job))
             ->additional([

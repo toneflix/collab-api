@@ -199,7 +199,7 @@ class FreesoundController extends Controller
             abort(HttpStatus::BAD_GATEWAY->value, $e->getMessage());
         }
 
-        abort_unless($sound['cc0'], HttpStatus::UNPROCESSABLE_ENTITY->value, 'Only CC0 sounds can be imported, so they can be used in anything you sell.');
+        abort_unless($sound['cc0'], HttpStatus::UNPROCESSABLE_ENTITY->value, 'Only CC0 sounds can be imported.');
 
         Limits::for($user)->ensureRoomFor((int) $sound['size'], 'id');
 

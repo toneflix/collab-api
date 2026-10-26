@@ -41,7 +41,7 @@ class ArtistClaimController extends Controller
 
         return (new ArtistClaimResource($claim))
             ->additional([
-                'message' => 'Thanks. We\'ll review your claim and let you know.',
+                'message' => 'Claim sent for review.',
                 'status' => 'success',
                 'status_code' => HttpStatus::CREATED,
             ])

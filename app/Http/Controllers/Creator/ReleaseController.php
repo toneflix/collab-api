@@ -242,7 +242,7 @@ class ReleaseController extends Controller
         return (new ReleaseResource($release))
             ->additional([
                 'message' => $release->isInReview() && $request->boolean('publish')
-                    ? 'Release submitted for review. It goes live once an admin approves it.'
+                    ? 'Release submitted for review.'
                     : __('Release :0 successfully.', [$request->publish ? 'published' : 'updated']),
                 'status' => 'success',
                 'status_code' => HttpStatus::ACCEPTED,

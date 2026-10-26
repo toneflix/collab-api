@@ -77,7 +77,7 @@ class SoundSettingsController extends Controller
 
         SoundSettings::update(['freesound_library_account' => (string) $request->user()->id]);
 
-        return $this->settings($request, 'The library now downloads original files with your Freesound account.', HttpStatus::ACCEPTED);
+        return $this->settings($request, 'Freesound connected.', HttpStatus::ACCEPTED);
     }
 
     /**
@@ -95,7 +95,7 @@ class SoundSettingsController extends Controller
 
         SyncSoundLibrary::dispatch();
 
-        return $this->settings($request, 'Sync started. New sounds show up as they download.', HttpStatus::ACCEPTED);
+        return $this->settings($request, 'Sync started.', HttpStatus::ACCEPTED);
     }
 
     /**

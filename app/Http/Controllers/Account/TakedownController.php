@@ -44,7 +44,7 @@ class TakedownController extends Controller
 
         return (new TakedownResource($takedown))
             ->additional([
-                'message' => 'Appeal sent. A moderator will look at it again.',
+                'message' => 'Appeal sent.',
                 'status' => 'success',
                 'status_code' => HttpStatus::ACCEPTED,
             ])
