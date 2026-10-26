@@ -12,8 +12,8 @@ use Illuminate\Support\Collection;
  * Tracks to play once the player's queue runs out, so playback never stops.
  *
  * Only playable tracks from live releases are picked: related tracks first,
- * then ones from the seed's album, artists and label, then ones in the
- * listener's interest genres, then the rest. When the exclusions leave
+ * then ones from the seed's album, artists and label, then ones matching the
+ * listener's interests, then the rest. When the exclusions leave
  * nothing, they are dropped, so the only track that is never returned is
  * the seed.
  */
@@ -106,7 +106,7 @@ class UpNext
                 ? ['exists (select 1 from releases where releases.id = tracks.release_id and releases.record_label = ?)', [$this->seed->release->record_label]]
                 : null,
             $this->user
-                ? ['tracks.genre_id in (select genre_id from genre_user where genre_user.user_id = ?)', [$this->user->id]]
+                ? [Track::interestsSql(), Track::interestsBindings($this->user)]
                 : null,
         ])
             ->filter()

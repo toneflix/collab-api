@@ -20,6 +20,11 @@ use Toneflix\LaravelFileable\Media;
 class ReleaseController extends Controller
 {
     /**
+     * How many topics one release can have.
+     */
+    public const MAX_TOPICS = 10;
+
+    /**
      * Display a listing of the resource.
      */
     public function index(Request $request)
@@ -44,6 +49,7 @@ class ReleaseController extends Controller
     public function store(Request $request, ReleaseVersions $versions)
     {
         $request->merge(['release_date', $request->input('releaseDate', now())]);
+        $this->topicsFromString($request);
 
         $this->validate($request, [
             'slug' => ['nullable', 'unique:releases,slug'],
@@ -69,6 +75,8 @@ class ReleaseController extends Controller
             'contains_music' => ['nullable', 'boolean'],
             'price' => ['nullable', 'numeric', 'min:0', 'max:9999999'],
             'downloadable' => ['nullable', 'boolean'],
+            'topics' => ['nullable', 'array', 'max:' . self::MAX_TOPICS],
+            'topics.*' => ['integer', 'distinct', 'exists:topics,id'],
         ], [
             'artist_id' => 'Artist not found.',
             'project_id' => 'Project not found.',
@@ -121,6 +129,7 @@ class ReleaseController extends Controller
         $release->downloadable = $request->boolean('downloadable', false);
         $release->save();
 
+        $this->saveTopics($request, $release);
         $this->saveTracks($request, $release);
 
         if ($wasDraft && ! $release->draft) {
@@ -156,6 +165,7 @@ class ReleaseController extends Controller
             ->firstOrFail();
 
         $request->merge(['release_date', $request->input('releaseDate', now())]);
+        $this->topicsFromString($request);
 
         $this->validate($request, [
             'slug' => ['nullable', "unique:releases,slug,$id,id"],
@@ -183,6 +193,8 @@ class ReleaseController extends Controller
             'contains_music' => ['nullable', 'boolean'],
             'price' => ['nullable', 'numeric', 'min:0', 'max:9999999'],
             'downloadable' => ['nullable', 'boolean'],
+            'topics' => ['nullable', 'array', 'max:' . self::MAX_TOPICS],
+            'topics.*' => ['integer', 'distinct', 'exists:topics,id'],
         ], [
             'artist_id' => 'Artist not found.',
             'project_id' => 'Project not found.',
@@ -229,6 +241,8 @@ class ReleaseController extends Controller
         $release->downloadable = $request->boolean('downloadable', $release->downloadable);
         $release->save();
 
+        $this->saveTopics($request, $release);
+
         if ($draft && ! $release->draft) {
             $versions->published($release, $request->input('retire', []));
         }
@@ -249,6 +263,28 @@ class ReleaseController extends Controller
             ])
             ->response()
             ->setStatusCode(HttpStatus::ACCEPTED->value);
+    }
+
+    /**
+     * Form uploads send topics as one comma-separated value; read it as a list.
+     */
+    protected function topicsFromString(Request $request): void
+    {
+        if (is_string($request->input('topics'))) {
+            $topics = array_values(array_filter(explode(',', $request->input('topics')), 'strlen'));
+
+            $request->merge(['topics' => $topics]);
+        }
+    }
+
+    /**
+     * Tag the release with the topics sent, when the form sent any field for them.
+     */
+    protected function saveTopics(Request $request, Release $release): void
+    {
+        if ($request->has('topics')) {
+            $release->topics()->sync($request->input('topics') ?? []);
+        }
     }
 
     public function saveTracks(Request $request, Release $release): void

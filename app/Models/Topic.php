@@ -8,8 +8,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 /**
- * A music topic people pick as an interest, like Live music or Beatmaking.
- * Anyone signed in can add one, and everyone can pick it after that.
+ * A music topic, like Heartbreak or Live music. People pick topics as
+ * interests and creators tag releases with them. Anyone signed in can add
+ * one, and everyone can pick it after that.
  */
 class Topic extends Model
 {
@@ -33,6 +34,12 @@ class Topic extends Model
     public function users(): BelongsToMany
     {
         return $this->belongsToMany(User::class)
+            ->withTimestamps();
+    }
+
+    public function releases(): BelongsToMany
+    {
+        return $this->belongsToMany(Release::class)
             ->withTimestamps();
     }
 

@@ -29,6 +29,15 @@ return new class extends Migration
             $table->index('topic_id');
         });
 
+        Schema::create('release_topic', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('release_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('topic_id')->constrained()->cascadeOnDelete();
+            $table->timestampsTz();
+            $table->unique(['release_id', 'topic_id']);
+            $table->index('topic_id');
+        });
+
         $now = now();
         $topics = require database_path('data/topics.php');
 
@@ -50,6 +59,7 @@ return new class extends Migration
      */
     public function down(): void
     {
+        Schema::dropIfExists('release_topic');
         Schema::dropIfExists('topic_user');
         Schema::dropIfExists('topics');
     }

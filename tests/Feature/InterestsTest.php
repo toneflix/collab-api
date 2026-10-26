@@ -300,4 +300,77 @@ class InterestsTest extends TestCase
             ->assertUnprocessable()
             ->assertJsonValidationErrors('genres');
     }
+
+    public function test_creators_tag_releases_with_topics(): void
+    {
+        $creator = User::factory()
+            ->create();
+        $release = $this->makeRelease(Genre::factory()->create());
+
+        $release
+            ->forceFill(['user_id' => $creator->id])
+            ->save();
+
+        $topics = Topic::query()
+            ->whereIn('slug', ['heartbreak', 'soulful'])
+            ->pluck('id');
+
+        Sanctum::actingAs($creator);
+
+        $form = [
+            'title' => $release->title,
+            'genre_id' => (string) $release->genre_id,
+            'artist_id' => (string) $release->artist_id,
+        ];
+
+        $this->putJson("/api/creator/releases/{$release->id}?with=topics", [...$form, 'topics' => $topics->implode(',')])
+            ->assertAccepted()
+            ->assertJsonCount(2, 'data.topics');
+
+        $this->putJson("/api/creator/releases/{$release->id}", $form)
+            ->assertAccepted();
+
+        $this->assertCount(2, $release->topics()->get());
+
+        $this->putJson("/api/creator/releases/{$release->id}", [...$form, 'topics' => ''])
+            ->assertAccepted();
+
+        $this->assertCount(0, $release->topics()->get());
+    }
+
+    public function test_for_you_matches_release_topics_and_titles(): void
+    {
+        $user = User::factory()
+            ->create();
+        $genre = Genre::factory()
+            ->create();
+        $heartbreak = Topic::query()
+            ->where('slug', 'heartbreak')
+            ->firstOrFail();
+        $joy = Topic::query()
+            ->where('slug', 'joy')
+            ->firstOrFail();
+
+        $user->topics()->attach([$heartbreak->id, $joy->id]);
+
+        $tagged = $this->makeRelease($genre);
+        $titled = $this->makeRelease($genre);
+        $other = $this->makeRelease($genre);
+
+        $tagged->topics()->attach($heartbreak);
+        $titled->tracks()->update(['title' => 'Songs of joy']);
+        $other->tracks()->update(['title' => 'Joyride']);
+
+        $this->onlyTheseReleases();
+
+        Sanctum::actingAs($user);
+
+        $ids = collect($this->getJson('/api/tracks?filters=for_you')->assertOk()->json('data'))
+            ->pluck('id');
+
+        $this->assertEqualsCanonicalizing(
+            [...$tagged->tracks->pluck('id'), ...$titled->tracks->pluck('id')],
+            $ids->all(),
+        );
+    }
 }

@@ -37,6 +37,7 @@ class ReleaseResource extends JsonResource
             'reviewStatus' => $this->review_status,
             'reviewNote' => $this->when((bool) $user && (int) $user->id === (int) $this->user_id, $this->review_note),
             'genre' => $this->when($with->contains('genre'), fn() => new GenreResource($this->genre)),
+            'topics' => $this->when($with->contains('topics'), fn() => new TopicCollection($this->topics)),
             'tracks' => $this->when($with->contains('tracks'), fn() => new TrackCollection($this->tracks)),
             'artist' => $this->when($with->contains('artist'), [
                 'id' => $this->artist->id,

@@ -1,10 +1,47 @@
 <?php
 
 /**
- * Music topics people can pick as interests, by slug. The create_topics
- * migration inserts any that are missing. People can add more.
+ * Music topics, by slug: moods and feelings first, then music and making it.
+ * People pick them as interests and creators tag releases with them. The
+ * create_topics migration inserts any that are missing. People can add more.
  */
 return [
+    // Moods and feelings
+    'soulful' => 'Soulful',
+    'joy' => 'Joy',
+    'love' => 'Love',
+    'heartbreak' => 'Heartbreak',
+    'sadness' => 'Sadness',
+    'pain' => 'Pain',
+    'hope' => 'Hope',
+    'healing' => 'Healing',
+    'nostalgia' => 'Nostalgia',
+    'peace' => 'Peace',
+    'faith' => 'Faith',
+    'gratitude' => 'Gratitude',
+    'freedom' => 'Freedom',
+    'loneliness' => 'Loneliness',
+    'longing' => 'Longing',
+    'grief' => 'Grief',
+    'anger' => 'Anger',
+    'melancholy' => 'Melancholy',
+    'euphoria' => 'Euphoria',
+    'romance' => 'Romance',
+    'self-love' => 'Self love',
+    'confidence' => 'Confidence',
+    'motivation' => 'Motivation',
+    'hustle' => 'Hustle',
+    'struggle' => 'Struggle',
+    'victory' => 'Victory',
+    'celebration' => 'Celebration',
+    'feel-good' => 'Feel good',
+    'calm' => 'Calm',
+    'late-night' => 'Late night',
+    'rainy-day' => 'Rainy day',
+    'summer' => 'Summer',
+    'road-trip' => 'Road trip',
+
+    // Music and making it
     'live-music' => 'Live music',
     'concerts' => 'Concerts',
     'festivals' => 'Festivals',
