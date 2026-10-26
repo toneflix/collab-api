@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Services\Lyrics\LyricMatch;
+use App\Services\Releases\Downloads;
 use Illuminate\Http\Request;
 use Toneflix\ResourceModifier\Services\Json\JsonResource;
 
@@ -56,6 +57,7 @@ class TrackResource extends JsonResource
             'artistId' => $this->artist?->id,
             'price' => (float) ($this->release?->price ?? 0),
             'locked' => $locked,
+            'downloadable' => Downloads::available($this->resource, $user),
             'stemsPrice' => $this->stems_price,
             'stemsForSale' => $this->when($with->contains('stems'), fn() => $this->stemsForSale()),
             'stemsUnlocked' => $this->when($with->contains('stems'), fn() => $this->stemsUnlockedFor($user)),

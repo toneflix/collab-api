@@ -68,6 +68,7 @@ class ReleaseController extends Controller
             'record_label' => ['nullable', 'string'],
             'contains_music' => ['nullable', 'boolean'],
             'price' => ['nullable', 'numeric', 'min:0', 'max:9999999'],
+            'downloadable' => ['nullable', 'boolean'],
         ], [
             'artist_id' => 'Artist not found.',
             'project_id' => 'Project not found.',
@@ -117,6 +118,7 @@ class ReleaseController extends Controller
         $release->release_date = $request->input('release_date');
         $release->contains_music = $request->boolean('contains_music', true);
         $release->price = $request->input('price', 0) ?? 0;
+        $release->downloadable = $request->boolean('downloadable', false);
         $release->save();
 
         $this->saveTracks($request, $release);
@@ -180,6 +182,7 @@ class ReleaseController extends Controller
             'release_date' => ['nullable', 'string'],
             'contains_music' => ['nullable', 'boolean'],
             'price' => ['nullable', 'numeric', 'min:0', 'max:9999999'],
+            'downloadable' => ['nullable', 'boolean'],
         ], [
             'artist_id' => 'Artist not found.',
             'project_id' => 'Project not found.',
@@ -223,6 +226,7 @@ class ReleaseController extends Controller
         $release->release_date = $request->input('release_date', now());
         $release->contains_music ??= $request->boolean('contains_music', true);
         $release->price = $request->input('price', $release->price) ?? 0;
+        $release->downloadable = $request->boolean('downloadable', $release->downloadable);
         $release->save();
 
         if ($draft && ! $release->draft) {

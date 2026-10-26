@@ -49,6 +49,7 @@ class ReleaseFactory extends Factory
             'release_date' => now(),
             'record_label' => "$lets Music",
             'contains_music' => $this->faker->boolean(),
+            'downloadable' => true,
         ];
     }
 

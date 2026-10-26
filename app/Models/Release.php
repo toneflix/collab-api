@@ -73,6 +73,7 @@ class Release extends Model implements CanBeTakenDown, CanVisit
         'release_date',
         'contains_music',
         'price',
+        'downloadable',
     ];
 
     /**
@@ -102,6 +103,7 @@ class Release extends Model implements CanBeTakenDown, CanVisit
             'retire_on_approval' => 'array',
             'price' => 'float',
             'explicit' => 'boolean',
+            'downloadable' => 'boolean',
             'release_date' => 'date:Y/m/d',
             'contains_music' => 'boolean',
         ];

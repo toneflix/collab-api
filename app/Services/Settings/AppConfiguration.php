@@ -28,6 +28,7 @@ class AppConfiguration
         'review_releases' => ['Review Releases', 'boolean', ['required', 'boolean'], 'Hold published releases in a review queue until an admin approves them.'],
         'verify_email' => ['Verify Email', 'boolean', ['required', 'boolean'], 'Ask new users to confirm their email.'],
         'verify_phone' => ['Verify Phone', 'boolean', ['required', 'boolean'], 'Ask new users to confirm their phone number.'],
+        'track_downloads' => ['Track Downloads', 'boolean', ['required', 'boolean'], 'Let listeners whose plan includes downloads save tracks whose creator allowed it. People who bought a paid release can always download it.'],
         'studio_plugins' => ['Studio Plugins', 'boolean', ['required', 'boolean'], 'Let people add Web Audio Module plugins from other sites to their stems. Plugins run code from those sites in the browser, and stems using them are recorded and uploaded when saved.'],
         'reference_prefix' => ['Payment Reference Prefix', 'string', ['required', 'string', 'max:10', 'regex:/^[A-Za-z0-9_-]+$/'], 'Starts every payment reference.'],
     ];

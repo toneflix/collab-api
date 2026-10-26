@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\Feature;
 use App\Enums\HttpStatus;
 use App\Enums\MusicalKey;
 use App\Http\Resources\ActionResource;
@@ -13,6 +12,7 @@ use App\Models\ProjectTrackStem;
 use App\Models\Release;
 use App\Models\Track;
 use App\Models\User;
+use App\Services\Releases\Downloads;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 
@@ -143,8 +143,7 @@ class TrackController extends Controller
     }
 
     /**
-     * A download link for offline listening. Premium listeners get any track they can
-     * stream; owners and buyers of a paid release get its tracks too.
+     * A download link for offline listening, following the rules in Downloads.
      */
     public function download(Request $request, Track $track)
     {
@@ -153,10 +152,14 @@ class TrackController extends Controller
 
         abort_unless($track->isUnlockedFor($user), HttpStatus::PAYMENT_REQUIRED->value, 'Buy this release to download it.');
 
-        $paidFor = $track->release && $track->release->price > 0;
+        abort_unless(
+            Downloads::available($track, $user),
+            HttpStatus::FORBIDDEN->value,
+            'This track is not available for download.'
+        );
 
         abort_unless(
-            $user->feature(Feature::DOWNLOADS) || $paidFor,
+            Downloads::allowedFor($track, $user),
             HttpStatus::FORBIDDEN->value,
             'Downloads are not included in your plan.'
         );

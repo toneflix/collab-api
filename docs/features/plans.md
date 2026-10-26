@@ -28,6 +28,15 @@ Features are listed in `App\Enums\Feature`. Each has a type:
 
 The fallback is what an account gets when its plan does not set a feature.
 
+### Downloads
+
+A track can be downloaded when one of these holds (`App\Services\Releases\Downloads`):
+
+- the person owns the release, or bought it (a paid release);
+- their plan has `downloads`, the creator ticked **Allow downloads** when publishing (`releases.downloadable`), and the admin **Track Downloads** setting (`track_downloads`) is on.
+
+Releases published before the opt-in existed keep downloads on. Tracks carry `downloadable` so the app can hide the download button.
+
 ## Plans
 
 Plans live in the `plans` table. The first migration creates **Free** (the default plan) and **Premium**. Admins with `manage-plans` edit them at `/admin/plans`: price, features and billing options.
