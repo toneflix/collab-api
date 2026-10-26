@@ -62,6 +62,8 @@ class UserResource extends JsonResource
             'youFollow' => $user ? $this->isFollowedBy($user) : false,
             'country' => $this->country,
             'state' => $this->state,
+            'accountType' => $this->account_type?->value,
+            'identities' => $this->identities ?? [],
             $this->mergeWhen($previleged, fn() => [
                 'contentAgent' => (bool) $this->content_agent,
                 'email' => $this->email,
@@ -74,6 +76,7 @@ class UserResource extends JsonResource
                 'lastAttempt' => $this->last_attempt,
                 'emailVerifiedAt' => $this->email_verified_at,
                 'phoneVerifiedAt' => $this->phone_verified_at,
+                'interestsAt' => $this->interests_at,
             ]),
             'createdAt' => $this->created_at,
             'updatedAt' => $this->updated_at,

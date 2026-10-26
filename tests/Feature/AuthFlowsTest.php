@@ -124,6 +124,8 @@ class AuthFlowsTest extends TestCase
             'email' => $email,
             'password' => 'Password123!',
             'password_confirmation' => 'Password123!',
+            'account_type' => 'creator',
+            'identities' => ['artist'],
             'accept' => true,
         ])
             ->assertCreated();

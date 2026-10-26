@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\AccountType;
 use App\Helpers\Providers;
 use App\Http\Controllers\ArtistClaimController;
 use App\Http\Controllers\ArtistController;
@@ -55,6 +56,7 @@ Route::get('/initialize', function () {
             'sounds' => SoundSettings::clientConfig(),
             'push' => WebPush::clientConfig(),
             'auth' => AuthPages::clientConfig(),
+            'accountTypes' => AccountType::options(),
         ],
     ];
 });

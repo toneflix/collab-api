@@ -58,6 +58,9 @@ class TrackController extends Controller
                 $filters->contains('recently_played') && $request->user('sanctum'),
                 fn(Builder $q) => $q->recentlyPlayed($request->user('sanctum'), 3)
             )->when(
+                $filters->contains('for_you') && $request->user('sanctum'),
+                fn(Builder $q) => $q->forYou($request->user('sanctum'))
+            )->when(
                 $filters->contains('trending'),
                 fn(Builder $q) => $q->popular('top', $request->period)
             )->when(

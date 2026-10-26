@@ -43,6 +43,7 @@ class AuthPages
         'forgot' => 'Forgot password',
         'reset' => 'Reset password',
         'verify' => 'Verification',
+        'interests' => 'Interests',
     ];
 
     /**
@@ -71,8 +72,24 @@ class AuthPages
             'footer_link' => ['Footer link', 'Create an account'],
         ],
         'register' => [
-            'title' => ['Heading', 'Join Toneflix Music'],
-            'subtitle' => ['Subheading', 'Listen, share your music and make tracks with other creators.'],
+            'step_type' => ['Step 1 name', 'Account'],
+            'step_identity' => ['Step 2 name', 'About you'],
+            'step_access' => ['Step 3 name', 'Sign-in'],
+            'title' => ['Step 1 heading', 'Join Toneflix Music'],
+            'subtitle' => ['Step 1 subheading', 'How will you use it? You can change this later.'],
+            'creator_title' => ['Creator option', 'Creator'],
+            'creator_text' => ['Creator option text', 'I make music and want to release, collaborate and get paid.'],
+            'listener_title' => ['Listener option', 'Listener'],
+            'listener_text' => ['Listener option text', "I'm here to stream, discover and support artists."],
+            'identity_title' => ['Step 2 heading', 'Tell us about you'],
+            'identity_subtitle' => ['Step 2 subheading', 'Your name and what you do.'],
+            'identities_creator_label' => ['Creator roles label', 'What do you do?'],
+            'identities_listener_label' => ['Listener roles label', 'What describes you?'],
+            'identities_hint' => ['Roles hint', 'Pick any that fit.'],
+            'access_title' => ['Step 3 heading', 'Set up your sign-in'],
+            'access_subtitle' => ['Step 3 subheading', "You'll use these to sign in."],
+            'next' => ['Next button', 'Continue'],
+            'back' => ['Back button', 'Back'],
             'firstname_label' => ['First name label', 'First name'],
             'firstname_placeholder' => ['First name placeholder', 'Ada'],
             'lastname_label' => ['Last name label', 'Last name'],
@@ -132,6 +149,13 @@ class AuthPages
             'done_button' => ['Done button', 'Continue'],
             'switch_account' => ['Sign out link', 'Use another account'],
         ],
+        'interests' => [
+            'title' => ['Heading', 'What do you like to hear?'],
+            'subtitle' => ['Subheading', "Pick a few genres and we'll shape your playlists around them."],
+            'picked' => ['Picked count', ':count picked'],
+            'submit' => ['Button', 'Save and continue'],
+            'skip' => ['Skip link', 'Skip for now'],
+        ],
     ];
 
     /**
@@ -141,7 +165,16 @@ class AuthPages
      */
     public static function clientConfig(): array
     {
-        return Cache::rememberForever(self::CACHE, fn() => self::build());
+        return Cache::rememberForever(self::cacheKey(), fn() => self::build());
+    }
+
+    /**
+     * The cache key, which changes with the default texts so a deploy that
+     * adds or edits one is picked up without clearing the cache.
+     */
+    public static function cacheKey(): string
+    {
+        return self::CACHE . ':' . md5(serialize([self::TEXTS, self::LAYOUTS]));
     }
 
     /**
@@ -273,7 +306,7 @@ class AuthPages
         $configuration->save();
 
         Cache::forget('configuration::build');
-        Cache::forget(self::CACHE);
+        Cache::forget(self::cacheKey());
     }
 
     /**

@@ -23,6 +23,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
+use Illuminate\Support\Facades\DB;
 use Toneflix\LaravelFileable\Traits\Fileable;
 use Toneflix\SocialInteractions\Traits\HasSocialInteractions;
 
@@ -427,6 +428,21 @@ class Track extends Model implements CanBeTakenDown
         $query
             ->userThatPlayed($user)
             ->popularPlayedLastDays($days);
+    }
+
+    /**
+     * Tracks in the genres the user picked as interests, most streamed first.
+     */
+    public function scopeForYou(Builder $query, User $user): void
+    {
+        $genres = DB::table('genre_user')
+            ->where('user_id', $user->id)
+            ->select('genre_id');
+
+        $query
+            ->whereIn('tracks.genre_id', $genres)
+            ->orderByDesc('streams')
+            ->orderByDesc('tracks.id');
     }
 
     public function scopeUserCollabs(Builder $query, User|string $user, ?string $period = 'years_2'): void

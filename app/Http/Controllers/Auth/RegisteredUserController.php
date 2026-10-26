@@ -7,6 +7,7 @@ use App\Helpers\Providers as PV;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\UserResource;
 use App\Models\User;
+use App\Services\Account\Interests;
 use App\Services\Auth\CodeClock;
 use DeviceDetector\DeviceDetector;
 use Illuminate\Auth\Events\Registered;
@@ -36,7 +37,10 @@ class RegisteredUserController extends Controller
             'firstname' => ['nullable', 'string', 'max:255'],
             'lastname' => ['nullable', 'string', 'max:255'],
             'accept' => ['required', 'accepted'],
+            ...Interests::identityRules($request->input('account_type'), true),
         ], [
+            'account_type.required' => 'Choose how you\'ll use Toneflix Music.',
+            'identities.*.in' => 'Pick from the options for your account type.',
             'name.required_without' => 'Please enter your fullname.',
             'accept' => 'You must accept our terms and conditions and privacy policy.',
         ], [
@@ -64,8 +68,8 @@ class RegisteredUserController extends Controller
             ->last(fn($n) => $n !== $firstname, $request->lastname);
 
         $user = User::create([
-            'role' => 'user',
-            'type' => $request->get('type', 'farmer'),
+            'account_type' => $request->get('account_type'),
+            'identities' => array_values($request->input('identities', [])),
             'email' => $request->get('email'),
             'phone' => $request->get('phone'),
             'password' => $request->get('password'),
