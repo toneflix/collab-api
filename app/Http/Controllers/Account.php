@@ -38,6 +38,8 @@ class Account extends Controller
         'image' => 'Profile Photo',
         'phone' => 'Phone Number',
         'gender' => 'Gender',
+        'username' => 'Username',
+        'about' => 'About',
     ];
 
     /**
@@ -99,7 +101,7 @@ class Account extends Controller
                 $field = current(explode(':image', $field));
             }
 
-            $vals = ! in_array($field, ['city', 'state']) ? ['required'] : ['nullable'];
+            $vals = ! in_array($field, ['city', 'state', 'about']) ? ['required'] : ['nullable'];
 
             $vals[] = $field == 'image' ? 'mimes:png,jpg' : (
                 is_array($filled[$field])
@@ -129,6 +131,17 @@ class Account extends Controller
             if ($field === 'phone') {
                 $vals[] .= 'max:15';
                 $vals[] .= Rule::unique('users')->ignore($user->id);
+            }
+
+            if ($field === 'username') {
+                $vals[] = 'alpha_dash:ascii';
+                $vals[] = 'min:3';
+                $vals[] = 'max:30';
+                $vals[] = Rule::unique('users')->ignore($user->id);
+            }
+
+            if ($field === 'about') {
+                $vals[] = 'max:1000';
             }
 
             if ($field === 'email') {
