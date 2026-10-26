@@ -10,7 +10,9 @@ use App\Models\Genre;
 use App\Models\Lyric;
 use App\Models\Plan;
 use App\Models\Project;
+use App\Models\Release;
 use App\Models\Song;
+use App\Models\Track;
 use App\Models\User;
 use App\Services\Ai\AiSettings;
 use App\Services\Ai\Credits;
@@ -152,6 +154,44 @@ class ComposerSongProjectTest extends TestCase
             ->whereMorphedTo('lyricable', $song->track)
             ->first();
         $this->assertSame('A brand new opening line', $lyric->text);
+    }
+
+    public function test_saving_the_song_keeps_times_and_reaches_released_tracks(): void
+    {
+        $song = $this->song($this->writer, ['body' => "[Verse 1]\nFirst line here\nSecond line here"]);
+        $this->actingAsFresh($this->writer);
+
+        $this->postJson("/api/creator/songs/{$song->id}/project", $this->payload())
+            ->assertCreated();
+
+        $song->refresh();
+        $track = $song->track;
+
+        $this->putJson("/api/creator/projects/{$track->project_id}/tracks/{$track->id}/lyrics", ['lines' => [
+            ['start' => 1, 'end' => 3, 'text' => 'First line here'],
+            ['start' => 3, 'end' => 5, 'text' => 'Second line here'],
+        ]])
+            ->assertAccepted();
+
+        $release = Release::factory()
+            ->create(['user_id' => $this->writer->id, 'draft' => false]);
+        $released = Track::factory()
+            ->create(['release_id' => $release->id, 'project_track_id' => $track->id, 'audio' => null]);
+
+        $this->putJson("/api/creator/songs/{$song->id}", [
+            'revision' => $song->revision,
+            'body' => "[Verse 1]\nA new opening line\nFirst line here\nSecond line, changed",
+        ])
+            ->assertAccepted()
+            ->assertJsonPath('message', 'Song saved and its lyric sheet updated.');
+
+        $this->getJson("/api/tracks/{$released->id}/lyrics")
+            ->assertOk()
+            ->assertJsonPath('data.lines', [
+                ['start' => null, 'end' => null, 'text' => 'A new opening line'],
+                ['start' => 1, 'end' => 3, 'text' => 'First line here'],
+                ['start' => null, 'end' => null, 'text' => 'Second line, changed'],
+            ]);
     }
 
     public function test_ai_can_sing_the_song_onto_the_new_track(): void

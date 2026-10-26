@@ -8,13 +8,15 @@ use App\Models\Lyric;
 use App\Models\ProjectTrackStem;
 use App\Services\Ai\AiSettings;
 use App\Services\Ai\Replicate\ReplicateException;
+use App\Services\Lyrics\LyricAligner;
 use App\Services\Lyrics\Lyrics;
 use App\Services\Lyrics\Transcriber;
 use App\Services\Studio\StemFiles;
 
 /**
  * Writes out the lyrics sung on a stem with Whisper, timed to where the stem
- * sits on the track, as the track's lyric sheet.
+ * sits on the track, as the track's lyric sheet. In sync mode it keeps the
+ * sheet's own words and only takes the times.
  */
 class TranscribeLyrics implements AiTask
 {
@@ -22,6 +24,7 @@ class TranscribeLyrics implements AiTask
         protected StemFiles $files,
         protected Transcriber $transcriber,
         protected Lyrics $lyrics,
+        protected LyricAligner $aligner,
     ) {}
 
     public function credits(array $input): int
@@ -59,12 +62,51 @@ class TranscribeLyrics implements AiTask
             return ['lines' => 0, 'notice' => 'No singing was found on that stem, so the lyric sheet was left as it was.'];
         }
 
+        $sheet = ($job->input['mode'] ?? null) === 'sync'
+            ? $this->lyrics->for($job->track)
+            : null;
+
+        if ($sheet) {
+            return $this->sync($job, $sheet, $lines);
+        }
+
         $this->lyrics->save($job->track, $lines, Lyric::TRANSCRIBED, $job->user, [
             'language' => $result['language'],
             'ai_job_id' => $job->id,
         ]);
 
         return ['lines' => count($lines)];
+    }
+
+    /**
+     * Time the sheet's lines from the words heard, keeping lines nothing matched as they were.
+     *
+     * @param  list<array{start: float, end: float, text: string}>  $heard
+     * @return array{lines: int, notice?: string}
+     */
+    protected function sync(AiJob $job, Lyric $sheet, array $heard): array
+    {
+        $timed = $this->aligner->align($sheet->lines, $heard);
+        $synced = 0;
+
+        foreach ($timed as $i => $line) {
+            if ($line['start'] === null) {
+                $timed[$i] = [...$line, 'start' => $sheet->lines[$i]['start'] ?? null, 'end' => $sheet->lines[$i]['end'] ?? null];
+            } else {
+                $synced++;
+            }
+        }
+
+        if (! $synced) {
+            return ['lines' => 0, 'notice' => 'None of the words on that stem matched the lyric sheet, so it was left as it was.'];
+        }
+
+        $this->lyrics->save($job->track, $timed, $sheet->source, $job->user, [
+            'language' => $sheet->language ?? null,
+            'ai_job_id' => $job->id,
+        ]);
+
+        return ['lines' => $synced];
     }
 
     /**
