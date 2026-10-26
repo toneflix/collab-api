@@ -71,7 +71,11 @@ class UpNext
      */
     public function query(Collection $exclude): Builder
     {
-        $exclude = $this->seed ? $exclude->merge([$this->seed->id])->unique() : $exclude;
+        if ($this->seed) {
+            $exclude = $exclude
+                ->merge([$this->seed->id])
+                ->unique();
+        }
 
         $query = Track::query()
             ->whereHas('release', fn(Builder $q) => $q->live())
@@ -82,7 +86,9 @@ class UpNext
 
         return $this->randomize
             ? $query->inRandomOrder()
-            : $query->orderByDesc('streams')->orderByDesc('tracks.id');
+            : $query
+                ->orderByDesc('streams')
+                ->orderByDesc('tracks.id');
     }
 
     /**
@@ -98,7 +104,9 @@ class UpNext
             $this->seed?->release?->record_label
                 ? ['exists (select 1 from releases where releases.id = tracks.release_id and releases.record_label = ?)', [$this->seed->release->record_label]]
                 : null,
-        ])->filter()->values();
+        ])
+            ->filter()
+            ->values();
 
         if ($tiers->isEmpty()) {
             return;
@@ -108,7 +116,11 @@ class UpNext
             ->map(fn(array $tier, int $rank) => "when {$tier[0]} then {$rank}")
             ->implode(' ');
 
-        $query->orderByRaw("case {$cases} else {$tiers->count()} end", $tiers->flatMap(fn(array $tier) => $tier[1])->all());
+        $bindings = $tiers
+            ->flatMap(fn(array $tier) => $tier[1])
+            ->all();
+
+        $query->orderByRaw("case {$cases} else {$tiers->count()} end", $bindings);
     }
 
     /**
@@ -149,7 +161,9 @@ class UpNext
      */
     protected function sameArtists(): ?array
     {
-        $artists = $this->seed?->artists()->pluck('artists.id') ?? collect();
+        $artists = $this->seed
+            ?->artists()
+            ->pluck('artists.id') ?? collect();
 
         if ($artists->isEmpty()) {
             return null;
