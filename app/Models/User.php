@@ -316,7 +316,6 @@ class User extends Authenticatable implements Commentator, Reportable
 
     public function markEmailAsVerified()
     {
-        $this->last_attempt = null;
         $this->email_verify_code = null;
         $this->email_verified_at = now();
         $this->save();
@@ -330,7 +329,6 @@ class User extends Authenticatable implements Commentator, Reportable
 
     public function markPhoneAsVerified()
     {
-        $this->last_attempt = null;
         $this->phone_verify_code = null;
         $this->phone_verified_at = now();
         $this->save();

@@ -3,173 +3,119 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Enums\HttpStatus;
-use App\Events\PhoneVerified;
-use App\Helpers\Providers as PV;
+use App\Enums\VerificationChannel;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\UserResource;
 use App\Models\User;
-use Carbon\Carbon;
-use Illuminate\Auth\Events\Verified;
+use App\Services\Auth\CodeClock;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Confirms a signed-in user's email address or phone number with a one-time code.
+ */
 class VerifyEmailPhoneController extends Controller
 {
     /**
-     * Send a new email verification notification.
-     *
-     * @return JsonResponse|RedirectResponse
+     * Send a new code.
      */
-    public function store(Request $request, $type = 'email')
+    public function store(Request $request, string $type = 'email'): JsonResponse
     {
+        $channel = $this->channel($type);
+
         /** @var User $user */
         $user = $request->user();
 
-        $set_type = ($type == 'phone') ? 'phone number' : 'email address';
-        $hasVerified = ($type == 'phone') ? $user->hasVerifiedPhone() : $user->hasVerifiedEmail();
-
-        if ($hasVerified) {
-            return (new UserResource($user))
-                ->additional([
-                    'reboot' => true,
-                    'message' => "Your $set_type is already verified.",
-                    'status' => 'info',
-                    'status_code' => HttpStatus::OK,
-                ])
-                ->response()
-                ->setStatusCode(HttpStatus::OK->value);
+        if ($channel->verified($user)) {
+            return $this->respond($user, "Your {$channel->label()} is already verified.");
         }
 
-        if ($type === 'email') {
-            $user->sendEmailVerificationNotification();
-        }
+        abort_unless(
+            $channel->applies($user),
+            HttpStatus::UNPROCESSABLE_ENTITY->value,
+            "Add a {$channel->label()} to your account first.",
+        );
 
-        if ($type === 'phone') {
-            $user->sendPhoneVerificationNotification();
-        }
+        $channel->send($user);
 
-        /** @var Carbon */
-        $datetime = $user->last_attempt ?? now()->subSeconds(PV::config('token_lifespan', 30) + 1);
-        $dateAdd = $datetime->addSeconds(PV::config('token_lifespan', 30));
-
-        return (new UserResource($user))
-            ->additional([
-                'message' => "Verification code has been sent to your {$set_type}.",
-                'time_left' => $dateAdd->shortAbsoluteDiffForHumans(),
-                'try_at' => $dateAdd->toDateTimeLocalString(),
-                'status' => 'success',
-                'status_code' => HttpStatus::CREATED,
-            ])
-            ->response()
-            ->setStatusCode(HttpStatus::CREATED->value);
+        return $this->respond($user, "We sent a code to your {$channel->label()}.", HttpStatus::CREATED);
     }
 
     /**
-     * Ping the verification notification to know the status.
-     *
-     * @return JsonResponse|RedirectResponse
+     * Report whether the channel is verified and when a new code can be sent.
      */
-    public function show(Request $request, $type = 'email')
+    public function show(Request $request, string $type = 'email'): JsonResponse
     {
+        $channel = $this->channel($type);
+
         /** @var User $user */
         $user = $request->user();
 
-        $set_type = ($type == 'phone') ? 'phone number' : 'email address';
+        $message = $channel->verified($user)
+            ? "Your {$channel->label()} is verified."
+            : "Your {$channel->label()} is not verified yet.";
 
-        /** @var Carbon */
-        $datetime = $user->last_attempt ?? now()->subSeconds(PV::config('token_lifespan', 30) + 1);
-
-        $dateAdd = $datetime->addSeconds(PV::config('token_lifespan', 30));
-        $hasVerified = ($type == 'phone') ? $user->hasVerifiedPhone() : $user->hasVerifiedEmail();
-
-        return (new UserResource($user))
-            ->additional([
-                'reboot' => (bool) $hasVerified,
-                'message' => $hasVerified
-                    ? "We have successfully verified your $set_type, welcome to our community."
-                    : "Your $set_type is not yet verified.",
-                'time_left' => $dateAdd->shortAbsoluteDiffForHumans(),
-                'try_at' => $dateAdd->toDateTimeLocalString(),
-                'verified' => $hasVerified,
-                'status' => 'success',
-                'status_code' => HttpStatus::OK,
-            ])
-            ->response()
-            ->setStatusCode(HttpStatus::OK->value);
+        return $this->respond($user, $message);
     }
 
     /**
-     * Mark the authenticated user's email address as verified.
-     *
-     * @param  \Illuminate\Foundation\Auth\Request  $request
-     * @return Response
+     * Check the code and mark the channel verified.
      */
-    public function update(Request $request, $type = 'email')
+    public function update(Request $request, string $type = 'email'): JsonResponse
     {
+        $channel = $this->channel($type);
+
         /** @var User $user */
         $user = $request->user();
 
-        $set_type = ($type == 'phone') ? 'phone number' : 'email address';
-
-        $hasVerified = ($type == 'phone')
-            ? $user->hasVerifiedPhone()
-            : $user->hasVerifiedEmail();
-
-        if ($hasVerified) {
-            return (new UserResource($user))
-                ->additional([
-                    'reboot' => true,
-                    'message' => "Your $set_type is already verified.",
-                    'status' => 'info',
-                    'status_code' => HttpStatus::OK,
-                ])
-                ->response()
-                ->setStatusCode(HttpStatus::OK->value);
+        if ($channel->verified($user)) {
+            return $this->respond($user, "Your {$channel->label()} is already verified.");
         }
 
-        Validator::make($request->all(), [
-            'code' => ['required'],
-        ])->validate();
+        $request->validate([
+            'code' => ['required', 'string'],
+        ]);
 
-        $code = ($type == 'email')
-            ? $user->email_verify_code
-            : (
-                $type == 'phone'
-                ? $user->phone_verify_code
-                : null
-            );
+        $code = $channel->code($user);
 
-        // check if it has not expired: the time is 30 minutes and that the code is valid
-        $last_attempt = ($user->hasVerifiedPhone() && $user->last_attempt === null)
-            ? $user->phone_verified_at
-            : $user->last_attempt;
-
-        if ($request->code !== $code || $last_attempt->diffInMinutes(now()) >= PV::config('token_lifespan', 30)) {
+        if (! $code || ! hash_equals($code, (string) $request->input('code')) || CodeClock::expired($user->last_attempt)) {
             throw ValidationException::withMessages([
-                'code' => __('The code you provided has expired or does not exist.'),
+                'code' => __('This code has expired or is not valid.'),
             ]);
         }
 
-        if ($type == 'email' && $user->markEmailAsVerified()) {
-            event(new Verified($user));
-        }
+        $channel->markVerified($user);
 
-        if ($type == 'phone' && $request->user()->markPhoneAsVerified()) {
-            event(new PhoneVerified($user));
-        }
+        return $this->respond($user, "Your {$channel->label()} is verified.", HttpStatus::ACCEPTED);
+    }
+
+    protected function channel(string $type): VerificationChannel
+    {
+        $channel = VerificationChannel::tryFrom($type);
+
+        abort_unless($channel, HttpStatus::NOT_FOUND->value, 'Unknown verification type.');
+
+        return $channel;
+    }
+
+    protected function respond(User $user, string $message, HttpStatus $status = HttpStatus::OK): JsonResponse
+    {
+        $user->refresh();
+
+        $verified = collect(VerificationChannel::cases())
+            ->mapWithKeys(fn(VerificationChannel $channel) => [$channel->value => $channel->verified($user)])
+            ->all();
 
         return (new UserResource($user))
             ->additional([
-                'reboot' => true,
-                'message' => "We have successfully verified your $set_type, welcome to our community.",
+                ...CodeClock::retry($user->last_attempt),
+                'verified' => $verified,
+                'message' => $message,
                 'status' => 'success',
-                'status_code' => HttpStatus::OK,
+                'status_code' => $status,
             ])
             ->response()
-            ->setStatusCode(HttpStatus::OK->value);
+            ->setStatusCode($status->value);
     }
 }
