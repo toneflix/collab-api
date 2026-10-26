@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Creator;
 use App\Enums\HttpStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\AiJobResource;
+use App\Http\Resources\PublicSongResource;
 use App\Http\Resources\SongResource;
 use App\Models\Project;
 use App\Models\Song;
@@ -13,12 +14,13 @@ use Illuminate\Http\Request;
 
 /**
  * Puts a song on a new project or an existing one, and keeps that project's lyric sheet in step with the song.
+ * Others can start a project with a published song when its writer allows it.
  */
 class SongProjectController extends Controller
 {
     public function store(Request $request, SongProjects $projects, Song $song)
     {
-        $this->authorize('update', $song);
+        $this->authorize('project', $song);
 
         $data = $request->validate([
             'project_id' => ['nullable', 'integer', 'exists:projects,id'],
@@ -39,12 +41,28 @@ class SongProjectController extends Controller
 
         $made = $projects->create($song, $this->user, $data, $project);
         $job = $made['job'];
+        $track = $made['track'];
         $done = $project ? "Track added to {$project->title}" : 'Project created';
-        $song->load(['beat', 'track.project']);
 
-        return (new SongResource($song))
+        $track->load('project');
+
+        if ($song->user_id === $this->user->id) {
+            $song->load(['beat', 'track.project', 'forkedFrom']);
+            $resource = new SongResource($song);
+        } else {
+            $song->load('user');
+            $resource = new PublicSongResource($song);
+        }
+
+        return $resource
             ->additional([
                 'aiJob' => $job ? new AiJobResource($job) : null,
+                'project' => [
+                    'id' => $track->project->id,
+                    'slug' => $track->project->slug,
+                    'title' => $track->project->title,
+                    'trackId' => $track->id,
+                ],
                 'message' => $job
                     ? "{$done}. AI is making the song, and it shows up on the track when it's ready."
                     : "{$done} with the lyric sheet.",

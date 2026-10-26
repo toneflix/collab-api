@@ -21,8 +21,9 @@ use Illuminate\Validation\ValidationException;
 
 /**
  * Turns a Composer song into a project track carrying its lyric sheet, on a
- * new project or one the writer can edit, and can have AI sing the lyrics
- * onto that track.
+ * new project or one the user can edit, and can have AI sing the lyrics
+ * onto that track. The writer's own song stays linked to its track; a
+ * published song used by someone else is copied onto theirs.
  */
 class SongProjects
 {
@@ -45,7 +46,9 @@ class SongProjects
      */
     public function create(Song $song, User $user, array $data, ?Project $project = null): array
     {
-        if ($song->track) {
+        $writer = $song->user_id === $user->id;
+
+        if ($writer && $song->track) {
             throw ValidationException::withMessages(['song' => 'This song already has a project. Update its lyric sheet instead.']);
         }
 
@@ -65,12 +68,13 @@ class SongProjects
         $input = ! empty($data['generate']) ? $this->musicInput($song, $user, $data) : null;
         $title = trim((string) ($data['title'] ?? '')) ?: $song->title;
 
-        $track = DB::transaction(function () use ($song, $user, $data, $title, $project) {
+        $track = DB::transaction(function () use ($song, $user, $data, $title, $project, $writer) {
             $project ??= $user
                 ->projects()
                 ->create([
                     'title' => $title,
                     'privacy' => $data['privacy'] ?? 'private',
+                    'description' => $writer ? null : "Lyrics from \"{$song->title}\" by {$song->user?->fullname}.",
                 ]);
 
             $track = $project
@@ -84,9 +88,11 @@ class SongProjects
 
             $this->lyrics->save($track, $song->lyricLines(), Lyric::WRITTEN, $user, ['language' => $song->editorSettings()['language']]);
 
-            $song
-                ->forceFill(['project_track_id' => $track->id])
-                ->saveQuietly();
+            if ($writer) {
+                $song
+                    ->forceFill(['project_track_id' => $track->id])
+                    ->saveQuietly();
+            }
 
             return $track;
         });

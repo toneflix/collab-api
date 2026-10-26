@@ -46,6 +46,35 @@ class Songs
     }
 
     /**
+     * A copy of a song for $user to rework, crediting the song it came from.
+     * The beat comes along when it is from the shared library.
+     */
+    public function fork(Song $song, User $user): Song
+    {
+        $beat = $song->beat_sound_id && $song->user_id !== $user->id
+            ? $song
+                ->beat()
+                ->whereNull('user_id')
+                ->value('id')
+            : $song->beat_sound_id;
+
+        $fork = $this->create($user, [
+            'title' => $song->title,
+            'body' => $song->body,
+            'bpm' => $song->bpm,
+            'key' => $song->key,
+            'beat_sound_id' => $beat,
+            'settings' => array_intersect_key($song->editorSettings(), array_flip(['mood', 'language', 'explicit'])),
+        ]);
+
+        $fork
+            ->forceFill(['forked_from_id' => $song->id])
+            ->saveQuietly();
+
+        return $fork;
+    }
+
+    /**
      * Saves changes made from $revision. A save from an older revision means
      * another window saved first, so it is refused with 409.
      *

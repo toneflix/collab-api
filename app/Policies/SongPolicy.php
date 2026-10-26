@@ -7,7 +7,8 @@ use App\Models\User;
 use Illuminate\Auth\Access\Response;
 
 /**
- * Songs are private to the writer who made them.
+ * Only the writer edits a song. A published song can be read by anyone, and
+ * forked or made into a project by others when the writer allows it.
  */
 class SongPolicy
 {
@@ -24,6 +25,45 @@ class SongPolicy
     public function delete(User $user, Song $song): Response
     {
         return $this->owner($user, $song);
+    }
+
+    /**
+     * Reading the song's public page.
+     */
+    public function read(?User $user, Song $song): Response
+    {
+        return $song->isPublished() || $song->user_id === $user?->id
+            ? Response::allow()
+            : Response::denyAsNotFound('Song not found.');
+    }
+
+    public function fork(User $user, Song $song): Response
+    {
+        if ($song->user_id === $user->id) {
+            return Response::allow();
+        }
+
+        $this->read($user, $song)->authorize();
+
+        return $song->allow_forks
+            ? Response::allow()
+            : Response::deny("This song's writer doesn't allow forks.");
+    }
+
+    /**
+     * Putting the song's lyrics on a project track.
+     */
+    public function project(User $user, Song $song): Response
+    {
+        if ($song->user_id === $user->id) {
+            return Response::allow();
+        }
+
+        $this->read($user, $song)->authorize();
+
+        return $song->allow_projects
+            ? Response::allow()
+            : Response::deny("This song's writer doesn't allow projects with it.");
     }
 
     protected function owner(User $user, Song $song): Response

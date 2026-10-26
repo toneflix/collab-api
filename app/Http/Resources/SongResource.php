@@ -24,6 +24,19 @@ class SongResource extends JsonResource
         return [
             'id' => $this->id,
             'title' => $this->title,
+            'slug' => $this->slug,
+            'imageUrl' => $this->images['image'],
+            'hasArtwork' => (bool) $this->image,
+            'publishedAt' => $this->published_at,
+            'allowForks' => (bool) $this->allow_forks,
+            'allowProjects' => (bool) $this->allow_projects,
+            'forkedFrom' => $this->when(
+                $this->relationLoaded('forkedFrom'),
+                fn() => $this->forkedFrom ? [
+                    'slug' => $this->forkedFrom->isPublished() ? $this->forkedFrom->slug : null,
+                    'title' => $this->forkedFrom->title,
+                ] : null,
+            ),
             'excerpt' => $this->when($listed, fn() => array_slice($this->lyricLines(), 0, 2)),
             'body' => $this->when(! $listed, fn() => (string) $this->body),
             'scratchpad' => $this->when(! $listed, fn() => (string) $this->scratchpad),

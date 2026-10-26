@@ -83,3 +83,32 @@ POST /api/creator/songs/{song}/project
 - A song makes one track. `POST /api/creator/songs/{song}/project/lyrics` puts the song's current lyrics on that track's lyric sheet again. It needs edit access to the track.
 - Saving a song that has a project updates the track's lyric sheet whenever the sung lines change, if the writer can still edit the track. This replaces lyrics edited on the sheet directly.
 - For people who can edit the track, the track resource has `song` (`id`, `title`, `body`, `bpm`, `key`, `mood`), so the studio's music tool can start from the song's lyrics and details.
+
+## Publishing, forks and artwork
+
+A writer can publish a song so anyone can read its lyrics on its own page, and choose whether others may fork it or start a project with it. Notes and the scratchpad always stay private.
+
+```
+PUT /api/creator/songs/{song}/publishing
+{ "published": true, "allow_forks": true, "allow_projects": false }
+```
+
+- Publishing needs some lyrics. The first publish gives the song its address (`slug`, the title plus the song id), which stays when the title changes or the song is unpublished and published again.
+- `allow_forks` and `allow_projects` are off until the writer turns them on.
+- Published songs can be reported and taken down like other content (type `song`). A taken down song is hidden from everyone but its writer and can't be published again.
+
+Artwork works on any song, published or not. `POST /api/creator/songs/{song}/artwork` takes an `image` (PNG, JPG or WebP, up to 5 MB, cropped to 520 px square) and `DELETE` removes it. Songs without artwork show the default artwork. Code that makes an image can set it with `App\Services\Composer\SongArtwork::set()`.
+
+### Public songs
+
+| Method | Path | Returns |
+| --- | --- | --- |
+| GET | `/api/songs?search=&sort=latest&user=` | Published songs, 20 a page (max 50). `sort` is `latest` or `forks`; `user` is a username or id. Items carry `excerpt` (the first two sung lines) |
+| GET | `/api/songs/{slug}` | One published song with its full `body`, `writer`, `forksCount`, `forkedFrom` (when that song is published), `project` (when the song's project is public), `allowForks`, `allowProjects` and `isOwner` |
+
+`GET /api/explore` takes `new_songs` and `top_songs` (most forked) with how many songs to return.
+
+### Forks and projects from others' songs
+
+- `POST /api/creator/songs/{song}/forks` copies the title, lyrics, tempo, key, mood, language and explicit setting into a new song for the signed-in user, which counts toward their `max_songs` limit. The beat comes along only when it is from the shared sound library. The fork starts unpublished and credits the original (`forkedFrom`).
+- `POST /api/creator/songs/{song}/project` works for others when the song is published with `allow_projects`. The lyrics go on the new track's lyric sheet, the original song isn't linked to that track, and a new project's description credits the song and writer. The response carries the new `project` (`id`, `slug`, `title`, `trackId`) beside `data`.

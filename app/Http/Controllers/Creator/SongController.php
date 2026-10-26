@@ -57,7 +57,7 @@ class SongController extends Controller
     {
         $this->authorize('view', $song);
 
-        $song->load(['beat', 'track.project']);
+        $song->load(['beat', 'track.project', 'forkedFrom']);
 
         return (new SongResource($song))
             ->additional([
