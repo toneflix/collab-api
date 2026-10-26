@@ -2,9 +2,11 @@
 
 namespace App\Services\Agent;
 
+use App\Enums\ArtworkKind;
 use App\Models\AgentRun;
 use App\Models\Genre;
 use App\Services\Ai\AiSettings;
+use App\Services\Ai\Tasks\GenerateArtwork;
 use Illuminate\Support\Collection;
 use RuntimeException;
 
@@ -63,23 +65,50 @@ class AgentPlanner
     {
         $steps = [];
         $seconds = $this->seconds($run);
+        $artwork = $this->artwork($run);
+        $genres = Genre::query()
+            ->whereKey(array_column($plan['albums'], 'genre_id'))
+            ->pluck('title', 'id');
+        $names = array_column($plan['artists'], 'name', 'key');
 
         foreach ($plan['artists'] as $artist) {
             $steps[] = $this->step("artist:{$artist['key']}", 'artist', [], [
                 'name' => $artist['name'],
                 'about' => $artist['about'],
             ]);
+
+            if ($artwork) {
+                $steps[] = $this->step("portrait:{$artist['key']}", 'artwork', ["artist:{$artist['key']}"], [
+                    'title' => $artist['name'],
+                    'artwork_kind' => ArtworkKind::ARTIST->value,
+                    'prompt' => ($artist['look'] ?? '') ?: $artist['about'] ?: $artist['name'],
+                    'artist' => $artist['name'],
+                    'target' => "artist:{$artist['key']}",
+                ]);
+            }
         }
 
         foreach ($plan['albums'] as $album) {
             $project = "project:{$album['key']}";
             $artist = "artist:{$album['artist']}";
             $mixes = [];
+            $art = $artwork ? "cover:{$album['key']}" : null;
 
             $steps[] = $this->step($project, 'project', [], [
                 'title' => $album['title'],
                 'description' => $album['description'],
             ]);
+
+            if ($art) {
+                $steps[] = $this->step($art, 'artwork', [$project], [
+                    'title' => $album['title'],
+                    'artwork_kind' => count($album['tracks']) === 1 ? ArtworkKind::TRACK->value : ArtworkKind::RELEASE->value,
+                    'prompt' => ($album['cover'] ?? '') ?: $album['description'] ?: $album['title'],
+                    'artist' => $names[$album['artist']] ?? null,
+                    'genre' => $genres[$album['genre_id']] ?? null,
+                    'target' => $project,
+                ]);
+            }
 
             foreach ($album['tracks'] as $track) {
                 $kind = $track['instrumental'] ? 'track' : 'song';
@@ -107,13 +136,14 @@ class AgentPlanner
                 ]);
             }
 
-            $steps[] = $this->step("release:{$album['key']}", 'release', array_column($mixes, 'key'), [
+            $steps[] = $this->step("release:{$album['key']}", 'release', [...array_column($mixes, 'key'), ...array_filter([$art])], [
                 'title' => $album['title'],
                 'description' => $album['description'],
                 'genre_id' => $album['genre_id'],
                 'artist' => $artist,
                 'project' => $project,
                 'tracks' => array_map(fn(array $mix) => $mix['input']['source'], $mixes),
+                'artwork' => $art,
             ]);
         }
 
@@ -147,15 +177,18 @@ class AgentPlanner
         $instrumentalCredits = AiSettings::musicModel()
             ->credits($seconds);
 
+        $pictures = $this->artwork($run) ? count($plan['artists']) + count($plan['albums']) : 0;
+
         return ($vocals + count($plan['songs'])) * AgentWriter::credits()
             + $vocals * $vocalCredits
-            + ($tracks->count() - $vocals) * $instrumentalCredits;
+            + ($tracks->count() - $vocals) * $instrumentalCredits
+            + $pictures * AiSettings::artworkCredits();
     }
 
     /**
      * What the agent's form needs: whether it can run now and its limits.
      *
-     * @return array{available: bool, maxTracks: int, defaultSeconds: int, maxSeconds: int, vocals: bool, instrumentals: bool}
+     * @return array{available: bool, maxTracks: int, defaultSeconds: int, maxSeconds: int, vocals: bool, instrumentals: bool, artwork: bool}
      */
     public function clientConfig(): array
     {
@@ -166,7 +199,16 @@ class AgentPlanner
             'maxSeconds' => AiSettings::musicMaxSeconds(),
             'vocals' => self::vocals(),
             'instrumentals' => self::instrumentals(),
+            'artwork' => self::drawsArtwork(),
         ];
+    }
+
+    /**
+     * Whether the run draws album covers and artist pictures.
+     */
+    public function artwork(AgentRun $run): bool
+    {
+        return (bool) $run->option('artwork', true) && self::drawsArtwork();
     }
 
     public function maxTracks(AgentRun $run): int
@@ -200,6 +242,16 @@ class AgentPlanner
     }
 
     /**
+     * Whether artwork can be drawn now.
+     */
+    public static function drawsArtwork(): bool
+    {
+        return GenerateArtwork::model()
+            ->engine()
+            ->available();
+    }
+
+    /**
      * @param  list<string>  $dependsOn
      * @param  array<string, mixed>  $input
      * @return array{key: string, kind: string, depends_on: list<string>, input: array<string, mixed>}
@@ -218,10 +270,11 @@ class AgentPlanner
             '"songs" are lyric sheets only, with no music, for when the instructions ask for written songs alone.',
             'Each track has a "style": one or two sentences for a music generator describing genre, tempo, instruments, vocals and mood. Never name real artists in it.',
             'Each track with vocals has a "theme": what its lyrics are about, in one sentence.',
+            'Each album has a "cover": one sentence describing its cover image, and each artist a "look": one sentence describing their profile picture. Describe scenes, colours and style, never text or real people.',
             'Keep every name and title short and plain, with no quotes or emoji.',
             'Answer with JSON only, no other text, in this shape:',
-            '{"artists": [{"key": "a1", "name": "", "about": "two or three sentence bio"}],'
-                . ' "albums": [{"key": "al1", "title": "", "artist": "a1", "genre": "", "description": "", "tracks": [{"title": "", "style": "", "theme": "", "mood": "", "instrumental": false}]}],'
+            '{"artists": [{"key": "a1", "name": "", "about": "two or three sentence bio", "look": ""}],'
+                . ' "albums": [{"key": "al1", "title": "", "artist": "a1", "genre": "", "description": "", "cover": "", "tracks": [{"title": "", "style": "", "theme": "", "mood": "", "instrumental": false}]}],'
                 . ' "songs": [{"title": "", "theme": "", "style": "", "mood": ""}]}',
         ]);
     }
@@ -274,6 +327,7 @@ class AgentPlanner
                 'ref' => (string) ($artist['key'] ?? ''),
                 'name' => $this->text($artist['name'] ?? null, 100),
                 'about' => $this->text($artist['about'] ?? null, 2000),
+                'look' => $this->text($artist['look'] ?? null, 400),
             ])
             ->filter(fn(array $artist) => $artist['name'] !== '')
             ->unique(fn(array $artist) => mb_strtolower($artist['name']))
@@ -327,6 +381,7 @@ class AgentPlanner
                 'artist' => $artistKey($album['artist'] ?? null),
                 'genre_id' => $byName[mb_strtolower(trim((string) ($album['genre'] ?? '')))] ?? $fallbackGenre,
                 'description' => $this->text($album['description'] ?? null, 2000),
+                'cover' => $this->text($album['cover'] ?? null, 400),
                 'tracks' => $tracks,
             ];
         }

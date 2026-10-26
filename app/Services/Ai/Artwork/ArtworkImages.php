@@ -5,6 +5,7 @@ namespace App\Services\Ai\Artwork;
 use App\Enums\HttpStatus;
 use App\Models\AiJob;
 use Illuminate\Filesystem\FilesystemAdapter;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
@@ -68,6 +69,24 @@ class ArtworkImages
     public function url(AiJob $job, int $index): string
     {
         return URL::temporarySignedRoute('ai.jobs.artwork.image', now()->addDay(), ['job' => $job->id, 'image' => $index]);
+    }
+
+    /**
+     * A stored image as an upload, for saving it on a model the way a form
+     * would. Null when the image is gone.
+     */
+    public function upload(string $file): ?UploadedFile
+    {
+        $disk = $this->disk();
+
+        if (! $disk->exists($file)) {
+            return null;
+        }
+
+        $path = tempnam(sys_get_temp_dir(), 'artwork');
+        file_put_contents($path, $disk->get($file));
+
+        return new UploadedFile($path, basename($file), 'image/jpeg', null, true);
     }
 
     public function stream(AiJob $job, int $index): StreamedResponse

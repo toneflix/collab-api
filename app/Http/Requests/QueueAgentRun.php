@@ -25,6 +25,7 @@ class QueueAgentRun extends FormRequest
             'prompt' => ['required', 'string', 'min:10', 'max:4000'],
             'owner_id' => ['nullable', 'integer', 'exists:users,id'],
             'publish' => ['nullable', 'boolean'],
+            'artwork' => ['nullable', 'boolean'],
             'max_tracks' => ['nullable', 'integer', 'between:1,' . AgentPlanner::MAX_TRACKS],
             'seconds' => ['nullable', 'integer', 'between:10,' . AiSettings::musicMaxSeconds()],
             'label' => ['nullable', 'string', 'max:100'],
@@ -34,12 +35,13 @@ class QueueAgentRun extends FormRequest
     /**
      * The run's options, with defaults filled in.
      *
-     * @return array{publish: bool, max_tracks: int, seconds: int, label: ?string}
+     * @return array{publish: bool, artwork: bool, max_tracks: int, seconds: int, label: ?string}
      */
     public function options(): array
     {
         return [
             'publish' => $this->boolean('publish'),
+            'artwork' => $this->boolean('artwork', true),
             'max_tracks' => (int) ($this->validated('max_tracks') ?? 12),
             'seconds' => (int) ($this->validated('seconds') ?? AgentPlanner::DEFAULT_SECONDS),
             'label' => $this->validated('label'),
