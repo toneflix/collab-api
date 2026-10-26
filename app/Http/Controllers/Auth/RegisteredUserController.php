@@ -7,7 +7,7 @@ use App\Helpers\Providers as PV;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\UserResource;
 use App\Models\User;
-use Carbon\Carbon;
+use App\Services\Auth\CodeClock;
 use DeviceDetector\DeviceDetector;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\Request;
@@ -34,7 +34,7 @@ class RegisteredUserController extends Controller
             'phone' => 'required_without:email|nullable|string|max:255|unique:users,phone',
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
             'firstname' => ['nullable', 'string', 'max:255'],
-            'laststname' => ['nullable', 'string', 'max:255'],
+            'lastname' => ['nullable', 'string', 'max:255'],
             'accept' => ['required', 'accepted'],
         ], [
             'name.required_without' => 'Please enter your fullname.',
@@ -116,17 +116,11 @@ class RegisteredUserController extends Controller
         /** @var User $user */
         $user = Auth::user();
 
-        /** @var Carbon */
-        $datetime = $user->last_attempt ?? now()->subSeconds(PV::config('token_lifespan', 30) + 1);
-        $dateAdd = $datetime->addSeconds(PV::config('token_lifespan', 30));
-        // dd($dateAdd->format('H:i:s'));
-
         return (new UserResource($user))
             ->additional([
-                'message' => 'Registration was successfull',
+                ...CodeClock::retry($user->last_attempt),
+                'message' => 'Your account is ready.',
                 'token' => $token,
-                'time_left' => $dateAdd->shortAbsoluteDiffForHumans(),
-                'try_at' => $dateAdd->toDateTimeLocalString(),
                 'status' => 'success',
                 'status_code' => HttpStatus::CREATED,
             ])

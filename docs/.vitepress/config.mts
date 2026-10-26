@@ -44,6 +44,7 @@ export default defineConfig({
         items: [
           { text: 'Plans and features', link: '/features/plans' },
           { text: 'Users', link: '/features/users' },
+          { text: 'Sign-in and verification', link: '/features/auth' },
           { text: 'AI tools and credits', link: '/features/ai' },
           { text: 'Studio (DAW)', link: '/features/studio' },
           { text: 'Sounds and Freesound', link: '/features/sounds' },

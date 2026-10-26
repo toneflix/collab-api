@@ -1,5 +1,7 @@
 <?php
 
+$frontend = rtrim(env('FRONTEND_URL', 'https://collab.toneflix.ng'), '/');
+
 return [
     /*
     |--------------------------------------------------------------------------
@@ -40,7 +42,7 @@ return [
             'Use the code or link below to recover your account.',
             '<h3 style="text-align: center;">:code</h3>',
             [
-                'link' => 'https://collab.toneflix.ng/reset/password?token=:token',
+                'link' => $frontend . '/reset/password?token=:token',
                 'title' => 'Reset Password',
             ],
             'This password reset code will expire in :duration.',
@@ -54,7 +56,7 @@ return [
             'You are receiving this email because you created an account on <b>Toneflix Music</b> and we needed to verify that you own this email address. <br />Use the code or link below to verify your email address.',
             '<h3 style="text-align: center;">:code</h3>',
             [
-                'link' => 'https://collab.toneflix.ng/account/verify/:type?token=:token',
+                'link' => $frontend . '/account/verify/email?code=:code',
                 'title' => 'Verify Account',
             ],
             'This verification code will expire in :duration.',
@@ -85,7 +87,7 @@ return [
             'Hello :firstname,',
             'Your Toneflix Music account has been verified successfully and we want to use this opportunity to welcome you to our community.',
             [
-                'link' => 'https://collab.toneflix.ng/login',
+                'link' => $frontend . '/login',
                 'title' => 'Get Started',
             ],
         ],

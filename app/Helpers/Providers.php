@@ -5,6 +5,7 @@ namespace App\Helpers;
 use App\Enums\HttpStatus;
 use App\Models\Configuration;
 use App\Models\PasswordCodeResets;
+use App\Services\Auth\CodeClock;
 use Carbon\Carbon;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
@@ -197,8 +198,7 @@ class Providers
                 $datetime = $check->created_at ?? null;
             }
 
-            $dateAdd = $datetime
-                ?->addSeconds(config('settings.token_lifespan', 30));
+            $dateAdd = CodeClock::resendAt($datetime);
 
             return (! $datetime || $dateAdd->isPast())
                 ? Limit::none()
@@ -207,7 +207,7 @@ class Providers
                         $dateAdd->diffForHumans(),
                     ]),
                     'time_left' => $dateAdd->shortAbsoluteDiffForHumans(),
-                    'try_at' => $dateAdd->toDateTimeLocalString(),
+                    'try_at' => $dateAdd->toIso8601String(),
                 ], HttpStatus::TOO_MANY_REQUESTS);
         });
     }

@@ -8,7 +8,9 @@ use App\Listeners\Follows;
 use App\Listeners\NotificationSentToApp;
 use App\Listeners\RememberFileMeta;
 use App\Listeners\SendToAiModerator;
+use App\Listeners\SendVerificationCodes;
 use App\Listeners\SocialInteractionRecieved;
+use Illuminate\Auth\Events\Registered;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 use Illuminate\Notifications\Events\NotificationSent;
 use Overtrue\LaravelFollow\Events\Followed;
@@ -29,6 +31,7 @@ class EventServiceProvider extends ServiceProvider
         NotificationSent::class => [NotificationSentToApp::class],
         AwaitingReview::class => [SendToAiModerator::class],
         FileSaved::class => [RememberFileMeta::class],
+        Registered::class => [SendVerificationCodes::class],
     ];
 
     /**

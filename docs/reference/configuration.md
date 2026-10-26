@@ -26,9 +26,10 @@ If you edit the table directly, run `php artisan cache:forget configuration::bui
 | `payout_auto_approve` | `false` | Send withdrawals without an admin approving each one. |
 | `verify_email` | `false` | Ask new users to confirm their email. |
 | `verify_phone` | `false` | Ask new users to confirm their phone. |
+| `token_lifespan` | `300` | Seconds a reset or verification code stays valid. |
 | `reference_prefix` | `TFC-` | Prefix of payment references. |
 | `allowed_audio_exts` | `.wav, .flac, .aiff, ...` | Audio file types people can upload. |
 
-Settings for realtime, sounds, AI and payout providers are also stored here, but each has its own admin page: `/admin/realtime`, `/admin/sounds`, `/admin/ai` and Payouts > Providers.
+Settings for realtime, sounds, AI and payout providers are also stored here, but each has its own admin page: `/admin/realtime`, `/admin/sounds`, `/admin/ai`, `/admin/auth-pages` and Payouts > Providers.
 
 `premium_*` and `free_*` keys are left over from before plans. The plans migration copied them into the `plans` table, and they are no longer read.

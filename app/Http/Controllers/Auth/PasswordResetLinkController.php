@@ -7,7 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\ActionResource;
 use App\Models\PasswordCodeResets;
 use App\Notifications\SendCode;
-use Carbon\Carbon;
+use App\Services\Auth\CodeClock;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -30,11 +30,9 @@ class PasswordResetLinkController extends Controller
             'email.exists' => 'We could not find a user with this email address.',
         ]);
 
-        // Delete the old code
         PasswordCodeResets::whereEmail($request->email)
             ->delete();
 
-        // // generate the new code
         $reset = new PasswordCodeResets;
         $reset->email = $request->email;
         $reset->code = Random::otp(6);
@@ -42,19 +40,12 @@ class PasswordResetLinkController extends Controller
         $reset->save();
         $reset->notify(new SendCode);
 
-        /** @var Carbon */
-        $dateAdd = $reset->created_at->addSeconds(config('settings.token_lifespan', 30));
-
-        // And finally return a response
-        $retry = [
-            'try_at' => $dateAdd->toDateTimeLocalString(),
-            'time_left' => $dateAdd->shortAbsoluteDiffForHumans(),
-        ];
+        $retry = CodeClock::retry($reset->created_at);
 
         return (new ActionResource($retry))
             ->additional([
                 ...$retry,
-                'message' => __('Password reset code sent.'),
+                'message' => __('We sent a reset code to your email.'),
                 'status' => 'success',
                 'status_code' => HttpStatus::CREATED,
             ])
