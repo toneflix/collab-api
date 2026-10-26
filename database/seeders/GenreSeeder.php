@@ -152,5 +152,18 @@ class GenreSeeder extends Seeder
         if (DB::getDriverName() === 'pgsql') {
             DB::statement("SELECT setval(pg_get_serial_sequence('genres', 'id'), (SELECT MAX(id) FROM genres))");
         }
+
+        $now = now();
+        $more = collect(require database_path('data/genres.php'))
+            ->map(fn(string $title, string $slug) => [
+                'slug' => $slug,
+                'title' => $title,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ])
+            ->values()
+            ->all();
+
+        Genre::insertOrIgnore($more);
     }
 }

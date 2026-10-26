@@ -1,0 +1,46 @@
+<?php
+
+/**
+ * Genres added after the first sixteen, by slug. The seeder and the
+ * add_more_genres migration insert any that are missing.
+ */
+return [
+    'afrobeats' => 'Afrobeats',
+    'afropop' => 'Afropop',
+    'afro-fusion' => 'Afro-fusion',
+    'amapiano' => 'Amapiano',
+    'alte' => 'Alté',
+    'highlife' => 'Highlife',
+    'fuji' => 'Fuji',
+    'juju' => 'Jùjú',
+    'gqom' => 'Gqom',
+    'kwaito' => 'Kwaito',
+    'bongo-flava' => 'Bongo Flava',
+    'gospel' => 'Gospel',
+    'neo-soul' => 'Neo Soul',
+    'funk' => 'Funk',
+    'disco' => 'Disco',
+    'trap' => 'Trap',
+    'drill' => 'Drill',
+    'grime' => 'Grime',
+    'lo-fi' => 'Lo-fi',
+    'house' => 'House',
+    'deep-house' => 'Deep House',
+    'techno' => 'Techno',
+    'trance' => 'Trance',
+    'drum-and-bass' => 'Drum & Bass',
+    'dubstep' => 'Dubstep',
+    'dancehall' => 'Dancehall',
+    'soca' => 'Soca',
+    'reggaeton' => 'Reggaeton',
+    'latin' => 'Latin',
+    'k-pop' => 'K-Pop',
+    'alternative' => 'Alternative',
+    'ambient' => 'Ambient',
+    'acoustic' => 'Acoustic',
+    'instrumental' => 'Instrumental',
+    'soundtrack' => 'Soundtrack',
+    'world' => 'World',
+    'experimental' => 'Experimental',
+    'spoken-word' => 'Spoken Word',
+];

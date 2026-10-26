@@ -1,4 +1,8 @@
-# Word data for Composer
+# Data files
+
+`genres.php` lists the genres added after the first sixteen. `GenreSeeder` and the `add_more_genres` migration insert any that are missing.
+
+## Word data for Composer
 
 `php artisan words:import` loads these into the `words` table.
 
