@@ -148,8 +148,8 @@ See [Payment providers](../guide/payments) for webhooks and dashboard settings.
 | --- | --- | --- |
 | `REPLICATE_API_TOKEN` | | From [replicate.com/account/api-tokens](https://replicate.com/account/api-tokens). AI tools stay off without it. |
 | `REPLICATE_MUSIC_MODEL` | `elevenlabs/music` | Music model to start with, until an admin picks one on `/admin/ai`. |
-| `REPLICATE_STEMS_MODEL` | `ryan5453/demucs` | Model for stem separation. |
-| `REPLICATE_STEMS_VARIANT` | `htdemucs` | Demucs weights. The current `ryan5453/demucs` version only accepts `htdemucs`. |
+| `REPLICATE_STEMS_MODEL` | `ryan5453/demucs:5a7041cc…` | Model for stem separation, pinned to Demucs' 22.04 release. The newer v1.0.0 takes different inputs and was slow to start. |
+| `REPLICATE_STEMS_VARIANT` | `htdemucs` | Demucs weights. `htdemucs_ft` gives cleaner parts but takes about four times as long. |
 | `REPLICATE_STEMS_TIMEOUT` | `1200` | Longest wait for a Demucs split, in seconds. Covers Replicate's queue and cold boots. |
 | `REPLICATE_LYRICS_MODEL` | `openai/whisper` | Model for lyrics transcription. |
 | `REPLICATE_MODERATOR_MODEL` | `anthropic/claude-4.5-haiku` | Model behind the AI moderator. A larger Claude model judges harder cases better at a higher cost per review. |

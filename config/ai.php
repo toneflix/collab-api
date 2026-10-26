@@ -62,8 +62,9 @@ return [
             'models' => [
                 'audio' => ['default' => env('REPLICATE_MUSIC_MODEL', 'elevenlabs/music')],
                 'stems' => [
-                    'default' => env('REPLICATE_STEMS_MODEL', 'ryan5453/demucs'),
-                    // Demucs weights; ryan5453/demucs now only accepts htdemucs
+                    // Pinned to the 22.04 release; the newer v1.0.0 only serves htdemucs and stalls in Replicate's queue
+                    'default' => env('REPLICATE_STEMS_MODEL', 'ryan5453/demucs:5a7041cc9b82e5a558fea6b3d7b12dea89625e89da33f0447bd727c2d0ab9e77'),
+                    // Demucs weights: htdemucs, or htdemucs_ft for cleaner parts at about four times the time
                     'variant' => env('REPLICATE_STEMS_VARIANT', 'htdemucs'),
                     // Longest wait for a split, in seconds; Demucs can sit in Replicate's queue or cold boot for minutes
                     'timeout' => (int) env('REPLICATE_STEMS_TIMEOUT', 1200),
