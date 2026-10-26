@@ -1,6 +1,6 @@
 # Overview
 
-Toneflix Collab is a music streaming and collaboration platform. It lives in two repositories:
+Toneflix Music is a music streaming and collaboration platform. It lives in two repositories:
 
 | Repository | What it is | Stack |
 | --- | --- | --- |

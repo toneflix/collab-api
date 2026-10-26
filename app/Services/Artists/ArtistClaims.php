@@ -84,7 +84,7 @@ class ArtistClaims
         $artist = $claim->artist;
 
         $this->notify($claim, 'Your artist claim was approved', trim(
-            "You now manage {$artist->name} on Toneflix. You can edit the profile and manage the catalogue from Studio. " . ($note ?? '')
+            "You now manage {$artist->name} on Toneflix Music. You can edit the profile and manage the catalogue from Studio. " . ($note ?? '')
         ));
 
         $this->declineOthers($claim, $admin);

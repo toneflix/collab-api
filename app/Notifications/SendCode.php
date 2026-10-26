@@ -114,12 +114,12 @@ class SendCode extends Notification implements ShouldQueue
             ]),
             'reset' => __('Use this code :0 to reset your :1 password, It expires in :2.', [
                 $this->code,
-                Providers::config('site_name'),
+                Providers::config('app_name'),
                 $dateAdd->longAbsoluteDiffForHumans(),
             ]),
             'verify-phone' => __('use this code :0 to verify your :1 phone number, It expires in :2.', [
                 $this->code,
-                Providers::config('site_name'),
+                Providers::config('app_name'),
                 $dateAdd->longAbsoluteDiffForHumans(),
             ]),
         ];

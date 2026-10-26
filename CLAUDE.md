@@ -1,6 +1,6 @@
 # collab-api
 
-Laravel 13 API for Toneflix Collab. Tests run on PostgreSQL (`php artisan test`, see `phpunit.xml`); run `php artisan migrate --seed` on the test database once first.
+Laravel 13 API for Toneflix Music. Tests run on PostgreSQL (`php artisan test`, see `phpunit.xml`); run `php artisan migrate --seed` on the test database once first.
 
 ## Responses
 

@@ -1,4 +1,4 @@
-# Toneflix Collab API
+# Toneflix Music API
 
 A streaming platform that brings together creatives in the music industry to make awesome sounds through collaboration.
 

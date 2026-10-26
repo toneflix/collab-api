@@ -1,8 +1,8 @@
 import { defineConfig } from 'vitepress';
 
 export default defineConfig({
-  title: 'Toneflix Collab',
-  description: 'Setup and feature guides for the Toneflix Collab API and app.',
+  title: 'Toneflix Music',
+  description: 'Setup and feature guides for the Toneflix Music API and app.',
   // Set DOCS_BASE when the site is served from a sub-path, like /docs/.
   base: process.env.DOCS_BASE || '/',
   cleanUrls: true,
