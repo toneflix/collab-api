@@ -5,6 +5,7 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 
 use App\Contracts\Reportable;
+use App\Enums\AccountType;
 use App\Enums\Feature;
 use App\Models\Scopes\RestrictBlockedUserScope;
 use App\Notifications\SendCode;
@@ -72,6 +73,8 @@ class User extends Authenticatable implements Commentator, Reportable
         'phone',
         'username',
         'password',
+        'account_type',
+        'identities',
     ];
 
     /**
@@ -138,6 +141,9 @@ class User extends Authenticatable implements Commentator, Reportable
             'email_verified_at' => 'datetime',
             'phone_verified_at' => 'datetime',
             'suspended_at' => 'datetime',
+            'account_type' => AccountType::class,
+            'identities' => 'array',
+            'interests_at' => 'datetime',
             'suspended_until' => 'datetime',
         ];
     }
@@ -416,6 +422,24 @@ class User extends Authenticatable implements Commentator, Reportable
     public function projects(): HasMany
     {
         return $this->hasMany(Project::class);
+    }
+
+    /**
+     * Genres the user picked as interests, used to curate what they hear.
+     */
+    public function interests(): BelongsToMany
+    {
+        return $this->belongsToMany(Genre::class)
+            ->withTimestamps();
+    }
+
+    /**
+     * Music topics the user picked as interests.
+     */
+    public function topics(): BelongsToMany
+    {
+        return $this->belongsToMany(Topic::class)
+            ->withTimestamps();
     }
 
     /**

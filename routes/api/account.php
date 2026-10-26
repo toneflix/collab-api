@@ -4,6 +4,7 @@ use App\Helpers\Providers;
 use App\Http\Controllers\Account;
 use App\Http\Controllers\Account\AiCreditsController;
 use App\Http\Controllers\Account\BlockController;
+use App\Http\Controllers\Account\InterestsController;
 use App\Http\Controllers\Account\NotificationController;
 use App\Http\Controllers\Account\NotificationSettingsController;
 use App\Http\Controllers\Account\PaymentsController;
@@ -24,6 +25,8 @@ Route::middleware(['auth:sanctum'])
         // Before the profile routes, which take any `account/{field}`.
         Route::get('notification-settings', [NotificationSettingsController::class, 'show'])->name('notification-settings.show');
         Route::put('notification-settings', [NotificationSettingsController::class, 'update'])->name('notification-settings.update');
+        Route::get('interests', [InterestsController::class, 'show'])->name('interests.show');
+        Route::put('interests', [InterestsController::class, 'update'])->name('interests.update');
         Route::get('ai', [AiCreditsController::class, 'show'])->name('ai.show');
         Route::get('ai/history', [AiCreditsController::class, 'history'])->name('ai.history');
         Route::apiResource('/', Account::class)->parameter('', 'field')->only(['index', 'update']);

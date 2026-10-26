@@ -40,6 +40,18 @@ class Tracks
             );
         }
 
+        if ($this->request->has('for_you') && $this->request->user('sanctum')) {
+            $resource = (new TrackController)->index(Request::createFrom($this->request)->merge([
+                'filters' => 'for_you',
+                'limit' => $this->request->input('for_you', 18),
+            ]));
+
+            $this->instance->put(
+                'for_you',
+                Section::from($resource)
+            );
+        }
+
         if ($this->request->has('latest_tracks')) {
             $resource = (new TrackController)->index(Request::createFrom($this->request)->merge([
                 'filters' => 'latest',

@@ -12,9 +12,10 @@ use Illuminate\Support\Collection;
  * Tracks to play once the player's queue runs out, so playback never stops.
  *
  * Only playable tracks from live releases are picked: related tracks first,
- * then ones from the seed's album, artists and label, then the rest. When the
- * exclusions leave nothing, they are dropped, so the only track that is never
- * returned is the seed.
+ * then ones from the seed's album, artists and label, then ones matching the
+ * listener's interests, then the rest. When the exclusions leave
+ * nothing, they are dropped, so the only track that is never returned is
+ * the seed.
  */
 class UpNext
 {
@@ -93,7 +94,7 @@ class UpNext
 
     /**
      * Order tracks by tier: related to the seed, then from its album, its
-     * artists, its label, and finally everything else.
+     * artists, its label, the listener's interests, and finally everything else.
      */
     protected function rank(Builder $query): void
     {
@@ -103,6 +104,9 @@ class UpNext
             $this->sameArtists(),
             $this->seed?->release?->record_label
                 ? ['exists (select 1 from releases where releases.id = tracks.release_id and releases.record_label = ?)', [$this->seed->release->record_label]]
+                : null,
+            $this->user
+                ? [Track::interestsSql(), Track::interestsBindings($this->user)]
                 : null,
         ])
             ->filter()

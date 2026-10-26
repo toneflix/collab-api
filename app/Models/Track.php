@@ -429,6 +429,39 @@ class Track extends Model implements CanBeTakenDown
             ->popularPlayedLastDays($days);
     }
 
+    /**
+     * Tracks matching the user's interests: in a genre they picked, on a
+     * release tagged with a topic they picked, or titled with one of those
+     * topics. Most streamed first.
+     */
+    public function scopeForYou(Builder $query, User $user): void
+    {
+        $query
+            ->whereRaw(self::interestsSql(), self::interestsBindings($user))
+            ->orderByDesc('streams')
+            ->orderByDesc('tracks.id');
+    }
+
+    /**
+     * The SQL condition behind `forYou`, for queries that rank by it.
+     */
+    public static function interestsSql(): string
+    {
+        return '(tracks.genre_id in (select genre_id from genre_user where genre_user.user_id = ?)'
+            . ' or exists (select 1 from release_topic join topic_user on topic_user.topic_id = release_topic.topic_id'
+            . ' where release_topic.release_id = tracks.release_id and topic_user.user_id = ?)'
+            . ' or exists (select 1 from topic_user join topics on topics.id = topic_user.topic_id'
+            . " where topic_user.user_id = ? and ' ' || lower(tracks.title) || ' ' like '% ' || lower(topics.title) || ' %'))";
+    }
+
+    /**
+     * @return list<int>
+     */
+    public static function interestsBindings(User $user): array
+    {
+        return [$user->id, $user->id, $user->id];
+    }
+
     public function scopeUserCollabs(Builder $query, User|string $user, ?string $period = 'years_2'): void
     {
         $query->whereHas('release', function (Builder $q) use ($period, $user) {

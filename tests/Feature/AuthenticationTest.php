@@ -51,6 +51,8 @@ class AuthenticationTest extends TestCase
                     'firstname' => $this->faker('en-NG')->firstName,
                     'password' => 'password',
                     'password_confirmation' => 'password',
+                    'account_type' => 'listener',
+                    'accept' => true,
                 ],
                 [
                     'X-Requested-With' => 'XMLHttpRequest',
