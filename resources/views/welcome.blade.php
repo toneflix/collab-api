@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>Toneflix Collab API</title>
+    <title>Toneflix Music API</title>
     <style>
         body {
             display: flex;
@@ -25,7 +25,7 @@
 </head>
 
 <body>
-    <h1 class="title">Toneflix Collab API</h1>
+    <h1 class="title">Toneflix Music API</h1>
 </body>
 
 </html>

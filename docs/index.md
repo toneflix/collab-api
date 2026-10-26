@@ -2,9 +2,9 @@
 layout: home
 
 hero:
-  name: Toneflix Collab
+  name: Toneflix Music
   text: Setup and feature guides
-  tagline: How to run, configure and deploy the Toneflix Collab API and app.
+  tagline: How to run, configure and deploy the Toneflix Music API and app.
   actions:
     - theme: brand
       text: Get started

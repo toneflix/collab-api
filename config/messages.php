@@ -33,10 +33,10 @@ return [
     |
     */
     'send_code::reset' => [
-        'subject' => 'Reset your Toneflix Collab password.',
+        'subject' => 'Reset your Toneflix Music password.',
         'lines' => [
             'Hello :firstname,',
-            'You are receiving this email because we received a password reset request for your account on Toneflix Collab.',
+            'You are receiving this email because we received a password reset request for your account on Toneflix Music.',
             'Use the code or link below to recover your account.',
             '<h3 style="text-align: center;">:code</h3>',
             [
@@ -48,10 +48,10 @@ return [
         ],
     ],
     'send_code::verify' => [
-        'subject' => 'Verify your account on Toneflix Collab.',
+        'subject' => 'Verify your account on Toneflix Music.',
         'lines' => [
             'Hello :firstname,',
-            'You are receiving this email because you created an account on <b>Toneflix Collab</b> and we needed to verify that you own this email addrress. <br />Use the code or link below to verify your email address.',
+            'You are receiving this email because you created an account on <b>Toneflix Music</b> and we needed to verify that you own this email address. <br />Use the code or link below to verify your email address.',
             '<h3 style="text-align: center;">:code</h3>',
             [
                 'link' => 'https://collab.toneflix.ng/account/verify/:type?token=:token',
@@ -80,10 +80,10 @@ return [
     |
     */
     'send_verified' => [
-        'subject' => 'Welcome to the Toneflix Collab community.',
+        'subject' => 'Welcome to the Toneflix Music community.',
         'lines' => [
             'Hello :firstname,',
-            'Your Collab account has been verified sucessfully and we want to use this opportunity to welcome you to our community.',
+            'Your Toneflix Music account has been verified successfully and we want to use this opportunity to welcome you to our community.',
             [
                 'link' => 'https://collab.toneflix.ng/login',
                 'title' => 'Get Started',
@@ -102,17 +102,17 @@ return [
         'subject' => 'Please verify your email.',
         'lines' => [
             'Hello :fullname,',
-            'You initiated an account opening proccess at :app_name, please use the code below to complete your request',
+            'You initiated an account opening process at :app_name, please use the code below to complete your request',
             '<h3 style="text-align: center;">:code</h3>',
-            'If you need any further assistance please reachout to support.',
+            'If you need any further assistance please reach out to support.',
         ],
     ],
     'welcome' => [
         'subject' => ':firstname, welcome to :app_name.',
         'lines' => [
             'Hello :fullname,',
-            "We are happy to have you onboard :app_name, your registration was successfull and we can't wait to see what you do next.",
-            "If you do need any assistance please don't fail to reachout to one of our numerous support channels.",
+            "We are happy to have you onboard :app_name, your registration was successful and we can't wait to see what you do next.",
+            "If you do need any assistance please don't fail to reach out to one of our numerous support channels.",
         ],
     ],
     'project::request' => [

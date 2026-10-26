@@ -392,7 +392,7 @@
                                                                                         style="font-family:Lato,'Helvetica Neue ',Helvetica,Arial,sans-serif;font-size:18px;font-weight:400;line-height:24px;text-align:center;color:#434245;">
                                                                                         You are recieving this message
                                                                                         because you are registered on
-                                                                                        {{ Providers::config('site_name') }}.
+                                                                                        {{ Providers::config('app_name') }}.
                                                                                     </div>
                                                                                 </td>
                                                                             </tr>

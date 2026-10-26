@@ -8,7 +8,7 @@ Every key and secret the API uses comes from `.env`, read through files in `conf
 
 | Key | Default | What it does |
 | --- | --- | --- |
-| `APP_NAME` | `Laravel` | Name in emails and notifications. |
+| `APP_NAME` | `Toneflix Music` | Name in emails and notifications. |
 | `APP_ENV` | `local` | `production` on live servers. |
 | `APP_KEY` | | Encryption key. Create it with `php artisan key:generate`. |
 | `APP_DEBUG` | `true` | Must be `false` in production. |
