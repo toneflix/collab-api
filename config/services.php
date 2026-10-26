@@ -73,6 +73,8 @@ return [
         'api_key' => env('FIREBASE_API_KEY'),
         'project_id' => env('FIREBASE_PROJECT_ID'),
         'app_id' => env('FIREBASE_APP_ID'),
+        // The service account JSON, or a path to it, that sends push to the mobile apps.
+        'credentials' => env('FIREBASE_CREDENTIALS'),
     ],
 
 ];

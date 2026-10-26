@@ -341,6 +341,14 @@ class User extends Authenticatable implements Commentator, Reportable
     }
 
     /**
+     * Installed apps that receive push through Firebase Cloud Messaging.
+     */
+    public function deviceTokens(): HasMany
+    {
+        return $this->hasMany(DeviceToken::class);
+    }
+
+    /**
      * Get all of the artists created by the User
      */
     public function artists(): HasMany

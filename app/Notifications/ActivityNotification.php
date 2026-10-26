@@ -10,6 +10,8 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\URL;
+use Kreait\Firebase\Messaging\CloudMessage;
+use Kreait\Firebase\Messaging\Notification as FcmNotification;
 use NotificationChannels\WebPush\WebPushMessage;
 use Symfony\Component\Mime\Email;
 
@@ -120,6 +122,31 @@ abstract class ActivityNotification extends Notification implements ShouldQueue
             ->renotify()
             ->data(['url' => $content['url'], 'category' => $this->category()->value])
             ->options(['TTL' => 86400, 'urgency' => 'normal']);
+    }
+
+    /**
+     * Push for the mobile apps. Android shows it in the system tray when the
+     * app is closed, in the channel named after the category.
+     */
+    public function toFcm(User $notifiable): CloudMessage
+    {
+        $content = $this->content($notifiable);
+
+        return CloudMessage::new()
+            ->withNotification(FcmNotification::create($content['subject'], $content['body']))
+            ->withData([
+                'url' => $content['url'],
+                'path' => $this->path(),
+                'category' => $this->category()->value,
+            ])
+            ->withAndroidConfig([
+                'priority' => 'high',
+                'ttl' => '86400s',
+                'notification' => [
+                    'channel_id' => $this->category()->value,
+                    'tag' => $this->tag(),
+                ],
+            ]);
     }
 
     /**

@@ -4,6 +4,7 @@ namespace App\Services\Notifications;
 
 use App\Enums\NotificationCategory;
 use App\Models\User;
+use App\Notifications\Channels\FcmChannel;
 use App\Notifications\Channels\PushChannel;
 
 /**
@@ -92,8 +93,16 @@ class NotificationPreferences
             $channels[] = 'mail';
         }
 
-        if ($this->allows($category, 'push') && WebPush::enabled() && $this->user->pushSubscriptions()->exists()) {
+        if (! $this->allows($category, 'push')) {
+            return $channels;
+        }
+
+        if (WebPush::enabled() && $this->user->pushSubscriptions()->exists()) {
             $channels[] = PushChannel::class;
+        }
+
+        if (Fcm::enabled() && $this->user->deviceTokens()->exists()) {
+            $channels[] = FcmChannel::class;
         }
 
         return $channels;

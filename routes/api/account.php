@@ -47,6 +47,8 @@ Route::middleware(['auth:sanctum'])
         Route::apiResource('notifications', NotificationController::class)->only(['index', 'update', 'destroy']);
         Route::post('push-subscriptions', [NotificationSettingsController::class, 'subscribe'])->name('push-subscriptions.store');
         Route::delete('push-subscriptions', [NotificationSettingsController::class, 'unsubscribe'])->name('push-subscriptions.destroy');
+        Route::post('device-tokens', [NotificationSettingsController::class, 'registerDevice'])->name('device-tokens.store');
+        Route::delete('device-tokens', [NotificationSettingsController::class, 'forgetDevice'])->name('device-tokens.destroy');
         Route::apiResource('/notification-requests', NotificationRequestController::class)->except(['store']);
         Route::middleware(['throttle:code-requests'])->post('request/otp', function (Request $request) {
             $user = $request->user();
