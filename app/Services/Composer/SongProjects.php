@@ -105,6 +105,22 @@ class SongProjects
     }
 
     /**
+     * Have AI sing the song's lyrics onto the track it already has.
+     *
+     * @param  array{prompt?: ?string, seconds?: ?int}  $data
+     */
+    public function generate(Song $song, User $user, array $data): AiJob
+    {
+        if (! $song->track) {
+            throw ValidationException::withMessages(['song' => 'This song has no project yet.']);
+        }
+
+        $input = $this->musicInput($song, $user, $data);
+
+        return $this->studio->start($user, $song->track, 'music', $input);
+    }
+
+    /**
      * Put the song's current lyrics on its track's lyric sheet, keeping the
      * times of lines that are still there. Released tracks follow the sheet.
      */

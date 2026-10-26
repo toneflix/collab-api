@@ -128,6 +128,7 @@ class User extends Authenticatable implements Commentator, Reportable
         return [
             'curator' => 'boolean',
             'verified' => 'boolean',
+            'content_agent' => 'boolean',
             'reputation' => 'integer',
             'email_verified_at' => 'datetime',
             'password' => 'hashed',

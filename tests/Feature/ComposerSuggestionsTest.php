@@ -45,7 +45,7 @@ class ComposerSuggestionsTest extends TestCase
         {
             public function __construct(protected ComposerSuggestionsTest $test) {}
 
-            public function ask(string $system, string $prompt): string
+            public function ask(string $system, string $prompt, int $maxTokens = 1200): string
             {
                 $this->test->asked[] = ['system' => $system, 'prompt' => $prompt];
                 $answer = array_shift($this->test->answers) ?? '{"options": []}';

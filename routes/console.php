@@ -38,3 +38,8 @@ Schedule::command('studio:prune-history')
 Schedule::command('ai:sweep')
     ->everyTenMinutes()
     ->withoutOverlapping();
+
+// Start queued content agent runs and keep the active one moving.
+Schedule::command('agent:tick')
+    ->everyMinute()
+    ->withoutOverlapping();
