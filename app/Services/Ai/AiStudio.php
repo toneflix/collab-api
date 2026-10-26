@@ -22,8 +22,9 @@ use Illuminate\Validation\ValidationException;
 use Throwable;
 
 /**
- * Starts AI jobs on a project track, charging their credits up front, and
- * runs them, refunding the credits when the work fails.
+ * Starts AI jobs, on a project track or on their own like artwork, charging
+ * their credits up front, and runs them, refunding the credits when the work
+ * fails.
  */
 class AiStudio
 {
@@ -37,7 +38,7 @@ class AiStudio
     /**
      * @param  array<string, mixed>  $input
      */
-    public function start(User $user, ProjectTrack $track, string $kind, array $input): AiJob
+    public function start(User $user, ?ProjectTrack $track, string $kind, array $input): AiJob
     {
         $credits = Credits::for($user);
         $credits->ensureAccess();
@@ -46,7 +47,7 @@ class AiStudio
             throw ValidationException::withMessages(['ai' => 'Wait for your other AI jobs to finish first.']);
         }
 
-        $job = new AiJob(['user_id' => $user->id, 'project_track_id' => $track->id, 'kind' => $kind, 'input' => $input]);
+        $job = new AiJob(['user_id' => $user->id, 'project_track_id' => $track?->id, 'kind' => $kind, 'input' => $input]);
         $task = $job->task();
         $engine = $task->engine($input);
 
@@ -82,8 +83,8 @@ class AiStudio
             ->save();
         $this->announce($job);
 
-        $history = TrackHistory::for($job->track);
-        $history->baseline();
+        $history = $job->track ? TrackHistory::for($job->track) : null;
+        $history?->baseline();
 
         try {
             $output = $job
@@ -172,13 +173,13 @@ class AiStudio
      *
      * @param  array<string, mixed>  $output
      */
-    protected function publish(AiJob $job, TrackHistory $history, array $output): AiJob
+    protected function publish(AiJob $job, ?TrackHistory $history, array $output): AiJob
     {
         $job
             ->forceFill(['output' => $output])
             ->save();
 
-        $history->record($job->user, ProjectTrackVersion::ADDED);
+        $history?->record($job->user, ProjectTrackVersion::ADDED);
 
         foreach ($output['stems'] ?? [] as $stemId) {
             Realtime::send(Channels::projectTrack($job->track), 'stem.added', [
@@ -267,12 +268,13 @@ class AiStudio
     }
 
     /**
-     * Tell the track's collaborators and the job's owner how it's going.
+     * Tell the job's owner, and the track's collaborators when it has one,
+     * how it's going.
      */
     protected function announce(AiJob $job): void
     {
         Realtime::send(
-            [Channels::projectTrack($job->project_track_id), Channels::user($job->user_id)],
+            [$job->project_track_id ? Channels::projectTrack($job->project_track_id) : null, Channels::user($job->user_id)],
             'ai.job',
             (new AiJobResource($job))->resolve(),
             $job->user,

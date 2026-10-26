@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Services\Ai\Tasks\AiTask;
 use App\Services\Ai\Tasks\EditSection;
+use App\Services\Ai\Tasks\GenerateArtwork;
 use App\Services\Ai\Tasks\GenerateMusic;
 use App\Services\Ai\Tasks\SplitStems;
 use App\Services\Ai\Tasks\TranscribeLyrics;
@@ -33,6 +34,7 @@ class AiJob extends Model
         'stems' => SplitStems::class,
         'lyrics' => TranscribeLyrics::class,
         'edit' => EditSection::class,
+        'artwork' => GenerateArtwork::class,
     ];
 
     protected $attributes = [

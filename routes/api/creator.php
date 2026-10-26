@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Creator\AiArtworkController;
 use App\Http\Controllers\Creator\AiController;
 use App\Http\Controllers\Creator\ArtistController;
 use App\Http\Controllers\Creator\AudioTagController;
@@ -50,6 +51,8 @@ Route::middleware(['auth:sanctum'])
                 ->name('projects.tracks.versions.restore');
             Route::apiResource('projects/{project}/tracks/{track}/assets', ProjectTrackAssetController::class);
         });
+        Route::get('ai/artwork', [AiArtworkController::class, 'index'])->name('ai.artwork.index');
+        Route::post('ai/artwork', [AiArtworkController::class, 'store'])->middleware('throttle:10,1')->name('ai.artwork.store');
         Route::get('ai/jobs/{job}', [AiController::class, 'show'])->name('ai.jobs.show');
         Route::post('ai/jobs/{job}/versions/{version}', [AiController::class, 'choose'])->whereNumber('version')->name('ai.jobs.versions.choose');
         Route::put('tracks/{track}/lyrics', [LyricsController::class, 'updateTrack'])->name('tracks.lyrics.update');

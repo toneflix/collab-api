@@ -1,6 +1,6 @@
 # AI tools and credits
 
-The studio's AI panel can **generate music** from a prompt and **split a track into stems**, the DAW can **rewrite a section of a stem** from a prompt, and the lyric sheet can **write out the lyrics** sung on a stem. They run on three engines, [Replicate](https://replicate.com) (the default for everything), [Suno](#suno) (optional, for music and stems) and [Cloudflare Workers AI](#cloudflare-workers-ai) (optional, for music, lyrics, Composer and the AI moderator), and are paid for with AI credits. Released tracks also get their lyrics written out automatically, paid for by the app (see [Lyrics](#lyrics)).
+The studio's AI panel can **generate music** from a prompt and **split a track into stems**, the DAW can **rewrite a section of a stem** from a prompt, the lyric sheet can **write out the lyrics** sung on a stem, and every artwork upload can **draw artwork** from a prompt. They run on three engines, [Replicate](https://replicate.com) (the default for everything), [Suno](#suno) (optional, for music and stems) and [Cloudflare Workers AI](#cloudflare-workers-ai) (optional, for music, lyrics, artwork, Composer and the AI moderator), and are paid for with AI credits. Released tracks also get their lyrics written out automatically, paid for by the app (see [Lyrics](#lyrics)).
 
 ## Setup
 
@@ -19,6 +19,7 @@ The tools stay hidden unless admins turned them on, an engine's key is set, and 
 | Music generation | `elevenlabs/music` | "Music model" on `/admin/ai` (`REPLICATE_MUSIC_MODEL` sets the default) |
 | Stem separation | `ryan5453/demucs` | "Stem split engine" on `/admin/ai` (Demucs or Suno); `REPLICATE_STEMS_MODEL` |
 | Lyrics transcription | `openai/whisper` (large-v3) | "Lyrics engine" on `/admin/ai` (Replicate or Workers AI); `REPLICATE_LYRICS_MODEL`, `CLOUDFLARE_LYRICS_MODEL` |
+| Artwork | `black-forest-labs/flux-schnell` | "Artwork engine" on `/admin/ai` (Replicate or Workers AI); `REPLICATE_ARTWORK_MODEL`, `CLOUDFLARE_ARTWORK_MODEL` |
 
 Generated music is added to the project track as a stem, or split into stems first if the person asks.
 
@@ -63,6 +64,15 @@ In the DAW, people select a part of a stem, choose **Edit with AI** and describe
 - **Splicing.** FFmpeg cuts the clip, and after Suno answers it takes the rewritten part back out, stretched in time (pitch kept) to its original length when Suno's clip came back longer or shorter, and splices only the selected part into the stem with 60 ms crossfades.
 - **Result.** The edit goes on the track as a new stem, "Title (AI edit)", with the original's place, clips, volume and effects, and the original is muted. Version history can undo it.
 
+## Artwork
+
+Project, release, track and artist forms have a **Generate with AI** button beside the image upload. People describe the picture, pick one of the images it draws, and the form saves it like an uploaded image.
+
+- **API.** `POST /api/creator/ai/artwork` takes `kind` (`project`, `release`, `track`, `song`, `artist` or `artist_cover`), `prompt`, and optionally the `title`, `artist` and `genre` of what it's for. It starts an `artwork` job (no project track) for "Artwork credits" (3 by default). `GET /api/creator/ai/artwork?kind=` lists the person's latest artwork jobs.
+- **Images.** A job draws "Artwork images per request" images (4 by default, at most 4). `App\Enums\ArtworkKind` sets the shape (square, or 2:1 for artist covers) and turns the prompt into one for the model, asking for no text. The images are cropped to shape, stored as JPEGs under `ai/artwork/{job}` and listed on the job as `images`, each with a signed `url` that works for a day. `ai:sweep` deletes them after 7 days.
+- **Engines.** FLUX.1 [schnell] on Replicate draws all images in one run, about $0.003 each. On Workers AI it draws one square image per run. Models implement `App\Services\Ai\Artwork\ArtworkModel` and are listed in `GenerateArtwork::MODELS`. FLUX.1 [schnell] is Apache-2.0.
+- **Other forms.** The app's `AiArtworkButton` component works for any form with an image: it takes the kind and the form's title, artist and genre, and emits the picked image as a `File`.
+
 ## Cloudflare Workers AI
 
 [Workers AI](https://developers.cloudflare.com/ai/models/) is an optional third engine. Replicate stays the default; admins move each tool over on `/admin/ai`.
@@ -71,6 +81,7 @@ In the DAW, people select a part of a stem, choose **Edit with AI** and describe
 - **Music.** "Music model" offers ElevenLabs Music v2 (`elevenlabs/music-v2`, $0.0025 per second, so the default 5 credits per 10 seconds keeps the usual margin) and MiniMax Music 2.6 (`minimax/music-2.6`, $0.15 a song plus $0.01 when it writes the lyrics; 30 credits by default). Both answer with a link to the finished song in the same request.
 - **Lyrics.** "Lyrics engine" runs Whisper (`@cf/openai/whisper-large-v3-turbo`, `CLOUDFLARE_LYRICS_MODEL`). Workers AI takes the audio inside the request, so it is first made into a 16 kHz mono MP3.
 - **Composer.** "Composer engine" with "Composer writing model on Cloudflare" (`anthropic/claude-haiku-4.5` by default, `CLOUDFLARE_COMPOSER_MODEL`). Any Workers AI text model works: Anthropic models go through the Messages API, the others through the OpenAI-style chat API.
+- **Artwork.** "Artwork engine" runs FLUX.1 [schnell] (`@cf/black-forest-labs/flux-1-schnell`, `CLOUDFLARE_ARTWORK_MODEL`), one square image per run, cropped for wide covers.
 - **AI moderator.** "AI moderator engine", with `CLOUDFLARE_MODERATOR_MODEL` (`anthropic/claude-haiku-4.5`). Release covers are sent as image links, so the model must read images.
 - **Not on Workers AI.** Stem splitting: Workers AI has no source separation model, so stems stay on Demucs or Suno.
 - **In code.** `App\Services\Ai\Cloudflare\CloudflareClient` runs models (`ai/run`), and chats with language models. `AiSettings::ENGINES` lists which engines each switchable tool can use.

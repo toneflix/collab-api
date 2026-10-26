@@ -55,6 +55,9 @@ class AiSettings extends SettingsStore
         'ai_stems_suno_type' => ['Suno Stems', 'split_stem', 'Vocals and instrumental only (about $0.05 a split on sunoapi.org), or up to 12 stems (about $0.25).'],
         'ai_stems_suno_credits' => ['Suno Stem Split Credits', '50', 'Credits one split into stems uses on Suno.'],
         'ai_edit_credits' => ['Section Edit Credits', '5', 'Credits one AI edit of a part of a stem uses. It runs on Suno\'s replace section.'],
+        'ai_artwork_engine' => ['Artwork Engine', 'replicate', 'Where artwork is drawn: FLUX.1 [schnell] on Replicate, or on Cloudflare Workers AI.'],
+        'ai_artwork_credits' => ['Artwork Credits', '3', 'Credits one artwork request uses. FLUX.1 [schnell] costs about $0.003 an image on Replicate.'],
+        'ai_artwork_images' => ['Artwork Images per Request', '4', 'How many images (1 to 4) people pick from for each request.'],
         'ai_music_max_seconds' => ['Longest Generated Track (seconds)', '300', 'The longest track people can generate at once.'],
         'ai_lyrics_engine' => ['Lyrics Engine', 'replicate', 'Where Whisper writes out lyrics: Replicate, or Cloudflare Workers AI.'],
         'ai_lyrics_credits' => ['Lyrics Credits', '2', 'Credits one lyrics transcription in the studio uses.'],
@@ -99,6 +102,7 @@ class AiSettings extends SettingsStore
         'ai_lyrics_engine' => [AiEngine::REPLICATE, AiEngine::CLOUDFLARE],
         'ai_composer_engine' => [AiEngine::REPLICATE, AiEngine::CLOUDFLARE],
         'ai_moderator_engine' => [AiEngine::REPLICATE, AiEngine::CLOUDFLARE],
+        'ai_artwork_engine' => [AiEngine::REPLICATE, AiEngine::CLOUDFLARE],
     ];
 
     /** Kinds of Suno stem splits, with the label admins see */
@@ -349,6 +353,30 @@ class AiSettings extends SettingsStore
         return max(1, (int) self::get('ai_edit_credits'));
     }
 
+    /**
+     * The engine artwork is drawn on.
+     */
+    public static function artworkEngine(): AiEngine
+    {
+        return self::engine('ai_artwork_engine');
+    }
+
+    /**
+     * Credits one artwork request uses.
+     */
+    public static function artworkCredits(): int
+    {
+        return max(1, (int) self::get('ai_artwork_credits'));
+    }
+
+    /**
+     * How many images one artwork request draws.
+     */
+    public static function artworkImages(): int
+    {
+        return min(4, max(1, (int) self::get('ai_artwork_images')));
+    }
+
     public static function musicMaxSeconds(): int
     {
         return min(300, max(10, (int) self::get('ai_music_max_seconds')));
@@ -371,6 +399,7 @@ class AiSettings extends SettingsStore
                 'stems' => self::stemsCredits(),
                 'lyrics' => self::lyricsCredits(),
                 'edit' => self::editCredits(),
+                'artwork' => self::artworkCredits(),
                 'composer' => collect(['line', 'block', 'verse', 'rewrite'])
                     ->mapWithKeys(fn(string $kind) => [$kind => self::composerCredits($kind)])
                     ->all(),

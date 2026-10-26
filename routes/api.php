@@ -4,6 +4,7 @@ use App\Helpers\Providers;
 use App\Http\Controllers\ArtistClaimController;
 use App\Http\Controllers\ArtistController;
 use App\Http\Controllers\CommentController;
+use App\Http\Controllers\Creator\AiArtworkController;
 use App\Http\Controllers\Creator\AiController;
 use App\Http\Controllers\ExploreController;
 use App\Http\Controllers\FaustEffectController;
@@ -106,6 +107,12 @@ Route::get('ai/jobs/{job}/versions/{version}/audio', [AiController::class, 'vers
     ->whereNumber('version')
     ->middleware('signed')
     ->name('ai.jobs.versions.audio');
+
+// An image an artwork job drew, from the signed link on the job
+Route::get('ai/jobs/{job}/artwork/{image}', [AiArtworkController::class, 'image'])
+    ->whereNumber('image')
+    ->middleware('signed')
+    ->name('ai.jobs.artwork.image');
 
 Route::middleware(['auth:sanctum'])
     ->group(function () {
