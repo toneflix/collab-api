@@ -35,6 +35,7 @@ Route::middleware(['auth:sanctum'])
             Route::get('projects/{project}/tracks/{track}/ai/jobs', [AiController::class, 'jobs'])->name('projects.tracks.ai.jobs');
             Route::post('projects/{project}/tracks/{track}/ai/music', [AiController::class, 'music'])->middleware('throttle:10,1')->name('projects.tracks.ai.music');
             Route::post('projects/{project}/tracks/{track}/stems/{stem}/split', [AiController::class, 'split'])->middleware('throttle:10,1')->name('projects.tracks.stems.split');
+            Route::post('projects/{project}/tracks/{track}/stems/{stem}/edit', [AiController::class, 'edit'])->middleware('throttle:10,1')->name('projects.tracks.stems.edit');
 
             // Lyric sheet
             Route::get('projects/{project}/tracks/{track}/lyrics', [LyricsController::class, 'show'])->name('projects.tracks.lyrics.show');

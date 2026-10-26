@@ -1,6 +1,6 @@
 # AI tools and credits
 
-The studio's AI panel can **generate music** from a prompt and **split a track into stems**, and the lyric sheet can **write out the lyrics** sung on a stem. They run on three engines, [Replicate](https://replicate.com) (the default for everything), [Suno](#suno) (optional, for music and stems) and [Cloudflare Workers AI](#cloudflare-workers-ai) (optional, for music, lyrics, Composer and the AI moderator), and are paid for with AI credits. Released tracks also get their lyrics written out automatically, paid for by the app (see [Lyrics](#lyrics)).
+The studio's AI panel can **generate music** from a prompt and **split a track into stems**, the DAW can **rewrite a section of a stem** from a prompt, and the lyric sheet can **write out the lyrics** sung on a stem. They run on three engines, [Replicate](https://replicate.com) (the default for everything), [Suno](#suno) (optional, for music and stems) and [Cloudflare Workers AI](#cloudflare-workers-ai) (optional, for music, lyrics, Composer and the AI moderator), and are paid for with AI credits. Released tracks also get their lyrics written out automatically, paid for by the app (see [Lyrics](#lyrics)).
 
 ## Setup
 
@@ -53,6 +53,15 @@ Suno is an optional second engine, through [sunoapi.org](https://sunoapi.org). R
 - **Stems.** Suno splits into vocals and instrumental, or up to 12 stems ("Suno stems"). A song Suno made is split by its Suno id; other audio is uploaded to sunoapi.org's file host first (kept 3 days). Parts come back as MP3 and are stored as they are.
 - **Polling.** Suno requires a callback URL for every task. It points at `POST /api/ai/suno/callback`, which only answers, because callbacks carry no signature. Jobs poll Suno every 5 seconds instead, up to `SUNO_TIMEOUT`.
 - **Prices.** A Suno credit costs $0.005. A song request is 12 Suno credits (about $0.06), vocals/instrumental 10 ($0.05), 12 stems 50 ($0.25). Default AI credit prices keep the usual margin: 12 per song, 50 per Suno split. sunoapi.org allows 20 requests per 10 seconds.
+
+## Section edits
+
+In the DAW, people select a part of a stem, choose **Edit with AI** and describe the change, with optional lyrics for that part. `POST /api/creator/projects/{project}/tracks/{track}/stems/{stem}/edit` takes `prompt`, `lyrics`, and `start`/`end` in seconds of the stem's audio file, and starts an `edit` job for "Section edit credits" (5 by default).
+
+- **Engine.** Only Suno can rewrite part of existing audio: its replace section call takes uploaded audio and a start and end time. The Replicate and Workers AI music models only make new music. Editors implement `App\Services\Ai\Edit\SectionEditor` and are listed in `EditSection::EDITORS`.
+- **Limits.** Suno rewrites at least 10 seconds and at most half of what it's given. `EditWindow` widens the selection (plus 60 ms for crossfades) to 10 seconds and sends up to 10 seconds of audio on each side, so a stem needs at least 20 seconds of audio and a selection can be at most about half of it. The API answers 422 before charging when a selection doesn't fit.
+- **Splicing.** FFmpeg cuts the clip, and after Suno answers it takes the rewritten part back out, stretched in time (pitch kept) to its original length when Suno's clip came back longer or shorter, and splices only the selected part into the stem with 60 ms crossfades.
+- **Result.** The edit goes on the track as a new stem, "Title (AI edit)", with the original's place, clips, volume and effects, and the original is muted. Version history can undo it.
 
 ## Cloudflare Workers AI
 
@@ -142,6 +151,7 @@ New tracks and studio mixes are tagged with their BPM and musical key. This runs
 - Each task is an `AiTask` in `App\Services\Ai\Tasks` (`GenerateMusic`, `SplitStems`, `TranscribeLyrics`) and names the `AiEngine` it runs on.
 - Stem splitting goes through a `StemSplitter` in `App\Services\Ai\Stems`: `DemucsSplitter` (Replicate) or `SunoSplitter`.
 - `App\Services\Ai\Suno\SunoClient` starts Suno tasks, polls them, uploads and downloads files.
+- Section edits go through `App\Services\Ai\Tasks\EditSection`, which plans the window with `EditWindow`, runs a `SectionEditor` and splices with `StemAudio::fit()` and `splice()`.
 - `App\Services\Lyrics\Lyrics` saves lyrics and applies the explicit and review checks (`LyricsCheck`). `Transcriber` calls Whisper.
 - `App\Services\Audio\AudioTagger` saves tempo and key tags. `Analysis\AudioAnalyzer` decodes audio for `TempoDetector` and `KeyDetector`.
 - `laravel/ai` has no Replicate driver, so a custom `replicate` driver is registered in `AppServiceProvider`, and Demucs is called through `ReplicateClient`.
