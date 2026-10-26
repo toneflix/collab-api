@@ -19,6 +19,7 @@ class AppConfiguration
     public const FIELDS = [
         'app_name' => ['App Name', 'text', ['required', 'string', 'max:60'], 'Shown in the app and in emails.'],
         'app_email' => ['Support Email', 'email', ['required', 'email', 'max:120'], 'Where people can reach you.'],
+        'discord_url' => ['Discord Link', 'url', ['nullable', 'url:https', 'max:255'], 'Community invite shown on the Help page. Leave it empty to hide it.'],
         'app_currency' => ['App Currency', 'string', ['required', 'in:'], 'Every price, balance and payout uses it. Paystack only pays creators out when it is NGN, GHS, KES or ZAR. Changing it does not convert existing prices or balances.'],
         'creator_share' => ['Creator Share (%)', 'number', ['required', 'integer', 'between:0,100'], 'Part of each sale and tip that goes to the creator.'],
         'min_tip_amount' => ['Minimum Tip', 'number', ['required', 'integer', 'min:0'], 'Smallest tip, in the app currency.'],

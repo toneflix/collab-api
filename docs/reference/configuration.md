@@ -18,6 +18,7 @@ If you edit the table directly, run `php artisan cache:forget configuration::bui
 | --- | --- | --- |
 | `app_name` | `APP_NAME` | Name shown in the app. |
 | `app_email` | `support@toneflix.com.ng` | Support address. |
+| `discord_url` | `https://discord.gg/u7fQdqQt8c` | Community invite on the Help page. Empty hides it. |
 | `app_currency` | `NGN` | The currency of every price, balance and payout. It also decides which country Paystack pays out in; see [Payment providers](../guide/payments#app-currency). |
 | `creator_share` | `85` | Percent of each sale and tip that goes to the creator. |
 | `min_tip_amount` | `100` | Smallest tip, in the app currency. |
