@@ -63,7 +63,7 @@ class AiController extends Controller
             throw $e;
         }
 
-        return $this->started($job, 'Generating your music. It shows up on the track when it\'s ready.');
+        return $this->started($job, 'Generating your music.');
     }
 
     public function split(Request $request, AiStudio $studio, Project $project, ProjectTrack $track, ProjectTrackStem $stem)
@@ -76,7 +76,7 @@ class AiController extends Controller
             'stems_engine' => AiSettings::stemsEngine()->value,
         ]);
 
-        return $this->started($job, 'Splitting into stems. They show up on the track when they\'re ready.');
+        return $this->started($job, 'Splitting into stems.');
     }
 
     /**

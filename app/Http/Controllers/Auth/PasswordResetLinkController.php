@@ -54,7 +54,7 @@ class PasswordResetLinkController extends Controller
         return (new ActionResource($retry))
             ->additional([
                 ...$retry,
-                'message' => __('We have sent you a message to help with recovering your password.'),
+                'message' => __('Password reset code sent.'),
                 'status' => 'success',
                 'status_code' => HttpStatus::CREATED,
             ])

@@ -49,7 +49,7 @@ class SafetyController extends Controller
 
         return (new SafetyResource($report))
             ->additional([
-                'message' => __('Thank you for looking out. We\'re reviewing your report, and if this :0 breaks our Terms of service, it will be removed.', [$moderation->label($item)]),
+                'message' => 'Thanks, we\'ll review your report.',
                 'status' => 'success',
                 'status_code' => HttpStatus::CREATED,
             ])

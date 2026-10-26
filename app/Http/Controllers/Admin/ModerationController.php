@@ -110,7 +110,7 @@ class ModerationController extends Controller
 
         $versions->approve($reviewRelease, $request->user());
 
-        return $this->done(new ReleaseReviewResource($reviewRelease), 'Approved. The release is live and its owner was told.');
+        return $this->done(new ReleaseReviewResource($reviewRelease), 'Release approved.');
     }
 
     public function rejectRelease(Request $request, Release $reviewRelease, ReleaseVersions $versions)
@@ -121,7 +121,7 @@ class ModerationController extends Controller
 
         $versions->reject($reviewRelease, $request->user(), $valid['note']);
 
-        return $this->done(new ReleaseReviewResource($reviewRelease), 'Sent back to its owner with your note.');
+        return $this->done(new ReleaseReviewResource($reviewRelease), 'Sent back to its owner.');
     }
 
     /**
@@ -147,7 +147,7 @@ class ModerationController extends Controller
 
         $claims->approve($claim, $request->user(), $valid['note'] ?? null);
 
-        return $this->done(new ArtistClaimResource($claim), 'Approved. The artist is now linked to the claimant\'s account.');
+        return $this->done(new ArtistClaimResource($claim), 'Claim approved.');
     }
 
     public function rejectClaim(Request $request, ArtistClaim $claim, ArtistClaims $claims)
@@ -156,7 +156,7 @@ class ModerationController extends Controller
 
         $claims->reject($claim, $request->user(), $valid['note']);
 
-        return $this->done(new ArtistClaimResource($claim), 'Declined. The claimant was told why.');
+        return $this->done(new ArtistClaimResource($claim), 'Claim declined.');
     }
 
     /**
@@ -183,7 +183,7 @@ class ModerationController extends Controller
     {
         $review->refresh();
 
-        return $this->done(new AiReviewResource($review), 'Sent to the AI moderator. Its decision shows here when it is done.');
+        return $this->done(new AiReviewResource($review), 'Sent to the AI moderator.');
     }
 
     public function claimDocument(ArtistClaim $claim, ArtistClaims $claims)
@@ -205,7 +205,7 @@ class ModerationController extends Controller
         $takedown = $this->moderation->takeDown($item, $request->user(), $valid['reason'], $valid['note'] ?? null);
         $takedown->refresh();
 
-        return $this->done(new TakedownResource($takedown), 'Taken down. The owner and reporters were told.', HttpStatus::CREATED);
+        return $this->done(new TakedownResource($takedown), 'Taken down.', HttpStatus::CREATED);
     }
 
     public function dismiss(Request $request, string $type, int $id)
@@ -236,7 +236,7 @@ class ModerationController extends Controller
             ->refresh()
             ->load('moderator');
 
-        return $this->done(new TakedownResource($takedown), 'Restored. The owner was told.');
+        return $this->done(new TakedownResource($takedown), 'Restored.');
     }
 
     public function uphold(Request $request, Takedown $takedown)
@@ -249,7 +249,7 @@ class ModerationController extends Controller
             ->refresh()
             ->load('moderator');
 
-        return $this->done(new TakedownResource($takedown), 'Appeal declined. The owner was told.');
+        return $this->done(new TakedownResource($takedown), 'Appeal declined.');
     }
 
     protected function item(string $type, int $id): Model

@@ -86,7 +86,7 @@ class BlockController extends Controller
 
             return (new BlockResource($item))
                 ->additional([
-                    'message' => __('This :0 has been blocked and will no longer bother you.', [$request->type]),
+                    'message' => __('This :0 has been blocked.', [$request->type]),
                     'status' => 'success',
                     'status_code' => HttpStatus::CREATED,
                 ])

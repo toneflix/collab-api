@@ -83,7 +83,7 @@ class ProjectCollaboratorController extends Controller
 
         return (new ProjectCollaboratorResource($collaborator))
             ->additional([
-                'message' => __('An invitation has been sent to :0 to join this project.', [$collaborator->user->fullname]),
+                'message' => __('Invitation sent to :0.', [$collaborator->user->fullname]),
                 'status' => 'success',
                 'status_code' => HttpStatus::CREATED,
             ])

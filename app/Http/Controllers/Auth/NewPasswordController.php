@@ -93,7 +93,7 @@ class NewPasswordController extends Controller
 
         return (new ActionResource($result))
             ->additional([
-                'message' => 'Your reset code is valid, you can change your password now.',
+                'message' => 'Code verified.',
                 'status' => 'success',
                 'status_code' => HttpStatus::ACCEPTED,
             ])
