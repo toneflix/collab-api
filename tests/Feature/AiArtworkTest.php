@@ -116,8 +116,9 @@ class AiArtworkTest extends TestCase
         Http::assertSent(fn(Request $request) => str_ends_with($request->url(), '/flux-schnell/predictions')
             && $request['input']['aspect_ratio'] === '1:1'
             && $request['input']['num_outputs'] === 2
-            && str_contains($request['input']['prompt'], 'Album cover art, titled "Lagos Lights", by Obi, in the Afrobeats genre.')
-            && str_contains($request['input']['prompt'], 'Neon city at night.'));
+            && str_starts_with($request['input']['prompt'], 'Album cover art for Afrobeats music. Neon city at night.')
+            && ! str_contains($request['input']['prompt'], 'Lagos Lights')
+            && ! str_contains($request['input']['prompt'], 'Obi'));
 
         $images = $this->getJson("/api/creator/ai/jobs/{$job->id}")
             ->assertOk()
