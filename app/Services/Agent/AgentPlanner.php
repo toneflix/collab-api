@@ -208,7 +208,7 @@ class AgentPlanner
      */
     public function artwork(AgentRun $run): bool
     {
-        return (bool) $run->option('artwork', true) && self::drawsArtwork();
+        return (bool) $run->option('artwork', false) && self::drawsArtwork();
     }
 
     public function maxTracks(AgentRun $run): int

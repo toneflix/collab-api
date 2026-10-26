@@ -28,6 +28,7 @@ class AgentRunResource extends JsonResource
             'status' => $this->status,
             'options' => [
                 'publish' => (bool) $this->option('publish', false),
+                'artwork' => (bool) $this->option('artwork', false),
                 'maxTracks' => $this->option('max_tracks'),
                 'seconds' => $this->option('seconds'),
                 'label' => $this->option('label'),
