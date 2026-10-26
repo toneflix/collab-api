@@ -53,7 +53,9 @@ class ReplicateClient
             if (now()->greaterThan($deadline)) {
                 $this->cancel($prediction['id']);
 
-                throw new ReplicateException("{$model} took longer than {$timeout} seconds.");
+                $stage = $prediction['status'] === 'starting' ? 'waiting to start' : 'still running';
+
+                throw new ReplicateException("{$model} took longer than {$timeout} seconds ({$stage}).");
             }
 
             Sleep::for(2)->seconds();

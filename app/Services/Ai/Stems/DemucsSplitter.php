@@ -32,7 +32,7 @@ class DemucsSplitter implements StemSplitter
             'audio' => $client->upload($path, mime_content_type($path) ?: 'audio/mpeg'),
             'model' => $this->variant(),
             'output_format' => 'wav',
-        ]));
+        ]), $this->timeout());
 
         $output = (array) $prediction['output'];
         $files = [];
@@ -95,6 +95,14 @@ class DemucsSplitter implements StemSplitter
         $files['other'] = $remainder;
 
         return $files;
+    }
+
+    /**
+     * Longest wait for a split, in seconds.
+     */
+    protected function timeout(): int
+    {
+        return (int) config('ai.providers.replicate.models.stems.timeout', 1200);
     }
 
     /**

@@ -65,6 +65,8 @@ return [
                     'default' => env('REPLICATE_STEMS_MODEL', 'ryan5453/demucs'),
                     // Demucs weights; ryan5453/demucs now only accepts htdemucs
                     'variant' => env('REPLICATE_STEMS_VARIANT', 'htdemucs'),
+                    // Longest wait for a split, in seconds; Demucs can sit in Replicate's queue or cold boot for minutes
+                    'timeout' => (int) env('REPLICATE_STEMS_TIMEOUT', 1200),
                 ],
                 'lyrics' => ['default' => env('REPLICATE_LYRICS_MODEL', 'openai/whisper')],
                 'moderator' => ['default' => env('REPLICATE_MODERATOR_MODEL', 'anthropic/claude-4.5-haiku')],
