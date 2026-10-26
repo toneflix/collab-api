@@ -13,6 +13,7 @@ use App\Models\Artist;
 use App\Models\Genre;
 use App\Models\Lyric;
 use App\Models\Plan;
+use App\Models\Project;
 use App\Models\ProjectTrack;
 use App\Models\Release;
 use App\Models\Song;
@@ -23,7 +24,9 @@ use App\Services\Ai\Credits;
 use App\Services\Ai\Music\MusicVersions;
 use App\Services\Composer\Ai\LyricModel;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use RuntimeException;
 use Spatie\Permission\Models\Permission;
@@ -167,6 +170,7 @@ class ContentAgentTest extends TestCase
 
         return app(ContentAgent::class)->queue($admin, $owner, 'Make one Afrobeats artist with a two track album, and one written song.', $options + [
             'publish' => false,
+            'artwork' => false,
             'max_tracks' => 12,
             'seconds' => 60,
         ]);
@@ -312,6 +316,102 @@ class ContentAgentTest extends TestCase
         // Plan 2 + two lyrics at 2 + vocal 30 + instrumental 60s at 5 per 10s.
         $this->assertSame(66, $run->credits);
         $this->assertSame(200 - 66, Credits::for($owner)->total());
+    }
+
+    public function test_a_run_draws_album_covers_and_artist_pictures(): void
+    {
+        Storage::fake(config('filesystems.default'));
+        AiSettings::update(['ai_artwork_credits' => 3]);
+
+        $owner = $this->ownerWith(500);
+        $this->answers[] = $this->plan([
+            'artists' => [['key' => 'a1', 'name' => 'Ada Lumen', 'about' => 'A singer from Lagos.', 'look' => 'Neon portrait at night']],
+            'songs' => [],
+        ]);
+
+        $run = $this->advance($this->queueRun($owner, ['artwork' => true]));
+
+        $portrait = AiJob::query()->findOrFail($this->step($run, 'portrait:a1')->output['ai_job_id']);
+        $cover = AiJob::query()->findOrFail($this->step($run, 'cover:al1')->output['ai_job_id']);
+        $this->assertSame('artist', $portrait->input['artwork_kind']);
+        $this->assertSame('Neon portrait at night', $portrait->input['prompt']);
+        $this->assertSame('release', $cover->input['artwork_kind']);
+        $this->assertSame('Ada Lumen', $cover->input['artist']);
+        $this->assertSame($this->genre->title, $cover->input['genre']);
+        $this->assertSame(1, $cover->input['count']);
+        $this->assertContains('cover:al1', $this->step($run, 'release:al1')->depends_on);
+
+        // Three jobs at once: the second track's music waits for a slot.
+        $this->assertNull($this->step($run, 'music:t2')->output['ai_job_id'] ?? null);
+
+        foreach ([$portrait, $cover] as $job) {
+            $file = "ai/artwork/{$job->id}/1.jpg";
+
+            Storage::disk(config('filesystems.default'))
+                ->put($file, UploadedFile::fake()->image('art.jpg', 64, 64)->getContent());
+            $job
+                ->forceFill(['status' => AiJob::SUCCEEDED, 'credits' => 3, 'output' => ['images' => [['file' => $file]]]])
+                ->save();
+        }
+
+        $run = $this->advance($run);
+
+        $artist = Artist::query()->findOrFail($this->step($run, 'artist:a1')->output['artist_id']);
+        $project = Project::query()->findOrFail($this->step($run, 'project:al1')->output['project_id']);
+        $this->assertNotNull($artist->image);
+        $this->assertNotNull($project->image);
+        $this->assertSame(AgentStep::DONE, $this->step($run, 'cover:al1')->status);
+
+        $vocalJob = AiJob::query()->findOrFail($this->step($run, 'music:t1')->output['ai_job_id']);
+        $instrumentalJob = AiJob::query()->findOrFail($this->step($run, 'music:t2')->output['ai_job_id']);
+
+        foreach ([$vocalJob, $instrumentalJob] as $job) {
+            $job
+                ->forceFill(['status' => AiJob::SUCCEEDED, 'output' => ['stems' => [1]]])
+                ->save();
+        }
+
+        $run = $this->advance($run);
+        $song = Song::query()->findOrFail($this->step($run, 'song:t1')->output['song_id']);
+        $instrumental = ProjectTrack::query()->findOrFail($this->step($run, 'track:t2')->output['project_track_id']);
+
+        foreach ([$song->track, $instrumental] as $track) {
+            $track->refresh();
+            $track->meta = [...collect($track->meta)->all(), 'mix' => ['status' => 'ready', 'id' => 'x']];
+            $track->saveQuietly();
+        }
+
+        $run = $this->advance($run);
+
+        $this->assertSame(AgentRun::SUCCEEDED, $run->status);
+
+        $release = Release::query()
+            ->withoutGlobalScopes()
+            ->findOrFail($this->step($run, 'release:al1')->output['release_id']);
+        $this->assertNotNull($release->image);
+        $this->assertNotNull($song->refresh()->image);
+
+        // Plan 2 + lyrics 2 + vocal 30 + instrumental 30 + two pictures at 3.
+        $this->assertSame(70, $run->credits);
+    }
+
+    public function test_artwork_that_cannot_be_drawn_is_skipped(): void
+    {
+        $owner = $this->ownerWith(500);
+        $this->answers[] = $this->plan(['songs' => []]);
+
+        $run = $this->advance($this->queueRun($owner, ['artwork' => true]));
+
+        $cover = AiJob::query()->findOrFail($this->step($run, 'cover:al1')->output['ai_job_id']);
+        $cover
+            ->forceFill(['status' => AiJob::FAILED, 'failure' => 'HTTP 500: boom'])
+            ->save();
+
+        $run = $this->advance($run);
+
+        $this->assertSame(AgentRun::RUNNING, $run->status);
+        $this->assertSame(AgentStep::DONE, $this->step($run, 'cover:al1')->status);
+        $this->assertNull($this->step($run, 'cover:al1')->output['file']);
     }
 
     public function test_a_plan_the_owner_cannot_afford_fails_before_making_anything(): void

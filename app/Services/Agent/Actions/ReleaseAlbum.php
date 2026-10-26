@@ -6,16 +6,22 @@ use App\Models\AgentStep;
 use App\Models\Artist;
 use App\Models\ProjectTrack;
 use App\Models\Release;
+use App\Models\Song;
 use App\Models\Track;
+use App\Services\Agent\AgentArtwork;
 use App\Services\Releases\ReleaseVersions;
 
 /**
  * Releases an album's project with all its tracks: a draft for the owner to
- * finish, or published when the run asks for it.
+ * finish, or published when the run asks for it. The album's cover goes on
+ * the release and its songs.
  */
 class ReleaseAlbum implements AgentAction
 {
-    public function __construct(protected ReleaseVersions $versions) {}
+    public function __construct(
+        protected ReleaseVersions $versions,
+        protected AgentArtwork $artwork,
+    ) {}
 
     public function advance(AgentStep $step): bool
     {
@@ -56,6 +62,8 @@ class ReleaseAlbum implements AgentAction
             $this->addTrack($release, $artist, (int) $step->from($source, 'project_track_id'));
         }
 
+        $this->cover($step, $release);
+
         if ($publish) {
             $this->versions->published($release);
         }
@@ -63,6 +71,34 @@ class ReleaseAlbum implements AgentAction
         $step->remember(['release_id' => $release->id, 'artist_id' => $artist->id, 'published' => $publish]);
 
         return true;
+    }
+
+    /**
+     * Put the album's cover on the release and on each of its songs.
+     */
+    protected function cover(AgentStep $step, Release $release): void
+    {
+        $art = $step->input['artwork'] ?? null;
+        $file = $art ? $step->from($art, 'file') : null;
+
+        if (! $file || ! $this->artwork->apply($release, $file)) {
+            return;
+        }
+
+        $songIds = collect($step->input['tracks'])
+            ->filter(fn(string $source) => str_starts_with($source, 'song:'))
+            ->map(fn(string $source) => $step->from($source, 'song_id'))
+            ->filter()
+            ->all();
+
+        $songs = Song::query()
+            ->whereKey($songIds)
+            ->whereNull('image')
+            ->get();
+
+        foreach ($songs as $song) {
+            $this->artwork->apply($song, $file);
+        }
     }
 
     protected function addTrack(Release $release, Artist $artist, int $projectTrackId): void

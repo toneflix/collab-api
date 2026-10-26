@@ -37,6 +37,7 @@ class AgentStepResource extends JsonResource
                 'releaseId' => $output['release_id'] ?? null,
             ]),
             'published' => $output['published'] ?? null,
+            'notice' => $output['missed'] ?? null,
             'error' => $this->error,
             'startedAt' => $this->started_at,
             'finishedAt' => $this->finished_at,

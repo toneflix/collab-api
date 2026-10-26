@@ -6,6 +6,7 @@ use App\Services\Agent\Actions\AgentAction;
 use App\Services\Agent\Actions\CreateArtist;
 use App\Services\Agent\Actions\CreateProject;
 use App\Services\Agent\Actions\CreateTrack;
+use App\Services\Agent\Actions\DrawArtwork;
 use App\Services\Agent\Actions\MakeMusic;
 use App\Services\Agent\Actions\MixTrack;
 use App\Services\Agent\Actions\ReleaseAlbum;
@@ -41,6 +42,7 @@ class AgentStep extends Model
         'track' => CreateTrack::class,
         'music' => MakeMusic::class,
         'mix' => MixTrack::class,
+        'artwork' => DrawArtwork::class,
         'release' => ReleaseAlbum::class,
     ];
 
