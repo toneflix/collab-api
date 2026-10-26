@@ -75,7 +75,7 @@ return [
     'file_route_secure_middleware' => ['secure-asset'],
     // On remote disks like S3, sign file links so private buckets work
     'temporary_urls' => (bool) env('FILEABLE_TEMPORARY_URLS', true),
-    'temporary_url_ttl' => (int) env('FILEABLE_TEMPORARY_URL_TTL', 60),
+    'temporary_url_ttl' => (int) env('FILEABLE_TEMPORARY_URL_TTL', 720),
     'responsive_image_route' => 'media/images/responsive/{file}/{size}',
     'file_route_secure' => 'secure/media/files/{file}',
     'file_route_open' => 'media/files/{file}',

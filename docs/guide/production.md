@@ -152,9 +152,9 @@ REVERB_SERVER_PORT=8080
 
 Uploads (avatars, artwork, tracks, stems, previews, voice notes and sounds) stay on the server by default. To keep them in Amazon S3 or an S3-compatible store (R2, MinIO, Spaces), set `FILESYSTEM_DISK=s3` and the `AWS_*` keys in [API .env](../reference/api-env#storage).
 
-Keep the bucket private. File links are signed and last `FILEABLE_TEMPORARY_URL_TTL` minutes, and audio links go through the API, which sends the browser on to a signed bucket link.
+Keep the bucket private. File links point straight at the bucket, are signed, and last `FILEABLE_TEMPORARY_URL_TTL` minutes (12 hours by default). The API doesn't ask the bucket whether a file exists before linking it, so listing files costs no bucket requests.
 
-The studio loads stems with `fetch`, so the bucket needs a CORS rule. The browser reaches the bucket through a redirect from the API, which makes its `Origin` header `null`, so allow every origin. The signed links are what keep files private.
+The studio loads stems with `fetch`, so the bucket needs a CORS rule. Some links (library sounds) still go through the API, which sends the browser on to a signed bucket link and makes its `Origin` header `null`, so allow every origin. The signed links are what keep files private.
 
 ```json
 [

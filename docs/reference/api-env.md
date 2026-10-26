@@ -55,7 +55,7 @@ PostgreSQL is the one we test on. MySQL/MariaDB and SQLite also work.
 | `AWS_URL` | | Public address of the bucket, when it differs from the default. |
 | `AWS_USE_PATH_STYLE_ENDPOINT` | `false` | `true` for MinIO. |
 | `FILEABLE_TEMPORARY_URLS` | `true` | Sign file links, for private buckets. `false` gives plain bucket URLs. |
-| `FILEABLE_TEMPORARY_URL_TTL` | `60` | Minutes a signed link lasts. |
+| `FILEABLE_TEMPORARY_URL_TTL` | `720` | Minutes a signed link lasts. Pages and play queues hold links for a while, so keep it in hours. |
 
 The bucket needs a CORS rule so the studio can load stems. See [File storage](../guide/production#file-storage).
 
