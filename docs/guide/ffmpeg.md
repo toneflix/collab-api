@@ -89,8 +89,10 @@ Without the compiler, the studio offers no Faust effects, and a mix leaves out a
 
 ## Plugins the server can't run
 
-Creators can also add any Web Audio Module (WAM) plugin to a stem by its URL. FFmpeg can't run those, so when the studio saves, it renders the stem through its whole chain in the browser and uploads the result as FLAC (`POST creator/projects/{project}/tracks/{track}/stems/{stem}/print`). The stem keeps its own audio and the plugin's settings, so it can be printed again after any change.
+When an admin turns on **Studio Plugins** in the configuration (off by default), creators can also add any Web Audio Module (WAM) plugin to a stem by its URL. FFmpeg can't run those, so when the studio saves, it renders the stem through its whole chain in the browser and uploads the result as FLAC (`POST creator/projects/{project}/tracks/{track}/stems/{stem}/print`). The stem keeps its own audio and the plugin's settings, so it can be printed again after any change.
 
 The mix plays the printed audio in place of the stem while at least one plugin in its chain is switched on. Volume, pan, mute and solo still apply on the server. The print is saved under `meta.print` and is left out of copies of the stem.
+
+While Studio Plugins is off, the studio skips plugins already on stems, the print endpoint answers 403 and the mix plays each stem from its own audio.
 
 Prints are 16-bit FLAC, about 5 MB a minute (WAV is accepted too). `STUDIO_PRINT_MAX_MB` caps them (100 by default), and PHP's `upload_max_filesize` and `post_max_size` must allow that size too.

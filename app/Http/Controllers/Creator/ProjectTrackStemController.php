@@ -16,6 +16,7 @@ use App\Services\Limits;
 use App\Services\Realtime\Realtime;
 use App\Services\Reputation;
 use App\Services\Studio\StemFiles;
+use App\Services\Studio\StudioPlugins;
 use App\Services\Studio\TrackHistory;
 use Illuminate\Http\Request;
 
@@ -130,6 +131,8 @@ class ProjectTrackStemController extends Controller
     public function print(Request $request, Project $project, ProjectTrack $track, ProjectTrackStem $stem, StemFiles $files)
     {
         $this->authorize('update', $track);
+
+        abort_unless(StudioPlugins::enabled(), HttpStatus::FORBIDDEN->value, 'Studio plugins are turned off.');
 
         $valid = $this->validate($request, [
             'audio' => ['required', 'file', 'mimes:flac,wav', 'max:' . (config('studio.print_max_mb') * 1024)],
