@@ -74,6 +74,7 @@ class ReleaseResource extends JsonResource
             'pline' => $this->pline,
             'label' => $this->record_label,
             'explicit' => $this->explicit,
+            'downloadable' => $this->downloadable,
             'composer' => $this->composer,
             'publisher' => $this->publisher,
             'artistId' => $this->artist_id,

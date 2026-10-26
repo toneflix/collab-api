@@ -274,6 +274,18 @@ class ConfigurationSeeder extends Seeder
                 'secret' => false,
             ],
             [
+                'key' => 'track_downloads',
+                'title' => 'Track Downloads',
+                'value' => true,
+                'type' => 'boolean',
+                'count' => null,
+                'max' => null,
+                'col' => 6,
+                'autogrow' => false,
+                'hint' => 'Let listeners whose plan includes downloads save tracks the creator allowed.',
+                'secret' => false,
+            ],
+            [
                 'key' => 'studio_plugins',
                 'title' => 'Studio Plugins',
                 'value' => false,
