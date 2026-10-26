@@ -11,10 +11,10 @@ use App\Services\Ai\Cloudflare\CloudflareClient;
  */
 class CloudflareLyricModel implements LyricModel
 {
-    public function ask(string $system, string $prompt): string
+    public function ask(string $system, string $prompt, int $maxTokens = 1200): string
     {
         return CloudflareClient::make()
-            ->chat($this->name(), $system, $prompt, 1200, timeout: 60);
+            ->chat($this->name(), $system, $prompt, $maxTokens, timeout: $maxTokens > 1200 ? 180 : 60);
     }
 
     public function name(): string

@@ -1,0 +1,536 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Enums\Feature;
+use App\Jobs\AdvanceAgentRun;
+use App\Jobs\RenderMix;
+use App\Jobs\RunAiJob;
+use App\Models\AgentRun;
+use App\Models\AgentStep;
+use App\Models\AiJob;
+use App\Models\Artist;
+use App\Models\Genre;
+use App\Models\Lyric;
+use App\Models\Plan;
+use App\Models\ProjectTrack;
+use App\Models\Release;
+use App\Models\Song;
+use App\Models\User;
+use App\Services\Agent\ContentAgent;
+use App\Services\Ai\AiSettings;
+use App\Services\Ai\Credits;
+use App\Services\Ai\Music\MusicVersions;
+use App\Services\Composer\Ai\LyricModel;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Queue;
+use Laravel\Sanctum\Sanctum;
+use RuntimeException;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\PermissionRegistrar;
+use Tests\TestCase;
+
+class ContentAgentTest extends TestCase
+{
+    use DatabaseTransactions;
+
+    /** @var list<string|RuntimeException> */
+    public array $answers = [];
+
+    /** @var list<array{system: string, prompt: string, maxTokens: int}> */
+    public array $asked = [];
+
+    protected Genre $genre;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Queue::fake();
+        config(['ai.providers.replicate.key' => 'r8_test']);
+        AiSettings::update([
+            'ai_enabled' => true,
+            'ai_music_model' => 'elevenlabs/music',
+            'ai_music_credits' => 5,
+            'ai_composer_music_model' => 'minimax/music-2.5',
+            'ai_music_minimax_25_credits' => 30,
+            'ai_composer_verse_credits' => 2,
+        ]);
+
+        app(PermissionRegistrar::class)
+            ->forgetCachedPermissions();
+        Permission::findOrCreate('manage-content', 'web');
+
+        $this->genre = Genre::factory()
+            ->create(['title' => 'Agent Afrobeats ' . uniqid()]);
+
+        $test = $this;
+        $this->app->instance(LyricModel::class, new class($test) implements LyricModel
+        {
+            public function __construct(protected ContentAgentTest $test) {}
+
+            public function ask(string $system, string $prompt, int $maxTokens = 1200): string
+            {
+                $this->test->asked[] = ['system' => $system, 'prompt' => $prompt, 'maxTokens' => $maxTokens];
+                $answer = array_shift($this->test->answers) ?? json_encode(['lines' => [
+                    '[Verse 1]', 'Lagos lights are calling out my name', 'Every street a rhythm, every rhythm a flame',
+                    '[Chorus]', 'Hold me close tonight', 'Dance until the morning light',
+                ]]);
+
+                if ($answer instanceof RuntimeException) {
+                    throw $answer;
+                }
+
+                return $answer;
+            }
+
+            public function name(): string
+            {
+                return 'test/model';
+            }
+
+            public function available(): bool
+            {
+                return true;
+            }
+        });
+    }
+
+    protected function tearDown(): void
+    {
+        AiSettings::flush();
+
+        parent::tearDown();
+    }
+
+    protected function ownerWith(int $credits, array $features = []): User
+    {
+        $plan = Plan::create([
+            'slug' => 'agent-owner-' . uniqid(), 'name' => 'Agent', 'price' => 0, 'interval' => 'month',
+            'features' => [Feature::AI_TOOLS->value => true, Feature::AI_CREDITS->value => $credits, ...$features],
+        ]);
+
+        $user = User::factory()
+            ->create();
+        $user
+            ->forceFill(['content_agent' => true])
+            ->save();
+
+        $user
+            ->subscriptions()
+            ->create([
+                'plan' => $plan->slug, 'plan_id' => $plan->id, 'amount' => 0,
+                'starts_at' => now()->subDay(), 'ends_at' => now()->addYear(),
+            ]);
+
+        return $user->fresh();
+    }
+
+    protected function admin(): User
+    {
+        $admin = User::factory()
+            ->create();
+        $admin->givePermissionTo('manage-content');
+
+        foreach ($this->app['router']->getRoutes() as $route) {
+            $route->controller = null;
+        }
+
+        Sanctum::actingAs($admin = $admin->fresh());
+
+        return $admin;
+    }
+
+    protected function plan(array $overrides = []): string
+    {
+        return json_encode($overrides + [
+            'artists' => [['key' => 'a1', 'name' => 'Ada Lumen', 'about' => 'A singer from Lagos.']],
+            'albums' => [[
+                'key' => 'al1',
+                'title' => 'Night Market',
+                'artist' => 'a1',
+                'genre' => $this->genre->title,
+                'description' => 'Warm late night grooves.',
+                'tracks' => [
+                    ['title' => 'Lagos Lights', 'style' => 'Afrobeats, 104 BPM, log drums, warm female vocals', 'theme' => 'Dancing in the city', 'mood' => 'joyful', 'instrumental' => false],
+                    ['title' => 'Harbour Breeze', 'style' => 'Mellow instrumental afrobeats with guitar', 'theme' => '', 'instrumental' => true],
+                ],
+            ]],
+            'songs' => [['title' => 'Paper Boats', 'theme' => 'Childhood by the sea', 'style' => 'acoustic', 'mood' => 'tender']],
+        ]);
+    }
+
+    protected function queueRun(User $owner, array $options = []): AgentRun
+    {
+        $admin = User::factory()
+            ->create();
+
+        return app(ContentAgent::class)->queue($admin, $owner, 'Make one Afrobeats artist with a two track album, and one written song.', $options + [
+            'publish' => false,
+            'max_tracks' => 12,
+            'seconds' => 60,
+        ]);
+    }
+
+    protected function advance(AgentRun $run): AgentRun
+    {
+        app(ContentAgent::class)->advance($run);
+
+        return $run->refresh();
+    }
+
+    protected function step(AgentRun $run, string $key): AgentStep
+    {
+        return $run
+            ->steps()
+            ->where('key', $key)
+            ->firstOrFail();
+    }
+
+    public function test_admins_queue_prompts_and_others_cannot(): void
+    {
+        $owner = $this->ownerWith(200);
+
+        Sanctum::actingAs(User::factory()->create());
+
+        $this->postJson('/api/admin/agent/runs', ['prompt' => 'Make an afrobeats album please', 'owner_id' => $owner->id])
+            ->assertForbidden();
+
+        $this->admin();
+
+        $this->postJson('/api/admin/agent/runs', ['prompt' => 'Make an afrobeats album please', 'owner_id' => $owner->id, 'max_tracks' => 4])
+            ->assertCreated()
+            ->assertJsonPath('data.status', AgentRun::PLANNING)
+            ->assertJsonPath('data.owner.id', $owner->id)
+            ->assertJsonPath('data.options.maxTracks', 4);
+
+        $this->postJson('/api/admin/agent/runs', ['prompt' => 'A second prompt waits its turn', 'owner_id' => $owner->id])
+            ->assertCreated()
+            ->assertJsonPath('data.status', AgentRun::QUEUED);
+
+        Queue::assertPushed(AdvanceAgentRun::class, 1);
+
+        $this->getJson('/api/admin/agent/runs')
+            ->assertOk()
+            ->assertJsonPath('agent.available', true)
+            ->assertJsonPath('meta.total', AgentRun::query()->count());
+    }
+
+    public function test_an_owner_without_ai_tools_cannot_be_used(): void
+    {
+        $owner = User::factory()
+            ->create();
+        $owner
+            ->forceFill(['content_agent' => true])
+            ->save();
+        $this->admin();
+
+        $this->postJson('/api/admin/agent/runs', ['prompt' => 'Make an afrobeats album please', 'owner_id' => $owner->id])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('owner_id');
+    }
+
+    public function test_a_run_plans_and_builds_artists_songs_tracks_and_an_album(): void
+    {
+        $owner = $this->ownerWith(200);
+        $this->answers[] = $this->plan();
+
+        $run = $this->advance($this->queueRun($owner));
+
+        $this->assertSame(AgentRun::RUNNING, $run->status);
+        $this->assertSame(4000, $this->asked[0]['maxTokens']);
+        $this->assertStringContainsString($this->genre->title, $this->asked[0]['prompt']);
+        $this->assertSame(['artists' => 1, 'albums' => 1, 'tracks' => 2], [
+            'artists' => count($run->plan['artists']),
+            'albums' => count($run->plan['albums']),
+            'tracks' => count($run->plan['albums'][0]['tracks']),
+        ]);
+
+        // The first pass makes the artist, project, songs and tracks, and starts the music.
+        $artist = Artist::query()->findOrFail($this->step($run, 'artist:a1')->output['artist_id']);
+        $this->assertSame('Ada Lumen', $artist->name);
+        $this->assertSame($owner->id, $artist->user_id);
+
+        $song = Song::query()->findOrFail($this->step($run, 'song:t1')->output['song_id']);
+        $this->assertSame('Lagos Lights', $song->title);
+        $this->assertStringContainsString("[Chorus]\nHold me close tonight", $song->body);
+        $this->assertNotNull($song->track);
+        $this->assertSame($artist->id, (int) $song->track->artist_id);
+        $this->assertTrue(Lyric::query()->whereMorphedTo('lyricable', $song->track)->exists());
+
+        $written = Song::query()->findOrFail($this->step($run, 'song:s1')->output['song_id']);
+        $this->assertNull($written->project_track_id);
+
+        $instrumental = ProjectTrack::query()->findOrFail($this->step($run, 'track:t2')->output['project_track_id']);
+        $this->assertSame($song->track->project_id, $instrumental->project_id);
+
+        $vocalJob = AiJob::query()->findOrFail($this->step($run, 'music:t1')->output['ai_job_id']);
+        $this->assertSame('minimax/music-2.5', $vocalJob->input['model']);
+        $this->assertStringContainsString('Hold me close tonight', $vocalJob->input['lyrics']);
+
+        $instrumentalJob = AiJob::query()->findOrFail($this->step($run, 'music:t2')->output['ai_job_id']);
+        $this->assertSame('elevenlabs/music', $instrumentalJob->input['model']);
+        $this->assertTrue($instrumentalJob->input['instrumental']);
+        $this->assertSame(60, $instrumentalJob->input['seconds']);
+        Queue::assertPushed(RunAiJob::class, 2);
+
+        // Music done: the tracks are mixed.
+        foreach ([$vocalJob, $instrumentalJob] as $job) {
+            $job
+                ->forceFill(['status' => AiJob::SUCCEEDED, 'output' => ['stems' => [1]]])
+                ->save();
+        }
+
+        $run = $this->advance($run);
+
+        $this->assertSame(AgentStep::WAITING, $this->step($run, 'mix:t1')->status);
+        Queue::assertPushed(RenderMix::class, 2);
+
+        foreach ([$song->track, $instrumental] as $track) {
+            $track->refresh();
+            $track->meta = [...collect($track->meta)->all(), 'mix' => ['status' => 'ready', 'id' => 'x']];
+            $track->saveQuietly();
+        }
+
+        // Mixed: the album is released as a draft.
+        $run = $this->advance($run);
+
+        $this->assertSame(AgentRun::SUCCEEDED, $run->status);
+
+        $release = Release::query()
+            ->withoutGlobalScopes()
+            ->findOrFail($this->step($run, 'release:al1')->output['release_id']);
+        $this->assertSame('Night Market', $release->title);
+        $this->assertTrue($release->draft);
+        $this->assertSame($owner->id, $release->user_id);
+        $this->assertSame($artist->id, (int) $release->artist_id);
+        $this->assertSame(
+            [$song->track->id, $instrumental->id],
+            $release->tracks()->orderBy('id')->pluck('project_track_id')->map(fn($id) => (int) $id)->all(),
+        );
+
+        // Plan 2 + two lyrics at 2 + vocal 30 + instrumental 60s at 5 per 10s.
+        $this->assertSame(66, $run->credits);
+        $this->assertSame(200 - 66, Credits::for($owner)->total());
+    }
+
+    public function test_a_plan_the_owner_cannot_afford_fails_before_making_anything(): void
+    {
+        $owner = $this->ownerWith(20);
+        $this->answers[] = $this->plan();
+
+        $run = $this->advance($this->queueRun($owner));
+
+        $this->assertSame(AgentRun::FAILED, $run->status);
+        $this->assertStringContainsString('needs about 64 credits', $run->error);
+        $this->assertSame(0, $run->steps()->count());
+        $this->assertFalse(Artist::query()->where('user_id', $owner->id)->exists());
+    }
+
+    public function test_a_plan_over_the_owners_song_limit_fails(): void
+    {
+        $owner = $this->ownerWith(200, [Feature::MAX_SONGS->value => 1]);
+        $this->answers[] = $this->plan();
+
+        $run = $this->advance($this->queueRun($owner));
+
+        $this->assertSame(AgentRun::FAILED, $run->status);
+        $this->assertStringContainsString('2 new songs', $run->error);
+    }
+
+    public function test_the_plan_is_capped_and_reuses_the_owners_artist(): void
+    {
+        $owner = $this->ownerWith(500);
+        $existing = Artist::factory()
+            ->create(['user_id' => $owner->id, 'name' => 'Ada Lumen']);
+        $tracks = array_map(fn(int $i) => ['title' => "Song {$i}", 'style' => 'Afrobeats groove', 'theme' => 'Love', 'instrumental' => true], range(1, 5));
+        $this->answers[] = $this->plan([
+            'albums' => [['key' => 'x', 'title' => 'Big One', 'artist' => 'Ada Lumen', 'genre' => 'Unknown genre', 'tracks' => $tracks]],
+            'songs' => [],
+        ]);
+
+        $run = $this->advance($this->queueRun($owner, ['max_tracks' => 3]));
+
+        $this->assertCount(3, $run->plan['albums'][0]['tracks']);
+        $this->assertNotNull($run->plan['albums'][0]['genre_id']);
+        $this->assertSame($existing->id, (int) $this->step($run, 'artist:a1')->output['artist_id']);
+        $this->assertTrue($this->step($run, 'artist:a1')->output['existing']);
+        $this->assertSame(1, Artist::query()->where('user_id', $owner->id)->count());
+    }
+
+    public function test_music_with_versions_takes_the_first_one(): void
+    {
+        $owner = $this->ownerWith(200);
+        $this->answers[] = $this->plan(['songs' => []]);
+
+        $run = $this->advance($this->queueRun($owner));
+
+        $job = AiJob::query()->findOrFail($this->step($run, 'music:t2')->output['ai_job_id']);
+        $job
+            ->forceFill(['status' => AiJob::SUCCEEDED, 'output' => ['versions' => [['title' => 'A'], ['title' => 'B']]]])
+            ->save();
+
+        $this->mock(MusicVersions::class, function ($mock) {
+            $mock->shouldReceive('find')->once();
+            $mock->shouldReceive('url')->andReturn('https://example.test/version');
+        });
+
+        $run = $this->advance($run);
+
+        $this->assertSame(0, $job->refresh()->output['choosing']);
+        $this->assertSame(AgentStep::WAITING, $this->step($run, 'music:t2')->status, (string) $this->step($run, 'music:t2')->error);
+    }
+
+    public function test_a_failed_step_stops_the_run_and_retry_carries_on(): void
+    {
+        $owner = $this->ownerWith(200);
+        $this->answers[] = $this->plan(['songs' => []]);
+
+        $run = $this->advance($this->queueRun($owner));
+
+        $job = AiJob::query()->findOrFail($this->step($run, 'music:t2')->output['ai_job_id']);
+        $job
+            ->forceFill(['status' => AiJob::FAILED, 'failure' => 'HTTP 500: boom'])
+            ->save();
+
+        $run = $this->advance($run);
+
+        $this->assertSame(AgentRun::FAILED, $run->status);
+        $this->assertStringContainsString('Stopped at "Harbour Breeze"', $run->error);
+        $this->assertSame(AgentStep::FAILED, $this->step($run, 'music:t2')->status);
+        $this->assertSame(AgentStep::SKIPPED, $this->step($run, 'release:al1')->status);
+
+        $this->admin();
+
+        $this->postJson("/api/admin/agent/runs/{$run->id}/retry")
+            ->assertAccepted()
+            ->assertJsonPath('data.status', AgentRun::RUNNING);
+
+        $run = $this->advance($run->refresh());
+
+        $this->assertSame(AgentStep::DONE, $this->step($run, 'artist:a1')->status);
+        $this->assertNotSame($job->id, $this->step($run, 'music:t2')->output['ai_job_id']);
+        $this->assertSame(1, Artist::query()->where('user_id', $owner->id)->count());
+    }
+
+    public function test_cancelling_skips_what_is_left_and_starts_the_next_run(): void
+    {
+        $owner = $this->ownerWith(500);
+        $this->answers[] = $this->plan();
+
+        $first = $this->advance($this->queueRun($owner));
+        $second = $this->queueRun($owner);
+
+        $this->assertSame(AgentRun::QUEUED, $second->status);
+
+        $this->admin();
+
+        $this->postJson("/api/admin/agent/runs/{$first->id}/cancel")
+            ->assertAccepted()
+            ->assertJsonPath('data.status', AgentRun::CANCELLED);
+
+        $this->assertSame(0, $first->steps()->open()->count());
+        $this->assertSame(AgentRun::PLANNING, $second->refresh()->status);
+
+        $this->getJson("/api/admin/agent/runs/{$first->id}")
+            ->assertOk()
+            ->assertJsonPath('data.steps.0.key', 'artist:a1')
+            ->assertJsonPath('data.counts.tracks', 2);
+    }
+
+    public function test_a_plan_that_is_not_json_fails_and_refunds(): void
+    {
+        $owner = $this->ownerWith(200);
+        $this->answers[] = 'Sorry, I cannot help with that.';
+
+        $run = $this->advance($this->queueRun($owner));
+
+        $this->assertSame(AgentRun::FAILED, $run->status);
+        $this->assertSame(200, Credits::for($owner)->total());
+    }
+
+    public function test_only_agent_accounts_can_own_runs(): void
+    {
+        $owner = $this->ownerWith(200);
+        $owner
+            ->forceFill(['content_agent' => false])
+            ->save();
+        $this->admin();
+
+        $this->postJson('/api/admin/agent/runs', ['prompt' => 'Make an afrobeats album please', 'owner_id' => $owner->id])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('owner_id');
+    }
+
+    public function test_admins_choose_the_agent_accounts(): void
+    {
+        $user = User::factory()
+            ->create(['username' => 'agentpick' . uniqid()]);
+        $this->admin();
+
+        $this->getJson('/api/admin/agent/owners?search=' . $user->username)
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
+
+        $this->getJson('/api/admin/agent/owners?all=1&search=' . $user->username)
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $user->id)
+            ->assertJsonPath('data.0.contentAgent', false);
+
+        $this->putJson("/api/admin/agent/accounts/{$user->id}", ['enabled' => true])
+            ->assertAccepted()
+            ->assertJsonPath('data.contentAgent', true);
+
+        $this->assertTrue($user->refresh()->content_agent);
+        $this->assertDatabaseHas('admin_actions', ['user_id' => $user->id, 'action' => 'agent.assigned']);
+
+        $this->getJson('/api/admin/agent/owners?search=' . $user->username)
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $user->id);
+    }
+
+    public function test_users_of_an_agent_account_run_their_own_prompts(): void
+    {
+        $owner = $this->ownerWith(200);
+        $other = $this->ownerWith(200);
+        $theirs = $this->queueRun($other);
+
+        Sanctum::actingAs($owner);
+
+        $this->getJson('/api/account')
+            ->assertOk()
+            ->assertJsonPath('data.contentAgent', true);
+
+        $created = $this->postJson('/api/creator/agent/runs', ['prompt' => 'Make me a lofi beat tape please', 'owner_id' => $other->id])
+            ->assertCreated()
+            ->assertJsonPath('data.owner.id', $owner->id);
+
+        $this->getJson('/api/creator/agent/runs')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $created->json('data.id'));
+
+        $this->getJson("/api/creator/agent/runs/{$created->json('data.id')}")
+            ->assertOk();
+
+        $this->getJson("/api/creator/agent/runs/{$theirs->id}")
+            ->assertForbidden();
+
+        $this->postJson("/api/creator/agent/runs/{$theirs->id}/cancel")
+            ->assertForbidden();
+
+        $this->getJson('/api/admin/agent/runs')
+            ->assertForbidden();
+    }
+
+    public function test_other_users_cannot_use_the_agent(): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+
+        $this->getJson('/api/creator/agent/runs')
+            ->assertForbidden();
+
+        $this->postJson('/api/creator/agent/runs', ['prompt' => 'Make me a lofi beat tape please'])
+            ->assertForbidden();
+    }
+}

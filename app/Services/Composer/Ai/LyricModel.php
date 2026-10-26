@@ -8,9 +8,9 @@ namespace App\Services\Composer\Ai;
 interface LyricModel
 {
     /**
-     * Ask the model and return its raw text answer.
+     * Ask the model and return its raw text answer, at most `$maxTokens` long.
      */
-    public function ask(string $system, string $prompt): string;
+    public function ask(string $system, string $prompt, int $maxTokens = 1200): string;
 
     public function name(): string;
 

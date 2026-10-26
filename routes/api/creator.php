@@ -3,6 +3,7 @@
 use App\Http\Controllers\Creator\AiController;
 use App\Http\Controllers\Creator\ArtistController;
 use App\Http\Controllers\Creator\AudioTagController;
+use App\Http\Controllers\Creator\ContentAgentController;
 use App\Http\Controllers\Creator\LyricsController;
 use App\Http\Controllers\Creator\ProjectCollaboratorController;
 use App\Http\Controllers\Creator\ProjectController;
@@ -24,6 +25,13 @@ Route::middleware(['auth:sanctum'])
         Route::post('releases/generic/tracks/save', [TrackController::class, 'save'])->name('releases.save.track');
         Route::apiResource('artists', ArtistController::class)->only(['store', 'update']);
         Route::apiResource('projects', ProjectController::class);
+
+        // Content agent runs of the user's agent account
+        Route::get('agent/runs', [ContentAgentController::class, 'index'])->name('agent.runs.index');
+        Route::post('agent/runs', [ContentAgentController::class, 'store'])->middleware('throttle:30,1')->name('agent.runs.store');
+        Route::get('agent/runs/{run}', [ContentAgentController::class, 'show'])->whereNumber('run')->name('agent.runs.show');
+        Route::post('agent/runs/{run}/cancel', [ContentAgentController::class, 'cancel'])->whereNumber('run')->name('agent.runs.cancel');
+        Route::post('agent/runs/{run}/retry', [ContentAgentController::class, 'retry'])->whereNumber('run')->name('agent.runs.retry');
         // A track must belong to its project, and a stem, asset or version to its track.
         Route::scopeBindings()->group(function () {
             Route::apiResource('projects/{project}/tracks', ProjectTrackController::class)->names('projects.tracks');

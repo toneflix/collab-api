@@ -63,6 +63,7 @@ class UserResource extends JsonResource
             'country' => $this->country,
             'state' => $this->state,
             $this->mergeWhen($previleged, fn() => [
+                'contentAgent' => (bool) $this->content_agent,
                 'email' => $this->email,
                 'phone' => $this->phone,
                 'city' => $this->city,

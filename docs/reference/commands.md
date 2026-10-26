@@ -12,6 +12,7 @@ These run from `php artisan schedule:run`, which cron calls every minute (see [P
 | `studio:prune-history` | daily, 04:00 | Deletes track versions older than the owner's plan keeps, and stems only those versions used. Also deletes autosaved Composer song versions past the writer's `history_days`; named versions stay. |
 | `payouts:sync` | every 30 minutes | Checks payouts that have been processing for over 10 minutes with their provider, in case a webhook never came. |
 | `ai:sweep` | every 10 minutes | Refunds AI jobs that stopped without finishing. |
+| `agent:tick` | every minute | Starts the next queued content agent run and gives the active one a pass. |
 
 ## Commands you run
 

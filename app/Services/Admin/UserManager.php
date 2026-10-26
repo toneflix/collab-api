@@ -308,6 +308,26 @@ class UserManager
     }
 
     /**
+     * Make the account one the content agent builds for, or stop it being one.
+     */
+    public function setContentAgent(User $admin, User $user, bool $enabled): User
+    {
+        if ($user->content_agent === $enabled) {
+            return $user;
+        }
+
+        return DB::transaction(function () use ($admin, $user, $enabled) {
+            $user
+                ->forceFill(['content_agent' => $enabled])
+                ->save();
+
+            $this->record($admin, $user, $enabled ? 'agent.assigned' : 'agent.removed');
+
+            return $user;
+        });
+    }
+
+    /**
      * Grant AI credits, or take back bought and granted ones.
      */
     public function adjustCredits(User $admin, User $user, int $credits, string $reason): User

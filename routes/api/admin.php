@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\AiSettingsController;
 use App\Http\Controllers\Admin\ConfigurationController;
+use App\Http\Controllers\Admin\ContentAgentController;
 use App\Http\Controllers\Admin\GenreController;
 use App\Http\Controllers\Admin\ModerationController;
 use App\Http\Controllers\Admin\PayoutController;
@@ -51,6 +52,17 @@ Route::middleware(['auth:sanctum'])
         // AI tools and credit prices
         Route::get('ai', [AiSettingsController::class, 'show'])->name('ai.show');
         Route::put('ai', [AiSettingsController::class, 'update'])->name('ai.update');
+
+        // Content agent: agent accounts and the queued prompts that build their artists, songs and albums
+        Route::prefix('agent')->name('agent.')->group(function () {
+            Route::get('runs', [ContentAgentController::class, 'index'])->name('runs.index');
+            Route::post('runs', [ContentAgentController::class, 'store'])->middleware('throttle:30,1')->name('runs.store');
+            Route::get('runs/{run}', [ContentAgentController::class, 'show'])->whereNumber('run')->name('runs.show');
+            Route::post('runs/{run}/cancel', [ContentAgentController::class, 'cancel'])->whereNumber('run')->name('runs.cancel');
+            Route::post('runs/{run}/retry', [ContentAgentController::class, 'retry'])->whereNumber('run')->name('runs.retry');
+            Route::get('owners', [ContentAgentController::class, 'owners'])->name('owners');
+            Route::put('accounts/{managedUser}', [ContentAgentController::class, 'account'])->whereNumber('managedUser')->name('accounts.update');
+        });
 
         // Subscription plans and the features they can grant or limit
         Route::get('plans/features', [PlanController::class, 'features'])->name('plans.features');

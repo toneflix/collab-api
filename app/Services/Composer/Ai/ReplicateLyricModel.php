@@ -10,14 +10,14 @@ use App\Services\Ai\Replicate\ReplicateClient;
  */
 class ReplicateLyricModel implements LyricModel
 {
-    public function ask(string $system, string $prompt): string
+    public function ask(string $system, string $prompt, int $maxTokens = 1200): string
     {
         $prediction = ReplicateClient::make()
             ->run($this->name(), [
                 'system_prompt' => $system,
                 'prompt' => $prompt,
-                'max_tokens' => 1200,
-            ], 60);
+                'max_tokens' => $maxTokens,
+            ], $maxTokens > 1200 ? 180 : 60);
 
         return collect((array) $prediction['output'])
             ->flatten()
