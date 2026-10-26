@@ -1,6 +1,6 @@
 # Android app
 
-The Android app is the collab frontend in Quasar's Capacitor mode. The Android project lives in `src-capacitor/android` (app id `net.toneflix.music`) and loads the same UI as the web app, built into `src-capacitor/www`.
+The Android app is the collab frontend in Quasar's Capacitor mode. The Android project lives in `src-capacitor/android` (app id `com.toneflix.music.app`) and loads the same UI as the web app, built into `src-capacitor/www`.
 
 ## Building locally
 
@@ -22,7 +22,7 @@ The app talks to the API set by `VITE_PROD_API_BASE_URL`. The API's CORS setting
 
 Push reaches the app through Firebase Cloud Messaging and shows in the system tray while the app is closed. Setup:
 
-1. In the Firebase console, add an Android app with package name `net.toneflix.music` to the same Firebase project the API uses, and download its `google-services.json`.
+1. In the Firebase console, add an Android app with package name `com.toneflix.music.app` to the same Firebase project the API uses, and download its `google-services.json`.
 2. On the API, set `FIREBASE_CREDENTIALS` to a service account of that project (see [API .env](../reference/api-env#realtime)). Without it the app can't register for push.
 3. Give the build the `google-services.json` (the workflow takes it from the `GOOGLE_SERVICES_JSON` secret; locally, copy it to `src-capacitor/android/app/`).
 
@@ -42,7 +42,7 @@ Each notification category has its own Android channel, so people can mute one k
    base64 -w0 upload.keystore   # the value for ANDROID_KEYSTORE_BASE64
    ```
 
-2. **Create the app in the Play Console** with package name `net.toneflix.music`, turn on Play App Signing, and upload the first bundle by hand (Google Play doesn't accept API uploads for an app that has never had a release). The workflow keeps each bundle as a run artifact, so the first one can come from a manual run.
+2. **Create the app in the Play Console** with package name `com.toneflix.music.app`, turn on Play App Signing, and upload the first bundle by hand (Google Play doesn't accept API uploads for an app that has never had a release). The workflow keeps each bundle as a run artifact, so the first one can come from a manual run.
 3. **Create a service account for uploads**: in Google Cloud, create a service account with a JSON key and enable the Google Play Android Developer API. In the Play Console, invite the service account's email under *Users and permissions* with permission to release to testing tracks (and production if the workflow should publish there).
 
 ### Secrets and variables
