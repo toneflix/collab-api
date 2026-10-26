@@ -14,7 +14,7 @@ cd src-capacitor/android
 ./gradlew assembleDebug       # app/build/outputs/apk/debug/app-debug.apk
 ```
 
-`yarn quasar dev -m capacitor -T android` runs the app on a device or emulator with live reload. New Capacitor plugins are added with `yarn --cwd src-capacitor add <plugin>`, then `yarn build:android`. Icons and the splash screen come from `src-icongenie/logo.png` through `yarn icons:app`.
+`yarn quasar dev -m capacitor -T android` runs the app on a device or emulator with live reload. New Capacitor plugins are added with `yarn --cwd src-capacitor add <plugin>`, then `yarn build:android`. Icons and the splash screen come from `src-icongenie/logo-square-filled.png` (from toneflix/assets) through `yarn icons:app`.
 
 The app talks to the API set by `VITE_PROD_API_BASE_URL`. The API's CORS settings already allow the app's `https://localhost` origin.
 
