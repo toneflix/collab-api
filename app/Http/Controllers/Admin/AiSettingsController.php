@@ -60,6 +60,8 @@ class AiSettingsController extends Controller
             'ai_stems_suno_type' => ['nullable', 'string', Rule::in(array_keys(AiSettings::SUNO_STEM_TYPES))],
             'ai_stems_suno_credits' => ['nullable', 'integer', 'between:1,1000'],
             'ai_edit_credits' => ['nullable', 'integer', 'between:1,1000'],
+            'ai_artwork_credits' => ['nullable', 'integer', 'between:1,1000'],
+            'ai_artwork_images' => ['nullable', 'integer', 'between:1,4'],
             'ai_music_max_seconds' => ['nullable', 'integer', 'between:10,300'],
             'ai_lyrics_credits' => ['nullable', 'integer', 'between:1,1000'],
             'ai_lyrics_auto' => ['nullable', 'boolean'],

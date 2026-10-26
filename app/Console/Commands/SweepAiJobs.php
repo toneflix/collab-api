@@ -4,20 +4,22 @@ namespace App\Console\Commands;
 
 use App\Models\AiJob;
 use App\Services\Ai\AiStudio;
+use App\Services\Ai\Artwork\ArtworkImages;
 use App\Services\Ai\Music\MusicVersions;
 use Illuminate\Console\Command;
 
 /**
  * Fails and refunds AI jobs that stopped without finishing, like when a
- * worker was restarted mid-run, and deletes song versions nobody picked.
+ * worker was restarted mid-run, and deletes song versions nobody picked and
+ * old artwork images.
  */
 class SweepAiJobs extends Command
 {
     protected $signature = 'ai:sweep {--older-than=40 : Only jobs untouched for this many minutes}';
 
-    protected $description = 'Refund AI jobs that stopped without finishing and delete unpicked song versions';
+    protected $description = 'Refund AI jobs that stopped without finishing and delete unpicked song versions and old artwork';
 
-    public function handle(AiStudio $studio, MusicVersions $versions): int
+    public function handle(AiStudio $studio, MusicVersions $versions, ArtworkImages $artwork): int
     {
         $count = 0;
 
@@ -53,6 +55,26 @@ class SweepAiJobs extends Command
             });
 
         $this->info("Deleted the versions of {$expired} songs nobody picked.");
+
+        $drawn = 0;
+
+        AiJob::query()
+            ->where('kind', 'artwork')
+            ->where('status', AiJob::SUCCEEDED)
+            ->where('finished_at', '<=', now()->subDays(ArtworkImages::KEEP_DAYS))
+            ->whereNotNull('output->images')
+            ->whereNull('output->expired')
+            ->chunkById(100, function ($batch) use ($artwork, &$drawn) {
+                foreach ($batch as $job) {
+                    $artwork->forget($job);
+                    $job
+                        ->forceFill(['output' => [...$job->output, 'expired' => true]])
+                        ->save();
+                    $drawn++;
+                }
+            });
+
+        $this->info("Deleted the images of {$drawn} artwork jobs.");
 
         return self::SUCCESS;
     }

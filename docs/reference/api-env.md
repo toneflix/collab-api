@@ -154,6 +154,7 @@ See [Payment providers](../guide/payments) for webhooks and dashboard settings.
 | `REPLICATE_LYRICS_MODEL` | `openai/whisper` | Model for lyrics transcription. |
 | `REPLICATE_MODERATOR_MODEL` | `anthropic/claude-4.5-haiku` | Model behind the AI moderator. A larger Claude model judges harder cases better at a higher cost per review. |
 | `REPLICATE_COMPOSER_MODEL` | `anthropic/claude-4.5-haiku` | Model that suggests lyrics in Composer, until an admin picks one on `/admin/ai`. |
+| `REPLICATE_ARTWORK_MODEL` | `black-forest-labs/flux-schnell` | Image model that draws AI artwork. It must take `aspect_ratio` and `num_outputs`. |
 | `REPLICATE_TIMEOUT` | `600` | Seconds to wait for one prediction. |
 | `SUNO_API_KEY` | | From [sunoapi.org/api-key](https://sunoapi.org/api-key). Needed only when admins pick Suno for music or stems. |
 | `SUNO_URL` | `https://api.sunoapi.org` | Suno API base URL. |
@@ -165,6 +166,7 @@ See [Payment providers](../guide/payments) for webhooks and dashboard settings.
 | `CLOUDFLARE_AI_TIMEOUT` | `600` | Seconds to wait for one Workers AI run. |
 | `CLOUDFLARE_LYRICS_MODEL` | `@cf/openai/whisper-large-v3-turbo` | Whisper model for lyrics on Workers AI. |
 | `CLOUDFLARE_COMPOSER_MODEL` | `anthropic/claude-haiku-4.5` | Composer's writing model on Workers AI, until an admin picks one on `/admin/ai`. |
+| `CLOUDFLARE_ARTWORK_MODEL` | `@cf/black-forest-labs/flux-1-schnell` | Image model that draws AI artwork on Workers AI. It must answer with a base64 `image`. |
 | `CLOUDFLARE_MODERATOR_MODEL` | `anthropic/claude-haiku-4.5` | AI moderator model on Workers AI. It must read images. |
 
 ## Notifications

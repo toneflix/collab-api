@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Models\AiJob;
+use App\Services\Ai\Artwork\ArtworkImages;
 use App\Services\Ai\Music\MusicModel;
 use App\Services\Ai\Music\MusicVersions;
 use Illuminate\Http\Request;
@@ -43,11 +44,36 @@ class AiJobResource extends JsonResource
             'error' => $this->error,
             'notice' => $this->output['notice'] ?? null,
             'versions' => $versions,
+            'artworkKind' => $this->input['artwork_kind'] ?? null,
+            'images' => $this->images(),
             'chosen' => $this->output['chosen'] ?? null,
             'choosing' => $this->output['choosing'] ?? null,
             'createdAt' => $this->created_at,
             'finishedAt' => $this->finished_at,
         ];
+    }
+
+    /**
+     * The images an artwork job drew, each with a link while they're kept.
+     *
+     * @return list<array{index: int, width: int, height: int, url: string}>|null
+     */
+    protected function images(): ?array
+    {
+        $images = $this->output['images'] ?? null;
+
+        if (! $images || ! empty($this->output['expired'])) {
+            return null;
+        }
+
+        $links = app(ArtworkImages::class);
+
+        return array_map(fn(array $image, int $index) => [
+            'index' => $index,
+            'width' => $image['width'],
+            'height' => $image['height'],
+            'url' => $links->url($this->resource, $index),
+        ], $images, array_keys($images));
     }
 
     /**

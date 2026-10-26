@@ -72,6 +72,7 @@ return [
                 'lyrics' => ['default' => env('REPLICATE_LYRICS_MODEL', 'openai/whisper')],
                 'moderator' => ['default' => env('REPLICATE_MODERATOR_MODEL', 'anthropic/claude-4.5-haiku')],
                 'composer' => ['default' => env('REPLICATE_COMPOSER_MODEL', 'anthropic/claude-4.5-haiku')],
+                'artwork' => ['default' => env('REPLICATE_ARTWORK_MODEL', 'black-forest-labs/flux-schnell')],
             ],
         ],
 
@@ -96,6 +97,7 @@ return [
                 'lyrics' => ['default' => env('CLOUDFLARE_LYRICS_MODEL', '@cf/openai/whisper-large-v3-turbo')],
                 'moderator' => ['default' => env('CLOUDFLARE_MODERATOR_MODEL', 'anthropic/claude-haiku-4.5')],
                 'composer' => ['default' => env('CLOUDFLARE_COMPOSER_MODEL', 'anthropic/claude-haiku-4.5')],
+                'artwork' => ['default' => env('CLOUDFLARE_ARTWORK_MODEL', '@cf/black-forest-labs/flux-1-schnell')],
             ],
         ],
 
