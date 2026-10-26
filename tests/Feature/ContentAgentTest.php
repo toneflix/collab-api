@@ -435,7 +435,7 @@ class ContentAgentTest extends TestCase
         $run = $this->advance($this->queueRun($owner));
 
         $this->assertSame(AgentRun::FAILED, $run->status);
-        $this->assertStringContainsString('2 new songs', $run->error);
+        $this->assertStringContainsString('2 new compositions', $run->error);
     }
 
     public function test_the_plan_is_capped_and_reuses_the_owners_artist(): void

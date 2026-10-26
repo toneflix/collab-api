@@ -31,10 +31,10 @@ class Songs
             Feature::MAX_SONGS,
             $user->songs()->count(),
             'title',
-            'Your account can have up to :limit songs.',
+            'Your account can have up to :limit compositions.',
         );
 
-        $attributes = $this->attributes($data) + ['title' => 'Untitled song'];
+        $attributes = $this->attributes($data) + ['title' => 'Untitled composition'];
 
         $song = $user
             ->songs()
@@ -90,7 +90,7 @@ class Songs
             abort_if(
                 $current->revision !== $revision,
                 HttpStatus::CONFLICT->value,
-                'This song was saved from another window. Load the newer copy or keep yours as a version.',
+                'This composition was saved from another window. Load the newer copy or keep yours as a version.',
             );
 
             $current->fill($this->attributes($data, $current));

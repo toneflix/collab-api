@@ -20,11 +20,11 @@ class SongPublishing
         $publish = (bool) ($data['published'] ?? $song->isPublished());
 
         if ($publish && $song->lyricLines() === []) {
-            throw ValidationException::withMessages(['published' => 'Write some lyrics before publishing this song.']);
+            throw ValidationException::withMessages(['published' => 'Write some lyrics before publishing this composition.']);
         }
 
         if ($publish && $song->isTakenDown()) {
-            throw ValidationException::withMessages(['published' => 'This song was taken down and can\'t be published.']);
+            throw ValidationException::withMessages(['published' => 'This composition was taken down and can\'t be published.']);
         }
 
         $song->forceFill([

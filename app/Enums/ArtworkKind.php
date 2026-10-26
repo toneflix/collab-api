@@ -37,7 +37,7 @@ enum ArtworkKind: string
             self::PROJECT => 'Cover art for a music project',
             self::RELEASE => 'Album cover art',
             self::TRACK => 'Single cover art',
-            self::SONG => 'Cover art for a song',
+            self::SONG => 'Cover art for a composition',
             self::ARTIST => 'Profile picture for a music artist',
             self::ARTIST_COVER => 'Wide banner for a music artist\'s page, with a calm area in the middle',
         };

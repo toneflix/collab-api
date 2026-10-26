@@ -145,9 +145,9 @@ class Song extends Model implements CanBeTakenDown
     {
         return [
             'title' => (string) $this->title,
-            'subtitle' => 'Composer song',
+            'subtitle' => 'Composition',
             'image' => $this->images['image'] ?? null,
-            'link' => $this->slug ? '/songs/' . $this->slug : null,
+            'link' => $this->slug ? '/compositions/' . $this->slug : null,
         ];
     }
 

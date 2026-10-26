@@ -34,7 +34,7 @@ class SongPolicy
     {
         return $song->isPublished() || $song->user_id === $user?->id
             ? Response::allow()
-            : Response::denyAsNotFound('Song not found.');
+            : Response::denyAsNotFound('Composition not found.');
     }
 
     public function fork(User $user, Song $song): Response
@@ -47,7 +47,7 @@ class SongPolicy
 
         return $song->allow_forks
             ? Response::allow()
-            : Response::deny("This song's writer doesn't allow forks.");
+            : Response::deny("This composition's writer doesn't allow forks.");
     }
 
     /**
@@ -63,13 +63,13 @@ class SongPolicy
 
         return $song->allow_projects
             ? Response::allow()
-            : Response::deny("This song's writer doesn't allow projects with it.");
+            : Response::deny("This composition's writer doesn't allow projects with it.");
     }
 
     protected function owner(User $user, Song $song): Response
     {
         return $song->user_id === $user->id
             ? Response::allow()
-            : Response::denyAsNotFound('Song not found.');
+            : Response::denyAsNotFound('Composition not found.');
     }
 }

@@ -86,7 +86,7 @@ POST /api/creator/songs/{song}/project
 
 ## Publishing, forks and artwork
 
-A writer can publish a song so anyone can read its lyrics on its own page, and choose whether others may fork it or start a project with it. Notes and the scratchpad always stay private.
+A writer can publish a song so anyone can read its lyrics on its own page, and choose whether others may fork it or start a project with it. Notes and the scratchpad always stay private. The app calls published songs compositions: the list is at `/compositions` and each page at `/compositions/{slug}`, and old `/songs` links redirect there.
 
 ```
 PUT /api/creator/songs/{song}/publishing
