@@ -43,6 +43,18 @@ class ConfigurationSeeder extends Seeder
                 'secret' => false,
             ],
             [
+                'key' => 'discord_url',
+                'title' => 'Discord Link',
+                'value' => 'https://discord.gg/u7fQdqQt8c',
+                'type' => 'url',
+                'count' => null,
+                'max' => null,
+                'col' => 6,
+                'autogrow' => false,
+                'hint' => 'Community invite shown on the Help page.',
+                'secret' => false,
+            ],
+            [
                 'key' => 'app_currency',
                 'title' => 'App Currency',
                 'value' => 'NGN',

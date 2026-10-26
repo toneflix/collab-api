@@ -100,4 +100,24 @@ class ConfigurationTest extends TestCase
         $this->assertSame('number', $row->type);
         $this->assertSame(3, $row->value);
     }
+
+    public function test_admins_set_and_clear_the_discord_link(): void
+    {
+        $this->actingAsFresh($this->admin());
+
+        $this->putJson('/api/admin/configuration', ['discord_url' => 'https://discord.gg/toneflix'])
+            ->assertAccepted()
+            ->assertJsonPath('data.fields.discord_url.value', 'https://discord.gg/toneflix');
+
+        $this->assertSame('https://discord.gg/toneflix', Providers::config('discord_url'));
+
+        $this->putJson('/api/admin/configuration', ['discord_url' => 'not a link'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['discord_url']);
+
+        $this->putJson('/api/admin/configuration', ['discord_url' => ''])
+            ->assertAccepted();
+
+        $this->assertEmpty(Providers::config('discord_url'));
+    }
 }
