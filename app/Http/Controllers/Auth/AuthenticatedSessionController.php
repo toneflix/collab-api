@@ -26,11 +26,14 @@ class AuthenticatedSessionController extends Controller
         $request->authenticate();
 
         $user = $request->user();
+        $message = $request->reactivated
+            ? __('Welcome back. Your account is active again.')
+            : null;
 
-        return $this->setUserData($request, $user);
+        return $this->setUserData($request, $user, $message);
     }
 
-    public function setUserData(Request|LoginRequest $request, User $user)
+    public function setUserData(Request|LoginRequest $request, User $user, ?string $message = null)
     {
         $device = $request->userAgent();
         $user
@@ -43,7 +46,7 @@ class AuthenticatedSessionController extends Controller
 
         return (new UserResource($user))
             ->additional([
-                'message' => 'Login was successfull',
+                'message' => $message ?? 'Login was successfull',
                 'token' => $token->plainTextToken,
                 'abilities' => $token->accessToken->abilities,
                 'status' => 'success',

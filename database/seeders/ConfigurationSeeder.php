@@ -55,6 +55,18 @@ class ConfigurationSeeder extends Seeder
                 'secret' => false,
             ],
             [
+                'key' => 'account_deletion_days',
+                'title' => 'Account Deletion Grace (days)',
+                'value' => 30,
+                'type' => 'number',
+                'count' => null,
+                'max' => null,
+                'col' => 6,
+                'autogrow' => false,
+                'hint' => 'Days a deleted account waits, hidden, before it is erased. Signing in during this time cancels the deletion.',
+                'secret' => false,
+            ],
+            [
                 'key' => 'app_currency',
                 'title' => 'App Currency',
                 'value' => 'NGN',

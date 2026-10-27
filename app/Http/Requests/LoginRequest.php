@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Services\Account\Deactivation;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Contracts\Validation\Rule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -12,6 +13,11 @@ use Illuminate\Validation\ValidationException;
 
 class LoginRequest extends FormRequest
 {
+    /**
+     * Whether signing in brought back a deactivated or deleted account.
+     */
+    public bool $reactivated = false;
+
     /**
      * Determine if the user is authorized to make this request.
      */
@@ -60,6 +66,8 @@ class LoginRequest extends FormRequest
 
             throw ValidationException::withMessages(['email' => $message]);
         }
+
+        $this->reactivated = Deactivation::reactivate(Auth::user());
     }
 
     /**

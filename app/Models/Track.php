@@ -8,6 +8,7 @@ use App\Jobs\MeasureDuration;
 use App\Jobs\ProcessAudio;
 use App\Jobs\TagAudio;
 use App\Jobs\TranscribeTrack;
+use App\Models\Scopes\HideDeactivatedAccounts;
 use App\Traits\HasAudioTags;
 use App\Traits\HasLikedScope;
 use App\Traits\Metricable;
@@ -15,6 +16,7 @@ use App\Traits\ModelCanExtend;
 use App\Traits\Purchasable;
 use App\Traits\TakesDown;
 use BeyondCode\Comments\Traits\HasComments;
+use Illuminate\Database\Eloquent\Attributes\ScopedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\AsCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -26,6 +28,7 @@ use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Toneflix\LaravelFileable\Traits\Fileable;
 use Toneflix\SocialInteractions\Traits\HasSocialInteractions;
 
+#[ScopedBy([HideDeactivatedAccounts::class])]
 class Track extends Model implements CanBeTakenDown
 {
     use Fileable;

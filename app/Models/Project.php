@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Scopes\HideDeactivatedAccounts;
 use App\Models\Scopes\HideReportedModels;
 use App\Models\Scopes\RestrictBlockedUserScope;
 use App\Traits\ModelCanExtend;
@@ -27,6 +28,7 @@ use Toneflix\SocialInteractions\Traits\HasSocialInteractions;
 #[ScopedBy([
     RestrictBlockedUserScope::class,
     HideReportedModels::class,
+    HideDeactivatedAccounts::class,
 ])]
 class Project extends Model
 {

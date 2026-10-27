@@ -2,6 +2,7 @@
 
 namespace App\Traits;
 
+use App\Models\Scopes\HideDeactivatedAccounts;
 use App\Models\Scopes\HideTakenDown;
 use Illuminate\Support\Stringable;
 use Valorin\Random\Random;
@@ -26,7 +27,7 @@ trait ModelCanExtend
         $username = str($current ?: $string)
             ->slug($separator);
 
-        if (static::query()->withoutGlobalScope(HideTakenDown::class)->where($field, $username)->when($scope, $scope)->exists()) {
+        if (static::query()->withoutGlobalScopes([HideTakenDown::class, HideDeactivatedAccounts::class])->where($field, $username)->when($scope, $scope)->exists()) {
             $username = $username
                 ->append($separator)
                 ->append(Random::number(1111, 9999));

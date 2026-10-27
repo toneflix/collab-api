@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Contracts\CanBeTakenDown;
+use App\Models\Scopes\HideDeactivatedAccounts;
 use App\Models\Scopes\HideReportedModels;
 use App\Models\Scopes\RestrictBlockedUserScope;
 use App\Traits\TakesDown;
@@ -19,6 +20,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 #[ScopedBy([
     RestrictBlockedUserScope::class,
     HideReportedModels::class,
+    HideDeactivatedAccounts::class,
 ])]
 class Comment extends BeyondCodeComment implements CanBeTakenDown
 {

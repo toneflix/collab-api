@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Scopes\HideDeactivatedAccounts;
 use App\Models\Scopes\RestrictBlockedUserScope;
 use Illuminate\Database\Eloquent\Attributes\ScopedBy;
 use Illuminate\Database\Eloquent\Builder;
@@ -13,7 +14,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Toneflix\ApprovableNotifications\Models\Notification;
 
-#[ScopedBy([RestrictBlockedUserScope::class])]
+#[ScopedBy([
+    RestrictBlockedUserScope::class,
+    HideDeactivatedAccounts::class,
+])]
 class ProjectCollaborator extends Model
 {
     use HasFactory;

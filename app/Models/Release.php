@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Contracts\CanBeTakenDown;
 use App\Helpers\Freq;
+use App\Models\Scopes\HideDeactivatedAccounts;
 use App\Models\Scopes\RestrictBlockedUserScope;
 use App\Traits\HasAiReviews;
 use App\Traits\HasLikedScope;
@@ -28,6 +29,7 @@ use Toneflix\SocialInteractions\Traits\HasSocialInteractions;
 
 #[ScopedBy([
     RestrictBlockedUserScope::class,
+    HideDeactivatedAccounts::class,
 ])]
 class Release extends Model implements CanBeTakenDown, CanVisit
 {

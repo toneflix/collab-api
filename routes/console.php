@@ -43,3 +43,8 @@ Schedule::command('ai:sweep')
 Schedule::command('agent:tick')
     ->everyMinute()
     ->withoutOverlapping();
+
+// Erase deleted accounts whose owners did not sign in during the grace period.
+Schedule::command('accounts:purge')
+    ->dailyAt('02:30')
+    ->withoutOverlapping();

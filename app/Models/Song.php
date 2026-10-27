@@ -4,7 +4,9 @@ namespace App\Models;
 
 use App\Contracts\CanBeTakenDown;
 use App\Enums\MusicalKey;
+use App\Models\Scopes\HideDeactivatedAccounts;
 use App\Traits\TakesDown;
+use Illuminate\Database\Eloquent\Attributes\ScopedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -22,6 +24,7 @@ use Toneflix\LaravelFileable\Traits\Fileable;
  * @property array<string, mixed>|null $settings
  * @property Carbon|null $published_at
  */
+#[ScopedBy([HideDeactivatedAccounts::class])]
 class Song extends Model implements CanBeTakenDown
 {
     use Fileable;

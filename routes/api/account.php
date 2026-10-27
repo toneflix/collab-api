@@ -4,6 +4,7 @@ use App\Helpers\Providers;
 use App\Http\Controllers\Account;
 use App\Http\Controllers\Account\AiCreditsController;
 use App\Http\Controllers\Account\BlockController;
+use App\Http\Controllers\Account\DeactivationController;
 use App\Http\Controllers\Account\InterestsController;
 use App\Http\Controllers\Account\NotificationController;
 use App\Http\Controllers\Account\NotificationSettingsController;
@@ -29,6 +30,8 @@ Route::middleware(['auth:sanctum'])
         Route::put('interests', [InterestsController::class, 'update'])->name('interests.update');
         Route::get('ai', [AiCreditsController::class, 'show'])->name('ai.show');
         Route::get('ai/history', [AiCreditsController::class, 'history'])->name('ai.history');
+        Route::post('deactivate', [DeactivationController::class, 'deactivate'])->middleware('throttle:5,1')->name('deactivate');
+        Route::post('delete', [DeactivationController::class, 'destroy'])->middleware('throttle:5,1')->name('delete');
         Route::apiResource('/', Account::class)->parameter('', 'field')->only(['index', 'update']);
         Route::get('purchases', [PaymentsController::class, 'purchases'])->name('purchases');
         Route::get('earnings', [PaymentsController::class, 'earnings'])->name('earnings');

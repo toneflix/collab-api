@@ -2,11 +2,12 @@
 
 namespace App\Models;
 
+use App\Contracts\Reportable;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 
-use App\Contracts\Reportable;
 use App\Enums\AccountType;
 use App\Enums\Feature;
+use App\Models\Scopes\HideDeactivatedAccounts;
 use App\Models\Scopes\RestrictBlockedUserScope;
 use App\Notifications\SendCode;
 use App\Traits\HasReports;
@@ -38,7 +39,10 @@ use Toneflix\SocialInteractions\Models\SocialInteraction;
 use Toneflix\SocialInteractions\Traits\CanSocialInteract;
 use Valorin\Random\Random;
 
-#[ScopedBy([RestrictBlockedUserScope::class])]
+#[ScopedBy([
+    RestrictBlockedUserScope::class,
+    HideDeactivatedAccounts::class,
+])]
 class User extends Authenticatable implements Commentator, Reportable
 {
     use ApprovableNotifiable;
@@ -145,6 +149,8 @@ class User extends Authenticatable implements Commentator, Reportable
             'identities' => 'array',
             'interests_at' => 'datetime',
             'suspended_until' => 'datetime',
+            'deactivated_at' => 'datetime',
+            'deletes_at' => 'datetime',
         ];
     }
 
@@ -259,6 +265,14 @@ class User extends Authenticatable implements Commentator, Reportable
         return $this->suspended_until
             ? __('This account is suspended until :date.', ['date' => $this->suspended_until->toDayDateTimeString()])
             : __('This account has been banned.');
+    }
+
+    /**
+     * Whether the owner has deactivated the account or asked to delete it.
+     */
+    public function isDeactivated(): bool
+    {
+        return $this->deactivated_at !== null;
     }
 
     public function scopeSuspended(Builder $query, bool $suspended = true): void
