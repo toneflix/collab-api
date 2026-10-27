@@ -165,7 +165,7 @@ class ConfigurationSeeder extends Seeder
             [
                 'key' => 'allowed_audio_exts',
                 'title' => 'Allowed Audio EXTS',
-                'value' => json_encode(['.wav', '.flac', '.aiff', '.alac', '.ogg', '.mp2', '.mp3', '.aac', '.amr', '.wma']),
+                'value' => json_encode(['.wav', '.flac', '.aiff', '.alac', '.ogg', '.mp2', '.mp3', '.aac', '.amr', '.wma', '.m4a']),
                 'type' => 'array',
                 'count' => null,
                 'max' => null,
@@ -178,7 +178,7 @@ class ConfigurationSeeder extends Seeder
                 'key' => 'allowed_assets_exts',
                 'title' => 'Allowed Assets EXTS',
                 'value' => json_encode([
-                    '.wav', '.flac', '.aiff', '.alac', '.ogg', '.mp2', '.mp3', '.aac', '.amr', '.wma',
+                    '.wav', '.flac', '.aiff', '.alac', '.ogg', '.mp2', '.mp3', '.aac', '.amr', '.wma', '.m4a',
                     '.jpg', '.jpeg', '.png', '.svg', '.zip', '.pdf', '.txt', '.lrc',
                 ]),
                 'type' => 'array',

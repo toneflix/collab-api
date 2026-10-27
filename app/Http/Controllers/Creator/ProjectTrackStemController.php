@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Creator;
 
 use App\Broadcasting\Channels;
 use App\Enums\HttpStatus;
-use App\Helpers\Providers;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\SoundController;
 use App\Http\Resources\ProjectTrackStemCollection;
 use App\Http\Resources\ProjectTrackStemResource;
 use App\Models\Project;
@@ -50,10 +50,7 @@ class ProjectTrackStemController extends Controller
     {
         $this->authorize('update', $track);
 
-        $allowedAudio = str(collect(Providers::config('allowed_audio_exts'))->join(','))
-            ->remove('.')
-            ->prepend('mimes:')
-            ->toString();
+        $allowedAudio = SoundController::audioRule();
 
         $valid = $this->validate($request, [
             'src' => array_filter(['nullable', 'file', $allowedAudio, Limits::for($this->user)->stemSizeRule()]),
@@ -178,10 +175,7 @@ class ProjectTrackStemController extends Controller
     {
         $this->authorize('update', $track);
 
-        $allowedAudio = str(collect(Providers::config('allowed_audio_exts'))->join(','))
-            ->remove('.')
-            ->prepend('mimes:')
-            ->toString();
+        $allowedAudio = SoundController::audioRule();
 
         $valid = $this->validate($request, [
             'src' => array_filter(['nullable', 'file', $allowedAudio, Limits::for($this->user)->stemSizeRule()]),

@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Creator;
 
 use App\Enums\Feature;
 use App\Enums\HttpStatus;
-use App\Helpers\Providers;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\SoundController;
 use App\Http\Resources\TrackCollection;
 use App\Http\Resources\TrackResource;
 use App\Models\Release;
@@ -44,10 +44,7 @@ class TrackController extends Controller
      */
     public function store(Request $request, string $release_id)
     {
-        $allowedAudio = str(collect(Providers::config('allowed_audio_exts'))->join(','))
-            ->remove('.')
-            ->prepend('mimes:')
-            ->toString();
+        $allowedAudio = SoundController::audioRule();
 
         $this->validate($request, [
             'title' => ['required', 'string'],
@@ -105,10 +102,7 @@ class TrackController extends Controller
      */
     public function update(Request $request, string $release_id, string $id)
     {
-        $allowedAudio = str(collect(Providers::config('allowed_audio_exts'))->join(','))
-            ->remove('.')
-            ->prepend('mimes:')
-            ->toString();
+        $allowedAudio = SoundController::audioRule();
 
         $this->validate($request, [
             'title' => ['required', 'string'],

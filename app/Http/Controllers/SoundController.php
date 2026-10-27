@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Broadcasting\Channels;
 use App\Enums\HttpStatus;
-use App\Helpers\Providers;
 use App\Http\Resources\ProjectTrackStemResource;
 use App\Http\Resources\SoundCollection;
 use App\Http\Resources\SoundResource;
@@ -17,6 +16,7 @@ use App\Services\Limits;
 use App\Services\Realtime\Realtime;
 use App\Services\Sounds\SoundLibrary;
 use App\Services\Sounds\SoundSettings;
+use App\Services\Storage\UploadRules;
 use App\Services\Studio\TrackHistory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -264,15 +264,12 @@ class SoundController extends Controller
         abort_unless((int) $sound->user_id === (int) $request->user()->id, HttpStatus::NOT_FOUND->value, 'Sound not found.');
     }
 
+    /**
+     * The validation rule for audio uploads, from the allowed extensions setting.
+     */
     public static function audioRule(): string
     {
-        $exts = collect(Providers::config('allowed_audio_exts'))
-            ->join(',');
-
-        return str($exts)
-            ->remove('.')
-            ->prepend('mimes:')
-            ->toString();
+        return UploadRules::mimes('allowed_audio_exts');
     }
 
     /**

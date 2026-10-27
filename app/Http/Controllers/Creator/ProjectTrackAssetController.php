@@ -10,6 +10,7 @@ use App\Http\Resources\FileResource;
 use App\Models\File;
 use App\Models\Project;
 use App\Models\ProjectTrack;
+use App\Services\Storage\UploadRules;
 use Illuminate\Http\Request;
 
 class ProjectTrackAssetController extends Controller
@@ -42,10 +43,7 @@ class ProjectTrackAssetController extends Controller
     {
         $this->authorize('update', $track);
 
-        $allowedMimes = str(collect(Providers::config('allowed_assets_exts'))->join(','))
-            ->remove('.')
-            ->prepend('mimes:')
-            ->toString();
+        $allowedMimes = UploadRules::mimes('allowed_assets_exts');
 
         $valid = $this->validate($request, [
             'file' => ['required', 'file', $allowedMimes],
@@ -90,10 +88,7 @@ class ProjectTrackAssetController extends Controller
     {
         $this->authorize('update', $track);
 
-        $allowedMimes = str(collect(Providers::config('allowed_assets_exts'))->join(','))
-            ->remove('.')
-            ->prepend('mimes:')
-            ->toString();
+        $allowedMimes = UploadRules::mimes('allowed_assets_exts');
 
         $valid = $this->validate($request, [
             'file' => ['nullable', 'file', $allowedMimes],

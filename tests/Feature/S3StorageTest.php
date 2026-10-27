@@ -13,6 +13,7 @@ use App\Models\Sound;
 use App\Models\Track;
 use App\Models\User;
 use App\Services\Sounds\SoundSettings;
+use App\Services\Storage\DownloadLink;
 use App\Services\Studio\StemFiles;
 use Aws\S3\S3Client;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -268,6 +269,15 @@ class S3StorageTest extends TestCase
      *
      * @return array{0: Project, 1: ProjectTrack}
      */
+    public function test_download_links_ask_s3_to_save_the_file(): void
+    {
+        $url = DownloadLink::make('stem_files', 'vocals.mp3', 'vocals.mp3');
+
+        $this->assertStringStartsWith($this->bucketUrl() . '/media/music/stem/vocals.mp3', $url);
+        $this->assertStringContainsString('response-content-disposition=attachment', $url);
+        $this->assertStringContainsString('X-Amz-Signature', $url);
+    }
+
     protected function projectTrack(User $owner): array
     {
         Artist::factory()

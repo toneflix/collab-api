@@ -9,6 +9,7 @@ use App\Http\Controllers\Creator\AiArtworkController;
 use App\Http\Controllers\Creator\AiController;
 use App\Http\Controllers\ExploreController;
 use App\Http\Controllers\FaustEffectController;
+use App\Http\Controllers\FileDownloadController;
 use App\Http\Controllers\FollowController;
 use App\Http\Controllers\GenreController;
 use App\Http\Controllers\LyricsController;
@@ -123,6 +124,11 @@ Route::get('ai/jobs/{job}/artwork/{image}', [AiArtworkController::class, 'image'
     ->whereNumber('image')
     ->middleware('signed')
     ->name('ai.jobs.artwork.image');
+
+// A track or stem saved as a file, from a signed link the download endpoints hand out
+Route::get('files/download', FileDownloadController::class)
+    ->middleware('signed')
+    ->name('files.download');
 
 Route::middleware(['auth:sanctum'])
     ->group(function () {

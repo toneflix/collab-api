@@ -13,6 +13,7 @@ use App\Models\Release;
 use App\Models\Track;
 use App\Models\User;
 use App\Services\Releases\Downloads;
+use App\Services\Storage\DownloadLink;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 
@@ -167,18 +168,13 @@ class TrackController extends Controller
             'Downloads are not included in your plan.'
         );
 
-        $url = $track->getFiles['audio']['dynamicLink'] ?? '';
+        // The released audio, or the project's preview when it has none
+        $stored = $track->audio ?: $track->projectTrack?->preview;
 
-        if ($url === '' && $track->projectTrack) {
-            $url = $track->projectTrack->getFiles['preview']['dynamicLink'] ?? '';
-        }
+        abort_if(! $stored, HttpStatus::NOT_FOUND->value, 'This track has no audio yet.');
 
-        abort_if($url === '', HttpStatus::NOT_FOUND->value, 'This track has no audio yet.');
-
-        $filename = str($track->title)
-            ->slug()
-            ->append('.', $track->meta['format'] ?? 'mp3')
-            ->toString();
+        $filename = DownloadLink::filename($track->title, $stored, $track->meta['format'] ?? 'mp3');
+        $url = DownloadLink::make('music_tracks', $stored, $filename);
 
         $download = [
             'url' => $url,

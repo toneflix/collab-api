@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Models\ProjectTrackStem;
+use App\Services\Storage\DownloadLink;
 use Illuminate\Http\Request;
 use Toneflix\ResourceModifier\Services\Json\JsonResource;
 
@@ -18,11 +19,15 @@ class StemDownloadResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $title = $this->title ?: $this->meta['name'] ?? 'Stem';
+        $filename = DownloadLink::filename($title, $this->src);
+
         return [
             'id' => $this->id,
-            'title' => $this->title ?: $this->meta['name'] ?? 'Stem',
+            'title' => $title,
+            'filename' => $filename,
             'size' => $this->fileSize('src') ?? $this->mediaFileInfo['src']['size'] ?? null,
-            'url' => $this->mediaFileInfo['src']['dynamicLink'] ?? null,
+            'url' => DownloadLink::make('stem_files', $this->src, $filename),
         ];
     }
 }

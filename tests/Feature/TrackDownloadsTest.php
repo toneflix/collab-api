@@ -15,8 +15,11 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
+use Toneflix\LaravelFileable\Media;
 
 class TrackDownloadsTest extends TestCase
 {
@@ -201,5 +204,39 @@ class TrackDownloadsTest extends TestCase
             ->assertJsonPath('data.downloadable', true);
 
         $this->assertTrue(Release::find($id)->downloadable);
+    }
+
+    public function test_download_links_save_the_file_instead_of_playing_it(): void
+    {
+        Storage::fake(config('filesystems.default'));
+
+        $track = $this
+            ->release(true)->tracks
+            ->first();
+        $media = new Media;
+        $path = ltrim($media->mediaInfo('music_tracks', $track->audio)['path'], '/');
+
+        $media->disk->put($path, 'audio');
+
+        Sanctum::actingAs($this->subscriber());
+
+        $download = $this
+            ->getJson("/api/tracks/{$track->id}/download")
+            ->assertOk()
+            ->json('data');
+
+        $this->assertSame(Str::slug($track->title) . '.mp3', $download['filename']);
+        $this->assertStringContainsString('/api/files/download', $download['url']);
+        $this->assertStringContainsString('signature=', $download['url']);
+
+        $this
+            ->get($download['url'])
+            ->assertOk()
+            ->assertHeader('Content-Disposition', 'attachment; filename=' . $download['filename']);
+
+        // The link can't be pointed at another file
+        $this
+            ->get(str_replace('music_tracks', 'stem_files', $download['url']))
+            ->assertForbidden();
     }
 }
