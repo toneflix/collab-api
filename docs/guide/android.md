@@ -34,6 +34,8 @@ Each notification category has its own Android channel, so people can mute one k
 
 To build without publishing, start the workflow by hand from the Actions tab (*Android > Run workflow*) and leave **deploy** unticked. The run keeps the signed bundle and APK as an artifact for 30 days; the APK installs directly on a phone. Tick **deploy** to also upload the bundle to Google Play.
 
+The **build** choice picks *production* (the default) or *test*. A test build talks to the staging API (`VITE_STAGING_API_BASE_URL`, or `VITE_API_BASE_URL` when that variable is not set), has debug logging on, gets `-test` after its version name, and only ever goes to the internal track when deployed. It keeps the same package name, so it replaces the store app on a phone instead of installing beside it.
+
 ### One-time setup
 
 1. **Create an upload key** and keep it safe. Google Play needs every update signed with it.
