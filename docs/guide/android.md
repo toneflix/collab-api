@@ -56,7 +56,7 @@ Add these under the collab repository's *Settings > Secrets and variables > Acti
 | `ANDROID_KEYSTORE_BASE64` | The upload keystore, base64 encoded |
 | `ANDROID_KEYSTORE_PASSWORD` | The keystore password |
 | `ANDROID_KEY_ALIAS` | The key alias, like `upload` |
-| `ANDROID_KEY_PASSWORD` | The key password |
+| `ANDROID_KEY_PASSWORD` | The key password. Leave it unset for a PKCS12 keystore, where it is the keystore password |
 | `GOOGLE_SERVICES_JSON` | The contents of `google-services.json` |
 | `PLAY_SERVICE_ACCOUNT_JSON` | The service account's JSON key |
 
