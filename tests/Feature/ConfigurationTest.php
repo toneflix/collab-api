@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Helpers\Providers;
 use App\Models\Configuration;
 use App\Models\User;
+use App\Services\Account\Deactivation;
 use Laravel\Sanctum\Sanctum;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\PermissionRegistrar;
@@ -119,5 +120,24 @@ class ConfigurationTest extends TestCase
             ->assertAccepted();
 
         $this->assertEmpty(Providers::config('discord_url'));
+    }
+
+    public function test_admins_set_the_account_deletion_grace_period(): void
+    {
+        $this->actingAsFresh($this->admin());
+
+        $this->getJson('/api/admin/configuration')
+            ->assertOk()
+            ->assertJsonPath('data.fields.account_deletion_days.type', 'number');
+
+        $this->putJson('/api/admin/configuration', ['account_deletion_days' => 14])
+            ->assertAccepted()
+            ->assertJsonPath('data.fields.account_deletion_days.value', 14);
+
+        $this->assertSame(14, Deactivation::graceDays());
+
+        $this->putJson('/api/admin/configuration', ['account_deletion_days' => 0])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['account_deletion_days']);
     }
 }
