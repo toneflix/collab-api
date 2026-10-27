@@ -18,11 +18,10 @@ return [
     |
     */
 
-    'stateful' => explode(',', env('SANCTUM_STATEFUL_DOMAINS', sprintf(
-        '%s%s',
-        'localhost,localhost:3000,127.0.0.1,127.0.0.1:8000,::1',
-        Sanctum::currentApplicationUrlWithPort()
-    ))),
+    // The app signs in with API tokens, not cookies. The installed Android app's
+    // origin is https://localhost, so localhost must not count as a cookie (stateful)
+    // client: its requests would need a CSRF token it never has, and sign-in fails.
+    'stateful' => array_filter(explode(',', env('SANCTUM_STATEFUL_DOMAINS', Sanctum::currentApplicationUrlWithPort()))),
 
     /*
     |--------------------------------------------------------------------------
