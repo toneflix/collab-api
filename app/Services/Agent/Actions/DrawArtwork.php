@@ -6,6 +6,7 @@ use App\Models\AgentStep;
 use App\Models\AiJob;
 use App\Models\Artist;
 use App\Models\Project;
+use App\Models\Release;
 use App\Services\Agent\AgentArtwork;
 use App\Services\Ai\AiStudio;
 use App\Services\Ai\Tasks\GenerateArtwork;
@@ -17,6 +18,9 @@ use App\Services\Ai\Tasks\GenerateArtwork;
  */
 class DrawArtwork implements AgentAction
 {
+    /** Jobs one picture gets before it's skipped, each with a gentler prompt */
+    public const ATTEMPTS = 3;
+
     public function __construct(
         protected AiStudio $studio,
         protected AgentArtwork $artwork,
@@ -35,6 +39,12 @@ class DrawArtwork implements AgentAction
         }
 
         if ($job->status === AiJob::FAILED) {
+            if ((int) ($step->output['attempts'] ?? 1) < self::ATTEMPTS) {
+                $step->remember(['ai_job_id' => null]);
+
+                return $this->start($step);
+            }
+
             $step->remember(['file' => null, 'missed' => $job->failure ?: $job->error ?: 'The artwork couldn\'t be drawn.']);
 
             return true;
@@ -76,10 +86,11 @@ class DrawArtwork implements AgentAction
 
         $input = $step->input;
         $model = GenerateArtwork::model();
+        $attempt = (int) ($step->output['attempts'] ?? 0) + 1;
 
         $job = $this->studio->start($owner, null, 'artwork', array_filter([
             'artwork_kind' => $input['artwork_kind'],
-            'prompt' => mb_substr((string) $input['prompt'], 0, 1000),
+            'prompt' => mb_substr($this->prompt($input, $attempt), 0, 1000),
             'title' => $input['title'] ?? null,
             'artist' => $input['artist'] ?? null,
             'genre' => $input['genre'] ?? null,
@@ -88,14 +99,33 @@ class DrawArtwork implements AgentAction
             'artwork_model' => $model->model(),
         ], fn($value) => $value !== null && $value !== ''));
 
-        $step->remember(['ai_job_id' => $job->id]);
+        $step->remember(['ai_job_id' => $job->id, 'attempts' => $attempt]);
 
         return false;
     }
 
     /**
+     * The picture's prompt, gentler on each new attempt: image models return
+     * nothing for prompts their safety filter blocks, which dark themes trip.
+     *
+     * @param  array<string, mixed>  $input
+     */
+    protected function prompt(array $input, int $attempt): string
+    {
+        $prompt = trim((string) $input['prompt']);
+        $title = trim((string) ($input['title'] ?? ''));
+
+        return match (true) {
+            $attempt === 1 => $prompt,
+            $attempt === 2 => "Abstract, symbolic artwork in soft colours with no people, loosely inspired by: {$prompt}",
+            default => 'Abstract artwork of shapes and colour' . ($title !== '' ? " for \"{$title}\"" : ''),
+        };
+    }
+
+    /**
      * Put the image on the project, or on the artist when the run made the
-     * artist and it has no picture yet. A cover for an existing project's
+     * artist and it has no picture yet. A fill target puts it on whatever of
+     * an existing project, or a release with no project, has no picture. A cover for an existing project's
      * release waits for its release step.
      */
     protected function place(AgentStep $step, string $file): void
@@ -103,6 +133,24 @@ class DrawArtwork implements AgentAction
         $target = (string) ($step->input['target'] ?? '');
 
         if ($target === '') {
+            return;
+        }
+
+        if (str_starts_with($target, 'fill-release:')) {
+            $release = Release::query()
+                ->withoutGlobalScopes()
+                ->findOrFail((int) substr($target, 13));
+
+            $this->artwork->fillRelease($release, $file);
+
+            return;
+        }
+
+        if (str_starts_with($target, 'fill:')) {
+            $project = Project::query()->findOrFail((int) substr($target, 5));
+
+            $this->artwork->fill($project, $file);
+
             return;
         }
 

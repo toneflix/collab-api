@@ -19,12 +19,16 @@ use RuntimeException;
 use Throwable;
 
 /**
- * The content agent: admins and the users of agent accounts queue prompts,
- * and runs are planned and built one at a time, in the order they were
- * queued, on the agent account that owns them.
+ * The content agent: admins, the users of agent accounts and creators on a
+ * plan with the content agent queue prompts. Runs are planned and built on
+ * the account that owns them, one at a time for each account, in the order
+ * they were queued.
  */
 class ContentAgent
 {
+    /** Runs planned or built at once, across all accounts */
+    public const MAX_ACTIVE = 5;
+
     /** Seconds one pass over a run may keep working before it hands over */
     public const PASS_SECONDS = 90;
 
@@ -41,8 +45,8 @@ class ContentAgent
      */
     public function queue(User $by, User $owner, string $prompt, array $options): AgentRun
     {
-        if (! $owner->content_agent) {
-            throw ValidationException::withMessages(['owner_id' => 'This account isn\'t an agent account.']);
+        if (! $owner->usesContentAgent()) {
+            throw ValidationException::withMessages(['owner_id' => 'This account can\'t use the content agent.']);
         }
 
         Credits::for($owner)->ensureAccess('owner_id');
@@ -61,22 +65,45 @@ class ContentAgent
     }
 
     /**
-     * Start the oldest queued run when no other run is being planned or built.
+     * Start queued runs, oldest first, one at a time for each account and at
+     * most MAX_ACTIVE at once. The first run started is returned.
      */
     public function next(): ?AgentRun
+    {
+        $first = null;
+
+        for ($i = 0; $i < self::MAX_ACTIVE; $i++) {
+            $run = $this->startOne();
+
+            if (! $run) {
+                break;
+            }
+
+            $first ??= $run;
+        }
+
+        return $first;
+    }
+
+    /**
+     * Start the oldest queued run of an account with no run being planned or
+     * built, while fewer than MAX_ACTIVE are.
+     */
+    protected function startOne(): ?AgentRun
     {
         $run = DB::transaction(function () {
             $busy = AgentRun::query()
                 ->active()
                 ->lockForUpdate()
-                ->exists();
+                ->pluck('owner_id');
 
-            if ($busy) {
+            if ($busy->count() >= self::MAX_ACTIVE) {
                 return null;
             }
 
             $run = AgentRun::query()
                 ->where('status', AgentRun::QUEUED)
+                ->whereNotIn('owner_id', $busy)
                 ->oldest('id')
                 ->lockForUpdate()
                 ->first();
@@ -242,7 +269,7 @@ class ContentAgent
             ->projects()
             ->count();
 
-        if ($projects > 0 && $hasProjects + $newProjects > $projects) {
+        if ($projects > 0 && $newProjects > 0 && $hasProjects + $newProjects > $projects) {
             throw new RuntimeException("The plan needs {$newProjects} new projects, more than the account's plan allows ({$projects}).");
         }
 
@@ -256,7 +283,7 @@ class ContentAgent
             ->songs()
             ->count();
 
-        if ($songs > 0 && $hasSongs + $newSongs > $songs) {
+        if ($songs > 0 && $newSongs > 0 && $hasSongs + $newSongs > $songs) {
             throw new RuntimeException("The plan needs {$newSongs} new compositions, more than the account's plan allows ({$songs}).");
         }
     }
