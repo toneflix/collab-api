@@ -21,6 +21,7 @@ use App\Models\Release;
 use App\Models\Song;
 use App\Models\User;
 use App\Services\Agent\Actions\DrawArtwork;
+use App\Services\Agent\AgentPlanner;
 use App\Services\Agent\ContentAgent;
 use App\Services\Ai\AiSettings;
 use App\Services\Ai\Credits;
@@ -690,6 +691,42 @@ class ContentAgentTest extends TestCase
         $this->assertNotNull($album->refresh()->image);
         $this->assertSame('cover.jpg', $complete->refresh()->image);
         $this->assertSame(2 + 3 * 3, $run->credits);
+    }
+
+    public function test_the_planner_searches_accounts_with_more_than_it_lists(): void
+    {
+        $owner = $this->ownerWith(200);
+        $moonlight = Project::factory()
+            ->create(['user_id' => $owner->id, 'title' => 'Moonlight Drive', 'image' => 'x.jpg']);
+        $box = Project::factory()
+            ->create(['user_id' => $owner->id, 'title' => 'Old Box', 'image' => 'x.jpg']);
+        $artist = Artist::factory()
+            ->create(['user_id' => $owner->id]);
+        ProjectTrack::factory()
+            ->create(['project_id' => $box->id, 'genre_id' => $this->genre->id, 'artist_id' => $artist->id, 'title' => 'Harbour Song']);
+        Project::factory()
+            ->count(AgentPlanner::PROJECT_CHOICES)
+            ->create(['user_id' => $owner->id, 'image' => 'x.jpg']);
+
+        $this->answers[] = json_encode(['search' => ['moonlight drive', 'Harbour Song']]);
+        $this->answers[] = $this->plan(['artists' => [], 'albums' => []]);
+
+        $run = $this->advance($this->queueRun($owner));
+
+        $this->assertSame(AgentRun::SUCCEEDED, $run->status, (string) $run->error);
+        $this->assertStringContainsString('search terms', $this->asked[0]['system']);
+        $this->assertStringContainsString("#{$moonlight->id} \"Moonlight Drive\"", $this->asked[1]['prompt']);
+        $this->assertStringContainsString("#{$box->id} \"Old Box\"", $this->asked[1]['prompt']);
+    }
+
+    public function test_the_planner_skips_search_when_everything_is_listed(): void
+    {
+        $owner = $this->ownerWith(200);
+        $this->answers[] = $this->plan();
+
+        $this->advance($this->queueRun($owner));
+
+        $this->assertStringNotContainsString('search terms', $this->asked[0]['system']);
     }
 
     public function test_a_plan_the_owner_cannot_afford_fails_before_making_anything(): void

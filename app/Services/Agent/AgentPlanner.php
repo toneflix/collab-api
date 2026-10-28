@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Services\Ai\AiSettings;
 use App\Services\Ai\Tasks\GenerateArtwork;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use RuntimeException;
@@ -38,7 +39,10 @@ class AgentPlanner
     /** Track length when the run doesn't set one, in seconds */
     public const DEFAULT_SECONDS = 120;
 
-    public function __construct(protected AgentWriter $writer) {}
+    public function __construct(
+        protected AgentWriter $writer,
+        protected AgentSearch $search,
+    ) {}
 
     /**
      * Ask for a plan and tidy it into the shape the steps are built from.
@@ -58,6 +62,21 @@ class AgentPlanner
             ->pluck('name');
         $projects = $this->projects($run);
 
+        if ($this->search->needed($run, self::PROJECT_CHOICES)) {
+            $terms = $this->search->terms($run);
+
+            $projects = $this->search
+                ->projects($run, $terms, fn() => $this->projectQuery($run))
+                ->concat($projects)
+                ->unique('id')
+                ->values();
+            $existing = $this->search
+                ->artists($run, $terms)
+                ->concat($existing)
+                ->unique()
+                ->values();
+        }
+
         $answer = $this->writer->json(
             $run,
             'plan',
@@ -71,7 +90,8 @@ class AgentPlanner
 
     /**
      * The owner's projects the plan can pick from: the latest, those the
-     * prompt names by ID and those missing artwork.
+     * prompt names by ID and those missing artwork. Projects found by search
+     * are added in plan().
      *
      * @return Collection<int, Project>
      */
@@ -80,17 +100,8 @@ class AgentPlanner
         preg_match_all('/#?\b(\d{1,9})\b/', (string) $run->prompt, $matches);
 
         $ids = array_slice(array_unique(array_map('intval', $matches[1])), 0, self::PROJECT_CHOICES);
-        $base = fn() => $run->owner
-            ->projects()
-            ->with('release.artist')
-            ->withCount([
-                'tracks',
-                'tracks as untimed_count' => fn(Builder $query) => $query->whereHas(
-                    'lyric',
-                    fn(Builder $lyric) => $lyric->whereNull('lines->0->start'),
-                ),
-            ])
-            ->latest('id')
+        $base = fn() => $this
+            ->projectQuery($run)
             ->limit(self::PROJECT_CHOICES);
 
         $latest = $base()->get();
@@ -106,6 +117,26 @@ class AgentPlanner
             ->concat($bare)
             ->unique('id')
             ->values();
+    }
+
+    /**
+     * The owner's projects, newest first, with what the planner shows of them.
+     *
+     * @return HasMany<Project, User>
+     */
+    protected function projectQuery(AgentRun $run): HasMany
+    {
+        return $run->owner
+            ->projects()
+            ->with('release.artist')
+            ->withCount([
+                'tracks',
+                'tracks as untimed_count' => fn(Builder $query) => $query->whereHas(
+                    'lyric',
+                    fn(Builder $lyric) => $lyric->whereNull('lines->0->start'),
+                ),
+            ])
+            ->latest('id');
     }
 
     /**
