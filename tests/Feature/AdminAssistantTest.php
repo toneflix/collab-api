@@ -8,12 +8,14 @@ use App\Models\AssistantAction;
 use App\Models\AssistantChat;
 use App\Models\AssistantMessage;
 use App\Models\Genre;
+use App\Models\Project;
 use App\Models\Release;
 use App\Models\Takedown;
 use App\Models\Track;
 use App\Models\User;
 use App\Services\Ai\AiSettings;
 use App\Services\Assistant\Ai\AssistantModel;
+use App\Services\Auth\Totp;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Notification;
 use Laravel\Sanctum\Sanctum;
@@ -429,6 +431,64 @@ class AdminAssistantTest extends TestCase
             ->where('model_id', $track->id)
             ->firstOrFail();
         $this->assertSame($moderator->id, $takedown->moderator_id);
+    }
+
+    public function test_deleting_content_needs_the_admins_name_and_code_on_the_card(): void
+    {
+        $moderator = $this->adminWith('manage-content');
+        $owner = User::factory()
+            ->create();
+        $project = Project::query()
+            ->forceCreate(['user_id' => $owner->id, 'title' => 'Spam Session', 'privacy' => 'public']);
+        $propose = $this->turn('Confirm on the card.', [['delete_content', ['type' => 'project', 'id' => $project->id, 'reason' => 'spam']]]);
+
+        // Without two-factor sign-in the assistant is told it can't.
+        $this->answers = [$propose];
+        $chat = $this->ask('Delete the project Spam Session');
+
+        $this->assertSame(0, $chat->actions()->count());
+        $this->assertStringContainsString('two-factor', $this->asked[1]['prompt']);
+
+        $secret = Totp::secret();
+        $moderator
+            ->forceFill(['two_factor_secret' => $secret, 'two_factor_confirmed_at' => now()])
+            ->save();
+        $moderator = $this->actingAsFresh($moderator);
+
+        $this->answers = [$propose];
+        $chat = $this->ask('Delete the project Spam Session');
+        $action = $this->pendingAction($chat);
+
+        $this->assertSame(['confirm_name', 'code'], array_column($action->asks, 'field'));
+        $this
+            ->getJson("/api/admin/assistant/chats/{$chat->id}/messages")
+            ->assertJsonPath('data.1.action.asks.0.label', 'Type “Spam Session” to confirm');
+
+        $uri = "/api/admin/assistant/actions/{$action->id}/confirm";
+
+        $this
+            ->postJson($uri, ['confirm_name' => 'Spam', 'code' => Totp::code($secret, Totp::step())])
+            ->assertJsonValidationErrors(['confirm_name']);
+        $this
+            ->postJson($uri, ['confirm_name' => 'Spam Session', 'code' => '000000'])
+            ->assertJsonValidationErrors(['code']);
+
+        $this->assertSame(AssistantAction::PENDING, $action->fresh()->status);
+        $this->assertNotNull(Project::query()->withoutGlobalScopes()->find($project->id));
+
+        $this
+            ->postJson($uri, ['confirm_name' => 'Spam Session', 'code' => Totp::code($secret, Totp::step())])
+            ->assertAccepted()
+            ->assertJsonPath('data.status', AssistantAction::DONE);
+
+        $this->assertNull(Project::query()->withoutGlobalScopes()->find($project->id));
+        $this->assertDatabaseHas('admin_actions', [
+            'admin_id' => $moderator->id,
+            'user_id' => $owner->id,
+            'action' => 'content.deleted',
+        ]);
+        $this->assertSame('assistant', AdminAction::query()->latest('id')->value('details')['via']);
+        $this->assertStringNotContainsString(Totp::code($secret, Totp::step()), json_encode($action->fresh()->toArray()));
     }
 
     public function test_a_plain_text_answer_is_shown_as_the_reply(): void

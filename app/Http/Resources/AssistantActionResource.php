@@ -20,6 +20,7 @@ class AssistantActionResource extends JsonResource
             'id' => $this->id,
             'tool' => $this->tool,
             'summary' => $this->summary,
+            'asks' => $this->asks ?? [],
             'status' => $this->isPending() && $this->hasExpired() ? AssistantAction::EXPIRED : $this->status,
             'error' => $this->error,
             'expiresAt' => $this->created_at?->copy()->addMinutes(AssistantAction::EXPIRES_AFTER),

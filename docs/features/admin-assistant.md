@@ -9,7 +9,7 @@ The assistant works through tools, and each tool calls the same service as the a
 | Area | Tools | Goes through |
 | --- | --- | --- |
 | Accounts | search and open accounts, suspend or ban, lift a suspension, verified badge, roles, plan, balance, AI credits, profile edits | `UserManager` and `UserDirectory` |
-| Content | moderation queue, search content, open content, take down, close reports, list takedowns, restore, uphold an appeal | `Moderation`, `ModerationQueue`, `Reportables` |
+| Content | moderation queue, search content, open content, take down, delete, close reports, list takedowns, restore, uphold an appeal | `Moderation`, `ModerationQueue`, `Reportables` |
 | Reviews | releases in review, approve or reject a release, artist claims, approve or decline a claim | `ReleaseVersions`, `ArtistClaims` |
 
 An admin is only offered the tools their permissions allow (`manage-users` for accounts, plus `manage-plans`, `manage-payouts` or `manage-admins` where the admin pages need them, and `manage-content` for content and reviews). Every change also runs the same checks as the admin pages, such as `UserManager::authorize`, so the assistant can never do more than the admin asking. Admins need `manage-users` or `manage-content` to open it.
@@ -24,6 +24,8 @@ Changes that take something away or are hard to undo don't run when the assistan
 - takedowns, closing reports, upholding an appeal, rejecting a release, approving or declining an artist claim
 
 Looking things up, lifting a suspension, giving the verified badge, granting credits, restoring content and approving a release run at once.
+
+Deleting content asks for more on the card: the admin types the item's name and a code from their authenticator app, the same as on the moderation page. The model never sees what they type, and a wrong name or code leaves the card waiting so they can try again. Admins without two-factor sign-in are told to turn it on first. Tools ask for these through `AssistantTool::asks()` (stored on the action) and get them in `confirmWith()`.
 
 When the admin confirms, the tool checks the admin's rights again, so a permission removed in between stops it. A card expires after an hour. Cancelled, expired and failed cards stay in the chat with their status.
 
