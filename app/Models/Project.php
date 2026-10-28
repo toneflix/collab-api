@@ -56,6 +56,7 @@ class Project extends Model implements CanBeTakenDown
     protected $fillable = [
         'title',
         'privacy',
+        'tracks_public',
         'description',
     ];
 
@@ -66,7 +67,18 @@ class Project extends Model implements CanBeTakenDown
      */
     protected $attributes = [
         'privacy' => 'private',
+        'tracks_public' => false,
     ];
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'tracks_public' => 'boolean',
+        ];
+    }
 
     public function registerFileable()
     {

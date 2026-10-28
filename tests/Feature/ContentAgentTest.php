@@ -482,6 +482,7 @@ class ContentAgentTest extends TestCase
         $this->assertSame(AgentRun::SUCCEEDED, $run->status);
         $this->assertSame('Sketches', $track->project->title);
         $this->assertSame('public_preview', $track->project->privacy);
+        $this->assertTrue($track->project->tracks_public);
         $this->assertFalse(Release::query()->withoutGlobalScopes()->where('user_id', $owner->id)->exists());
     }
 

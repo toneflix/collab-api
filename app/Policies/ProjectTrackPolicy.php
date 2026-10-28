@@ -13,7 +13,8 @@ use Illuminate\Auth\Access\Response;
 class ProjectTrackPolicy
 {
     /**
-     * Any track of a project the user can see: tracks follow their project's privacy.
+     * Any track the user works on. Everyone else: a public track of a project
+     * they can see, or any of its tracks when it makes every track public.
      */
     public function view(?User $user, ProjectTrack $track): Response
     {
@@ -22,6 +23,7 @@ class ProjectTrackPolicy
         }
 
         $open = $track->project
+            && ($track->privacy === 'public' || $track->project->tracks_public)
             && (new ProjectPolicy)->view($user, $track->project)->allowed();
 
         return $open

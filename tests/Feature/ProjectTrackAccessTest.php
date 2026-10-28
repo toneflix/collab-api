@@ -250,35 +250,55 @@ class ProjectTrackAccessTest extends TestCase
         $this->assertTrue(Channels::canView($this->collaborator, $this->track));
     }
 
-    public function test_tracks_follow_their_projects_privacy(): void
+    public function test_outsiders_see_public_tracks_or_all_when_the_project_makes_them_public(): void
     {
-        $second = $this->project
+        $this->project->update(['privacy' => 'public']);
+        $this->track->update(['privacy' => 'public']);
+        $hidden = $this->project
             ->tracks()
             ->forceCreate(['title' => 'Unfinished', 'privacy' => 'private']);
 
         Sanctum::actingAs($this->stranger);
 
-        $this
-            ->getJson($this->url('', $second))
-            ->assertNotFound();
-
-        $this->project->update(['privacy' => 'public']);
-
         $this->getJson("/api/creator/projects/{$this->project->id}/tracks")
             ->assertOk()
-            ->assertJsonCount(2, 'data');
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $this->track->id);
+        $this->getJson("/api/projects/{$this->project->id}?with=tracks")
+            ->assertOk()
+            ->assertJsonPath('data.tracksPublic', false)
+            ->assertJsonCount(1, 'data.tracks');
+        $this
+            ->getJson($this->url('/stems'))
+            ->assertOk();
+        $this
+            ->getJson($this->url('', $hidden))
+            ->assertNotFound();
+        $this->getJson("/api/projects/{$this->project->id}")
+            ->assertJsonPath('data.opensStudio', true);
+        $this->assertTrue(Gate::forUser($this->stranger)->allows('open', $this->track->refresh()));
+
+        $this->project->update(['tracks_public' => true]);
+
         $this->getJson("/api/projects/{$this->project->id}?with=tracks")
             ->assertOk()
             ->assertJsonCount(2, 'data.tracks');
         $this
-            ->getJson($this->url('', $second))
+            ->getJson($this->url('', $hidden))
             ->assertOk();
+
+        $this->project->update(['privacy' => 'private']);
+
         $this
-            ->getJson($this->url('/stems'))
-            ->assertOk();
-        $this->getJson("/api/projects/{$this->project->id}")
-            ->assertJsonPath('data.opensStudio', true);
-        $this->assertTrue(Gate::forUser($this->stranger)->allows('open', $this->track->refresh()));
+            ->getJson($this->url('', $hidden))
+            ->assertNotFound();
+
+        Sanctum::actingAs($this->owner);
+
+        $this
+            ->getJson("/api/creator/projects/{$this->project->id}/tracks")
+            ->assertOk()
+            ->assertJsonCount(2, 'data');
     }
 
     public function test_public_preview_projects_play_tracks_but_keep_the_studio_closed(): void

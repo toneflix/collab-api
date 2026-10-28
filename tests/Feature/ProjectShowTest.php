@@ -68,14 +68,15 @@ class ProjectShowTest extends TestCase
         $response->assertJsonPath('data.collaborators.0.role', 'keys');
     }
 
-    public function test_others_see_a_public_projects_tracks_but_no_collaborators(): void
+    public function test_others_only_see_public_tracks_and_no_collaborators(): void
     {
         Sanctum::actingAs($this->stranger);
 
         $response = $this->getJson("/api/projects/{$this->project->id}?with=tracks,collaborators");
 
         $response->assertOk();
-        $response->assertJsonCount(2, 'data.tracks');
+        $response->assertJsonCount(1, 'data.tracks');
+        $response->assertJsonPath('data.tracks.0.title', 'Open');
         $response->assertJsonMissingPath('data.collaborators');
     }
 
@@ -92,5 +93,27 @@ class ProjectShowTest extends TestCase
         $this->getJson("/api/creator/projects/{$this->project->id}?with=tracks")
             ->assertOk()
             ->assertJsonCount(ProjectResource::LIST_LIMIT, 'data.tracks');
+    }
+
+    public function test_the_owner_can_make_every_track_public(): void
+    {
+        Sanctum::actingAs($this->owner);
+
+        $this->postJson('/api/creator/projects', ['title' => 'Fresh'])
+            ->assertCreated()
+            ->assertJsonPath('data.tracksPublic', false);
+        $this->putJson("/api/creator/projects/{$this->project->id}", [
+            'title' => 'Show test',
+            'privacy' => 'public',
+            'tracks_public' => true,
+        ])
+            ->assertAccepted()
+            ->assertJsonPath('data.tracksPublic', true);
+
+        Sanctum::actingAs($this->stranger);
+
+        $this->getJson("/api/projects/{$this->project->id}?with=tracks")
+            ->assertOk()
+            ->assertJsonCount(2, 'data.tracks');
     }
 }

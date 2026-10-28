@@ -57,6 +57,7 @@ class ProjectController extends Controller
             'image' => ['nullable', 'image', 'mimes:png,jpg'],
             'title' => ['required', 'string'],
             'privacy' => ['nullable', 'string', 'in:private,public,public_preview'],
+            'tracks_public' => ['nullable', 'boolean'],
             'description' => ['nullable', 'string'],
         ]);
 
@@ -72,6 +73,7 @@ class ProjectController extends Controller
             ->create([
                 'title' => $request->input('title'),
                 'privacy' => $request->input('privacy', 'private'),
+                'tracks_public' => $request->boolean('tracks_public'),
                 'description' => $request->input('description'),
             ]);
 
@@ -125,12 +127,14 @@ class ProjectController extends Controller
             'image' => ['nullable', 'image', 'mimes:png,jpg'],
             'title' => ['required', 'string'],
             'privacy' => ['nullable', 'string', 'in:private,public,public_preview'],
+            'tracks_public' => ['nullable', 'boolean'],
             'description' => ['nullable', 'string'],
         ]);
 
         $project->update([
             'title' => $request->input('title'),
             'privacy' => $request->input('privacy', 'private'),
+            'tracks_public' => $request->has('tracks_public') ? $request->boolean('tracks_public') : $project->tracks_public,
             'description' => $request->input('description'),
         ]);
 
