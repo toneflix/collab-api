@@ -297,6 +297,22 @@ class Track extends Model implements CanBeTakenDown
     }
 
     /**
+     * Whether the track sits on an album: a release with more tracks, or one titled apart from it.
+     */
+    public function inAlbum(): bool
+    {
+        $release = $this->release;
+
+        if (! $release?->exists) {
+            return false;
+        }
+
+        $sameTitle = mb_strtolower(trim((string) $release->title)) === mb_strtolower(trim((string) $this->title));
+
+        return (int) $release->tracks_count > 1 || ! $sameTitle;
+    }
+
+    /**
      * Whether the user can stream this track: true unless its release is paid and locked.
      */
     public function isUnlockedFor(?User $user): bool

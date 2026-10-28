@@ -38,7 +38,13 @@ class ReleaseResource extends JsonResource
             'reviewNote' => $this->when((bool) $user && (int) $user->id === (int) $this->user_id, $this->review_note),
             'genre' => $this->when($with->contains('genre'), fn() => new GenreResource($this->genre)),
             'topics' => $this->when($with->contains('topics'), fn() => new TopicCollection($this->topics)),
-            'tracks' => $this->when($with->contains('tracks'), fn() => new TrackCollection($this->tracks)),
+            'tracks' => $this->when($with->contains('tracks'), function () {
+                $tracks = $this->tracks;
+
+                $tracks->each(fn($track) => $track->setRelation('release', $this->resource));
+
+                return new TrackCollection($tracks);
+            }),
             'artist' => $this->when($with->contains('artist'), [
                 'id' => $this->artist->id,
                 'name' => $this->artist->name,
