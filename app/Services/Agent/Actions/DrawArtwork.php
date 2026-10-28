@@ -11,7 +11,7 @@ use App\Services\Ai\AiStudio;
 use App\Services\Ai\Tasks\GenerateArtwork;
 
 /**
- * Draws a cover for an album's project, or a picture for an artist the run
+ * Draws a cover for an album or a release, or a picture for an artist the run
  * made, with an artwork AI job. Artwork that can't be drawn leaves the
  * work without it rather than failing the run.
  */
@@ -95,11 +95,16 @@ class DrawArtwork implements AgentAction
 
     /**
      * Put the image on the project, or on the artist when the run made the
-     * artist and it has no picture yet.
+     * artist and it has no picture yet. A cover for an existing project's
+     * release waits for its release step.
      */
     protected function place(AgentStep $step, string $file): void
     {
-        $target = (string) $step->input['target'];
+        $target = (string) ($step->input['target'] ?? '');
+
+        if ($target === '') {
+            return;
+        }
 
         if (str_starts_with($target, 'project:')) {
             $project = Project::query()->findOrFail($step->from($target, 'project_id'));

@@ -8,7 +8,8 @@ use App\Services\Studio\MixPreview;
 use RuntimeException;
 
 /**
- * Renders a track's preview mix, the audio its release plays.
+ * Renders a track's preview mix, the audio its release plays: a track the
+ * run made, or one of an existing project's.
  */
 class MixTrack implements AgentAction
 {
@@ -16,7 +17,8 @@ class MixTrack implements AgentAction
 
     public function advance(AgentStep $step): bool
     {
-        $track = ProjectTrack::query()->findOrFail($step->from($step->input['source'], 'project_track_id'));
+        $trackId = $step->input['track_id'] ?? $step->from($step->input['source'], 'project_track_id');
+        $track = ProjectTrack::query()->findOrFail($trackId);
 
         if (empty($step->output['requested'])) {
             $this->preview->queue($track);

@@ -20,6 +20,11 @@ The agent only builds for **agent accounts**. Admins with `manage-content` add a
 
 An existing artist of the account is reused when the plan names it.
 
+### Projects and releases
+
+- An album the instructions ask to keep as a project (or not to release) stops once its tracks are made and mixed. It stays a private studio project with no release.
+- The agent can also release the account's **existing projects**. The planner sees the account's latest 50 projects with their track counts and release state, and the instructions name the project to release. Its tracks (up to 30) are mixed, then released through the usual rules: the project owner releases it, an unfinished draft of the project is picked up first, and a published release goes through `ReleaseVersions::published` (frozen audio, release review when it's on). A project released before gets a version label, like "Deluxe", and the earlier live versions are retired when the plan says so.
+
 ## Costs
 
 | Step | Credits |

@@ -5,6 +5,7 @@ namespace App\Services\Agent;
 use App\Enums\ArtworkKind;
 use App\Models\AgentRun;
 use App\Models\Genre;
+use App\Models\Project;
 use App\Services\Ai\AiSettings;
 use App\Services\Ai\Tasks\GenerateArtwork;
 use Illuminate\Support\Collection;
@@ -22,6 +23,12 @@ class AgentPlanner
     /** Most artists one run can make */
     public const MAX_ARTISTS = 10;
 
+    /** Most existing projects one run can release */
+    public const MAX_RELEASES = 10;
+
+    /** Existing projects the plan can pick from */
+    public const PROJECT_CHOICES = 50;
+
     /** Track length when the run doesn't set one, in seconds */
     public const DEFAULT_SECONDS = 120;
 
@@ -30,7 +37,7 @@ class AgentPlanner
     /**
      * Ask for a plan and tidy it into the shape the steps are built from.
      *
-     * @return array{artists: list<array<string, mixed>>, albums: list<array<string, mixed>>, songs: list<array<string, mixed>>}
+     * @return array{artists: list<array<string, mixed>>, albums: list<array<string, mixed>>, releases: list<array<string, mixed>>, songs: list<array<string, mixed>>}
      */
     public function plan(AgentRun $run): array
     {
@@ -43,22 +50,29 @@ class AgentPlanner
             ->latest('id')
             ->limit(50)
             ->pluck('name');
+        $projects = $run->owner
+            ->projects()
+            ->with('release.artist')
+            ->withCount('tracks')
+            ->latest('id')
+            ->limit(self::PROJECT_CHOICES)
+            ->get();
 
         $answer = $this->writer->json(
             $run,
             'plan',
             $this->system(),
-            $this->prompt($run, $genres, $existing),
+            $this->prompt($run, $genres, $existing, $projects),
             4000,
         );
 
-        return $this->normalize($answer, $genres, $this->maxTracks($run));
+        return $this->normalize($answer, $genres, $this->maxTracks($run), $projects);
     }
 
     /**
      * The steps that build a plan, in the order they are listed.
      *
-     * @param  array{artists: list<array<string, mixed>>, albums: list<array<string, mixed>>, songs: list<array<string, mixed>>}  $plan
+     * @param  array{artists: list<array<string, mixed>>, albums: list<array<string, mixed>>, releases?: list<array<string, mixed>>, songs: list<array<string, mixed>>}  $plan
      * @return list<array{key: string, kind: string, depends_on: list<string>, input: array<string, mixed>}>
      */
     public function steps(AgentRun $run, array $plan): array
@@ -67,7 +81,7 @@ class AgentPlanner
         $seconds = $this->seconds($run);
         $artwork = $this->artwork($run);
         $genres = Genre::query()
-            ->whereKey(array_column($plan['albums'], 'genre_id'))
+            ->whereKey([...array_column($plan['albums'], 'genre_id'), ...array_column($plan['releases'] ?? [], 'genre_id')])
             ->pluck('title', 'id');
         $names = array_column($plan['artists'], 'name', 'key');
 
@@ -136,6 +150,10 @@ class AgentPlanner
                 ]);
             }
 
+            if (! ($album['release'] ?? true)) {
+                continue;
+            }
+
             $steps[] = $this->step("release:{$album['key']}", 'release', [...array_column($mixes, 'key'), ...array_filter([$art])], [
                 'title' => $album['title'],
                 'description' => $album['description'],
@@ -143,6 +161,43 @@ class AgentPlanner
                 'artist' => $artist,
                 'project' => $project,
                 'tracks' => array_map(fn(array $mix) => $mix['input']['source'], $mixes),
+                'artwork' => $art,
+            ]);
+        }
+
+        foreach ($plan['releases'] ?? [] as $release) {
+            $key = $release['key'];
+            $artist = "artist:{$release['artist']}";
+            $art = $artwork ? "cover:{$key}" : null;
+            $mixes = [];
+
+            if ($art) {
+                $steps[] = $this->step($art, 'artwork', [$artist], [
+                    'title' => $release['title'],
+                    'artwork_kind' => count($release['tracks']) === 1 ? ArtworkKind::TRACK->value : ArtworkKind::RELEASE->value,
+                    'prompt' => $release['cover'] ?: $release['description'] ?: $release['title'],
+                    'artist' => $names[$release['artist']] ?? null,
+                    'genre' => $genres[$release['genre_id']] ?? null,
+                    'target' => null,
+                ]);
+            }
+
+            foreach ($release['tracks'] as $track) {
+                $steps[] = $mixes[] = $this->step("mix:{$key}-{$track['id']}", 'mix', [], [
+                    'title' => $track['title'],
+                    'track_id' => $track['id'],
+                ]);
+            }
+
+            $steps[] = $this->step("release:{$key}", 'release', [$artist, ...array_column($mixes, 'key'), ...array_filter([$art])], [
+                'title' => $release['title'],
+                'version' => $release['version'],
+                'description' => $release['description'],
+                'genre_id' => $release['genre_id'],
+                'artist' => $artist,
+                'project_id' => $release['project_id'],
+                'track_ids' => array_column($release['tracks'], 'id'),
+                'retire' => $release['retire'],
                 'artwork' => $art,
             ]);
         }
@@ -162,7 +217,7 @@ class AgentPlanner
     /**
      * Credits the plan's steps will use, on top of the plan itself.
      *
-     * @param  array{artists: list<array<string, mixed>>, albums: list<array<string, mixed>>, songs: list<array<string, mixed>>}  $plan
+     * @param  array{artists: list<array<string, mixed>>, albums: list<array<string, mixed>>, releases?: list<array<string, mixed>>, songs: list<array<string, mixed>>}  $plan
      */
     public function estimate(AgentRun $run, array $plan): int
     {
@@ -177,7 +232,7 @@ class AgentPlanner
         $instrumentalCredits = AiSettings::musicModel()
             ->credits($seconds);
 
-        $pictures = $this->artwork($run) ? count($plan['artists']) + count($plan['albums']) : 0;
+        $pictures = $this->artwork($run) ? count($plan['artists']) + count($plan['albums']) + count($plan['releases'] ?? []) : 0;
 
         return ($vocals + count($plan['songs'])) * AgentWriter::credits()
             + $vocals * $vocalCredits
@@ -270,11 +325,14 @@ class AgentPlanner
             '"songs" are lyric sheets only, with no music, for when the instructions ask for written songs alone.',
             'Each track has a "style": one or two sentences for a music generator describing genre, tempo, instruments, vocals and mood. Never name real artists in it.',
             'Each track with vocals has a "theme": what its lyrics are about, in one sentence.',
+            'Albums are new studio projects. Set an album\'s "release" to false when the instructions ask only for projects, or not to release them.',
+            '"releases" release the account\'s existing projects, named by their exact title, only when the instructions ask for it. "version" labels a new version, like "Deluxe" or "Remastered", when the project was released before; set "retire" to true when the new version should replace the earlier ones.',
             'Each album has a "cover": one sentence describing its cover image, and each artist a "look": one sentence describing their profile picture. Describe scenes, colours and style, never text or real people.',
             'Keep every name and title short and plain, with no quotes or emoji.',
             'Answer with JSON only, no other text, in this shape:',
             '{"artists": [{"key": "a1", "name": "", "about": "two or three sentence bio", "look": ""}],'
-                . ' "albums": [{"key": "al1", "title": "", "artist": "a1", "genre": "", "description": "", "cover": "", "tracks": [{"title": "", "style": "", "theme": "", "mood": "", "instrumental": false}]}],'
+                . ' "albums": [{"key": "al1", "title": "", "artist": "a1", "genre": "", "description": "", "cover": "", "release": true, "tracks": [{"title": "", "style": "", "theme": "", "mood": "", "instrumental": false}]}],'
+                . ' "releases": [{"project": "existing project title", "title": "", "version": "", "artist": "a1", "genre": "", "description": "", "cover": "", "retire": false}],'
                 . ' "songs": [{"title": "", "theme": "", "style": "", "mood": ""}]}',
         ]);
     }
@@ -282,8 +340,9 @@ class AgentPlanner
     /**
      * @param  Collection<int|string, string>  $genres
      * @param  Collection<int, string>  $existing
+     * @param  Collection<int, Project>  $projects
      */
-    protected function prompt(AgentRun $run, Collection $genres, Collection $existing): string
+    protected function prompt(AgentRun $run, Collection $genres, Collection $existing, Collection $projects): string
     {
         $vocals = self::vocals();
         $instrumentals = self::instrumentals();
@@ -304,15 +363,40 @@ class AgentPlanner
             $existing->isNotEmpty()
                 ? 'The account already has these artists; reuse one by its exact name when the instructions point to it: ' . $existing->join(', ') . '.'
                 : null,
+            $projects->isNotEmpty()
+                ? "The account's existing projects, for \"releases\" (list a release's artist in \"artists\", by the name it was released under when it has one):\n" . $projects
+                    ->map(fn(Project $project) => '- ' . $this->projectLine($project))
+                    ->join("\n")
+                : null,
         ], fn($line) => $line !== null));
+    }
+
+    /**
+     * An existing project as the planner sees it.
+     */
+    protected function projectLine(Project $project): string
+    {
+        $release = $project->release;
+
+        return collect([
+            "\"{$project->title}\"",
+            "{$project->tracks_count} tracks",
+            match (true) {
+                ! $release => 'never released',
+                (bool) $release->draft => 'has a draft release',
+                default => 'released' . ($release->artist ? " by {$release->artist->name}" : ''),
+            },
+        ])
+            ->join(', ');
     }
 
     /**
      * @param  array<string, mixed>  $answer
      * @param  Collection<int|string, string>  $genres
-     * @return array{artists: list<array<string, mixed>>, albums: list<array<string, mixed>>, songs: list<array<string, mixed>>}
+     * @param  Collection<int, Project>  $projects
+     * @return array{artists: list<array<string, mixed>>, albums: list<array<string, mixed>>, releases: list<array<string, mixed>>, songs: list<array<string, mixed>>}
      */
-    protected function normalize(array $answer, Collection $genres, int $maxTracks): array
+    protected function normalize(array $answer, Collection $genres, int $maxTracks, Collection $projects): array
     {
         $byName = $genres->mapWithKeys(fn(string $name, int|string $id) => [mb_strtolower($name) => $id]);
         $fallbackGenre = $genres
@@ -334,8 +418,8 @@ class AgentPlanner
             ->take(self::MAX_ARTISTS)
             ->values();
 
-        if ($artists->isEmpty() && $this->list($answer['albums'] ?? null) !== []) {
-            throw new RuntimeException('The plan had albums but no artists.');
+        if ($artists->isEmpty() && [...$this->list($answer['albums'] ?? null), ...$this->list($answer['releases'] ?? null)] !== []) {
+            throw new RuntimeException('The plan had albums or releases but no artists.');
         }
 
         $artistKey = fn($ref) => $artists->firstWhere('ref', (string) $ref)['key']
@@ -382,6 +466,7 @@ class AgentPlanner
                 'genre_id' => $byName[mb_strtolower(trim((string) ($album['genre'] ?? '')))] ?? $fallbackGenre,
                 'description' => $this->text($album['description'] ?? null, 2000),
                 'cover' => $this->text($album['cover'] ?? null, 400),
+                'release' => ($album['release'] ?? true) !== false,
                 'tracks' => $tracks,
             ];
         }
@@ -399,11 +484,13 @@ class AgentPlanner
             ->values()
             ->all();
 
-        if ($albums === [] && $songs === []) {
-            throw new RuntimeException('The plan had no albums, tracks or songs.');
+        $releases = $this->releases($answer, $projects, $artistKey, $byName);
+
+        if ($albums === [] && $songs === [] && $releases === []) {
+            throw new RuntimeException('The plan had no albums, releases, tracks or songs.');
         }
 
-        $used = collect($albums)->pluck('artist');
+        $used = collect([...$albums, ...$releases])->pluck('artist');
 
         return [
             'artists' => $artists
@@ -412,8 +499,63 @@ class AgentPlanner
                 ->values()
                 ->all(),
             'albums' => $albums,
+            'releases' => $releases,
             'songs' => $songs,
         ];
+    }
+
+    /**
+     * The existing projects the plan releases, each with the tracks it
+     * carries, capped at MAX_TRACKS a release.
+     *
+     * @param  array<string, mixed>  $answer
+     * @param  Collection<int, Project>  $projects
+     * @param  Collection<string, int|string>  $genreIds
+     * @return list<array<string, mixed>>
+     */
+    protected function releases(array $answer, Collection $projects, callable $artistKey, Collection $genreIds): array
+    {
+        $byTitle = $projects->keyBy(fn(Project $project) => mb_strtolower($project->title));
+        $releases = [];
+
+        foreach ($this->list($answer['releases'] ?? null) as $release) {
+            /** @var Project|null $project */
+            $project = $byTitle[mb_strtolower($this->text($release['project'] ?? null, 200))] ?? null;
+
+            if (! $project || count($releases) === self::MAX_RELEASES || in_array($project->id, array_column($releases, 'project_id'))) {
+                continue;
+            }
+
+            $tracks = $project
+                ->tracks()
+                ->oldest('id')
+                ->limit(self::MAX_TRACKS)
+                ->get(['id', 'title'])
+                ->map(fn($track) => ['id' => $track->id, 'title' => (string) $track->title])
+                ->all();
+
+            if ($tracks === []) {
+                continue;
+            }
+
+            $genre = mb_strtolower(trim((string) ($release['genre'] ?? '')));
+
+            $releases[] = [
+                'key' => 'r' . (count($releases) + 1),
+                'project_id' => $project->id,
+                'project' => $project->title,
+                'title' => $this->text($release['title'] ?? null, 120) ?: $project->title,
+                'version' => $this->text($release['version'] ?? null, 60) ?: null,
+                'artist' => $artistKey($release['artist'] ?? null),
+                'genre_id' => $genreIds[$genre] ?? $project->release?->genre_id ?? $genreIds->first(),
+                'description' => $this->text($release['description'] ?? null, 2000) ?: (string) $project->description,
+                'cover' => $this->text($release['cover'] ?? null, 400),
+                'retire' => (bool) ($release['retire'] ?? false),
+                'tracks' => $tracks,
+            ];
+        }
+
+        return $releases;
     }
 
     /**
