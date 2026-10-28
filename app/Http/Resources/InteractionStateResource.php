@@ -15,6 +15,6 @@ class InteractionStateResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        return (array) $this->interactionData;
+        return collect($this->interactionData)->all();
     }
 }
