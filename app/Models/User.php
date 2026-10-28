@@ -239,8 +239,6 @@ class User extends Authenticatable implements Commentator, Reportable
 
     /**
      * Get the user's fullname.
-     *
-     * @return Attribute
      */
     protected function fullname(): Attribute
     {
@@ -642,6 +640,15 @@ class User extends Authenticatable implements Commentator, Reportable
     public function feature(Feature $feature): bool|int
     {
         return $this->current_plan->feature($feature);
+    }
+
+    /**
+     * Whether the user can run the content agent on their own account: an
+     * agent account, or a plan with the content agent.
+     */
+    public function usesContentAgent(): bool
+    {
+        return $this->content_agent || (bool) $this->feature(Feature::CONTENT_AGENT);
     }
 
     /**

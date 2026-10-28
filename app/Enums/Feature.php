@@ -25,6 +25,7 @@ enum Feature: string
     case HISTORY_DAYS = 'history_days';
     case AI_TOOLS = 'ai_tools';
     case AI_CREDITS = 'ai_credits';
+    case CONTENT_AGENT = 'content_agent';
 
     public function title(): string
     {
@@ -42,6 +43,7 @@ enum Feature: string
             self::HISTORY_DAYS => 'Version history',
             self::AI_TOOLS => 'AI studio tools',
             self::AI_CREDITS => 'AI credits',
+            self::CONTENT_AGENT => 'Content agent',
         };
     }
 
@@ -61,6 +63,7 @@ enum Feature: string
             self::HISTORY_DAYS => 'How long earlier versions of your project tracks are kept.',
             self::AI_TOOLS => 'Generate music, split tracks into stems and get lyric suggestions in Composer with AI.',
             self::AI_CREDITS => 'Credits for AI tools each month. Bought credits come on top and never expire.',
+            self::CONTENT_AGENT => 'Describe albums, tracks and touch-ups in plain words and let AI build them in your studio, paid with your AI credits.',
         };
     }
 
@@ -93,7 +96,7 @@ enum Feature: string
     public function fallback(): bool|int
     {
         return match ($this) {
-            self::DOWNLOADS, self::BADGE, self::AI_TOOLS => false,
+            self::DOWNLOADS, self::BADGE, self::AI_TOOLS, self::CONTENT_AGENT => false,
             self::SELL_RELEASES, self::SELL_STEMS, self::RECEIVE_TIPS => true,
             self::MAX_PROJECTS => 10,
             self::MAX_SONGS => 10,

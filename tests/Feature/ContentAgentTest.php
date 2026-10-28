@@ -864,6 +864,54 @@ class ContentAgentTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_creators_on_a_plan_with_the_content_agent_use_it_in_the_studio(): void
+    {
+        $creator = $this->ownerWith(200, [Feature::CONTENT_AGENT->value => true]);
+        $creator
+            ->forceFill(['content_agent' => false])
+            ->save();
+        $without = $this->ownerWith(200);
+        $without
+            ->forceFill(['content_agent' => false])
+            ->save();
+
+        Sanctum::actingAs($creator);
+
+        $this->getJson('/api/account')
+            ->assertOk()
+            ->assertJsonPath('data.contentAgent', false)
+            ->assertJsonPath('data.agentAccess', true);
+
+        $created = $this->postJson('/api/creator/agent/runs', ['prompt' => 'Make me a lofi beat tape please'])
+            ->assertCreated()
+            ->assertJsonPath('data.owner.id', $creator->id);
+
+        $this->getJson("/api/creator/agent/runs/{$created->json('data.id')}")
+            ->assertOk();
+
+        Sanctum::actingAs($without);
+
+        $this->getJson('/api/account')
+            ->assertJsonPath('data.agentAccess', false);
+
+        $this->postJson('/api/creator/agent/runs', ['prompt' => 'Make me a lofi beat tape please'])
+            ->assertForbidden();
+    }
+
+    public function test_each_account_builds_one_run_at_a_time_beside_other_accounts(): void
+    {
+        $first = $this->ownerWith(500);
+        $second = $this->ownerWith(500);
+
+        $a = $this->queueRun($first);
+        $b = $this->queueRun($first);
+        $c = $this->queueRun($second);
+
+        $this->assertSame(AgentRun::PLANNING, $a->refresh()->status);
+        $this->assertSame(AgentRun::QUEUED, $b->refresh()->status);
+        $this->assertSame(AgentRun::PLANNING, $c->refresh()->status);
+    }
+
     public function test_other_users_cannot_use_the_agent(): void
     {
         Sanctum::actingAs(User::factory()->create());
