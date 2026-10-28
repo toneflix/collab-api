@@ -46,7 +46,7 @@ class ModerationController extends Controller
 
         $this->middleware(function (Request $request, Closure $next) {
             abort_unless(
-                $request->user()?->checkPermissionTo('manage-content'),
+                Moderation::allows($request->user()),
                 HttpStatus::FORBIDDEN->value,
                 'You do not have permission to moderate content.'
             );
@@ -206,6 +206,28 @@ class ModerationController extends Controller
         $takedown->refresh();
 
         return $this->done(new TakedownResource($takedown), 'Taken down.', HttpStatus::CREATED);
+    }
+
+    /**
+     * Delete content for good, after the moderator types its name and gives a
+     * two-factor code.
+     */
+    public function destroy(Request $request, string $type, int $id)
+    {
+        $valid = $request->validate([
+            'reason' => ['required', Rule::in(Safety::$allowedReasons)],
+            'note' => ['nullable', 'string', 'max:2000'],
+            'confirm_name' => ['required', 'string', 'max:200'],
+            'code' => ['required', 'string', 'max:20'],
+        ]);
+
+        $item = $this->item($type, $id);
+
+        $this->moderation->delete($item, $request->user(), $valid['reason'], $valid['note'] ?? null, $valid['confirm_name'], $valid['code']);
+
+        $result = ['deleted' => true, 'type' => $type, 'id' => $id];
+
+        return $this->done(new ActionResource($result), 'Deleted.');
     }
 
     public function dismiss(Request $request, string $type, int $id)

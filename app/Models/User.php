@@ -93,6 +93,9 @@ class User extends Authenticatable implements Commentator, Reportable
         'access_data',
         'email_verify_code',
         'phone_verify_code',
+        'two_factor_secret',
+        'two_factor_recovery_codes',
+        'two_factor_last_step',
     ];
 
     /**
@@ -151,6 +154,10 @@ class User extends Authenticatable implements Commentator, Reportable
             'suspended_until' => 'datetime',
             'deactivated_at' => 'datetime',
             'deletes_at' => 'datetime',
+            'two_factor_secret' => 'encrypted',
+            'two_factor_recovery_codes' => 'array',
+            'two_factor_confirmed_at' => 'datetime',
+            'two_factor_last_step' => 'integer',
         ];
     }
 
@@ -279,6 +286,14 @@ class User extends Authenticatable implements Commentator, Reportable
             ->where(fn(Builder $q) => $q->whereNull('suspended_until')->orWhere('suspended_until', '>', now()));
 
         $suspended ? $query->where($active) : $query->whereNot($active);
+    }
+
+    /**
+     * The admin's chats with the admin assistant.
+     */
+    public function assistantChats(): HasMany
+    {
+        return $this->hasMany(AssistantChat::class);
     }
 
     /**

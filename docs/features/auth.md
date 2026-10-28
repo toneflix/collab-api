@@ -37,6 +37,16 @@ Topics are moods, feelings and music subjects like Soulful, Heartbreak, Live mus
 
 Interests curate what people hear. `GET /api/tracks?filters=for_you` (and `for_you` on `GET /api/explore`, the home page's "Made for you" shelf) returns tracks in a picked genre, on a release tagged with a picked topic, or with a picked topic as a word in the title. The player's up-next queue plays those before unrelated tracks.
 
+## Two-factor sign-in
+
+Anyone can turn on two-factor sign-in with an authenticator app (Google Authenticator, 1Password, Authy and the like) from **Settings > Security**. Admins need it to delete content.
+
+1. `POST /api/account/two-factor` with the account password makes a secret and returns it with an `otpauth://` link, which the app shows as a QR code.
+2. `POST /api/account/two-factor/confirm` with a code from the authenticator app turns it on and returns eight recovery codes. They are shown once and stored hashed.
+3. When it's on, `POST /api/auth/login` answers `202` with `data.twoFactor` and a `data.challenge` instead of a token. `POST /api/auth/login/two-factor` with the challenge and a code (or a recovery code) signs in. A challenge lasts 10 minutes.
+
+`DELETE /api/account/two-factor` turns it off and `POST /api/account/two-factor/recovery-codes` replaces the recovery codes; both need a current code. Each code works once, and five wrong codes in a minute lock the check for the rest of that minute. `App\Services\Auth\TwoFactor` holds the rules, and its `check()` is what sensitive actions call for a code.
+
 ## Password reset
 
 1. `POST /api/auth/forgot-password` with `email` sends a six-digit code and a link (`/reset/password?token=…`).

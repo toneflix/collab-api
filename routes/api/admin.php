@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AiSettingsController;
+use App\Http\Controllers\Admin\AssistantController;
 use App\Http\Controllers\Admin\AuthPagesController;
 use App\Http\Controllers\Admin\ConfigurationController;
 use App\Http\Controllers\Admin\ContentAgentController;
@@ -64,6 +65,17 @@ Route::middleware(['auth:sanctum'])
         Route::get('ai', [AiSettingsController::class, 'show'])->name('ai.show');
         Route::put('ai', [AiSettingsController::class, 'update'])->name('ai.update');
 
+        // Admin assistant: chats where admins ask for moderation work, and the actions they confirm
+        Route::prefix('assistant')->name('assistant.')->group(function () {
+            Route::get('chats', [AssistantController::class, 'index'])->name('chats.index');
+            Route::post('chats', [AssistantController::class, 'store'])->middleware('throttle:20,1')->name('chats.store');
+            Route::get('chats/{chat}', [AssistantController::class, 'show'])->whereNumber('chat')->name('chats.show');
+            Route::get('chats/{chat}/messages', [AssistantController::class, 'messages'])->whereNumber('chat')->name('chats.messages');
+            Route::post('chats/{chat}/messages', [AssistantController::class, 'post'])->whereNumber('chat')->middleware('throttle:20,1')->name('chats.post');
+            Route::post('actions/{action}/confirm', [AssistantController::class, 'confirm'])->whereNumber('action')->name('actions.confirm');
+            Route::post('actions/{action}/cancel', [AssistantController::class, 'cancel'])->whereNumber('action')->name('actions.cancel');
+        });
+
         // Content agent: agent accounts and the queued prompts that build their artists, songs and albums
         Route::prefix('agent')->name('agent.')->group(function () {
             Route::get('runs', [ContentAgentController::class, 'index'])->name('runs.index');
@@ -92,6 +104,7 @@ Route::middleware(['auth:sanctum'])
             Route::get('queue', [ModerationController::class, 'queue'])->name('queue');
             Route::get('takedowns', [ModerationController::class, 'takedowns'])->name('takedowns');
             Route::post('items/{type}/{id}/takedown', [ModerationController::class, 'takeDown'])->whereNumber('id')->name('takedown');
+            Route::delete('items/{type}/{id}', [ModerationController::class, 'destroy'])->whereNumber('id')->middleware('throttle:20,1')->name('destroy');
             Route::post('items/{type}/{id}/dismiss', [ModerationController::class, 'dismiss'])->whereNumber('id')->name('dismiss');
             Route::post('items/{type}/{id}/resolve', [ModerationController::class, 'resolve'])->whereNumber('id')->name('resolve');
             Route::post('takedowns/{takedown}/restore', [ModerationController::class, 'restore'])->name('restore');

@@ -78,6 +78,7 @@ class UserResource extends JsonResource
                 'emailVerifiedAt' => $this->email_verified_at,
                 'phoneVerifiedAt' => $this->phone_verified_at,
                 'interestsAt' => $this->interests_at,
+                'twoFactor' => $this->two_factor_confirmed_at !== null,
             ]),
             'createdAt' => $this->created_at,
             'updatedAt' => $this->updated_at,

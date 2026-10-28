@@ -5,13 +5,16 @@ namespace App\Services\Moderation;
 use App\Contracts\CanBeTakenDown;
 use App\Contracts\Reportable;
 use App\Enums\HttpStatus;
+use App\Models\AdminAction;
 use App\Models\AudioFingerprint;
+use App\Models\Comment;
 use App\Models\Release;
 use App\Models\Safety;
 use App\Models\Takedown;
 use App\Models\Track;
 use App\Models\User;
 use App\Notifications\ModerationNotice;
+use App\Services\Auth\TwoFactor;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
@@ -25,7 +28,33 @@ use Illuminate\Validation\ValidationException;
  */
 class Moderation
 {
-    public function __construct(protected Reportables $reportables) {}
+    /** The permission every moderation screen and action needs */
+    public const PERMISSION = 'manage-content';
+
+    /** Where actions come from when not the admin pages, such as the admin assistant */
+    protected ?string $via = null;
+
+    public function __construct(
+        protected Reportables $reportables,
+        protected TwoFactor $twoFactor,
+    ) {}
+
+    /**
+     * A copy whose audit entries say the change came through another channel,
+     * such as the admin assistant.
+     */
+    public function via(string $via): static
+    {
+        $moderation = clone $this;
+        $moderation->via = $via;
+
+        return $moderation;
+    }
+
+    public static function allows(?User $user): bool
+    {
+        return (bool) $user?->checkPermissionTo(self::PERMISSION);
+    }
 
     /**
      * File or update someone's report about some content.
@@ -206,6 +235,82 @@ class Moderation
         $this->notifyReporters($takedown->reports()->getQuery(), 'Thanks for your report', "We reviewed your report about “{$summary['title']}” and took it down.");
 
         return $takedown;
+    }
+
+    /**
+     * What a moderator types to confirm deleting some content: its title, or
+     * "comment #12" for comments and untitled content.
+     */
+    public function deleteName(Model&Reportable $item): string
+    {
+        $title = trim(preg_replace('/\s+/', ' ', (string) $item->moderationSummary()['title']));
+
+        return $item instanceof Comment || $title === ''
+            ? "{$this->label($item)} #{$item->getKey()}"
+            : $title;
+    }
+
+    /**
+     * Delete content for good. The moderator types its name and gives a
+     * two-factor code to confirm. Its pending reports close, the owner and
+     * reporters are told, and the owner's audit trail keeps a record.
+     */
+    public function delete(Model&Reportable $item, User $moderator, string $reason, ?string $note, ?string $confirmName, ?string $code): void
+    {
+        if ($item instanceof User) {
+            throw ValidationException::withMessages(['item' => 'Accounts are deleted from the Users page, not here.']);
+        }
+
+        $name = $this->deleteName($item);
+
+        if (trim(preg_replace('/\s+/', ' ', (string) $confirmName)) !== $name) {
+            throw ValidationException::withMessages(['confirm_name' => "Type “{$name}” to confirm."]);
+        }
+
+        $this->twoFactor->check($moderator, $code);
+
+        $summary = $item->moderationSummary();
+        $label = $this->label($item);
+        $ownerId = $item->moderationOwnerId();
+        $owner = $ownerId ? User::query()->withoutGlobalScopes()->find($ownerId) : null;
+        $pending = Safety::query()
+            ->forItem($item)
+            ->pending()
+            ->pluck('id');
+
+        DB::transaction(function () use ($item, $moderator, $reason, $note, $summary, $owner) {
+            $this->closeReports($item, $moderator, Safety::ACTIONED);
+
+            if ($owner) {
+                AdminAction::query()
+                    ->create([
+                        'admin_id' => $moderator->id,
+                        'user_id' => $owner->id,
+                        'action' => 'content.deleted',
+                        'reason' => $reason,
+                        'details' => array_filter([
+                            'type' => $this->reportables->nameFor($item::class),
+                            'id' => $item->getKey(),
+                            'title' => $summary['title'],
+                            'note' => $note,
+                            'via' => $this->via,
+                        ], fn($value) => $value !== null),
+                    ]);
+            }
+
+            $item->delete();
+        });
+
+        $owner
+            ?->notify(new ModerationNotice("Your {$label} was removed", trim(
+                "A moderator removed “{$summary['title']}” for {$this->reasonLabel($reason)}. " . ($note ?? '')
+            )));
+
+        $this->notifyReporters(
+            Safety::query()->whereIn('id', $pending),
+            'Thanks for your report',
+            "We reviewed your report about “{$summary['title']}” and removed it."
+        );
     }
 
     /**

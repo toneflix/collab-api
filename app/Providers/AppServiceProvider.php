@@ -7,6 +7,9 @@ use App\Helpers\Providers;
 use App\Notifications\Channels\PushChannel;
 use App\Services\Ai\AiSettings;
 use App\Services\Ai\Replicate\ReplicateProvider;
+use App\Services\Assistant\Ai\AssistantModel;
+use App\Services\Assistant\Ai\CloudflareAssistantModel;
+use App\Services\Assistant\Ai\ReplicateAssistantModel;
 use App\Services\Composer\Ai\CloudflareLyricModel;
 use App\Services\Composer\Ai\LyricModel;
 use App\Services\Composer\Ai\ReplicateLyricModel;
@@ -45,6 +48,9 @@ class AppServiceProvider extends ServiceProvider
 
         $this->app->bind(ModeratorModel::class, fn($app) => $app->make(
             AiSettings::engine('ai_moderator_engine') === AiEngine::CLOUDFLARE ? CloudflareModeratorModel::class : ReplicateModeratorModel::class
+        ));
+        $this->app->bind(AssistantModel::class, fn($app) => $app->make(
+            AiSettings::engine('ai_assistant_engine') === AiEngine::CLOUDFLARE ? CloudflareAssistantModel::class : ReplicateAssistantModel::class
         ));
         $this->app->bind(LyricModel::class, fn($app) => $app->make(
             AiSettings::engine('ai_composer_engine') === AiEngine::CLOUDFLARE ? CloudflareLyricModel::class : ReplicateLyricModel::class

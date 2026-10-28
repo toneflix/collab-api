@@ -12,6 +12,7 @@ use App\Services\Payment\Payouts;
 use App\Services\Payment\Subscriptions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -32,7 +33,22 @@ class UserManager
         'roles' => ['manage-admins'],
     ];
 
+    /** Where changes come from when not the admin pages, like "assistant" */
+    protected ?string $via = null;
+
     public function __construct(protected Subscriptions $subscriptions, protected Payouts $payouts) {}
+
+    /**
+     * A manager whose audit entries say the change came through another
+     * channel, such as the admin assistant.
+     */
+    public function via(string $via): static
+    {
+        $manager = clone $this;
+        $manager->via = $via;
+
+        return $manager;
+    }
 
     public static function allows(?User $admin): bool
     {
@@ -88,6 +104,27 @@ class UserManager
         return $user->getAllPermissions()->pluck('name')
             ->intersect([...AdminStats::PERMISSIONS, 'manage-admins'])
             ->isNotEmpty();
+    }
+
+    /**
+     * Rules for the profile fields admins can change, each optional.
+     *
+     * @return array<string, list<mixed>>
+     */
+    public function profileRules(User $user): array
+    {
+        return [
+            'firstname' => ['sometimes', 'required', 'string', 'max:100'],
+            'lastname' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'username' => ['sometimes', 'required', 'string', 'max:50', 'alpha_dash', Rule::unique('users', 'username')->ignore($user->id)],
+            'email' => ['sometimes', 'required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
+            'phone' => ['sometimes', 'nullable', 'string', 'max:30', Rule::unique('users', 'phone')->ignore($user->id)],
+            'about' => ['sometimes', 'nullable', 'string', 'max:1000'],
+            'country' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'state' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'city' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'address' => ['sometimes', 'nullable', 'string', 'max:255'],
+        ];
     }
 
     /**
@@ -356,6 +393,8 @@ class UserManager
     {
         if (! $admin) {
             $details['via'] = 'console';
+        } elseif ($this->via) {
+            $details['via'] = $this->via;
         }
 
         return AdminAction::query()

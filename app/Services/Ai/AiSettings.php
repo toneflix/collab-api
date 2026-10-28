@@ -69,6 +69,7 @@ class AiSettings extends SettingsStore
         'ai_moderator_releases_auto' => ['Review Releases Automatically', '0', 'Send every release waiting for approval to the AI moderator. Releases it isn\'t confident about are flagged for a person.'],
         'ai_moderator_engine' => ['AI Moderator Engine', 'replicate', 'Where the AI moderator\'s language model runs: Replicate, or Cloudflare Workers AI.'],
         'ai_moderator_confidence' => ['Confidence Needed', '80', 'How sure (0 to 100) the AI moderator must be to decide an automatic review on its own.'],
+        'ai_assistant_engine' => ['Admin Assistant Engine', 'replicate', 'Where the admin assistant\'s language model runs: Replicate, or Cloudflare Workers AI.'],
         'ai_composer_engine' => ['Composer Engine', 'replicate', 'Where Composer\'s writing model runs: Replicate, or Cloudflare Workers AI.'],
         'ai_composer_model' => ['Composer Writing Model', null, 'The Replicate language model that suggests lyrics in Composer, like anthropic/claude-4.5-haiku.'],
         'ai_composer_cloudflare_model' => ['Composer Writing Model on Cloudflare', null, 'The Workers AI language model that suggests lyrics in Composer, like anthropic/claude-haiku-4.5 or @cf/openai/gpt-oss-120b.'],
@@ -102,6 +103,7 @@ class AiSettings extends SettingsStore
         'ai_lyrics_engine' => [AiEngine::REPLICATE, AiEngine::CLOUDFLARE],
         'ai_composer_engine' => [AiEngine::REPLICATE, AiEngine::CLOUDFLARE],
         'ai_moderator_engine' => [AiEngine::REPLICATE, AiEngine::CLOUDFLARE],
+        'ai_assistant_engine' => [AiEngine::REPLICATE, AiEngine::CLOUDFLARE],
         'ai_artwork_engine' => [AiEngine::REPLICATE, AiEngine::CLOUDFLARE],
     ];
 

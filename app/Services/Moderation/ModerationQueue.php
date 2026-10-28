@@ -25,6 +25,7 @@ class ModerationQueue
     public function __construct(
         protected Reportables $reportables,
         protected ArtistClaims $claims,
+        protected Moderation $moderation,
     ) {}
 
     /**
@@ -33,7 +34,7 @@ class ModerationQueue
      *
      * @param  array{type?: ?string, reason?: ?string, source?: ?string, search?: ?string}  $filters
      */
-    public function pending(array $filters = [], int $perPage = 20): LengthAwarePaginator
+    public function pending(array $filters = [], int $perPage = 20, ?int $page = null): LengthAwarePaginator
     {
         $page = $this->filtered(Safety::query()->pending(), $filters)
             ->select('model_type', 'model_id')
@@ -43,7 +44,7 @@ class ModerationQueue
             ->groupBy('model_type', 'model_id')
             ->orderByDesc('reports_count')
             ->orderByDesc('last_reported_at')
-            ->paginate($perPage);
+            ->paginate($perPage, ['*'], 'page', $page);
 
         $reasons = $this->reasonCounts($page->getCollection());
 
@@ -93,7 +94,7 @@ class ModerationQueue
     /**
      * Published releases waiting for an admin to approve them, oldest first.
      */
-    public function releases(?string $search = null, int $perPage = 20): LengthAwarePaginator
+    public function releases(?string $search = null, int $perPage = 20, ?int $page = null): LengthAwarePaginator
     {
         return Release::query()
             ->withoutGlobalScope(RestrictBlockedUserScope::class)
@@ -107,17 +108,17 @@ class ModerationQueue
                     ->orWhereLike('lastname', "%{$search}%")))))
             ->with(['user', 'artist', 'project', 'latestAiReview'])
             ->oldest('updated_at')
-            ->paginate($perPage);
+            ->paginate($perPage, ['*'], 'page', $page);
     }
 
-    public function takedowns(?string $status = null, ?string $search = null, int $perPage = 20): LengthAwarePaginator
+    public function takedowns(?string $status = null, ?string $search = null, int $perPage = 20, ?int $page = null): LengthAwarePaginator
     {
         return Takedown::query()
             ->when($status, fn(Builder $q) => $q->where('status', $status))
             ->when($search, fn(Builder $q, string $search) => $this->reportables->whereContentMatches($q, $search))
             ->with('moderator')
             ->when($status === Takedown::APPEALED, fn(Builder $q) => $q->oldest('appealed_at'), fn(Builder $q) => $q->latest('id'))
-            ->paginate($perPage);
+            ->paginate($perPage, ['*'], 'page', $page);
     }
 
     /**
@@ -167,6 +168,8 @@ class ModerationQueue
             ...$model->moderationSummary(),
             'canTakeDown' => $model instanceof CanBeTakenDown,
             'takenDown' => $model instanceof CanBeTakenDown && $model->isTakenDown(),
+            'canDelete' => ! $model instanceof User,
+            'deleteName' => $model instanceof User ? null : $this->moderation->deleteName($model),
             'owner' => $owner ? [
                 'id' => $owner->id,
                 'name' => $owner->fullname,

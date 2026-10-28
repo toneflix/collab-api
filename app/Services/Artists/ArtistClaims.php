@@ -106,7 +106,7 @@ class ArtistClaims
     /**
      * Claims for moderators, oldest pending first.
      */
-    public function queue(?string $status = ArtistClaim::PENDING, ?string $search = null, int $perPage = 20): LengthAwarePaginator
+    public function queue(?string $status = ArtistClaim::PENDING, ?string $search = null, int $perPage = 20, ?int $page = null): LengthAwarePaginator
     {
         return ArtistClaim::query()
             ->when($status, fn(Builder $q, string $status) => $q->where('status', $status))
@@ -132,7 +132,7 @@ class ArtistClaims
                 fn(Builder $q) => $q->oldest('id'),
                 fn(Builder $q) => $q->latest('id'),
             )
-            ->paginate($perPage);
+            ->paginate($perPage, ['*'], 'page', $page);
     }
 
     public function pendingCount(): int

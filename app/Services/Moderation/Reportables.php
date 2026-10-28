@@ -4,6 +4,7 @@ namespace App\Services\Moderation;
 
 use App\Contracts\Reportable;
 use App\Models\Comment;
+use App\Models\Project;
 use App\Models\Release;
 use App\Models\Song;
 use App\Models\Sound;
@@ -25,6 +26,7 @@ class Reportables
         'track' => Track::class,
         'sound' => Sound::class,
         'song' => Song::class,
+        'project' => Project::class,
         'comment' => Comment::class,
         'user' => User::class,
     ];
@@ -39,6 +41,7 @@ class Reportables
         'track' => ['title'],
         'sound' => ['name'],
         'song' => ['title'],
+        'project' => ['title'],
         'comment' => ['comment'],
         'user' => ['firstname', 'lastname', 'username', 'email'],
     ];
@@ -66,6 +69,31 @@ class Reportables
                     ->whereIn('model_id', $ids));
             }
         });
+    }
+
+    /**
+     * Content of one kind whose text matches the search, taken down and
+     * hidden content included, newest first.
+     *
+     * @return Builder<Model>
+     */
+    public function search(string $type, string $search): Builder
+    {
+        $class = self::TYPES[$type];
+        $model = new $class;
+
+        return $class::query()
+            ->withoutGlobalScopes()
+            ->where(function (Builder $q) use ($type, $model, $search) {
+                foreach (self::SEARCH_COLUMNS[$type] as $column) {
+                    $q->orWhereLike($model->qualifyColumn($column), "%{$search}%");
+                }
+
+                if (ctype_digit($search)) {
+                    $q->orWhere($model->getQualifiedKeyName(), (int) $search);
+                }
+            })
+            ->latest($model->getQualifiedKeyName());
     }
 
     /**
