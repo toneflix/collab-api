@@ -25,6 +25,7 @@ class ModerationQueue
     public function __construct(
         protected Reportables $reportables,
         protected ArtistClaims $claims,
+        protected Moderation $moderation,
     ) {}
 
     /**
@@ -167,6 +168,8 @@ class ModerationQueue
             ...$model->moderationSummary(),
             'canTakeDown' => $model instanceof CanBeTakenDown,
             'takenDown' => $model instanceof CanBeTakenDown && $model->isTakenDown(),
+            'canDelete' => ! $model instanceof User,
+            'deleteName' => $model instanceof User ? null : $this->moderation->deleteName($model),
             'owner' => $owner ? [
                 'id' => $owner->id,
                 'name' => $owner->fullname,

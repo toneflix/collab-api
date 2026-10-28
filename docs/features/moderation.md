@@ -11,6 +11,18 @@ From the queue an admin can:
 - **Dismiss** the report, leaving the content up.
 - **Take down** the content with a reason. Taking a release down also takes its tracks down.
 - **Resolve** it without a takedown, when it was handled another way.
+- **Delete** the content for good. See below.
+
+## Deleting content
+
+Admins with `manage-content` can delete a release, track, composition, project, sound or comment from the queue or the takedowns list (`DELETE /api/admin/moderation/items/{type}/{id}`). Accounts are not deleted here; they are suspended or banned from Users.
+
+Deleting asks for two things:
+
+- the item's name typed out (`confirm_name`): its title, or `comment #12` for a comment. Queue items carry it as `deleteName`;
+- a current code from the admin's authenticator app (`code`). Admins without [two-factor sign-in](./auth#two-factor-sign-in) can't delete.
+
+Pending reports on the item close, the owner and reporters are notified, and the owner's audit trail on their admin user page gets a `content.deleted` entry with the title, reason and note. Deleting a release deletes its tracks, and deleting a project deletes its tracks, comments and collaborators, the same as when owners delete their own.
 
 ## Takedowns and appeals
 
@@ -62,7 +74,7 @@ The moderator sees the case as text: for claims, the artist, its latest releases
 
 ## In code
 
-- `App\Services\Moderation\Moderation` is the only place moderation state changes: `report`, `flagMatches`, `flagLyrics`, `takeDown`, `dismiss`, `resolve`, `appeal`, `restore`, `uphold`.
+- `App\Services\Moderation\Moderation` is the only place moderation state changes: `report`, `flagMatches`, `flagLyrics`, `takeDown`, `delete`, `dismiss`, `resolve`, `appeal`, `restore`, `uphold`.
 - `ModerationQueue` builds the admin views.
 - `Reportables` maps API type names to models. Reportable models implement `App\Contracts\Reportable` or `CanBeTakenDown`.
 - `App\Services\Moderation\Ai\AiModerator` sends and runs AI reviews. `ReviewCases` builds a case (`ArtistClaimCase`, `ReleaseCase`) that describes the item and carries out the decision through `ArtistClaims` or `ReleaseVersions`. The model sits behind `ModeratorModel`.

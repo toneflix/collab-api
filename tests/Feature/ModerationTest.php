@@ -11,6 +11,7 @@ use App\Models\Takedown;
 use App\Models\Track;
 use App\Models\User;
 use App\Notifications\ModerationNotice;
+use App\Services\Auth\Totp;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Notification;
 use Laravel\Sanctum\Sanctum;
@@ -263,6 +264,57 @@ class ModerationTest extends TestCase
         $this
             ->getJson("/api/projects/{$project->slug}")
             ->assertOk();
+    }
+
+    public function test_deleting_content_needs_its_name_and_a_two_factor_code(): void
+    {
+        $this
+            ->report('track', $this->track->id)
+            ->assertCreated();
+
+        Sanctum::actingAs($this->moderator);
+        $uri = "/api/admin/moderation/items/track/{$this->track->id}";
+
+        $this
+            ->getJson('/api/admin/moderation/queue')
+            ->assertJsonPath('data.0.item.deleteName', $this->track->title);
+
+        $this
+            ->deleteJson($uri, ['reason' => 'spam', 'confirm_name' => $this->track->title, 'code' => '123456'])
+            ->assertJsonValidationErrors(['code' => 'Turn on two-factor sign-in']);
+
+        $secret = Totp::secret();
+        $this->moderator
+            ->forceFill(['two_factor_secret' => $secret, 'two_factor_confirmed_at' => now()])
+            ->save();
+
+        $this
+            ->deleteJson($uri, ['reason' => 'spam', 'confirm_name' => 'wrong', 'code' => Totp::code($secret, Totp::step())])
+            ->assertJsonValidationErrors(['confirm_name']);
+
+        $this
+            ->deleteJson($uri, ['reason' => 'spam', 'confirm_name' => $this->track->title, 'code' => '000000'])
+            ->assertJsonValidationErrors(['code' => 'That code is not correct.']);
+
+        $this
+            ->deleteJson($uri, ['reason' => 'spam', 'note' => 'Spam upload.', 'confirm_name' => " {$this->track->title} ", 'code' => Totp::code($secret, Totp::step())])
+            ->assertAccepted()
+            ->assertJsonPath('data.deleted', true);
+
+        $this->assertNull(Track::query()->withoutGlobalScopes()->find($this->track->id));
+        $this->assertSame(Safety::ACTIONED, Safety::query()->forItem($this->track)->value('status'));
+        $this->assertDatabaseHas('admin_actions', [
+            'admin_id' => $this->moderator->id,
+            'user_id' => $this->owner->id,
+            'action' => 'content.deleted',
+            'reason' => 'spam',
+        ]);
+        Notification::assertSentTo($this->owner, ModerationNotice::class);
+        Notification::assertSentTo($this->reporter, ModerationNotice::class);
+
+        $this
+            ->deleteJson("/api/admin/moderation/items/user/{$this->owner->id}", ['reason' => 'spam', 'confirm_name' => 'x', 'code' => '1'])
+            ->assertJsonValidationErrors(['item']);
     }
 
     public function test_owners_can_appeal_once_and_moderators_can_restore(): void

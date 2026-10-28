@@ -104,6 +104,7 @@ Route::middleware(['auth:sanctum'])
             Route::get('queue', [ModerationController::class, 'queue'])->name('queue');
             Route::get('takedowns', [ModerationController::class, 'takedowns'])->name('takedowns');
             Route::post('items/{type}/{id}/takedown', [ModerationController::class, 'takeDown'])->whereNumber('id')->name('takedown');
+            Route::delete('items/{type}/{id}', [ModerationController::class, 'destroy'])->whereNumber('id')->middleware('throttle:20,1')->name('destroy');
             Route::post('items/{type}/{id}/dismiss', [ModerationController::class, 'dismiss'])->whereNumber('id')->name('dismiss');
             Route::post('items/{type}/{id}/resolve', [ModerationController::class, 'resolve'])->whereNumber('id')->name('resolve');
             Route::post('takedowns/{takedown}/restore', [ModerationController::class, 'restore'])->name('restore');
