@@ -459,6 +459,10 @@ class ContentAgentTest extends TestCase
 
         $run = $this->advance($this->queueRun($owner));
 
+        // The planner is told a project stays unreleased and singles are albums, not lyric sheets.
+        $this->assertStringContainsString('A "project" the instructions ask for', $this->asked[0]['system']);
+        $this->assertStringContainsString('put every single in "albums", never in "songs"', $this->asked[0]['system']);
+
         $this->assertFalse($run->plan['albums'][0]['release']);
         $this->assertFalse($run->steps()->where('kind', 'release')->exists());
 
