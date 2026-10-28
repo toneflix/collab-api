@@ -68,15 +68,14 @@ class ProjectShowTest extends TestCase
         $response->assertJsonPath('data.collaborators.0.role', 'keys');
     }
 
-    public function test_others_only_see_public_tracks_and_no_collaborators(): void
+    public function test_others_see_a_public_projects_tracks_but_no_collaborators(): void
     {
         Sanctum::actingAs($this->stranger);
 
         $response = $this->getJson("/api/projects/{$this->project->id}?with=tracks,collaborators");
 
         $response->assertOk();
-        $response->assertJsonCount(1, 'data.tracks');
-        $response->assertJsonPath('data.tracks.0.title', 'Open');
+        $response->assertJsonCount(2, 'data.tracks');
         $response->assertJsonMissingPath('data.collaborators');
     }
 

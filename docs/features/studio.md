@@ -33,7 +33,7 @@ A project's privacy decides who outside it can see what. The owner and accepted 
 | `public_preview` | anyone | anyone can play each public track's preview mix | closed: stems and assets answer 403 |
 | `public` | anyone | anyone can play them | signed-in viewers open it read-only and follow live edits |
 
-`ProjectTrackPolicy::view` covers the track, its lyrics and its conversation; `ProjectTrackPolicy::open` covers stems, assets and the `project-track.{id}` live channel, through `Project::opensStudioTo()`. `ProjectResource` sends `opensStudio` for the viewer. A track set to `private` stays hidden from outsiders under either open privacy.
+`ProjectTrackPolicy::view` covers the track, its lyrics and its conversation; `ProjectTrackPolicy::open` covers stems, assets and the `project-track.{id}` live channel, through `Project::opensStudioTo()`. `ProjectResource` sends `opensStudio` for the viewer. Tracks follow their project's privacy; the per-track `privacy` column no longer hides a track.
 
 ## Limits from the plan
 
