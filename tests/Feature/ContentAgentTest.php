@@ -16,6 +16,7 @@ use App\Models\Lyric;
 use App\Models\Plan;
 use App\Models\Project;
 use App\Models\ProjectTrack;
+use App\Models\ProjectTrackStem;
 use App\Models\Release;
 use App\Models\Song;
 use App\Models\User;
@@ -283,17 +284,31 @@ class ContentAgentTest extends TestCase
         $this->assertSame(60, $instrumentalJob->input['seconds']);
         Queue::assertPushed(RunAiJob::class, 2);
 
-        // Music done: the tracks are mixed.
-        foreach ([$vocalJob, $instrumentalJob] as $job) {
-            $job
-                ->forceFill(['status' => AiJob::SUCCEEDED, 'output' => ['stems' => [1]]])
-                ->save();
-        }
+        // Music done: the tracks are mixed and the sung track's lyrics are timed.
+        $stem = ProjectTrackStem::factory()
+            ->create(['track_id' => $song->track->id, 'user_id' => $owner->id, 'title' => 'Lagos Lights', 'src' => 'song.mp3']);
+
+        $vocalJob
+            ->forceFill(['status' => AiJob::SUCCEEDED, 'output' => ['stems' => [$stem->id]]])
+            ->save();
+        $instrumentalJob
+            ->forceFill(['status' => AiJob::SUCCEEDED, 'output' => ['stems' => [1]]])
+            ->save();
 
         $run = $this->advance($run);
 
         $this->assertSame(AgentStep::WAITING, $this->step($run, 'mix:t1')->status);
         Queue::assertPushed(RenderMix::class, 2);
+        $this->assertFalse($run->steps()->where('key', 'lyrics:t2')->exists());
+        $this->assertContains('lyrics:t1', $this->step($run, 'release:al1')->depends_on);
+
+        $syncJob = AiJob::query()->findOrFail($this->step($run, 'lyrics:t1')->output['ai_job_id']);
+        $this->assertSame('lyrics', $syncJob->kind);
+        $this->assertSame('sync', $syncJob->input['mode']);
+        $this->assertSame($stem->id, (int) $syncJob->input['stem_id']);
+        $syncJob
+            ->forceFill(['status' => AiJob::SUCCEEDED, 'credits' => 2, 'output' => ['lines' => 4]])
+            ->save();
 
         foreach ([$song->track, $instrumental] as $track) {
             $track->refresh();
@@ -318,9 +333,10 @@ class ContentAgentTest extends TestCase
             $release->tracks()->orderBy('id')->pluck('project_track_id')->map(fn($id) => (int) $id)->all(),
         );
 
-        // Plan 2 + two lyrics at 2 + vocal 30 + instrumental 60s at 5 per 10s.
-        $this->assertSame(66, $run->credits);
-        $this->assertSame(200 - 66, Credits::for($owner)->total());
+        $this->assertTrue($this->step($run, 'lyrics:t1')->output['synced']);
+
+        // Plan 2 + two lyrics at 2 + vocal 30 + instrumental 60s at 5 per 10s + timing 2.
+        $this->assertSame(68, $run->credits);
     }
 
     public function test_a_run_draws_album_covers_and_artist_pictures(): void
@@ -525,7 +541,7 @@ class ContentAgentTest extends TestCase
         $run = $this->advance($this->queueRun($owner));
 
         $this->assertSame(AgentRun::FAILED, $run->status);
-        $this->assertStringContainsString('needs about 64 credits', $run->error);
+        $this->assertStringContainsString('needs about 66 credits', $run->error);
         $this->assertSame(0, $run->steps()->count());
         $this->assertFalse(Artist::query()->where('user_id', $owner->id)->exists());
     }

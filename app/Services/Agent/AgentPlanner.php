@@ -106,6 +106,7 @@ class AgentPlanner
             $project = "project:{$album['key']}";
             $artist = "artist:{$album['artist']}";
             $mixes = [];
+            $syncs = [];
             $art = $artwork ? "cover:{$album['key']}" : null;
 
             $steps[] = $this->step($project, 'project', [], [
@@ -148,13 +149,21 @@ class AgentPlanner
                     'title' => $track['title'],
                     'source' => $source,
                 ]);
+
+                if (! $track['instrumental']) {
+                    $steps[] = $syncs[] = $this->step("lyrics:{$track['key']}", 'lyrics', ["music:{$track['key']}"], [
+                        'title' => $track['title'],
+                        'source' => $source,
+                        'music' => "music:{$track['key']}",
+                    ]);
+                }
             }
 
             if (! ($album['release'] ?? true)) {
                 continue;
             }
 
-            $steps[] = $this->step("release:{$album['key']}", 'release', [...array_column($mixes, 'key'), ...array_filter([$art])], [
+            $steps[] = $this->step("release:{$album['key']}", 'release', [...array_column($mixes, 'key'), ...array_column($syncs, 'key'), ...array_filter([$art])], [
                 'title' => $album['title'],
                 'description' => $album['description'],
                 'genre_id' => $album['genre_id'],
@@ -235,7 +244,7 @@ class AgentPlanner
         $pictures = $this->artwork($run) ? count($plan['artists']) + count($plan['albums']) + count($plan['releases'] ?? []) : 0;
 
         return ($vocals + count($plan['songs'])) * AgentWriter::credits()
-            + $vocals * $vocalCredits
+            + $vocals * ($vocalCredits + AiSettings::lyricsCredits())
             + ($tracks->count() - $vocals) * $instrumentalCredits
             + $pictures * AiSettings::artworkCredits();
     }

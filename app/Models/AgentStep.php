@@ -10,6 +10,7 @@ use App\Services\Agent\Actions\DrawArtwork;
 use App\Services\Agent\Actions\MakeMusic;
 use App\Services\Agent\Actions\MixTrack;
 use App\Services\Agent\Actions\ReleaseAlbum;
+use App\Services\Agent\Actions\SyncLyrics;
 use App\Services\Agent\Actions\WriteSong;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -43,6 +44,7 @@ class AgentStep extends Model
         'music' => MakeMusic::class,
         'mix' => MixTrack::class,
         'artwork' => DrawArtwork::class,
+        'lyrics' => SyncLyrics::class,
         'release' => ReleaseAlbum::class,
     ];
 
