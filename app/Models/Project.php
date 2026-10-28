@@ -43,7 +43,8 @@ class Project extends Model implements CanBeTakenDown
     use TakesDown;
 
     /**
-     * Privacy settings anyone can see a project under.
+     * Privacy settings anyone can see a project under: public opens its
+     * studio read-only, public_preview only plays its tracks' preview mixes.
      */
     public const OPEN_PRIVACIES = ['public', 'public_preview'];
 
@@ -173,6 +174,15 @@ class Project extends Model implements CanBeTakenDown
     public function isVisibleTo(?User $user): bool
     {
         return in_array($this->privacy, self::OPEN_PRIVACIES, true) || ($user && $this->canEdit($user));
+    }
+
+    /**
+     * Whether the user can open the project's studio: its people always, and
+     * anyone, read-only, when the project is public.
+     */
+    public function opensStudioTo(?User $user): bool
+    {
+        return $this->privacy === 'public' || ($user && $this->canEdit($user));
     }
 
     /**

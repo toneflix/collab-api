@@ -12,6 +12,7 @@ use App\Models\User;
 use Database\Seeders\ConfigurationSeeder;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -272,6 +273,9 @@ class ProjectTrackAccessTest extends TestCase
         $this
             ->getJson($this->url('', $hidden))
             ->assertNotFound();
+        $this->getJson("/api/projects/{$this->project->id}")
+            ->assertJsonPath('data.opensStudio', true);
+        $this->assertTrue(Gate::forUser($this->stranger)->allows('open', $this->track->refresh()));
 
         Sanctum::actingAs($this->owner);
 
@@ -279,5 +283,43 @@ class ProjectTrackAccessTest extends TestCase
             ->getJson("/api/creator/projects/{$this->project->id}/tracks")
             ->assertOk()
             ->assertJsonCount(2, 'data');
+    }
+
+    public function test_public_preview_projects_play_tracks_but_keep_the_studio_closed(): void
+    {
+        $this->project->update(['privacy' => 'public_preview']);
+        $this->track->update(['privacy' => 'public']);
+        $this->track->refresh();
+
+        Sanctum::actingAs($this->stranger);
+
+        $this->getJson("/api/projects/{$this->project->id}?with=tracks")
+            ->assertOk()
+            ->assertJsonPath('data.opensStudio', false)
+            ->assertJsonCount(1, 'data.tracks');
+        $this
+            ->getJson($this->url())
+            ->assertOk()
+            ->assertJsonPath('data.id', $this->track->id);
+        $this
+            ->getJson($this->url('/stems'))
+            ->assertForbidden();
+        $this
+            ->getJson($this->url("/stems/{$this->stem->id}"))
+            ->assertForbidden();
+        $this
+            ->getJson($this->url('/assets'))
+            ->assertForbidden();
+        $this->assertFalse(Gate::forUser($this->stranger)->allows('open', $this->track));
+        $this->assertTrue(Channels::canView($this->stranger, $this->track));
+
+        Sanctum::actingAs($this->collaborator);
+
+        $this->getJson("/api/projects/{$this->project->id}")
+            ->assertJsonPath('data.opensStudio', true);
+        $this
+            ->getJson($this->url('/stems'))
+            ->assertOk();
+        $this->assertTrue(Gate::forUser($this->collaborator)->allows('open', $this->track));
     }
 }

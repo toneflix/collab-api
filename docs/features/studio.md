@@ -23,6 +23,18 @@ The browser never encodes the mix. Saving with a preview (or every save, when pr
 
 The track's `mix` field says where the newest render is (`rendering`, `ready` or `failed`), and a `track.mix` realtime event goes out on each change, so the studio fetches the track again for the new preview link. Only the newest render request is kept. Code: `App\Services\Studio\MixPreview`, `Mix\MixRenderer`, `Mix\MixStem` and `Mix\Effects\*`.
 
+## Project privacy
+
+A project's privacy decides who outside it can see what. The owner and accepted collaborators always have full access.
+
+| Privacy | Project page | Tracks | Studio (DAW) |
+| --- | --- | --- | --- |
+| `private` | hidden | hidden | closed |
+| `public_preview` | anyone | anyone can play each public track's preview mix | closed: stems and assets answer 403 |
+| `public` | anyone | anyone can play them | signed-in viewers open it read-only and follow live edits |
+
+`ProjectTrackPolicy::view` covers the track, its lyrics and its conversation; `ProjectTrackPolicy::open` covers stems, assets and the `project-track.{id}` live channel, through `Project::opensStudioTo()`. `ProjectResource` sends `opensStudio` for the viewer. A track set to `private` stays hidden from outsiders under either open privacy.
+
 ## Limits from the plan
 
 | Feature | Effect |
