@@ -39,6 +39,7 @@ class AgentRunResource extends JsonResource
                 'albums' => count($plan['albums'] ?? []),
                 'tracks' => collect($plan['albums'] ?? [])->sum(fn(array $album) => count($album['tracks'] ?? [])),
                 'releases' => count($plan['releases'] ?? []),
+                'updates' => count($plan['updates'] ?? []),
                 'songs' => count($plan['songs'] ?? []),
             ] : null,
             'progress' => $this->whenLoaded('steps', fn() => [

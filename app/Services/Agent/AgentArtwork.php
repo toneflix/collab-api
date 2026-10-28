@@ -13,7 +13,8 @@ use Toneflix\LaravelFileable\Media;
 
 /**
  * Puts an image an agent artwork job drew on what the agent made: a
- * project, release or song cover, or an artist's picture.
+ * project, release or song cover, or an artist's picture, and fills in the
+ * pictures an existing project is missing.
  */
 class AgentArtwork
 {
@@ -48,5 +49,54 @@ class AgentArtwork
         }
 
         return true;
+    }
+
+    /**
+     * Put the image on whatever of an existing project has no picture: the
+     * project, its releases and the songs on its tracks. Released tracks
+     * show their release's or project's picture.
+     */
+    public function fill(Project $project, string $file): void
+    {
+        if (! $project->image) {
+            $this->apply($project, $file);
+        }
+
+        $releases = $project
+            ->releases()
+            ->withoutGlobalScopes()
+            ->whereNull('image')
+            ->get();
+
+        foreach ($releases as $release) {
+            $this->apply($release, $file);
+        }
+
+        Song::query()
+            ->whereIn('project_track_id', $project->tracks()->select('id'))
+            ->whereNull('image')
+            ->lazyById(50)
+            ->each(fn(Song $song) => $this->apply($song, $file));
+    }
+
+    /**
+     * Whether any of an existing project is without a picture.
+     */
+    public static function missing(Project $project): bool
+    {
+        if (! $project->image) {
+            return true;
+        }
+
+        $releases = $project
+            ->releases()
+            ->withoutGlobalScopes()
+            ->whereNull('image')
+            ->exists();
+
+        return $releases || Song::query()
+            ->whereIn('project_track_id', $project->tracks()->select('id'))
+            ->whereNull('image')
+            ->exists();
     }
 }

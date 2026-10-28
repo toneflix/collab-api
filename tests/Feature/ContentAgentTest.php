@@ -533,6 +533,105 @@ class ContentAgentTest extends TestCase
         $this->assertSame(1, Artist::query()->where('user_id', $owner->id)->count());
     }
 
+    public function test_a_run_touches_up_existing_projects_before_releasing_them(): void
+    {
+        Storage::fake(config('filesystems.default'));
+        AiSettings::update(['ai_artwork_credits' => 3]);
+
+        $owner = $this->ownerWith(200);
+        $artist = Artist::factory()
+            ->create(['user_id' => $owner->id, 'name' => 'Ada Lumen']);
+        $project = Project::factory()
+            ->create(['user_id' => $owner->id, 'title' => 'Old Tapes', 'image' => null]);
+        $finished = Project::factory()
+            ->create(['user_id' => $owner->id, 'title' => 'Finished', 'image' => 'done.jpg']);
+        $tracks = ProjectTrack::factory()
+            ->count(2)
+            ->create(['project_id' => $project->id, 'genre_id' => $this->genre->id, 'artist_id' => $artist->id]);
+        $first = Release::factory()
+            ->create(['user_id' => $owner->id, 'project_id' => $project->id, 'artist_id' => $artist->id, 'genre_id' => $this->genre->id, 'image' => null]);
+        $stem = ProjectTrackStem::factory()
+            ->create(['track_id' => $tracks[0]->id, 'user_id' => $owner->id, 'title' => 'Vocals', 'src' => 'vocals.mp3']);
+        $tracks[0]
+            ->lyric()
+            ->create(['lines' => [['start' => null, 'end' => null, 'text' => 'Rewind the night']], 'text' => 'Rewind the night']);
+
+        $song = new Song;
+        $song
+            ->forceFill(['user_id' => $owner->id, 'title' => 'Old Tapes', 'body' => 'Rewind the night', 'project_track_id' => $tracks[0]->id])
+            ->save();
+
+        $this->answers[] = json_encode([
+            'artists' => [['key' => 'a1', 'name' => 'Ada Lumen', 'about' => '']],
+            'albums' => [],
+            'releases' => [['project' => "#{$project->id}", 'title' => 'Old Tapes', 'artist' => 'a1']],
+            'updates' => [
+                ['project' => "#{$project->id}", 'artwork' => true, 'lyrics' => true, 'cover' => 'Cassette tapes on a sunny windowsill'],
+                ['project' => 'Finished', 'artwork' => true, 'lyrics' => true],
+                ['project' => 'Not a project of theirs', 'artwork' => true],
+            ],
+            'songs' => [],
+        ]);
+
+        $run = $this->queueRun($owner, ['publish' => true]);
+        $run
+            ->forceFill(['prompt' => "Fill the artwork and sync the lyrics of #{$project->id}, then release it"])
+            ->save();
+        $run = $this->advance($run);
+
+        $this->assertStringContainsString("#{$project->id} \"Old Tapes\", 2 tracks", $this->asked[0]['prompt']);
+        $this->assertStringContainsString('missing artwork, 1 track with untimed lyrics', $this->asked[0]['prompt']);
+        $this->assertCount(1, $run->plan['updates']);
+        $this->assertSame([['id' => $tracks[0]->id, 'title' => $tracks[0]->title]], $run->plan['updates'][0]['lyrics']);
+
+        // The release waits for the touch-ups and takes their picture rather than drawing its own.
+        $release = $this->step($run, 'release:r1');
+        $this->assertContains('cover:u1', $release->depends_on);
+        $this->assertContains("lyrics:u1-{$tracks[0]->id}", $release->depends_on);
+        $this->assertSame('cover:u1', $release->input['artwork']);
+        $this->assertFalse($run->steps()->where('key', 'cover:r1')->exists());
+
+        $cover = AiJob::query()->findOrFail($this->step($run, 'cover:u1')->output['ai_job_id']);
+        $this->assertSame('Cassette tapes on a sunny windowsill', $cover->input['prompt']);
+        $sync = AiJob::query()->findOrFail($this->step($run, "lyrics:u1-{$tracks[0]->id}")->output['ai_job_id']);
+        $this->assertSame('sync', $sync->input['mode']);
+        $this->assertSame($stem->id, (int) $sync->input['stem_id']);
+
+        $file = "ai/artwork/{$cover->id}/1.jpg";
+
+        Storage::disk(config('filesystems.default'))
+            ->put($file, UploadedFile::fake()->image('art.jpg', 64, 64)->getContent());
+        $cover
+            ->forceFill(['status' => AiJob::SUCCEEDED, 'credits' => 3, 'output' => ['images' => [['file' => $file]]]])
+            ->save();
+        $sync
+            ->forceFill(['status' => AiJob::SUCCEEDED, 'credits' => 2, 'output' => ['lines' => 1]])
+            ->save();
+
+        foreach ($tracks as $track) {
+            $track->refresh();
+            $track->meta = [...collect($track->meta)->all(), 'mix' => ['status' => 'ready', 'id' => 'x']];
+            $track->saveQuietly();
+        }
+
+        $run = $this->advance($run);
+
+        $this->assertSame(AgentRun::SUCCEEDED, $run->status);
+        $this->assertNotNull($project->refresh()->image);
+        $this->assertNotNull($first->refresh()->image);
+        $this->assertNotNull($song->refresh()->image);
+        $this->assertSame('done.jpg', $finished->refresh()->image);
+
+        $made = Release::query()
+            ->withoutGlobalScopes()
+            ->findOrFail($this->step($run, 'release:r1')->output['release_id']);
+        $this->assertNotNull($made->image);
+        $this->assertTrue($this->step($run, "lyrics:u1-{$tracks[0]->id}")->output['synced']);
+
+        // Plan 2 + one picture at 3 + one timing at 2.
+        $this->assertSame(7, $run->credits);
+    }
+
     public function test_a_plan_the_owner_cannot_afford_fails_before_making_anything(): void
     {
         $owner = $this->ownerWith(20);

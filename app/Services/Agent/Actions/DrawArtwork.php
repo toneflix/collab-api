@@ -123,7 +123,8 @@ class DrawArtwork implements AgentAction
 
     /**
      * Put the image on the project, or on the artist when the run made the
-     * artist and it has no picture yet. A cover for an existing project's
+     * artist and it has no picture yet. A fill target puts it on whatever of
+     * an existing project has no picture. A cover for an existing project's
      * release waits for its release step.
      */
     protected function place(AgentStep $step, string $file): void
@@ -131,6 +132,14 @@ class DrawArtwork implements AgentAction
         $target = (string) ($step->input['target'] ?? '');
 
         if ($target === '') {
+            return;
+        }
+
+        if (str_starts_with($target, 'fill:')) {
+            $project = Project::query()->findOrFail((int) substr($target, 5));
+
+            $this->artwork->fill($project, $file);
+
             return;
         }
 
