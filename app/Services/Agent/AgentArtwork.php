@@ -4,10 +4,12 @@ namespace App\Services\Agent;
 
 use App\Models\Artist;
 use App\Models\Project;
+use App\Models\ProjectTrack;
 use App\Models\Release;
 use App\Models\Song;
 use App\Services\Ai\Artwork\ArtworkImages;
 use App\Services\Composer\SongArtwork;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Toneflix\LaravelFileable\Media;
 
@@ -80,23 +82,47 @@ class AgentArtwork
     }
 
     /**
+     * Put the image on a release with no project when it has no picture.
+     */
+    public function fillRelease(Release $release, string $file): void
+    {
+        if (! $release->image) {
+            $this->apply($release, $file);
+        }
+    }
+
+    /**
+     * Limit a project query to projects with anything missing a picture: the
+     * project, one of its releases or a song on one of its tracks.
+     */
+    public static function whereMissing(Builder $query): void
+    {
+        $query->where(fn(Builder $missing) => $missing
+            ->whereNull('projects.image')
+            ->orWhereIn(
+                'projects.id',
+                Release::query()
+                    ->withoutGlobalScopes()
+                    ->select('project_id')
+                    ->whereNotNull('project_id')
+                    ->whereNull('image'),
+            )
+            ->orWhereIn(
+                'projects.id',
+                ProjectTrack::query()
+                    ->select('project_id')
+                    ->whereHas('song', fn(Builder $song) => $song->whereNull('image')),
+            ));
+    }
+
+    /**
      * Whether any of an existing project is without a picture.
      */
     public static function missing(Project $project): bool
     {
-        if (! $project->image) {
-            return true;
-        }
-
-        $releases = $project
-            ->releases()
-            ->withoutGlobalScopes()
-            ->whereNull('image')
-            ->exists();
-
-        return $releases || Song::query()
-            ->whereIn('project_track_id', $project->tracks()->select('id'))
-            ->whereNull('image')
+        return Project::query()
+            ->whereKey($project->id)
+            ->tap(fn(Builder $query) => self::whereMissing($query))
             ->exists();
     }
 }

@@ -8,7 +8,7 @@ The agent builds for **agent accounts**, and for creators whose plan has the **C
 
 ### Agent accounts
 
- Admins with `manage-content` add and remove them under **Admin → Content agent → Agent accounts** (`PUT /api/admin/agent/accounts/{user}`), and each change is kept in the account's admin history.
+Admins with `manage-content` add and remove them under **Admin → Content agent → Agent accounts** (`PUT /api/admin/agent/accounts/{user}`), and each change is kept in the account's admin history.
 
 - Everything a run makes belongs to the agent account, and its AI credits pay for it. Give the account a plan with AI tools, enough projects and songs, and credits (Admin → Users).
 - Anyone signed in to an agent account sees **Content agent** in the sidebar (`/studio/agent`): the account's runs, and a form to queue new prompts for it.
@@ -34,7 +34,8 @@ An existing artist of the account is reused when the plan names it.
 - An album the instructions ask to keep as a project (or not to release) stops once its tracks are made and mixed. It stays a private studio project with no release.
 - The agent can also release the account's **existing projects**. The planner sees the account's latest 50 projects, the projects the prompt names by ID (`#12` or `12`) and up to 50 projects missing artwork, each as `#id "title"` with its track count, release state, whether it's missing artwork and how many tracks have untimed lyrics. The instructions name the project to release by title or ID. Its tracks (up to 30) are mixed, then released through the usual rules: the project owner releases it, an unfinished draft of the project is picked up first, and a published release goes through `ReleaseVersions::published` (frozen audio, release review when it's on). A project released before gets a version label, like "Deluxe", and the earlier live versions are retired when the plan says so.
 
-- **Touch-ups** ("updates" in the plan) fix existing projects named by title or ID, for example "fill in the artwork of #12 and #15" or "sync the lyrics on Old Tapes". Artwork draws one cover and puts it on whatever of the project has no picture: the project, its releases and the Composer songs on its tracks (released tracks show their release's or project's picture). Lyrics time each track's untimed sheet (up to 30 a project) to its audio: the vocal stem when there is one, else the latest. A project with nothing missing is left out. When the same run also releases the project, the release waits for the touch-ups and uses their cover instead of drawing another. Up to 20 projects a run.
+- **Touch-ups** ("updates" in the plan) fix existing projects named by title or ID, for example "fill in the artwork of #12 and #15" or "sync the lyrics on Old Tapes". Artwork draws one cover and puts it on whatever of the project has no picture: the project, its releases and the Composer songs on its tracks (released tracks show their release's or project's picture). Lyrics time each track's untimed sheet (up to 30 a project) to its audio: the vocal stem when there is one, else the latest. A project with nothing missing is left out. When the same run also releases the project, the release waits for the touch-ups and uses their cover instead of drawing another.
+- A **sweep** ("find and fix all missing artwork", or all untimed lyrics) needs no names: the planner sets `sweep.artwork` or `sweep.lyrics`, and the agent finds every project of the account with anything missing a picture (or with untimed lyrics), oldest first, plus albums released without a project that have no cover. Touch-ups named in the prompt and the sweep together are capped at 50 a run (`AgentPlanner::MAX_UPDATES`); run the prompt again for the rest.
 
 ## Costs
 

@@ -632,6 +632,66 @@ class ContentAgentTest extends TestCase
         $this->assertSame(7, $run->credits);
     }
 
+    public function test_a_sweep_fixes_everything_missing_artwork(): void
+    {
+        Storage::fake(config('filesystems.default'));
+        AiSettings::update(['ai_artwork_credits' => 3]);
+
+        $owner = $this->ownerWith(200);
+        $artist = Artist::factory()
+            ->create(['user_id' => $owner->id, 'name' => 'Ada Lumen']);
+        $bare = Project::factory()
+            ->create(['user_id' => $owner->id, 'title' => 'Bare', 'image' => null]);
+        $songless = Project::factory()
+            ->create(['user_id' => $owner->id, 'title' => 'Songless', 'image' => 'cover.jpg']);
+        $complete = Project::factory()
+            ->create(['user_id' => $owner->id, 'title' => 'Complete', 'image' => 'cover.jpg']);
+        $track = ProjectTrack::factory()
+            ->create(['project_id' => $songless->id, 'genre_id' => $this->genre->id, 'artist_id' => $artist->id]);
+        $album = Release::factory()
+            ->create(['user_id' => $owner->id, 'project_id' => null, 'artist_id' => $artist->id, 'genre_id' => $this->genre->id, 'image' => null]);
+        Release::factory()
+            ->create(['user_id' => $owner->id, 'project_id' => null, 'artist_id' => $artist->id, 'genre_id' => $this->genre->id, 'image' => 'art.jpg']);
+
+        $song = new Song;
+        $song
+            ->forceFill(['user_id' => $owner->id, 'title' => 'Songless', 'body' => 'La la', 'project_track_id' => $track->id])
+            ->save();
+
+        $this->answers[] = json_encode(['artists' => [], 'albums' => [], 'songs' => [], 'sweep' => ['artwork' => true]]);
+
+        $run = $this->advance($this->queueRun($owner));
+
+        $this->assertSame(
+            [[$bare->id, null], [$songless->id, null], [null, $album->id]],
+            array_map(fn(array $update) => [$update['project_id'], $update['release_id']], $run->plan['updates']),
+        );
+        $this->assertSame("fill:{$bare->id}", $this->step($run, 'cover:u1')->input['target']);
+        $this->assertSame("fill-release:{$album->id}", $this->step($run, 'cover:u3')->input['target']);
+
+        foreach (['cover:u1', 'cover:u2', 'cover:u3'] as $key) {
+            $run = $this->advance($run);
+            $job = AiJob::query()->findOrFail($this->step($run, $key)->output['ai_job_id']);
+            $file = "ai/artwork/{$job->id}/1.jpg";
+
+            Storage::disk(config('filesystems.default'))
+                ->put($file, UploadedFile::fake()->image('art.jpg', 64, 64)->getContent());
+            $job
+                ->forceFill(['status' => AiJob::SUCCEEDED, 'credits' => 3, 'output' => ['images' => [['file' => $file]]]])
+                ->save();
+        }
+
+        $run = $this->advance($run);
+
+        $this->assertSame(AgentRun::SUCCEEDED, $run->status);
+        $this->assertNotNull($bare->refresh()->image);
+        $this->assertSame('cover.jpg', $songless->refresh()->image);
+        $this->assertNotNull($song->refresh()->image);
+        $this->assertNotNull($album->refresh()->image);
+        $this->assertSame('cover.jpg', $complete->refresh()->image);
+        $this->assertSame(2 + 3 * 3, $run->credits);
+    }
+
     public function test_a_plan_the_owner_cannot_afford_fails_before_making_anything(): void
     {
         $owner = $this->ownerWith(20);

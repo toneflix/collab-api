@@ -6,6 +6,7 @@ use App\Enums\ArtworkKind;
 use App\Models\AgentRun;
 use App\Models\Genre;
 use App\Models\Project;
+use App\Models\User;
 use App\Services\Ai\AiSettings;
 use App\Services\Ai\Tasks\GenerateArtwork;
 use Illuminate\Database\Eloquent\Builder;
@@ -28,8 +29,8 @@ class AgentPlanner
     /** Most existing projects one run can release */
     public const MAX_RELEASES = 10;
 
-    /** Most existing projects one run can touch up */
-    public const MAX_UPDATES = 20;
+    /** Most existing projects and releases one run can touch up */
+    public const MAX_UPDATES = 50;
 
     /** Existing projects the plan can pick from, of each kind: latest, named by ID, missing artwork */
     public const PROJECT_CHOICES = 50;
@@ -65,7 +66,7 @@ class AgentPlanner
             4000,
         );
 
-        return $this->normalize($answer, $genres, $this->maxTracks($run), $projects);
+        return $this->normalize($answer, $genres, $this->maxTracks($run), $projects, $run->owner);
     }
 
     /**
@@ -225,9 +226,12 @@ class AgentPlanner
                     'artwork_kind' => ArtworkKind::RELEASE->value,
                     'prompt' => $update['cover'] ?: $update['description'] ?: $update['title'],
                     'artist' => $update['artist'],
-                    'target' => "fill:{$projectId}",
+                    'target' => $projectId ? "fill:{$projectId}" : "fill-release:{$update['release_id']}",
                 ]);
-                $covers[$projectId] = $upkeep[$projectId][] = "cover:{$key}";
+
+                if ($projectId) {
+                    $covers[$projectId] = $upkeep[$projectId][] = "cover:{$key}";
+                }
             }
 
             foreach ($update['lyrics'] as $track) {
@@ -411,6 +415,7 @@ class AgentPlanner
             'Albums are new studio projects. Set an album\'s "release" to false when the instructions ask only for projects, or not to release them.',
             '"releases" release the account\'s existing projects, named by "#id" or their exact title, only when the instructions ask for it. "version" labels a new version, like "Deluxe" or "Remastered", when the project was released before; set "retire" to true when the new version should replace the earlier ones.',
             '"updates" touch up the account\'s existing projects, named by "#id" or their exact title, only when the instructions ask for it: "artwork" draws a picture for a project and whatever of it has none, "lyrics" times its untimed lyrics to the audio. "cover" describes the picture. A project both updated and released gets the update first.',
+            'When the instructions ask to find and fix everything missing artwork (all projects, albums or tracks), set "sweep" "artwork" to true; for all untimed lyrics, set "sweep" "lyrics" to true. The sweep finds them itself, so don\'t list them in "updates" too.',
             'Each album has a "cover": one sentence describing its cover image, and each artist a "look": one sentence describing their profile picture. Describe scenes, colours and style, never text or real people.',
             'Keep every name and title short and plain, with no quotes or emoji.',
             'Answer with JSON only, no other text, in this shape:',
@@ -418,6 +423,7 @@ class AgentPlanner
                 . ' "albums": [{"key": "al1", "title": "", "artist": "a1", "genre": "", "description": "", "cover": "", "release": true, "tracks": [{"title": "", "style": "", "theme": "", "mood": "", "instrumental": false}]}],'
                 . ' "releases": [{"project": "#id or existing project title", "title": "", "version": "", "artist": "a1", "genre": "", "description": "", "cover": "", "retire": false}],'
                 . ' "updates": [{"project": "#id or existing project title", "artwork": true, "lyrics": true, "cover": ""}],'
+                . ' "sweep": {"artwork": false, "lyrics": false},'
                 . ' "songs": [{"title": "", "theme": "", "style": "", "mood": ""}]}',
         ]);
     }
@@ -484,7 +490,7 @@ class AgentPlanner
      * @param  Collection<int, Project>  $projects
      * @return array{artists: list<array<string, mixed>>, albums: list<array<string, mixed>>, releases: list<array<string, mixed>>, updates: list<array<string, mixed>>, songs: list<array<string, mixed>>}
      */
-    protected function normalize(array $answer, Collection $genres, int $maxTracks, Collection $projects): array
+    protected function normalize(array $answer, Collection $genres, int $maxTracks, Collection $projects, User $owner): array
     {
         $byName = $genres->mapWithKeys(fn(string $name, int|string $id) => [mb_strtolower($name) => $id]);
         $fallbackGenre = $genres
@@ -573,7 +579,7 @@ class AgentPlanner
             ->all();
 
         $releases = $this->releases($answer, $projects, $artistKey, $byName);
-        $updates = $this->updates($answer, $projects);
+        $updates = $this->sweep($answer, $owner, $this->updates($answer, $projects));
 
         if ($albums === [] && $songs === [] && $releases === [] && $updates === []) {
             throw new RuntimeException('The plan had no albums, releases, updates, tracks or songs.');
@@ -667,35 +673,134 @@ class AgentPlanner
                 continue;
             }
 
-            $artwork = $draws && ! empty($update['artwork']) && AgentArtwork::missing($project);
+            $touchUp = $this->touchUp(
+                $project,
+                $draws && ! empty($update['artwork']),
+                ! empty($update['lyrics']),
+                $this->text($update['cover'] ?? null, 400),
+                'u' . (count($updates) + 1),
+            );
 
-            $lyrics = empty($update['lyrics']) ? [] : $project
-                ->tracks()
-                ->whereHas('lyric', fn(Builder $lyric) => $lyric->whereNull('lines->0->start'))
-                ->oldest('id')
-                ->limit(self::MAX_TRACKS)
-                ->get(['id', 'title'])
-                ->map(fn($track) => ['id' => $track->id, 'title' => (string) $track->title])
-                ->all();
-
-            if (! $artwork && $lyrics === []) {
-                continue;
+            if ($touchUp) {
+                $updates[] = $touchUp;
             }
+        }
 
+        return $updates;
+    }
+
+    /**
+     * Add every project of the owner with missing artwork or untimed lyrics,
+     * and every release of theirs with no project and no picture, when the
+     * plan sweeps for them, up to MAX_UPDATES touch-ups in all.
+     *
+     * @param  array<string, mixed>  $answer
+     * @param  list<array<string, mixed>>  $updates
+     * @return list<array<string, mixed>>
+     */
+    protected function sweep(array $answer, User $owner, array $updates): array
+    {
+        $sweep = is_array($answer['sweep'] ?? null) ? $answer['sweep'] : [];
+        $artwork = ! empty($sweep['artwork']) && self::drawsArtwork();
+        $lyrics = ! empty($sweep['lyrics']);
+        $left = self::MAX_UPDATES - count($updates);
+
+        if ((! $artwork && ! $lyrics) || $left <= 0) {
+            return $updates;
+        }
+
+        $projects = $owner
+            ->projects()
+            ->with('release.artist')
+            ->whereNotIn('id', array_filter(array_column($updates, 'project_id')))
+            ->where(fn(Builder $query) => $query
+                ->when($artwork, fn(Builder $missing) => $missing->orWhere(fn(Builder $q) => AgentArtwork::whereMissing($q)))
+                ->when($lyrics, fn(Builder $untimed) => $untimed->orWhereHas('tracks', fn(Builder $track) => $track->whereHas(
+                    'lyric',
+                    fn(Builder $lyric) => $lyric->whereNull('lines->0->start'),
+                ))))
+            ->oldest('id')
+            ->limit($left)
+            ->get();
+
+        foreach ($projects as $project) {
+            $touchUp = $this->touchUp($project, $artwork, $lyrics, '', 'u' . (count($updates) + 1));
+
+            if ($touchUp) {
+                $updates[] = $touchUp;
+            }
+        }
+
+        $left = self::MAX_UPDATES - count($updates);
+
+        if (! $artwork || $left <= 0) {
+            return $updates;
+        }
+
+        $releases = $owner
+            ->releases()
+            ->withoutGlobalScopes()
+            ->with('artist')
+            ->whereNull('project_id')
+            ->whereNull('image')
+            ->oldest('id')
+            ->limit($left)
+            ->get();
+
+        foreach ($releases as $release) {
             $updates[] = [
                 'key' => 'u' . (count($updates) + 1),
-                'project_id' => $project->id,
-                'project' => $project->title,
-                'title' => $project->release?->title ?: $project->title,
-                'artist' => $project->release?->artist?->name,
-                'description' => (string) $project->description,
-                'cover' => $this->text($update['cover'] ?? null, 400),
-                'artwork' => $artwork,
-                'lyrics' => $lyrics,
+                'project_id' => null,
+                'release_id' => $release->id,
+                'project' => $release->title,
+                'title' => $release->title,
+                'artist' => $release->artist?->name,
+                'description' => (string) $release->description,
+                'cover' => '',
+                'artwork' => true,
+                'lyrics' => [],
             ];
         }
 
         return $updates;
+    }
+
+    /**
+     * What one project needs: a picture when anything of it has none and
+     * artwork is asked for, and timings for its untimed lyrics when lyrics
+     * are. Null when it needs nothing.
+     *
+     * @return array<string, mixed>|null
+     */
+    protected function touchUp(Project $project, bool $artwork, bool $lyrics, string $cover, string $key): ?array
+    {
+        $artwork = $artwork && AgentArtwork::missing($project);
+
+        $tracks = ! $lyrics ? [] : $project
+            ->tracks()
+            ->whereHas('lyric', fn(Builder $lyric) => $lyric->whereNull('lines->0->start'))
+            ->oldest('id')
+            ->limit(self::MAX_TRACKS)
+            ->get(['id', 'title'])
+            ->map(fn($track) => ['id' => $track->id, 'title' => (string) $track->title])
+            ->all();
+
+        if (! $artwork && $tracks === []) {
+            return null;
+        }
+
+        return [
+            'key' => $key,
+            'project_id' => $project->id,
+            'release_id' => null,
+            'project' => $project->title,
+            'title' => $project->release?->title ?: $project->title,
+            'artist' => $project->release?->artist?->name,
+            'description' => (string) $project->description,
+            'cover' => $cover,
+            'artwork' => $artwork,
+            'lyrics' => $tracks,
+        ];
     }
 
     /**

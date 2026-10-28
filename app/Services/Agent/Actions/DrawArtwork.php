@@ -6,6 +6,7 @@ use App\Models\AgentStep;
 use App\Models\AiJob;
 use App\Models\Artist;
 use App\Models\Project;
+use App\Models\Release;
 use App\Services\Agent\AgentArtwork;
 use App\Services\Ai\AiStudio;
 use App\Services\Ai\Tasks\GenerateArtwork;
@@ -124,7 +125,7 @@ class DrawArtwork implements AgentAction
     /**
      * Put the image on the project, or on the artist when the run made the
      * artist and it has no picture yet. A fill target puts it on whatever of
-     * an existing project has no picture. A cover for an existing project's
+     * an existing project, or a release with no project, has no picture. A cover for an existing project's
      * release waits for its release step.
      */
     protected function place(AgentStep $step, string $file): void
@@ -132,6 +133,16 @@ class DrawArtwork implements AgentAction
         $target = (string) ($step->input['target'] ?? '');
 
         if ($target === '') {
+            return;
+        }
+
+        if (str_starts_with($target, 'fill-release:')) {
+            $release = Release::query()
+                ->withoutGlobalScopes()
+                ->findOrFail((int) substr($target, 13));
+
+            $this->artwork->fillRelease($release, $file);
+
             return;
         }
 
