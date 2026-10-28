@@ -20,7 +20,7 @@ class CreateProject implements AgentAction
             ->create([
                 'title' => $step->input['title'],
                 'description' => $step->input['description'] ?: null,
-                'privacy' => 'private',
+                'privacy' => $step->run->option('project_privacy', 'private'),
             ]);
 
         $step->remember(['project_id' => $project->id]);

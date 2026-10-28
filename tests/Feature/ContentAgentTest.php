@@ -458,7 +458,7 @@ class ContentAgentTest extends TestCase
             'tracks' => [['title' => 'Idea One', 'style' => 'Ambient guitar', 'instrumental' => true]],
         ]]]);
 
-        $run = $this->advance($this->queueRun($owner));
+        $run = $this->advance($this->queueRun($owner, ['project_privacy' => 'public_preview']));
 
         $this->assertFalse($run->plan['albums'][0]['release']);
         $this->assertFalse($run->steps()->where('kind', 'release')->exists());
@@ -477,6 +477,7 @@ class ContentAgentTest extends TestCase
 
         $this->assertSame(AgentRun::SUCCEEDED, $run->status);
         $this->assertSame('Sketches', $track->project->title);
+        $this->assertSame('public_preview', $track->project->privacy);
         $this->assertFalse(Release::query()->withoutGlobalScopes()->where('user_id', $owner->id)->exists());
     }
 
@@ -993,7 +994,12 @@ class ContentAgentTest extends TestCase
 
         $created = $this->postJson('/api/creator/agent/runs', ['prompt' => 'Make me a lofi beat tape please', 'owner_id' => $other->id])
             ->assertCreated()
-            ->assertJsonPath('data.owner.id', $owner->id);
+            ->assertJsonPath('data.owner.id', $owner->id)
+            ->assertJsonPath('data.options.projectPrivacy', 'private');
+
+        $this->postJson('/api/creator/agent/runs', ['prompt' => 'Make me a lofi beat tape please', 'project_privacy' => 'everyone'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('project_privacy');
 
         $this->getJson('/api/creator/agent/runs')
             ->assertOk()
