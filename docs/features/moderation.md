@@ -4,7 +4,7 @@ Moderation covers reports from people, copied-audio matches and lyrics found aut
 
 ## Reports
 
-Anyone signed in can report a release, track, sound or comment from its menu. Reports are stored in the `safeties` table with `type = report` and wait in the admin queue at `/admin/moderation` (needs `manage-content`, created by `php artisan app:sync-roles`).
+Anyone signed in can report a release, track, composition, project, sound or comment from its menu. Reports are stored in the `safeties` table with `type = report` and wait in the admin queue at `/admin/moderation` (needs `manage-content`, created by `php artisan app:sync-roles`).
 
 From the queue an admin can:
 
@@ -16,7 +16,7 @@ From the queue an admin can:
 
 Taken-down content is hidden from everyone except its owner. Owners see a banner on it and a list at `/studio/takedowns`, and can appeal each takedown once. Admins **restore** the content or **uphold** the takedown. Owners are notified at each step.
 
-Takedowns are in the `takedowns` table. In code, models that can be taken down use the `TakesDown` trait, which adds a `taken_down_at` column and the `HideTakenDown` global scope. It is used on `Release`, `Track`, `Sound` and `Comment`.
+Takedowns are in the `takedowns` table. In code, models that can be taken down use the `TakesDown` trait, which adds a `taken_down_at` column and the `HideTakenDown` global scope. It is used on `Release`, `Track`, `Song`, `Project`, `Sound` and `Comment`. A taken-down project is hidden from its collaborators too.
 
 ## Copied-audio detection
 

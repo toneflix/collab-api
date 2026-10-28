@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Artist;
 use App\Models\Genre;
+use App\Models\Project;
 use App\Models\Release;
 use App\Models\Safety;
 use App\Models\Takedown;
@@ -230,6 +231,38 @@ class ModerationTest extends TestCase
             ->getJson("/api/releases/{$this->release->id}")
             ->assertOk()
             ->assertJsonPath('data.takenDown', true);
+    }
+
+    public function test_projects_can_be_reported_and_taken_down(): void
+    {
+        $project = Project::query()
+            ->forceCreate([
+                'user_id' => $this->owner->id,
+                'title' => 'Late Night Session',
+                'privacy' => 'public',
+            ]);
+
+        $this
+            ->report('project', $project->id, ['reason' => 'spam'])
+            ->assertCreated();
+
+        Sanctum::actingAs($this->moderator);
+        $this
+            ->postJson("/api/admin/moderation/items/project/{$project->id}/takedown", ['reason' => 'spam'])
+            ->assertCreated();
+
+        $this->assertNotNull($project->fresh()->taken_down_at);
+        Notification::assertSentTo($this->owner, ModerationNotice::class);
+
+        $this->app['auth']->forgetGuards();
+        $this
+            ->getJson("/api/projects/{$project->slug}")
+            ->assertNotFound();
+
+        Sanctum::actingAs($this->owner);
+        $this
+            ->getJson("/api/projects/{$project->slug}")
+            ->assertOk();
     }
 
     public function test_owners_can_appeal_once_and_moderators_can_restore(): void

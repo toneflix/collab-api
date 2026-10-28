@@ -19,7 +19,7 @@ class FindContent extends ContentTool
 
     public function description(): string
     {
-        return 'Search releases (albums), tracks, songs (compositions), sounds, comments and users by title, name, text or id, taken down content included. Give a type to page through one kind, 10 a page; without one you get the top 3 of each kind.';
+        return 'Search releases (albums), tracks, songs (compositions), projects, sounds, comments and users by title, name, text or id, taken down content included. Give a type to page through one kind, 10 a page; without one you get the top 3 of each kind.';
     }
 
     public function input(): array
