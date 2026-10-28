@@ -38,7 +38,7 @@ class Channels
             $track = ProjectTrack::with('project')
                 ->find($id);
 
-            return $track && static::canView($user, $track);
+            return $track && Gate::forUser($user)->allows('open', $track);
         });
 
         // Comments on a project, project track, track or release.

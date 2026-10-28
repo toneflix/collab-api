@@ -30,6 +30,24 @@ class ProjectTrackPolicy
             : Response::denyAsNotFound('This track is private.');
     }
 
+    /**
+     * Whether the user can open the track in the studio, with its stems,
+     * assets and live edits: its people, or anyone who can see the track of
+     * a public project. Public preview projects only play their mixes.
+     */
+    public function open(?User $user, ProjectTrack $track): Response
+    {
+        $view = $this->view($user, $track);
+
+        if ($view->denied()) {
+            return $view;
+        }
+
+        return $track->project->opensStudioTo($user)
+            ? Response::allow()
+            : Response::deny('This project only shares previews of its tracks.');
+    }
+
     public function update(User $user, ProjectTrack $track): Response
     {
         return $this->editable($user, $track);

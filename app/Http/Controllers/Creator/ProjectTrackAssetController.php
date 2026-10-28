@@ -20,7 +20,7 @@ class ProjectTrackAssetController extends Controller
      */
     public function index(Request $request, Project $project, ProjectTrack $track)
     {
-        $this->authorize('view', $track);
+        $this->authorize('open', $track);
 
         $query = $track
             ->assets()
@@ -71,7 +71,7 @@ class ProjectTrackAssetController extends Controller
      */
     public function show(Project $project, ProjectTrack $track, File $asset)
     {
-        $this->authorize('view', $track);
+        $this->authorize('open', $track);
 
         return (new FileResource($asset))
             ->additional([

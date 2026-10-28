@@ -27,7 +27,7 @@ class ProjectTrackStemController extends Controller
      */
     public function index(Request $request, Project $project, ProjectTrack $track)
     {
-        $this->authorize('view', $track);
+        $this->authorize('open', $track);
 
         $query = $track
             ->stems()
@@ -158,7 +158,7 @@ class ProjectTrackStemController extends Controller
      */
     public function show(Project $project, ProjectTrack $track, ProjectTrackStem $stem)
     {
-        $this->authorize('view', $track);
+        $this->authorize('open', $track);
 
         return (new ProjectTrackStemResource($stem))
             ->additional([
