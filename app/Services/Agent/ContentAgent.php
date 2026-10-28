@@ -222,7 +222,7 @@ class ContentAgent
     /**
      * Stop a plan the owner hasn't the credits, projects or songs left for.
      *
-     * @param  array{artists: list<array<string, mixed>>, albums: list<array<string, mixed>>, songs: list<array<string, mixed>>}  $plan
+     * @param  array{artists: list<array<string, mixed>>, albums: list<array<string, mixed>>, releases: list<array<string, mixed>>, songs: list<array<string, mixed>>}  $plan
      */
     protected function ensureFits(AgentRun $run, array $plan): void
     {

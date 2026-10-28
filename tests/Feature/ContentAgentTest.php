@@ -418,6 +418,95 @@ class ContentAgentTest extends TestCase
         $this->assertNull($this->step($run, 'cover:al1')->output['file']);
     }
 
+    public function test_albums_can_stay_studio_projects(): void
+    {
+        $owner = $this->ownerWith(200);
+        $this->answers[] = $this->plan(['songs' => [], 'albums' => [[
+            'key' => 'al1',
+            'title' => 'Sketches',
+            'artist' => 'a1',
+            'genre' => $this->genre->title,
+            'release' => false,
+            'tracks' => [['title' => 'Idea One', 'style' => 'Ambient guitar', 'instrumental' => true]],
+        ]]]);
+
+        $run = $this->advance($this->queueRun($owner));
+
+        $this->assertFalse($run->plan['albums'][0]['release']);
+        $this->assertFalse($run->steps()->where('kind', 'release')->exists());
+
+        $job = AiJob::query()->findOrFail($this->step($run, 'music:t1')->output['ai_job_id']);
+        $job
+            ->forceFill(['status' => AiJob::SUCCEEDED, 'output' => ['stems' => [1]]])
+            ->save();
+
+        $run = $this->advance($run);
+        $track = ProjectTrack::query()->findOrFail($this->step($run, 'track:t1')->output['project_track_id']);
+        $track->meta = [...collect($track->meta)->all(), 'mix' => ['status' => 'ready', 'id' => 'x']];
+        $track->saveQuietly();
+
+        $run = $this->advance($run);
+
+        $this->assertSame(AgentRun::SUCCEEDED, $run->status);
+        $this->assertSame('Sketches', $track->project->title);
+        $this->assertFalse(Release::query()->withoutGlobalScopes()->where('user_id', $owner->id)->exists());
+    }
+
+    public function test_a_run_releases_an_existing_project_as_a_new_version(): void
+    {
+        $owner = $this->ownerWith(200);
+        $artist = Artist::factory()
+            ->create(['user_id' => $owner->id, 'name' => 'Ada Lumen']);
+        $project = Project::factory()
+            ->create(['user_id' => $owner->id, 'title' => 'Old Tapes']);
+        $tracks = ProjectTrack::factory()
+            ->count(2)
+            ->create(['project_id' => $project->id, 'genre_id' => $this->genre->id, 'artist_id' => $artist->id]);
+        $first = Release::factory()
+            ->create(['user_id' => $owner->id, 'project_id' => $project->id, 'artist_id' => $artist->id, 'genre_id' => $this->genre->id]);
+        $this->answers[] = json_encode([
+            'artists' => [['key' => 'a1', 'name' => 'Ada Lumen', 'about' => '']],
+            'albums' => [],
+            'releases' => [
+                ['project' => 'old tapes', 'title' => 'Old Tapes', 'version' => 'Deluxe', 'artist' => 'a1', 'genre' => $this->genre->title, 'retire' => true],
+                ['project' => 'Not a project of theirs', 'title' => 'Nope', 'artist' => 'a1'],
+            ],
+            'songs' => [],
+        ]);
+
+        $run = $this->advance($this->queueRun($owner, ['publish' => true]));
+
+        $this->assertStringContainsString('"Old Tapes", 2 tracks, released by Ada Lumen', $this->asked[0]['prompt']);
+        $this->assertCount(1, $run->plan['releases']);
+        $this->assertSame($project->id, $run->plan['releases'][0]['project_id']);
+        $this->assertSame(AgentStep::WAITING, $this->step($run, "mix:r1-{$tracks[0]->id}")->status);
+        Queue::assertPushed(RenderMix::class, 2);
+
+        foreach ($tracks as $track) {
+            $track->refresh();
+            $track->meta = [...collect($track->meta)->all(), 'mix' => ['status' => 'ready', 'id' => 'x']];
+            $track->saveQuietly();
+        }
+
+        $run = $this->advance($run);
+
+        $this->assertSame(AgentRun::SUCCEEDED, $run->status);
+
+        $release = Release::query()
+            ->withoutGlobalScopes()
+            ->findOrFail($this->step($run, 'release:r1')->output['release_id']);
+        $this->assertSame('Deluxe', $release->version);
+        $this->assertFalse($release->draft);
+        $this->assertSame($project->id, (int) $release->project_id);
+        $this->assertSame($artist->id, (int) $release->artist_id);
+        $this->assertSame(
+            $tracks->pluck('id')->all(),
+            $release->tracks()->orderBy('project_track_id')->pluck('project_track_id')->map(fn($id) => (int) $id)->all(),
+        );
+        $this->assertNotNull($first->refresh()->retired_at);
+        $this->assertSame(1, Artist::query()->where('user_id', $owner->id)->count());
+    }
+
     public function test_a_plan_the_owner_cannot_afford_fails_before_making_anything(): void
     {
         $owner = $this->ownerWith(20);
