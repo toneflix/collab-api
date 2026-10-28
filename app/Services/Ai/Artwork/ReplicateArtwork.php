@@ -46,7 +46,7 @@ class ReplicateArtwork implements ArtworkModel
         $urls = array_values(array_filter((array) $prediction['output'], fn($url) => ReplicateClient::isFile($url)));
 
         if (! $urls) {
-            throw new ReplicateException('The model returned no images.');
+            throw new ReplicateException('No image came back. The safety filter may have blocked the prompt.');
         }
 
         return array_map(fn(string $url) => $client->download($url), $urls);

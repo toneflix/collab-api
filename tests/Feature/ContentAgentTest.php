@@ -19,6 +19,7 @@ use App\Models\ProjectTrack;
 use App\Models\Release;
 use App\Models\Song;
 use App\Models\User;
+use App\Services\Agent\Actions\DrawArtwork;
 use App\Services\Agent\ContentAgent;
 use App\Services\Ai\AiSettings;
 use App\Services\Ai\Credits;
@@ -405,14 +406,23 @@ class ContentAgentTest extends TestCase
         $this->answers[] = $this->plan(['songs' => []]);
 
         $run = $this->advance($this->queueRun($owner, ['artwork' => true]));
+        $prompts = [];
 
-        $cover = AiJob::query()->findOrFail($this->step($run, 'cover:al1')->output['ai_job_id']);
-        $cover
-            ->forceFill(['status' => AiJob::FAILED, 'failure' => 'HTTP 500: boom'])
-            ->save();
+        // Each failed attempt starts another job with a gentler prompt, until the last.
+        foreach (range(1, DrawArtwork::ATTEMPTS) as $attempt) {
+            $cover = AiJob::query()->findOrFail($this->step($run, 'cover:al1')->output['ai_job_id']);
+            $prompts[] = $cover->input['prompt'];
+            $cover
+                ->forceFill(['status' => AiJob::FAILED, 'failure' => 'No image came back.'])
+                ->save();
 
-        $run = $this->advance($run);
+            $this->assertSame($attempt, $this->step($run, 'cover:al1')->output['attempts']);
 
+            $run = $this->advance($run);
+        }
+
+        $this->assertCount(DrawArtwork::ATTEMPTS, array_unique($prompts));
+        $this->assertStringStartsWith('Abstract', $prompts[1]);
         $this->assertSame(AgentRun::RUNNING, $run->status);
         $this->assertSame(AgentStep::DONE, $this->step($run, 'cover:al1')->status);
         $this->assertNull($this->step($run, 'cover:al1')->output['file']);
