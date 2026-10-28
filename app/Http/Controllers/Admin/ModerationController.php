@@ -46,7 +46,7 @@ class ModerationController extends Controller
 
         $this->middleware(function (Request $request, Closure $next) {
             abort_unless(
-                $request->user()?->checkPermissionTo('manage-content'),
+                Moderation::allows($request->user()),
                 HttpStatus::FORBIDDEN->value,
                 'You do not have permission to moderate content.'
             );

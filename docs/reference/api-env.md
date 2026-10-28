@@ -153,6 +153,7 @@ See [Payment providers](../guide/payments) for webhooks and dashboard settings.
 | `REPLICATE_STEMS_TIMEOUT` | `1200` | Longest wait for a Demucs split, in seconds. Covers Replicate's queue and cold boots. |
 | `REPLICATE_LYRICS_MODEL` | `openai/whisper` | Model for lyrics transcription. |
 | `REPLICATE_MODERATOR_MODEL` | `anthropic/claude-4.5-haiku` | Model behind the AI moderator. A larger Claude model judges harder cases better at a higher cost per review. |
+| `REPLICATE_ASSISTANT_MODEL` | `anthropic/claude-4.5-sonnet` | Model behind the admin assistant. |
 | `REPLICATE_COMPOSER_MODEL` | `anthropic/claude-4.5-haiku` | Model that suggests lyrics in Composer, until an admin picks one on `/admin/ai`. |
 | `REPLICATE_ARTWORK_MODEL` | `black-forest-labs/flux-schnell` | Image model that draws AI artwork. It must take `aspect_ratio` and `num_outputs`. |
 | `REPLICATE_TIMEOUT` | `600` | Seconds to wait for one prediction. |
@@ -168,6 +169,7 @@ See [Payment providers](../guide/payments) for webhooks and dashboard settings.
 | `CLOUDFLARE_COMPOSER_MODEL` | `anthropic/claude-haiku-4.5` | Composer's writing model on Workers AI, until an admin picks one on `/admin/ai`. |
 | `CLOUDFLARE_ARTWORK_MODEL` | `@cf/black-forest-labs/flux-1-schnell` | Image model that draws AI artwork on Workers AI. It must answer with a base64 `image`. |
 | `CLOUDFLARE_MODERATOR_MODEL` | `anthropic/claude-haiku-4.5` | AI moderator model on Workers AI. It must read images. |
+| `CLOUDFLARE_ASSISTANT_MODEL` | `anthropic/claude-haiku-4.5` | Admin assistant model on Workers AI. |
 
 ## Notifications
 

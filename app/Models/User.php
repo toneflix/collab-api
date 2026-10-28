@@ -239,8 +239,6 @@ class User extends Authenticatable implements Commentator, Reportable
 
     /**
      * Get the user's fullname.
-     *
-     * @return Attribute
      */
     protected function fullname(): Attribute
     {
@@ -281,6 +279,14 @@ class User extends Authenticatable implements Commentator, Reportable
             ->where(fn(Builder $q) => $q->whereNull('suspended_until')->orWhere('suspended_until', '>', now()));
 
         $suspended ? $query->where($active) : $query->whereNot($active);
+    }
+
+    /**
+     * The admin's chats with the admin assistant.
+     */
+    public function assistantChats(): HasMany
+    {
+        return $this->hasMany(AssistantChat::class);
     }
 
     /**

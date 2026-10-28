@@ -69,6 +69,31 @@ class Reportables
     }
 
     /**
+     * Content of one kind whose text matches the search, taken down and
+     * hidden content included, newest first.
+     *
+     * @return Builder<Model>
+     */
+    public function search(string $type, string $search): Builder
+    {
+        $class = self::TYPES[$type];
+        $model = new $class;
+
+        return $class::query()
+            ->withoutGlobalScopes()
+            ->where(function (Builder $q) use ($type, $model, $search) {
+                foreach (self::SEARCH_COLUMNS[$type] as $column) {
+                    $q->orWhereLike($model->qualifyColumn($column), "%{$search}%");
+                }
+
+                if (ctype_digit($search)) {
+                    $q->orWhere($model->getQualifiedKeyName(), (int) $search);
+                }
+            })
+            ->latest($model->getQualifiedKeyName());
+    }
+
+    /**
      * @return array<int, string>
      */
     public function names(): array

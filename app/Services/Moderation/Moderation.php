@@ -25,7 +25,15 @@ use Illuminate\Validation\ValidationException;
  */
 class Moderation
 {
+    /** The permission every moderation screen and action needs */
+    public const PERMISSION = 'manage-content';
+
     public function __construct(protected Reportables $reportables) {}
+
+    public static function allows(?User $user): bool
+    {
+        return (bool) $user?->checkPermissionTo(self::PERMISSION);
+    }
 
     /**
      * File or update someone's report about some content.

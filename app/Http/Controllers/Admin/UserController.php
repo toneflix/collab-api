@@ -71,18 +71,7 @@ class UserController extends Controller
     {
         $this->manager->authorize($request->user(), 'update', $managedUser);
 
-        $data = $request->validate([
-            'firstname' => ['sometimes', 'required', 'string', 'max:100'],
-            'lastname' => ['sometimes', 'nullable', 'string', 'max:100'],
-            'username' => ['sometimes', 'required', 'string', 'max:50', 'alpha_dash', Rule::unique('users', 'username')->ignore($managedUser->id)],
-            'email' => ['sometimes', 'required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($managedUser->id)],
-            'phone' => ['sometimes', 'nullable', 'string', 'max:30', Rule::unique('users', 'phone')->ignore($managedUser->id)],
-            'about' => ['sometimes', 'nullable', 'string', 'max:1000'],
-            'country' => ['sometimes', 'nullable', 'string', 'max:100'],
-            'state' => ['sometimes', 'nullable', 'string', 'max:100'],
-            'city' => ['sometimes', 'nullable', 'string', 'max:100'],
-            'address' => ['sometimes', 'nullable', 'string', 'max:255'],
-        ]);
+        $data = $request->validate($this->manager->profileRules($managedUser));
 
         $this->manager->update($request->user(), $managedUser, $data);
 
