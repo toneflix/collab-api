@@ -19,6 +19,7 @@ use App\Models\ProjectTrack;
 use App\Models\ProjectTrackStem;
 use App\Models\Release;
 use App\Models\Song;
+use App\Models\Track;
 use App\Models\User;
 use App\Services\Agent\Actions\DrawArtwork;
 use App\Services\Agent\AgentPlanner;
@@ -727,6 +728,57 @@ class ContentAgentTest extends TestCase
         $this->advance($this->queueRun($owner));
 
         $this->assertStringNotContainsString('search terms', $this->asked[0]['system']);
+    }
+
+    public function test_touch_ups_find_albums_and_tracks_by_title(): void
+    {
+        $owner = $this->ownerWith(200);
+        $artist = Artist::factory()
+            ->create(['user_id' => $owner->id, 'name' => 'Velora']);
+        $project = Project::factory()
+            ->create(['user_id' => $owner->id, 'title' => 'Night Box', 'image' => null]);
+        ProjectTrack::factory()
+            ->create(['project_id' => $project->id, 'genre_id' => $this->genre->id, 'artist_id' => $artist->id, 'title' => 'Fracture']);
+        $album = Release::factory()
+            ->has(Track::factory()->state(['genre_id' => $this->genre->id, 'audio' => null, 'title' => 'Empty Room']), 'tracks')
+            ->create(['user_id' => $owner->id, 'project_id' => null, 'artist_id' => $artist->id, 'genre_id' => $this->genre->id, 'image' => null]);
+
+        $this->answers[] = json_encode([
+            'artists' => [],
+            'albums' => [],
+            'songs' => [],
+            'updates' => [
+                ['project' => 'Fracture', 'artwork' => true],
+                ['project' => 'empty room', 'artwork' => true],
+                ['project' => 'Not on the account', 'artwork' => true],
+            ],
+        ]);
+
+        $run = $this->advance($this->queueRun($owner));
+
+        $this->assertStringContainsString('the exact title of a project, album or track', $this->asked[0]['system']);
+        $this->assertSame(
+            [[$project->id, null], [null, $album->id]],
+            array_map(fn(array $update) => [$update['project_id'], $update['release_id']], $run->plan['updates']),
+        );
+        $this->assertSame("fill:{$project->id}", $this->step($run, 'cover:u1')->input['target']);
+        $this->assertSame("fill-release:{$album->id}", $this->step($run, 'cover:u2')->input['target']);
+    }
+
+    public function test_touch_ups_with_nothing_to_do_say_so(): void
+    {
+        $owner = $this->ownerWith(200);
+        $this->answers[] = json_encode([
+            'artists' => [],
+            'albums' => [],
+            'songs' => [],
+            'updates' => [['project' => 'Fracture', 'artwork' => true], ['project' => 'Empty Room', 'artwork' => true]],
+        ]);
+
+        $run = $this->advance($this->queueRun($owner));
+
+        $this->assertSame(AgentRun::FAILED, $run->status);
+        $this->assertStringContainsString('"Fracture" and "Empty Room" weren\'t found on the account', $run->error);
     }
 
     public function test_a_plan_the_owner_cannot_afford_fails_before_making_anything(): void
