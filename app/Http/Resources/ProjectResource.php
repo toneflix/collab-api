@@ -55,6 +55,7 @@ class ProjectResource extends JsonResource
             'proped' => $interaction['proped'] ?? false,
             'privacy' => $this->privacy,
             // Whether the viewer can open the studio, read-only unless they work on the project.
+            'tracksPublic' => $this->tracks_public,
             'opensStudio' => $this->opensStudioTo($user),
             'userId' => $this->user_id,
             'released' => $this->released,

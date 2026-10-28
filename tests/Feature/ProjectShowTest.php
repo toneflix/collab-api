@@ -94,4 +94,26 @@ class ProjectShowTest extends TestCase
             ->assertOk()
             ->assertJsonCount(ProjectResource::LIST_LIMIT, 'data.tracks');
     }
+
+    public function test_the_owner_can_make_every_track_public(): void
+    {
+        Sanctum::actingAs($this->owner);
+
+        $this->postJson('/api/creator/projects', ['title' => 'Fresh'])
+            ->assertCreated()
+            ->assertJsonPath('data.tracksPublic', false);
+        $this->putJson("/api/creator/projects/{$this->project->id}", [
+            'title' => 'Show test',
+            'privacy' => 'public',
+            'tracks_public' => true,
+        ])
+            ->assertAccepted()
+            ->assertJsonPath('data.tracksPublic', true);
+
+        Sanctum::actingAs($this->stranger);
+
+        $this->getJson("/api/projects/{$this->project->id}?with=tracks")
+            ->assertOk()
+            ->assertJsonCount(2, 'data.tracks');
+    }
 }

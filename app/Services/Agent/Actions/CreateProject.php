@@ -15,12 +15,15 @@ class CreateProject implements AgentAction
             return true;
         }
 
+        $privacy = $step->run->option('project_privacy', 'private');
+
         $project = $step->run->owner
             ->projects()
             ->create([
                 'title' => $step->input['title'],
                 'description' => $step->input['description'] ?: null,
-                'privacy' => $step->run->option('project_privacy', 'private'),
+                'privacy' => $privacy,
+                'tracks_public' => $privacy !== 'private',
             ]);
 
         $step->remember(['project_id' => $project->id]);

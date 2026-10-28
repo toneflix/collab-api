@@ -250,7 +250,7 @@ class ProjectTrackAccessTest extends TestCase
         $this->assertTrue(Channels::canView($this->collaborator, $this->track));
     }
 
-    public function test_outsiders_only_see_public_tracks_of_public_projects(): void
+    public function test_outsiders_see_public_tracks_or_all_when_the_project_makes_them_public(): void
     {
         $this->project->update(['privacy' => 'public']);
         $this->track->update(['privacy' => 'public']);
@@ -266,6 +266,7 @@ class ProjectTrackAccessTest extends TestCase
             ->assertJsonPath('data.0.id', $this->track->id);
         $this->getJson("/api/projects/{$this->project->id}?with=tracks")
             ->assertOk()
+            ->assertJsonPath('data.tracksPublic', false)
             ->assertJsonCount(1, 'data.tracks');
         $this
             ->getJson($this->url('/stems'))
@@ -276,6 +277,21 @@ class ProjectTrackAccessTest extends TestCase
         $this->getJson("/api/projects/{$this->project->id}")
             ->assertJsonPath('data.opensStudio', true);
         $this->assertTrue(Gate::forUser($this->stranger)->allows('open', $this->track->refresh()));
+
+        $this->project->update(['tracks_public' => true]);
+
+        $this->getJson("/api/projects/{$this->project->id}?with=tracks")
+            ->assertOk()
+            ->assertJsonCount(2, 'data.tracks');
+        $this
+            ->getJson($this->url('', $hidden))
+            ->assertOk();
+
+        $this->project->update(['privacy' => 'private']);
+
+        $this
+            ->getJson($this->url('', $hidden))
+            ->assertNotFound();
 
         Sanctum::actingAs($this->owner);
 

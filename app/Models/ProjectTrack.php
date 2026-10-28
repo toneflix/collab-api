@@ -213,13 +213,18 @@ class ProjectTrack extends Model
     }
 
     /**
-     * Every track for the project's owner and collaborators, public ones for
-     * everyone else.
+     * Every track for the project's owner and collaborators. Everyone else
+     * sees the public tracks of projects they can see, or all of a project's
+     * tracks when it makes every track public.
      */
     public function scopeVisibleTo(Builder $query, ?User $user): void
     {
         $query->where(function (Builder $query) use ($user) {
-            $query->where('project_tracks.privacy', 'public');
+            $query->where(fn(Builder $q) => $q
+                ->whereHas('project', fn(Builder $p) => $p->visibleTo(null))
+                ->where(fn(Builder $q) => $q
+                    ->where('project_tracks.privacy', 'public')
+                    ->orWhereHas('project', fn(Builder $p) => $p->where('projects.tracks_public', true))));
 
             if ($user) {
                 $query->orWhereHas('project', fn(Builder $q) => $q->where(fn(Builder $q) => $q
