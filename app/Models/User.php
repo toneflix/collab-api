@@ -172,7 +172,7 @@ class User extends Authenticatable implements Commentator, Reportable
                 ->projects()
                 ->delete();
             $model
-                ->followers()
+                ->followables()
                 ->delete();
             $model
                 ->followings()
@@ -240,7 +240,7 @@ class User extends Authenticatable implements Commentator, Reportable
     /**
      * Get the user's fullname.
      *
-     * @return string
+     * @return Attribute
      */
     protected function fullname(): Attribute
     {

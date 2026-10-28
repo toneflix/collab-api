@@ -156,4 +156,25 @@ class AccountDeactivationTest extends TestCase
 
         $this->assertEqualsCanonicalizing([$waiting->id, $deactivated->id], $remaining);
     }
+
+    public function test_erasing_an_account_keeps_its_followers(): void
+    {
+        $gone = User::factory()
+            ->create();
+        $fan = User::factory()
+            ->create();
+
+        $fan->follow($gone);
+        Deactivation::deactivate($gone, delete: true);
+        $gone
+            ->forceFill(['deletes_at' => now()->subMinute()])
+            ->save();
+
+        $this->artisan('accounts:purge')
+            ->assertSuccessful();
+
+        $this->assertNull(User::query()->withoutGlobalScopes()->find($gone->id));
+        $this->assertNotNull(User::query()->withoutGlobalScopes()->find($fan->id));
+        $this->assertFalse($fan->fresh()->isFollowing($gone));
+    }
 }
