@@ -32,6 +32,7 @@ class AgentRunResource extends JsonResource
                 'maxTracks' => $this->option('max_tracks'),
                 'seconds' => $this->option('seconds'),
                 'label' => $this->option('label'),
+                'projectPrivacy' => $this->option('project_privacy', 'private'),
             ],
             'plan' => $plan,
             'counts' => $plan ? [

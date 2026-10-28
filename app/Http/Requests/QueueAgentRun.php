@@ -29,13 +29,14 @@ class QueueAgentRun extends FormRequest
             'max_tracks' => ['nullable', 'integer', 'between:1,' . AgentPlanner::MAX_TRACKS],
             'seconds' => ['nullable', 'integer', 'between:10,' . AiSettings::musicMaxSeconds()],
             'label' => ['nullable', 'string', 'max:100'],
+            'project_privacy' => ['nullable', 'string', 'in:private,public,public_preview'],
         ];
     }
 
     /**
      * The run's options, with defaults filled in.
      *
-     * @return array{publish: bool, artwork: bool, max_tracks: int, seconds: int, label: ?string}
+     * @return array{publish: bool, artwork: bool, max_tracks: int, seconds: int, label: ?string, project_privacy: string}
      */
     public function options(): array
     {
@@ -45,6 +46,7 @@ class QueueAgentRun extends FormRequest
             'max_tracks' => (int) ($this->validated('max_tracks') ?? 12),
             'seconds' => (int) ($this->validated('seconds') ?? AgentPlanner::DEFAULT_SECONDS),
             'label' => $this->validated('label'),
+            'project_privacy' => $this->validated('project_privacy') ?? 'private',
         ];
     }
 }

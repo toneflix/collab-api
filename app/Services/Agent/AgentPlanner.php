@@ -6,6 +6,7 @@ use App\Enums\ArtworkKind;
 use App\Models\AgentRun;
 use App\Models\Genre;
 use App\Models\Project;
+use App\Models\Release;
 use App\Models\User;
 use App\Services\Ai\AiSettings;
 use App\Services\Ai\Tasks\GenerateArtwork;
@@ -445,7 +446,7 @@ class AgentPlanner
             'Each track with vocals has a "theme": what its lyrics are about, in one sentence.',
             'Albums are new studio projects. A "project" the instructions ask for (rather than an album, EP or single) is a studio project that isn\'t released: list it in "albums" with "release" set to false. Also set "release" to false when the instructions say not to release.',
             '"releases" release the account\'s existing projects, named by "#id" or their exact title, only when the instructions ask for it. "version" labels a new version, like "Deluxe" or "Remastered", when the project was released before; set "retire" to true when the new version should replace the earlier ones.',
-            '"updates" touch up the account\'s existing projects, named by "#id" or their exact title, only when the instructions ask for it: "artwork" draws a picture for a project and whatever of it has none, "lyrics" times its untimed lyrics to the audio. "cover" describes the picture. A project both updated and released gets the update first.',
+            '"updates" touch up the account\'s existing work, only when the instructions ask for it. Name each by a project\'s "#id", or by the exact title of a project, album or track the instructions mention, even when it isn\'t listed below: "artwork" draws a picture for a project and whatever of it has none, "lyrics" times its untimed lyrics to the audio. "cover" describes the picture. A project both updated and released gets the update first.',
             'When the instructions ask to find and fix everything missing artwork (all projects, albums or tracks), set "sweep" "artwork" to true; for all untimed lyrics, set "sweep" "lyrics" to true. The sweep finds them itself, so don\'t list them in "updates" too.',
             'Each album has a "cover": one sentence describing its cover image, and each artist a "look": one sentence describing their profile picture. Describe scenes, colours and style, never text or real people.',
             'Keep every name and title short and plain, with no quotes or emoji.',
@@ -610,10 +611,18 @@ class AgentPlanner
             ->all();
 
         $releases = $this->releases($answer, $projects, $artistKey, $byName);
-        $updates = $this->sweep($answer, $owner, $this->updates($answer, $projects));
+        $updates = $this->sweep($answer, $owner, $this->updates($answer, $projects, $owner));
 
         if ($albums === [] && $songs === [] && $releases === [] && $updates === []) {
-            throw new RuntimeException('The plan had no albums, releases, updates, tracks or songs.');
+            $named = collect($this->list($answer['updates'] ?? null))
+                ->map(fn(array $update) => $this->text($update['project'] ?? null, 200))
+                ->filter()
+                ->map(fn(string $name) => "\"{$name}\"")
+                ->join(', ', ' and ');
+
+            throw new RuntimeException($named !== ''
+                ? "Nothing to do: {$named} weren't found on the account, or already have their artwork and synced lyrics."
+                : 'The plan had no albums, releases, updates, tracks or songs.');
         }
 
         $used = collect([...$albums, ...$releases])->pluck('artist');
@@ -692,15 +701,29 @@ class AgentPlanner
      * @param  Collection<int, Project>  $projects
      * @return list<array<string, mixed>>
      */
-    protected function updates(array $answer, Collection $projects): array
+    protected function updates(array $answer, Collection $projects, User $owner): array
     {
         $updates = [];
         $draws = self::drawsArtwork();
 
         foreach ($this->list($answer['updates'] ?? null) as $update) {
-            $project = $this->project($projects, $update['project'] ?? null);
+            $target = $this->target($owner, $projects, $update['project'] ?? null);
 
-            if (! $project || count($updates) === self::MAX_UPDATES || in_array($project->id, array_column($updates, 'project_id'))) {
+            if (! $target || count($updates) === self::MAX_UPDATES) {
+                continue;
+            }
+
+            if ($target instanceof Release) {
+                if ($draws && ! empty($update['artwork']) && ! $target->image && ! in_array($target->id, array_column($updates, 'release_id'))) {
+                    $updates[] = $this->releaseTouchUp($target, 'u' . (count($updates) + 1), $this->text($update['cover'] ?? null, 400));
+                }
+
+                continue;
+            }
+
+            $project = $target;
+
+            if (in_array($project->id, array_column($updates, 'project_id'))) {
                 continue;
             }
 
@@ -779,18 +802,7 @@ class AgentPlanner
             ->get();
 
         foreach ($releases as $release) {
-            $updates[] = [
-                'key' => 'u' . (count($updates) + 1),
-                'project_id' => null,
-                'release_id' => $release->id,
-                'project' => $release->title,
-                'title' => $release->title,
-                'artist' => $release->artist?->name,
-                'description' => (string) $release->description,
-                'cover' => '',
-                'artwork' => true,
-                'lyrics' => [],
-            ];
+            $updates[] = $this->releaseTouchUp($release, 'u' . (count($updates) + 1), '');
         }
 
         return $updates;
@@ -832,6 +844,79 @@ class AgentPlanner
             'artwork' => $artwork,
             'lyrics' => $tracks,
         ];
+    }
+
+    /**
+     * A cover for a release with no project.
+     *
+     * @return array<string, mixed>
+     */
+    protected function releaseTouchUp(Release $release, string $key, string $cover): array
+    {
+        return [
+            'key' => $key,
+            'project_id' => null,
+            'release_id' => $release->id,
+            'project' => $release->title,
+            'title' => $release->title,
+            'artist' => $release->artist?->name,
+            'description' => (string) $release->description,
+            'cover' => $cover,
+            'artwork' => true,
+            'lyrics' => [],
+        ];
+    }
+
+    /**
+     * What a touch-up names: one of the listed projects by "#id" or title,
+     * else the owner's project, release or track with that exact title. A
+     * release or track counts as its project when it has one; a release
+     * without a project is returned itself.
+     *
+     * @param  Collection<int, Project>  $projects
+     */
+    protected function target(User $owner, Collection $projects, mixed $ref): Project|Release|null
+    {
+        $listed = $this->project($projects, $ref);
+        $title = mb_strtolower($this->text($ref, 200));
+
+        if ($listed || $title === '' || preg_match('/^#?\d+$/', $title)) {
+            return $listed;
+        }
+
+        $match = fn(string $column) => fn(Builder $query) => $query->whereRaw("lower({$column}) = ?", [$title]);
+
+        $project = $owner
+            ->projects()
+            ->with('release.artist')
+            ->where($match('projects.title'))
+            ->latest('id')
+            ->first();
+
+        if ($project) {
+            return $project;
+        }
+
+        $release = $owner
+            ->releases()
+            ->withoutGlobalScopes()
+            ->with(['artist', 'project.release.artist'])
+            ->where(fn(Builder $query) => $query
+                ->where($match('releases.title'))
+                ->orWhereHas('tracks', $match('tracks.title')))
+            ->latest('id')
+            ->first();
+
+        if ($release) {
+            return $release->project ?? $release;
+        }
+
+        return $owner
+            ->projects()
+            ->with('release.artist')
+            ->whereHas('tracks', $match('project_tracks.title'))
+            ->latest('id')
+            ->first();
     }
 
     /**
