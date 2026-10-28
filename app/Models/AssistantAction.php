@@ -38,6 +38,7 @@ class AssistantAction extends Model
         'user_id',
         'tool',
         'input',
+        'asks',
         'summary',
         'status',
         'result',
@@ -53,6 +54,7 @@ class AssistantAction extends Model
     {
         return [
             'input' => 'array',
+            'asks' => 'array',
             'result' => 'array',
             'decided_at' => 'datetime',
         ];

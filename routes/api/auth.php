@@ -19,6 +19,10 @@ Route::middleware('guest')
         Route::post('login', [AuthenticatedSessionController::class, 'store'])
             ->name('login');
 
+        Route::post('login/two-factor', [AuthenticatedSessionController::class, 'twoFactor'])
+            ->middleware(['throttle:10,1'])
+            ->name('login.two-factor');
+
         Route::post('forgot-password', [PasswordResetLinkController::class, 'store'])
             ->middleware(['throttle:code-requests'])
             ->name('password.email');

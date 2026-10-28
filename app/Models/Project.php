@@ -2,10 +2,12 @@
 
 namespace App\Models;
 
+use App\Contracts\CanBeTakenDown;
 use App\Models\Scopes\HideDeactivatedAccounts;
 use App\Models\Scopes\HideReportedModels;
 use App\Models\Scopes\RestrictBlockedUserScope;
 use App\Traits\ModelCanExtend;
+use App\Traits\TakesDown;
 use BeyondCode\Comments\Traits\HasComments;
 use Coderflex\Laravisit\Concerns\HasVisits;
 use Illuminate\Database\Eloquent\Attributes\ScopedBy;
@@ -30,7 +32,7 @@ use Toneflix\SocialInteractions\Traits\HasSocialInteractions;
     HideReportedModels::class,
     HideDeactivatedAccounts::class,
 ])]
-class Project extends Model
+class Project extends Model implements CanBeTakenDown
 {
     use Fileable;
     use HasComments;
@@ -38,6 +40,7 @@ class Project extends Model
     use HasSocialInteractions;
     use HasVisits;
     use ModelCanExtend;
+    use TakesDown;
 
     /**
      * Privacy settings anyone can see a project under.
@@ -338,5 +341,29 @@ class Project extends Model
             'project_id',
             'user_id'
         );
+    }
+
+    public function whereOwnedBy(Builder $query, int $userId): void
+    {
+        $query->where($this->qualifyColumn('user_id'), $userId);
+    }
+
+    public function moderationOwnerId(): ?int
+    {
+        return $this->user_id ? (int) $this->user_id : null;
+    }
+
+    public function moderationSummary(): array
+    {
+        $owner = User::query()
+            ->withoutGlobalScopes()
+            ->find($this->user_id);
+
+        return [
+            'title' => (string) $this->title,
+            'subtitle' => $owner ? "Project by {$owner->fullname}" : 'Project',
+            'image' => $this->images['image'] ?? null,
+            'link' => in_array($this->privacy, self::OPEN_PRIVACIES, true) ? '/projects/' . $this->slug : null,
+        ];
     }
 }

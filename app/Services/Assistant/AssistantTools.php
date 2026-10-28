@@ -30,6 +30,7 @@ class AssistantTools
         Content\FindContent::class,
         Content\ShowContent::class,
         Content\TakeDown::class,
+        Content\DeleteContent::class,
         Content\CloseReports::class,
         Content\Takedowns::class,
         Content\RestoreTakedown::class,

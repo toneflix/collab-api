@@ -18,7 +18,7 @@ class TakeDown extends ContentTool
 
     public function description(): string
     {
-        return 'Take a release (album), track, song (composition), sound or comment down. Its pending reports close, and the owner and reporters are told.';
+        return 'Take a release (album), track, song (composition), project, sound or comment down. Its pending reports close, and the owner and reporters are told.';
     }
 
     public function input(): array

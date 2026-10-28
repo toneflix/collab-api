@@ -74,6 +74,30 @@ abstract class AssistantTool
     }
 
     /**
+     * What the admin must enter themselves to confirm the change, such as a
+     * two-factor code. The model never sees these answers.
+     *
+     * @param  array<string, mixed>  $input
+     * @return list<array{field: string, label: string, kind: string}>
+     */
+    public function asks(User $admin, array $input): array
+    {
+        return [];
+    }
+
+    /**
+     * Make the confirmed change with what the admin entered on the card.
+     *
+     * @param  array<string, mixed>  $input
+     * @param  array<string, mixed>  $answers
+     * @return array<string, mixed>
+     */
+    public function confirmWith(User $admin, array $input, array $answers): array
+    {
+        return $this->run($admin, $input);
+    }
+
+    /**
      * The input with only known fields, checked against the tool's rules.
      *
      * @param  array<string, mixed>  $input

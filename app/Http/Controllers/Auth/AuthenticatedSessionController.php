@@ -9,10 +9,14 @@ use App\Http\Resources\ActionResource;
 use App\Http\Resources\DeviceCollection;
 use App\Http\Resources\UserResource;
 use App\Models\User;
+use App\Services\Account\Deactivation;
+use App\Services\Auth\TwoFactor;
 use DeviceDetector\DeviceDetector;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Broadcast;
+use Illuminate\Validation\ValidationException;
 
 class AuthenticatedSessionController extends Controller
 {
@@ -21,12 +25,60 @@ class AuthenticatedSessionController extends Controller
      *
      * @return Response
      */
-    public function store(LoginRequest $request)
+    public function store(LoginRequest $request, TwoFactor $twoFactor)
     {
         $request->authenticate();
 
         $user = $request->user();
-        $message = $request->reactivated
+
+        if (! $twoFactor->enabled($user)) {
+            return $this->signIn($request, $user);
+        }
+
+        Auth::guard('web')->logout();
+
+        $challenge = $twoFactor->challenge($user, $request->boolean('remember'));
+        $result = ['twoFactor' => true, 'challenge' => $challenge];
+
+        return (new ActionResource($result))
+            ->additional([
+                'message' => __('Enter the code from your authenticator app.'),
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
+    }
+
+    /**
+     * Finish signing in with a code from the authenticator app or a recovery
+     * code.
+     */
+    public function twoFactor(Request $request, TwoFactor $twoFactor)
+    {
+        $valid = $request->validate([
+            'challenge' => ['required', 'string', 'max:100'],
+            'code' => ['required', 'string', 'max:20'],
+        ]);
+
+        $user = $twoFactor->answer($valid['challenge'], $valid['code']);
+
+        if ($user->isSuspended()) {
+            throw ValidationException::withMessages(['code' => $user->suspensionMessage()]);
+        }
+
+        Auth::setUser($user);
+
+        return $this->signIn($request, $user);
+    }
+
+    /**
+     * Give a user who proved who they are a token, bringing their account
+     * back when it was deactivated.
+     */
+    protected function signIn(Request $request, User $user)
+    {
+        $message = Deactivation::reactivate($user)
             ? __('Welcome back. Your account is active again.')
             : null;
 

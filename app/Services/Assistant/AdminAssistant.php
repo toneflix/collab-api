@@ -13,6 +13,7 @@ use App\Services\Assistant\Ai\AssistantModel;
 use App\Services\Assistant\Tools\AssistantTool;
 use App\Services\Realtime\Realtime;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
@@ -146,7 +147,14 @@ class AdminAssistant
      * Carry out an action once the admin who asked for it confirms it. The
      * tool checks the admin's rights again, since they may have changed.
      */
-    public function confirm(AssistantAction $action, User $admin): AssistantAction
+    /**
+     * Run a pending action the admin confirmed. When the admin's own answers
+     * (such as a two-factor code) are wrong, the action stays pending so they
+     * can try again.
+     *
+     * @param  array<string, mixed>  $answers
+     */
+    public function confirm(AssistantAction $action, User $admin, array $answers = []): AssistantAction
     {
         $this->ensureOwner($action, $admin);
 
@@ -171,12 +179,26 @@ class AdminAssistant
 
         $tool = $this->tools->find($admin, $action->tool);
 
+        $asked = collect($action->asks ?? [])
+            ->pluck('field')
+            ->all();
+
         try {
             abort_unless($tool, 403, 'You can no longer do this.');
 
-            $result = $tool->run($admin, $tool->validate($action->input));
+            $result = $tool->confirmWith($admin, $tool->validate($action->input), Arr::only($answers, $asked));
 
             $action->update(['status' => AssistantAction::DONE, 'result' => $result]);
+        } catch (ValidationException $e) {
+            if (array_intersect(array_keys($e->errors()), $asked)) {
+                AssistantAction::query()
+                    ->whereKey($action->id)
+                    ->update(['status' => AssistantAction::PENDING, 'decided_at' => null]);
+
+                throw $e;
+            }
+
+            $action->update(['status' => AssistantAction::FAILED, 'error' => $this->reason($e)]);
         } catch (Throwable $e) {
             $action->update(['status' => AssistantAction::FAILED, 'error' => $this->reason($e)]);
         }
@@ -257,6 +279,7 @@ class AdminAssistant
                 'user_id' => $admin->id,
                 'tool' => $tool->name(),
                 'input' => $input,
+                'asks' => $tool->asks($admin, $input) ?: null,
                 'summary' => $summary,
             ]);
     }

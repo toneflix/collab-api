@@ -132,7 +132,12 @@ class AssistantController extends Controller
 
     public function confirm(Request $request, AssistantAction $action)
     {
-        $action = $this->assistant->confirm($action, $request->user());
+        $answers = $request->validate([
+            'confirm_name' => ['nullable', 'string', 'max:200'],
+            'code' => ['nullable', 'string', 'max:20'],
+        ]);
+
+        $action = $this->assistant->confirm($action, $request->user(), $answers);
 
         return $this->decided($action, $action->status === AssistantAction::DONE ? 'Done.' : 'It couldn\'t be done.');
     }
