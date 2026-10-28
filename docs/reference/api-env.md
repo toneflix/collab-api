@@ -106,7 +106,7 @@ The driver is chosen on the admin Realtime page, which starts from `REALTIME_DRI
 
 | Key | What it does |
 | --- | --- |
-| `FIREBASE_CREDENTIALS` | The service account, as a path to its JSON file or the JSON itself. The API uses it to write realtime events and to send push to the Android app. |
+| `FIREBASE_CREDENTIALS` | The service account, as a path to its JSON file or the JSON itself. The API uses it to write realtime events and to send push to the Android and iOS apps. |
 | `FIREBASE_DATABASE_URL` | `https://<project>-default-rtdb.firebaseio.com` |
 | `FIREBASE_API_KEY` | Web API key, sent to browsers. |
 | `FIREBASE_PROJECT_ID` | Project id, sent to browsers. |

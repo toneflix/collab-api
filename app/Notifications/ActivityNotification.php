@@ -126,7 +126,8 @@ abstract class ActivityNotification extends Notification implements ShouldQueue
 
     /**
      * Push for the mobile apps. Android shows it in the system tray when the
-     * app is closed, in the channel named after the category.
+     * app is closed, in the channel named after the category. iOS groups it by
+     * category too, and plays the default sound.
      */
     public function toFcm(User $notifiable): CloudMessage
     {
@@ -145,6 +146,15 @@ abstract class ActivityNotification extends Notification implements ShouldQueue
                 'notification' => [
                     'channel_id' => $this->category()->value,
                     'tag' => $this->tag(),
+                ],
+            ])
+            ->withApnsConfig([
+                'headers' => ['apns-priority' => '10'],
+                'payload' => [
+                    'aps' => [
+                        'sound' => 'default',
+                        'thread-id' => $this->category()->value,
+                    ],
                 ],
             ]);
     }

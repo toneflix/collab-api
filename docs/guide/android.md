@@ -18,6 +18,14 @@ cd src-capacitor/android
 
 The app talks to the API set by `VITE_PROD_API_BASE_URL`. The API's CORS settings already allow the app's `https://localhost` origin.
 
+## Music playback
+
+Music plays through a native player (Media3, in `PlayerEngine.java` and `PlayerService.java`), not the web page. It keeps playing after the app is closed, and the notification, lock screen and headset controls keep working, since they talk to the native player directly. The player fetches each track's stream link from the API with the signed-in person's token, the same way the app does.
+
+While the app is open it adds recommended tracks as the queue runs out. With the app closed, music stops at the end of the queue (or starts it over with repeat on). Swiping the app away while music is paused clears the notification.
+
+To check it on a phone: play a track, swipe the app away, and use the notification's pause, play, next and previous. Open the app again and it should show the track that's playing.
+
 ## Push notifications
 
 Push reaches the app through Firebase Cloud Messaging and shows in the system tray while the app is closed. Setup:

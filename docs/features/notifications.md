@@ -1,6 +1,6 @@
 # Notifications
 
-People hear about activity three ways: in the app (the bell and `/notifications`), by email, and by push to browsers and the Android app.
+People hear about activity three ways: in the app (the bell and `/notifications`), by email, and by push to browsers and the Android and iOS apps.
 
 ## Categories
 
@@ -28,9 +28,9 @@ Keep the keys once they are live. New keys drop every existing push subscription
 
 The app registers `public/push-sw.js` as its service worker when someone turns push on. Push needs HTTPS (or `localhost`).
 
-## Android app push
+## App push (Android and iOS)
 
-The Android app registers its Firebase Cloud Messaging token at `POST /api/account/device-tokens` (and removes it with `DELETE` on sign-out or when push is turned off). Notifications go out through `App\Notifications\Channels\FcmChannel` when `FIREBASE_CREDENTIALS` is set and the person has push on for the category. Each message uses the category as its Android channel and carries the page to open. Tokens Firebase no longer knows are removed after a send. See [Android app](../guide/android) for the app side.
+Each app (Android and iOS) registers its Firebase Cloud Messaging token at `POST /api/account/device-tokens` (and removes it with `DELETE` on sign-out or when push is turned off). Notifications go out through `App\Notifications\Channels\FcmChannel` when `FIREBASE_CREDENTIALS` is set and the person has push on for the category. Each message uses the category as its Android channel (and iOS thread), plays the default sound on iOS, and carries the page to open. Tokens Firebase no longer knows are removed after a send. See [Android app](../guide/android#push-notifications) and [iOS app](../guide/ios#push-notifications) for the app side.
 
 ## Email
 
