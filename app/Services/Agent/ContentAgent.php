@@ -269,7 +269,7 @@ class ContentAgent
             ->projects()
             ->count();
 
-        if ($projects > 0 && $hasProjects + $newProjects > $projects) {
+        if ($projects > 0 && $newProjects > 0 && $hasProjects + $newProjects > $projects) {
             throw new RuntimeException("The plan needs {$newProjects} new projects, more than the account's plan allows ({$projects}).");
         }
 
@@ -283,7 +283,7 @@ class ContentAgent
             ->songs()
             ->count();
 
-        if ($songs > 0 && $hasSongs + $newSongs > $songs) {
+        if ($songs > 0 && $newSongs > 0 && $hasSongs + $newSongs > $songs) {
             throw new RuntimeException("The plan needs {$newSongs} new compositions, more than the account's plan allows ({$songs}).");
         }
     }
