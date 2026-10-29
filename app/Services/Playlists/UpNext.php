@@ -79,7 +79,7 @@ class UpNext
         }
 
         $query = Track::query()
-            ->with('release')
+            ->with(['release', 'featured'])
             ->whereHas('release', fn(Builder $q) => $q->live())
             ->playableBy($this->user)
             ->when($exclude->isNotEmpty(), fn(Builder $q) => $q->whereNotIn('tracks.id', $exclude->all()));

@@ -6,6 +6,12 @@ use Illuminate\Database\Eloquent\Relations\Pivot;
 
 class TrackArtist extends Pivot
 {
+    /** The artist the track is released under */
+    public const PRIMARY = 'primary';
+
+    /** An artist the track features */
+    public const FEATURE = 'feature';
+
     /**
      * The table associated with the model.
      *
@@ -26,6 +32,6 @@ class TrackArtist extends Pivot
      * @var array<string, string>
      */
     protected $attributes = [
-        'type' => 'primary',
+        'type' => self::PRIMARY,
     ];
 }

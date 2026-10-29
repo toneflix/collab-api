@@ -44,6 +44,14 @@ class TrackResource extends JsonResource
                 'username' => $this->artist->username,
                 'imageUrl' => $this->artist->images['image'],
             ]),
+            'featured' => $this->when(
+                $with->contains('artist'),
+                function () {
+                    $featured = $this->featured;
+
+                    return ArtistCreditResource::collection($featured);
+                }
+            ),
             $this->mergeWhen($with->contains('interaction'), fn() => [
                 'interaction' => $interaction,
                 'liked' => $interaction['liked'] ?? false,

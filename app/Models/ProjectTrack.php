@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Jobs\TagAudio;
+use App\Services\Artists\FeaturedArtists;
 use App\Traits\HasAudioTags;
 use App\Traits\ModelCanExtend;
 use BeyondCode\Comments\Traits\HasComments;
@@ -12,10 +13,12 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
+use Illuminate\Support\Facades\DB;
 use Toneflix\LaravelFileable\Traits\Fileable;
 
 class ProjectTrack extends Model
@@ -130,11 +133,69 @@ class ProjectTrack extends Model
                         $track->saveQuietly();
 
                         if ($model->wasChanged('artist_id')) {
-                            $track->artists()->sync([$model->artist_id => ['type' => 'primary']]);
+                            $track->credit($model->artist_id);
                         }
                     }
                 });
         });
+    }
+
+    /**
+     * The artists the track features, in the order they are credited.
+     */
+    public function featured(): BelongsToMany
+    {
+        return $this
+            ->belongsToMany(Artist::class, 'project_track_artist')
+            ->withTimestamps()
+            ->orderByPivot('id');
+    }
+
+    /**
+     * Set the artists the track features, in order. Tracks of its draft
+     * releases follow; published ones keep their credits.
+     *
+     * @param  list<int|string>  $artistIds
+     */
+    public function feature(array $artistIds): void
+    {
+        $artistIds = FeaturedArtists::without($artistIds, $this->artist_id);
+
+        DB::transaction(function () use ($artistIds) {
+            $this
+                ->featured()
+                ->detach();
+
+            foreach ($artistIds as $artistId) {
+                $this
+                    ->featured()
+                    ->attach($artistId);
+            }
+        });
+
+        $this->unsetRelation('featured');
+
+        $this->releasedTracks()
+            ->whereHas('release', fn(Builder $q) => $q->where('draft', true))
+            ->chunkById(100, function ($tracks) use ($artistIds) {
+                foreach ($tracks as $track) {
+                    $track->credit($this->artist_id, $artistIds);
+                }
+            });
+    }
+
+    /**
+     * Ids of the artists the track features, in order.
+     *
+     * @return list<int>
+     */
+    public function featuredIds(): array
+    {
+        return $this
+            ->featured()
+            ->pluck('artists.id')
+            ->map(fn($id) => (int) $id)
+            ->all();
     }
 
     /**

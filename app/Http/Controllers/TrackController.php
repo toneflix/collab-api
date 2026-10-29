@@ -73,7 +73,7 @@ class TrackController extends Controller
             );
 
         $tracks = $query
-            ->with('release')
+            ->with(['release', 'featured'])
             ->paginate($request->perPage(15));
 
         return (new TrackCollection($tracks))

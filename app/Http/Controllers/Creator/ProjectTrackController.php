@@ -11,11 +11,13 @@ use App\Http\Resources\ProjectTrackResource;
 use App\Models\Project;
 use App\Models\ProjectTrack;
 use App\Models\ProjectTrackVersion;
+use App\Services\Artists\FeaturedArtists;
 use App\Services\Realtime\Realtime;
 use App\Services\Reputation;
 use App\Services\Studio\MixPreview;
 use App\Services\Studio\TrackHistory;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Toneflix\LaravelFileable\Media;
 
 class ProjectTrackController extends Controller
@@ -54,6 +56,8 @@ class ProjectTrackController extends Controller
             ->prepend('mimes:')
             ->toString();
 
+        FeaturedArtists::prepare($request);
+
         $valid = $this->validate($request, [
             'title' => ['required', 'string'],
             'preview' => ['nullable', 'file', $allowedAudio],
@@ -62,11 +66,14 @@ class ProjectTrackController extends Controller
             'artist_id' => ['required', 'string', 'exists:artists,id'],
             'description' => ['nullable', 'string'],
             'meta' => ['nullable', 'array'],
+            ...FeaturedArtists::rules('featured_ids'),
         ]);
 
         $track = $project
             ->tracks()
-            ->create($valid);
+            ->create(Arr::except($valid, 'featured_ids'));
+
+        $track->feature($valid['featured_ids'] ?? []);
 
         // Add reputation for the owner
         (new Reputation($this->user, 'create_project_track'))->add();
@@ -112,6 +119,8 @@ class ProjectTrackController extends Controller
             ->prepend('mimes:')
             ->toString();
 
+        FeaturedArtists::prepare($request);
+
         $valid = $this->validate($request, [
             'title' => ['required', 'string'],
             'preview' => ['nullable', 'file', $allowedAudio],
@@ -120,6 +129,7 @@ class ProjectTrackController extends Controller
             'artist_id' => ['required', 'string', 'exists:artists,id'],
             'description' => ['nullable', 'string'],
             'meta' => ['nullable', 'array'],
+            ...FeaturedArtists::rules('featured_ids'),
             'stems' => ['nullable', 'array'],
             'bpm' => ['nullable', 'numeric', 'between:20,300'],
             'time_signature' => ['nullable', 'string', 'in:' . implode(',', ProjectTrack::TIME_SIGNATURES)],
@@ -143,7 +153,7 @@ class ProjectTrackController extends Controller
             $meta['masterEffects'] = (string) ($valid['master_effects'] ?? '');
         }
         $valid['meta'] = $meta->all();
-        unset($valid['bpm'], $valid['time_signature'], $valid['mix_volume'], $valid['master_effects'], $valid['render']);
+        unset($valid['bpm'], $valid['time_signature'], $valid['mix_volume'], $valid['master_effects'], $valid['render'], $valid['featured_ids']);
 
         if (isset($valid['preview'])) {
             unset($valid['preview']);
@@ -154,6 +164,10 @@ class ProjectTrackController extends Controller
 
         $this->saveStems($request, $track);
         $track->update($valid);
+
+        if ($request->has('featured_ids')) {
+            $track->feature($request->input('featured_ids'));
+        }
 
         $history->record($this->user, ProjectTrackVersion::SAVED);
 
