@@ -70,6 +70,7 @@ class AiSettingsController extends Controller
             'ai_tags_auto' => ['nullable', 'boolean'],
             'ai_moderator_claims_auto' => ['nullable', 'boolean'],
             'ai_moderator_releases_auto' => ['nullable', 'boolean'],
+            'ai_moderator_origins_auto' => ['nullable', 'boolean'],
             'ai_moderator_confidence' => ['nullable', 'integer', 'between:0,100'],
             'ai_composer_model' => ['nullable', 'string', 'max:150', 'regex:/^[\w.-]+\/[\w.-]+(:[\w]+)?$/'],
             'ai_composer_cloudflare_model' => ['nullable', 'string', 'max:150', 'regex:/^(@cf\/)?[\w.-]+\/[\w.-]+$/'],

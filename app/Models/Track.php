@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Contracts\CanBeTakenDown;
+use App\Enums\TrackOrigin;
 use App\Jobs\FingerprintTrack;
 use App\Jobs\MeasureDuration;
 use App\Jobs\ProcessAudio;
@@ -10,6 +11,8 @@ use App\Jobs\TagAudio;
 use App\Jobs\TranscribeTrack;
 use App\Models\Scopes\HideDeactivatedAccounts;
 use App\Services\Artists\FeaturedArtists;
+use App\Services\Releases\TrackOrigins;
+use App\Traits\HasAiReviews;
 use App\Traits\HasAudioTags;
 use App\Traits\HasLikedScope;
 use App\Traits\Metricable;
@@ -34,6 +37,7 @@ use Toneflix\SocialInteractions\Traits\HasSocialInteractions;
 class Track extends Model implements CanBeTakenDown
 {
     use Fileable;
+    use HasAiReviews;
     use HasAudioTags;
     use HasComments;
     use HasFactory;
@@ -94,6 +98,7 @@ class Track extends Model implements CanBeTakenDown
             'duration' => 'float',
             'explicit' => 'boolean',
             'stems_price' => 'float',
+            'origin' => TrackOrigin::class,
             'meta' => AsCollection::class,
         ];
     }
@@ -193,6 +198,7 @@ class Track extends Model implements CanBeTakenDown
 
             if ($model->wasRecentlyCreated || $model->wasChanged(['audio', 'project_track_id'])) {
                 $model->queueSoundChecks($model->wasRecentlyCreated ? (bool) $model->audio : $model->wasChanged('audio'));
+                app(TrackOrigins::class)->refresh($model);
             }
         });
 

@@ -7,6 +7,7 @@ use App\Jobs\RunAiReview;
 use App\Models\AiReview;
 use App\Models\ArtistClaim;
 use App\Models\Release;
+use App\Models\Track;
 use App\Models\User;
 use App\Services\Ai\AiSettings;
 use App\Services\Realtime\Realtime;
@@ -17,7 +18,8 @@ use Illuminate\Validation\ValidationException;
 use Throwable;
 
 /**
- * The AI moderator: reviews artist claims and releases waiting for approval.
+ * The AI moderator: reviews artist claims and releases waiting for approval,
+ * and judges whether direct uploads are recorded music or agentic.
  *
  * Admins send items to it by hand, and those always end in a decision.
  * When automatic review is on, new items are sent as they arrive, and the
@@ -38,7 +40,7 @@ class AiModerator
     /**
      * An admin asks the moderator to decide.
      */
-    public function send(ArtistClaim|Release $subject, User $admin): AiReview
+    public function send(ArtistClaim|Release|Track $subject, User $admin): AiReview
     {
         if (! $this->available()) {
             $keys = AiSettings::engine('ai_moderator_engine')->missingKeys() ?: 'its model';
@@ -60,7 +62,7 @@ class AiModerator
     /**
      * Queue a new item when automatic review is on for its kind.
      */
-    public function sendIfAuto(ArtistClaim|Release $subject): ?AiReview
+    public function sendIfAuto(ArtistClaim|Release|Track $subject): ?AiReview
     {
         if (! $this->available() || ! AiSettings::autoModerates($subject) || $subject->aiReviews()->queued()->exists()) {
             return null;
