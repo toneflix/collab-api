@@ -14,6 +14,7 @@ enum ArtworkKind: string
     case SONG = 'song';
     case ARTIST = 'artist';
     case ARTIST_COVER = 'artist_cover';
+    case GENRE = 'genre';
 
     /**
      * Width and height of the image, as a ratio.
@@ -40,6 +41,7 @@ enum ArtworkKind: string
             self::SONG => 'Cover art for a composition',
             self::ARTIST => 'Profile picture for a music artist',
             self::ARTIST_COVER => 'Wide banner for a music artist\'s page, with a calm area in the middle',
+            self::GENRE => 'Cover art for a music genre',
         };
     }
 

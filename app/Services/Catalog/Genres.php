@@ -5,8 +5,10 @@ namespace App\Services\Catalog;
 use App\Models\Genre;
 use App\Services\Moderation\Moderation;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Toneflix\LaravelFileable\Media;
 
 /**
  * Adds, edits and removes genres. A genre in use is removed by moving its
@@ -64,6 +66,19 @@ class Genres
         }
 
         $genre->save();
+
+        return $genre;
+    }
+
+    /**
+     * Give a genre a new cover, replacing the one it has.
+     */
+    public function cover(Genre $genre, UploadedFile $image): Genre
+    {
+        $media = new Media($genre->disk);
+
+        $genre->image = $media->save('artwork', $image, $genre->image);
+        $genre->saveQuietly();
 
         return $genre;
     }

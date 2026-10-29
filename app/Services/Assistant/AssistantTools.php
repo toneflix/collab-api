@@ -39,6 +39,7 @@ class AssistantTools
         Content\ReviewRelease::class,
         Content\ArtistClaimsTool::class,
         Content\ReviewClaim::class,
+        Content\DrawGenreCovers::class,
     ];
 
     /**

@@ -89,6 +89,22 @@ class ArtworkImages
         return new UploadedFile($path, basename($file), 'image/jpeg', null, true);
     }
 
+    /**
+     * An image cropped to the ratio as a temporary upload, for saving it
+     * straight onto a model.
+     *
+     * @param  array{0: int, 1: int}  $ratio
+     */
+    public function cropped(string $path, array $ratio): UploadedFile
+    {
+        [$jpeg] = $this->crop($path, $ratio);
+
+        $file = tempnam(sys_get_temp_dir(), 'artwork');
+        file_put_contents($file, $jpeg);
+
+        return new UploadedFile($file, 'artwork.jpg', 'image/jpeg', null, true);
+    }
+
     public function stream(AiJob $job, int $index): StreamedResponse
     {
         $file = $job->output['images'][$index]['file'] ?? null;

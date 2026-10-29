@@ -55,7 +55,11 @@ class AiArtworkController extends Controller
     public function store(Request $request, AiStudio $studio)
     {
         $valid = $request->validate([
-            'kind' => ['required', Rule::enum(ArtworkKind::class)],
+            'kind' => [
+                'required',
+                Rule::enum(ArtworkKind::class)
+                    ->except(ArtworkKind::GENRE),
+            ],
             'prompt' => ['required', 'string', 'min:3', 'max:1000'],
             'title' => ['nullable', 'string', 'max:200'],
             'artist' => ['nullable', 'string', 'max:100'],
