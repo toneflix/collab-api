@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Toneflix\LaravelFileable\Media;
 use Toneflix\LaravelFileable\Traits\Fileable;
 
 class Genre extends Model
@@ -55,11 +56,17 @@ class Genre extends Model
     }
 
     /**
-     * The cover photo, or null while the genre has none.
+     * The cover photo, or null while the genre has none or its file is missing.
      */
     public function coverUrl(): ?string
     {
-        return $this->image ? $this->files['image'] : null;
+        if (! $this->image) {
+            return null;
+        }
+
+        $url = $this->files['image'];
+
+        return $url === (new Media)->getDefaultMedia('artwork') ? null : $url;
     }
 
     public static function registerEvents()
