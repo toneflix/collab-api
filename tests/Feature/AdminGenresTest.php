@@ -62,6 +62,18 @@ class AdminGenresTest extends TestCase
             ->assertJsonStructure(['data', 'meta' => ['currentPage', 'lastPage', 'perPage', 'total']]);
     }
 
+    public function test_a_genre_whose_cover_file_is_missing_has_no_cover(): void
+    {
+        $genre = Genre::query()
+            ->create(['title' => 'Missing Cover Test']);
+
+        $genre
+            ->forceFill(['image' => 'not-stored.jpg'])
+            ->saveQuietly();
+
+        $this->assertNull($genre->coverUrl());
+    }
+
     public function test_admin_adds_a_genre_with_a_cover(): void
     {
         Sanctum::actingAs($this->admin);
