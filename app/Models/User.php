@@ -27,6 +27,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\HasApiTokens;
 use NotificationChannels\WebPush\HasPushSubscriptions;
 use Overtrue\LaravelFollow\Traits\Followable;
@@ -541,8 +542,11 @@ class User extends Authenticatable implements Commentator, Reportable
 
     public function scopeCreator(Builder $query): void
     {
-        $query->whereHas('projects');
-        $query->orWhereHas('collabProjects');
+        $query->where(
+            fn(Builder $q) => $q
+                ->whereHas('projects')
+                ->orWhereHas('collabProjects')
+        );
     }
 
     public function scopeCollabing(Builder $query, User|string $user): void
@@ -596,15 +600,20 @@ class User extends Authenticatable implements Commentator, Reportable
         });
     }
 
+    /**
+     * Rank users by the votes their projects got in the last given days, keeping users without votes after them.
+     */
     public function scopeOrderByUserProjectVotesLastDays(Builder $query, int $days = 7, string $direction = 'desc')
     {
         $scope = fn(Builder $q) => $q
             ->whereBetween('social_interactions.created_at', [now()->subDays($days), now()]);
 
+        $nulls = DB::getDriverName() === 'pgsql' ? ' nulls last' : '';
+
         $query
-            ->whereHas('projectInteractions', $scope)
-            ->withMax(['projectInteractions' => $scope], 'votes')
-            ->orderBy('project_interactions_max_votes', $direction);
+            ->withSum(['projectInteractions' => $scope], 'votes')
+            ->orderByRaw("project_interactions_sum_votes {$direction}{$nulls}")
+            ->latest('users.id');
     }
 
     public function scopeOrderByFollowersLastDays(Builder $query, int $days = 7, string $direction = 'desc')

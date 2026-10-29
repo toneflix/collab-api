@@ -71,9 +71,12 @@ class UserController extends Controller
                 $filters->contains('latest'),
                 function (Builder $q) use ($filters) {
                     if ($filters->contains('creator')) {
-                        $q->withMax('projects as latest_project_date', 'created_at');
-                        $q->doesntHave('projects');
-                        $q->latest('latest_project_date');
+                        $nulls = DB::getDriverName() === 'pgsql' ? ' nulls last' : '';
+
+                        $q
+                            ->withMax('projects as latest_project_date', 'created_at')
+                            ->orderByRaw("latest_project_date desc{$nulls}")
+                            ->latest('users.id');
                     } else {
                         $q->latest();
                     }
