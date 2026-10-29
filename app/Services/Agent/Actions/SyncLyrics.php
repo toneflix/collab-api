@@ -34,7 +34,7 @@ class SyncLyrics implements AgentAction
         }
 
         if ($job->status === AiJob::FAILED) {
-            $step->remember(['synced' => false, 'missed' => $job->failure ?: $job->error ?: 'The lyrics couldn\'t be timed.']);
+            $step->remember(['synced' => false, 'missed' => 'The lyrics couldn\'t be timed.', 'failure' => $job->failure ?: $job->error]);
 
             return true;
         }

@@ -45,7 +45,7 @@ class DrawArtwork implements AgentAction
                 return $this->start($step);
             }
 
-            $step->remember(['file' => null, 'missed' => $job->failure ?: $job->error ?: 'The artwork couldn\'t be drawn.']);
+            $step->remember(['file' => null, 'missed' => 'The artwork couldn\'t be drawn.', 'failure' => $job->failure ?: $job->error]);
 
             return true;
         }

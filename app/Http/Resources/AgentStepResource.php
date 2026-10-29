@@ -40,6 +40,7 @@ class AgentStepResource extends JsonResource
             'synced' => $output['synced'] ?? null,
             'notice' => $output['missed'] ?? null,
             'error' => $this->error,
+            'failure' => $this->when($request->is('api/admin/*'), $output['failure'] ?? null),
             'startedAt' => $this->started_at,
             'finishedAt' => $this->finished_at,
         ];

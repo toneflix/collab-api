@@ -32,7 +32,7 @@ class MakeVoice implements AgentAction
         }
 
         if ($job->status === AiJob::FAILED) {
-            $step->remember(['sample' => false, 'missed' => $job->failure ?: $job->error ?: 'The voice sample couldn\'t be made.']);
+            $step->remember(['sample' => false, 'missed' => 'The voice sample couldn\'t be made.', 'failure' => $job->failure ?: $job->error]);
 
             return true;
         }

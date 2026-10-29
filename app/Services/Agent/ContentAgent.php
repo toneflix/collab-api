@@ -10,9 +10,13 @@ use App\Models\AgentStep;
 use App\Models\AiJob;
 use App\Models\User;
 use App\Services\Ai\AiStudio;
+use App\Services\Ai\Cloudflare\CloudflareException;
 use App\Services\Ai\Credits;
+use App\Services\Ai\Replicate\ReplicateException;
+use App\Services\Ai\Suno\SunoException;
 use App\Services\Limits;
 use App\Services\Realtime\Realtime;
+use Illuminate\Http\Client\HttpClientException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -452,7 +456,12 @@ class ContentAgent
             Log::error('Content agent step failed', ['run' => $step->agent_run_id, 'step' => $step->key, 'exception' => $e]);
 
             $step
-                ->forceFill(['status' => AgentStep::FAILED, 'error' => $this->reason($e), 'finished_at' => now()])
+                ->forceFill([
+                    'status' => AgentStep::FAILED,
+                    'error' => $this->reason($e),
+                    'output' => [...($step->output ?? []), 'failure' => $this->detail($e)],
+                    'finished_at' => now(),
+                ])
                 ->save();
 
             return false;
@@ -486,7 +495,7 @@ class ContentAgent
             ->update([
                 'status' => AgentRun::FAILED,
                 'error' => $step ? 'Stopped at "' . ($step->input['title'] ?? $step->input['name'] ?? $step->key) . "\": {$reason}" : $reason,
-                'failure' => $error instanceof Throwable ? class_basename($error) . ': ' . $error->getMessage() : $error,
+                'failure' => $step?->output['failure'] ?? ($error instanceof Throwable ? $this->detail($error) : $error),
                 'finished_at' => now(),
                 'updated_at' => now(),
             ]);
@@ -513,16 +522,39 @@ class ContentAgent
         ]);
     }
 
+    /**
+     * What went wrong, in words fit for the run's owner. Errors from AI
+     * providers and their APIs stay out of it; detail() keeps them for admins.
+     */
     protected function reason(Throwable $e): string
     {
-        $message = $e instanceof ValidationException
-            ? collect($e->errors())
+        $message = match (true) {
+            $e instanceof ValidationException => collect($e->errors())
                 ->flatten()
-                ->first()
-            : $e->getMessage();
+                ->first(),
+            $e instanceof ReplicateException,
+            $e instanceof SunoException,
+            $e instanceof CloudflareException,
+            $e instanceof HttpClientException => 'The AI service couldn\'t do this right now. Try again later.',
+            default => $e->getMessage(),
+        };
 
         return str((string) $message)
             ->limit(500)
+            ->toString();
+    }
+
+    /**
+     * The full error, for admins.
+     */
+    protected function detail(Throwable $e): string
+    {
+        $detail = $e instanceof AgentStepFailed && $e->detail
+            ? $e->detail
+            : class_basename($e) . ': ' . $e->getMessage();
+
+        return str($detail)
+            ->limit(2000)
             ->toString();
     }
 }
