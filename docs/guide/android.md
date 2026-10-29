@@ -77,3 +77,12 @@ Add these under the collab repository's *Settings > Secrets and variables > Acti
 | `ANDROID_VERSION_NAME` | `package.json` version | The version people see |
 | `ANDROID_VERSION_CODE_OFFSET` | `0` | Added to the run number to give the version code. Raise it if Play already has a higher code. |
 | `VITE_*` | `.env` | Override the app's build settings, as for the web deploy |
+
+#### Using the Firebase admin key for `PLAY_SERVICE_ACCOUNT_JSON`
+
+The Firebase Admin SDK key (`firebase-adminsdk-…@….iam.gserviceaccount.com`) is a normal Google service account key, so it works for Play uploads once:
+
+1. The **Google Play Android Developer API** is enabled in the Google Cloud project that owns it (your Firebase project).
+2. Its `client_email` is invited in the Play Console under *Users and permissions* with release permissions for the app.
+
+A separate service account just for Play uploads is still the better choice. The Firebase admin key has wide access to the Firebase project and should not sit in the CI secrets. Create one in the same Cloud project as in step 3 above.
