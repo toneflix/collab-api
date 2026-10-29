@@ -10,6 +10,7 @@ use App\Models\Release;
 use App\Models\User;
 use App\Services\Ai\AiSettings;
 use App\Services\Ai\Tasks\GenerateArtwork;
+use App\Services\Artists\ArtistVoices;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
@@ -155,12 +156,21 @@ class AgentPlanner
             ->whereKey([...array_column($plan['albums'], 'genre_id'), ...array_column($plan['releases'] ?? [], 'genre_id')])
             ->pluck('title', 'id');
         $names = array_column($plan['artists'], 'name', 'key');
+        $voiced = $this->voiced($plan);
 
         foreach ($plan['artists'] as $artist) {
             $steps[] = $this->step("artist:{$artist['key']}", 'artist', [], [
                 'name' => $artist['name'],
                 'about' => $artist['about'],
+                'voice' => $artist['voice'] ?? '',
             ]);
+
+            if (in_array($artist['key'], $voiced, true)) {
+                $steps[] = $this->step("voice:{$artist['key']}", 'voice', ["artist:{$artist['key']}"], [
+                    'name' => $artist['name'],
+                    'artist' => "artist:{$artist['key']}",
+                ]);
+            }
 
             if ($artwork) {
                 $steps[] = $this->step("portrait:{$artist['key']}", 'artwork', ["artist:{$artist['key']}"], [
@@ -209,12 +219,15 @@ class AgentPlanner
                     'project' => $project,
                     'genre_id' => $album['genre_id'],
                 ]);
-                $steps[] = $this->step("music:{$track['key']}", 'music', [$source], [
+                $voice = ! $track['instrumental'] && in_array($album['artist'], $voiced, true) ? "voice:{$album['artist']}" : null;
+
+                $steps[] = $this->step("music:{$track['key']}", 'music', array_values(array_filter([$source, $voice])), [
                     'title' => $track['title'],
                     'source' => $source,
                     'style' => $track['style'],
                     'instrumental' => $track['instrumental'],
                     'seconds' => $seconds,
+                    'artist' => $artist,
                 ]);
                 $steps[] = $mixes[] = $this->step("mix:{$track['key']}", 'mix', ["music:{$track['key']}"], [
                     'title' => $track['title'],
@@ -352,11 +365,38 @@ class AgentPlanner
             ->count();
         $pictures = $fills->count() + ($this->artwork($run) ? count($plan['artists']) + count($plan['albums']) + $releaseCovers : 0);
 
-        return ($vocals + count($plan['songs'])) * AgentWriter::credits()
+        $sampleCredits = AiSettings::composerMusicModel()
+            ->credits(ArtistVoices::SAMPLE_SECONDS);
+
+        return count($this->voiced($plan)) * $sampleCredits
+            + ($vocals + count($plan['songs'])) * AgentWriter::credits()
             + ($vocals + $timings) * AiSettings::lyricsCredits()
             + $vocals * $vocalCredits
             + ($tracks->count() - $vocals) * $instrumentalCredits
             + $pictures * AiSettings::artworkCredits();
+    }
+
+    /**
+     * Keys of the plan's artists that get a voice sample: those singing a
+     * new track, when the model that sings can follow a voice.
+     *
+     * @param  array{artists: list<array<string, mixed>>, albums: list<array<string, mixed>>}  $plan
+     * @return list<string>
+     */
+    public function voiced(array $plan): array
+    {
+        $model = AiSettings::composerMusicModel();
+
+        if (! $model->takesVoices()) {
+            return [];
+        }
+
+        return collect($plan['albums'])
+            ->filter(fn(array $album) => collect($album['tracks'])->contains(fn(array $track) => ! $track['instrumental']))
+            ->pluck('artist')
+            ->unique()
+            ->values()
+            ->all();
     }
 
     /**
@@ -449,9 +489,10 @@ class AgentPlanner
             '"updates" touch up the account\'s existing work, only when the instructions ask for it. Name each by a project\'s "#id", or by the exact title of a project, album or track the instructions mention, even when it isn\'t listed below: "artwork" draws a picture for a project and whatever of it has none, "lyrics" times its untimed lyrics to the audio. "cover" describes the picture. A project both updated and released gets the update first.',
             'When the instructions ask to find and fix everything missing artwork (all projects, albums or tracks), set "sweep" "artwork" to true; for all untimed lyrics, set "sweep" "lyrics" to true. The sweep finds them itself, so don\'t list them in "updates" too.',
             'Each album has a "cover": one sentence describing its cover image, and each artist a "look": one sentence describing their profile picture. Describe scenes, colours and style, never text or real people.',
+            'Each artist has a "voice": one short phrase describing how they sing (gender, range, tone, delivery), never naming a real singer. Every track with vocals by an artist is sung in that voice, so a track\'s "style" describes no other voice.',
             'Keep every name and title short and plain, with no quotes or emoji.',
             'Answer with JSON only, no other text, in this shape:',
-            '{"artists": [{"key": "a1", "name": "", "about": "two or three sentence bio", "look": ""}],'
+            '{"artists": [{"key": "a1", "name": "", "about": "two or three sentence bio", "look": "", "voice": ""}],'
                 . ' "albums": [{"key": "al1", "title": "", "artist": "a1", "genre": "", "description": "", "cover": "", "release": true, "tracks": [{"title": "", "style": "", "theme": "", "mood": "", "instrumental": false}]}],'
                 . ' "releases": [{"project": "#id or existing project title", "title": "", "version": "", "artist": "a1", "genre": "", "description": "", "cover": "", "retire": false}],'
                 . ' "updates": [{"project": "#id or existing project title", "artwork": true, "lyrics": true, "cover": ""}],'
@@ -538,6 +579,7 @@ class AgentPlanner
                 'name' => $this->text($artist['name'] ?? null, 100),
                 'about' => $this->text($artist['about'] ?? null, 2000),
                 'look' => $this->text($artist['look'] ?? null, 400),
+                'voice' => $this->text($artist['voice'] ?? null, 300),
             ])
             ->filter(fn(array $artist) => $artist['name'] !== '')
             ->unique(fn(array $artist) => mb_strtolower($artist['name']))

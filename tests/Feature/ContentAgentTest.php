@@ -11,6 +11,7 @@ use App\Models\AgentRun;
 use App\Models\AgentStep;
 use App\Models\AiJob;
 use App\Models\Artist;
+use App\Models\ArtistVoice;
 use App\Models\Genre;
 use App\Models\Lyric;
 use App\Models\Plan;
@@ -339,6 +340,84 @@ class ContentAgentTest extends TestCase
 
         // Plan 2 + two lyrics at 2 + vocal 30 + instrumental 60s at 5 per 10s + timing 2.
         $this->assertSame(68, $run->credits);
+    }
+
+    public function test_artists_get_a_voice_sample_their_songs_are_sung_in(): void
+    {
+        config(['ai.providers.suno.key' => 'suno_test']);
+        AiSettings::update(['ai_composer_music_model' => 'suno/music', 'ai_music_suno_credits' => 12]);
+
+        $owner = $this->ownerWith(300);
+        $plan = json_decode($this->plan(), true);
+        $plan['artists'][0]['voice'] = 'Warm female alto with a light rasp';
+        $this->answers[] = json_encode($plan);
+
+        $run = $this->advance($this->queueRun($owner));
+
+        $this->assertStringContainsString('"voice"', $this->asked[0]['system']);
+        $this->assertContains('voice:a1', $this->step($run, 'music:t1')->depends_on);
+        $this->assertNotContains('voice:a1', $this->step($run, 'music:t2')->depends_on);
+
+        $artist = Artist::query()->findOrFail($this->step($run, 'artist:a1')->output['artist_id']);
+        $this->assertSame('Warm female alto with a light rasp', $artist->voice->description);
+
+        // The sample is made first; the sung track waits for it.
+        $voiceJob = AiJob::query()->findOrFail($this->step($run, 'voice:a1')->output['ai_job_id']);
+        $this->assertSame('voice', $voiceJob->kind);
+        $this->assertSame('suno/music', $voiceJob->input['model']);
+        $this->assertSame(AgentStep::PENDING, $this->step($run, 'music:t1')->status);
+
+        $voiceJob
+            ->forceFill(['status' => AiJob::SUCCEEDED, 'credits' => 12, 'output' => ['seconds' => 20, 'persona' => true]])
+            ->save();
+        $artist->voice
+            ->forceFill(['status' => ArtistVoice::READY, 'file' => 'artists/voices/a.mp3', 'seconds' => 20, 'persona_id' => 'persona-1', 'persona_kind' => ArtistVoice::STYLE_PERSONA])
+            ->save();
+
+        $run = $this->advance($run);
+
+        $this->assertTrue($this->step($run, 'voice:a1')->output['sample']);
+
+        $musicJob = AiJob::query()->findOrFail($this->step($run, 'music:t1')->output['ai_job_id']);
+        $this->assertSame($artist->id, (int) $musicJob->input['voice_artist_id']);
+        $this->assertStringStartsWith('Vocals: Warm female alto with a light rasp. Afrobeats', $musicJob->input['prompt']);
+    }
+
+    public function test_artists_with_a_sample_keep_it(): void
+    {
+        config(['ai.providers.suno.key' => 'suno_test']);
+        AiSettings::update(['ai_composer_music_model' => 'suno/music', 'ai_music_suno_credits' => 12]);
+
+        $owner = $this->ownerWith(300);
+        $artist = $owner
+            ->artists()
+            ->create(['name' => 'Ada Lumen']);
+        $voice = $artist
+            ->voice()
+            ->make(['description' => 'Deep baritone']);
+        $voice->forceFill(['status' => ArtistVoice::READY, 'file' => 'artists/voices/b.mp3', 'seconds' => 25, 'persona_id' => 'voice-1', 'persona_kind' => ArtistVoice::VOICE_PERSONA]);
+        $voice->save();
+
+        $this->answers[] = $this->plan();
+
+        $run = $this->advance($this->queueRun($owner));
+
+        $this->assertTrue($this->step($run, 'voice:a1')->output['existing']);
+        $this->assertFalse(AiJob::query()->where('user_id', $owner->id)->where('kind', 'voice')->exists());
+
+        $musicJob = AiJob::query()->findOrFail($this->step($run, 'music:t1')->output['ai_job_id']);
+        $this->assertSame($artist->id, (int) $musicJob->input['voice_artist_id']);
+        $this->assertStringStartsWith('Vocals: Deep baritone.', $musicJob->input['prompt']);
+    }
+
+    public function test_no_sample_is_made_when_the_singing_model_cannot_follow_a_voice(): void
+    {
+        $owner = $this->ownerWith(200);
+        $this->answers[] = $this->plan();
+
+        $run = $this->advance($this->queueRun($owner));
+
+        $this->assertFalse($run->steps()->where('key', 'voice:a1')->exists());
     }
 
     public function test_a_run_draws_album_covers_and_artist_pictures(): void
