@@ -39,6 +39,8 @@ class ReleaseResource extends JsonResource
             'genre' => $this->when($with->contains('genre'), fn() => new GenreResource($this->genre)),
             'topics' => $this->when($with->contains('topics'), fn() => new TopicCollection($this->topics)),
             'tracks' => $this->when($with->contains('tracks'), function () {
+                $this->resource->loadMissing('tracks.featured');
+
                 $tracks = $this->tracks;
 
                 $tracks->each(fn($track) => $track->setRelation('release', $this->resource));

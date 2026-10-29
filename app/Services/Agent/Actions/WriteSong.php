@@ -14,7 +14,8 @@ use RuntimeException;
 
 /**
  * Writes a song's lyrics into the owner's Composer and, for an album track,
- * puts the song on a track of the album's project with its lyric sheet.
+ * puts the song on a track of the album's project with its lyric sheet and
+ * the artists it features.
  */
 class WriteSong implements AgentAction
 {
@@ -59,6 +60,8 @@ class WriteSong implements AgentAction
             'artist_id' => $step->from($input['artist'], 'artist_id'),
         ], $project);
 
+        $track->feature(CreateTrack::featuredIds($step));
+
         $step->remember(['project_track_id' => $track->id, 'project_id' => $project->id]);
 
         return true;
@@ -74,14 +77,21 @@ class WriteSong implements AgentAction
             ? self::MAX_LENGTH
             : min(self::MAX_LENGTH, AiSettings::composerMusicModel()->lyricsLength()[1] ?? self::MAX_LENGTH);
 
+        $voices = $input['voices'] ?? [];
+        $sungBy = count($voices) > 1
+            ? 'Sung by: ' . $voices[0] . ' featuring ' . implode(' & ', array_slice($voices, 1)) . '. Give each of them their own sections.'
+            : null;
+
         $answer = $this->writer->json($step->run, 'lyrics', implode("\n", [
             'You write original song lyrics for a streaming platform.',
             'Never quote or closely paraphrase existing songs, and never name real artists.',
             'Keep it clean: no profanity, slurs or sexual content.',
             'Start each section with a line in square brackets on its own, like [Verse 1], [Chorus] or [Bridge].',
+            'When several artists sing, name who sings each section in its line, like [Verse 2: Daniel] or [Chorus: Dave & Daniel].',
             'Answer with JSON only, no other text: {"lines": ["[Verse 1]", "first line", "second line"]}',
         ]), implode("\n", array_filter([
             'Song: ' . $input['title'],
+            $sungBy,
             $input['theme'] ? 'About: ' . $input['theme'] : null,
             $input['style'] ? 'Sound: ' . $input['style'] : null,
             ! empty($input['mood']) ? 'Mood: ' . $input['mood'] : null,

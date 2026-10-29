@@ -10,6 +10,7 @@ use App\Http\Resources\TrackCollection;
 use App\Http\Resources\TrackResource;
 use App\Models\Release;
 use App\Models\Track;
+use App\Services\Artists\FeaturedArtists;
 use App\Services\Limits;
 use Illuminate\Http\Request;
 
@@ -45,6 +46,8 @@ class TrackController extends Controller
     {
         $allowedAudio = SoundController::audioRule();
 
+        FeaturedArtists::prepare($request);
+
         $this->validate($request, [
             'title' => ['required', 'string'],
             'image' => ['nullable', 'image', 'mimes:png,jpg'],
@@ -55,6 +58,7 @@ class TrackController extends Controller
             'artist_id' => ['required', 'string', 'exists:artists,id'],
             'description' => ['nullable', 'string'],
             'stems_price' => ['nullable', 'numeric', 'min:0', 'max:9999999'],
+            ...FeaturedArtists::rules('featured_ids'),
         ]);
 
         /** @var Release $release */
@@ -78,13 +82,7 @@ class TrackController extends Controller
         $track->stems_price = $request->input('stems_price', $track->stems_price ?? 0) ?? 0;
         $track->save();
 
-        $artists = [];
-        if ($request->artist_id) {
-            $artists[$request->artist_id] = ['type' => 'primary'];
-        }
-        $track
-            ->artists()
-            ->sync($artists);
+        $track->credit($request->input('artist_id'), $request->input('featured_ids', []));
 
         return (new TrackResource($track))
             ->additional([
@@ -103,6 +101,8 @@ class TrackController extends Controller
     {
         $allowedAudio = SoundController::audioRule();
 
+        FeaturedArtists::prepare($request);
+
         $this->validate($request, [
             'title' => ['required', 'string'],
             'image' => ['nullable', 'image', 'mimes:png,jpg'],
@@ -113,6 +113,7 @@ class TrackController extends Controller
             'artist_id' => ['required', 'string', 'exists:artists,id'],
             'description' => ['nullable', 'string'],
             'stems_price' => ['nullable', 'numeric', 'min:0', 'max:9999999'],
+            ...FeaturedArtists::rules('featured_ids'),
         ]);
 
         /** @var Release $release */
@@ -136,13 +137,7 @@ class TrackController extends Controller
         $track->stems_price = $request->input('stems_price', $track->stems_price ?? 0) ?? 0;
         $track->save();
 
-        $artists = [];
-        if ($request->artist_id) {
-            $artists[$request->artist_id] = ['type' => 'primary'];
-        }
-        $track
-            ->artists()
-            ->sync($artists);
+        $track->credit($request->input('artist_id'), $request->has('featured_ids') ? $request->input('featured_ids') : null);
 
         return (new TrackResource($track))
             ->additional([

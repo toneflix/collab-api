@@ -9,6 +9,7 @@ use App\Jobs\ProcessAudio;
 use App\Jobs\TagAudio;
 use App\Jobs\TranscribeTrack;
 use App\Models\Scopes\HideDeactivatedAccounts;
+use App\Services\Artists\FeaturedArtists;
 use App\Traits\HasAudioTags;
 use App\Traits\HasLikedScope;
 use App\Traits\Metricable;
@@ -25,6 +26,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
+use Illuminate\Support\Facades\DB;
 use Toneflix\LaravelFileable\Traits\Fileable;
 use Toneflix\SocialInteractions\Traits\HasSocialInteractions;
 
@@ -231,7 +233,7 @@ class Track extends Model implements CanBeTakenDown
     {
         return $this
             ->artists()
-            ->wherePivot('type', 'primary');
+            ->wherePivot('type', TrackArtist::PRIMARY);
     }
 
     /**
@@ -243,6 +245,50 @@ class Track extends Model implements CanBeTakenDown
             ->using(TrackArtist::class)
             ->as('track')
             ->withTimestamps();
+    }
+
+    /**
+     * The artists the track features, in the order they are credited.
+     */
+    public function featured(): BelongsToMany
+    {
+        return $this
+            ->artists()
+            ->wherePivot('type', TrackArtist::FEATURE)
+            ->orderByPivot('id');
+    }
+
+    /**
+     * Credit the track to its primary artist and the artists it features, in
+     * order. Null keeps the features it has.
+     *
+     * @param  list<int|string>|null  $featured
+     */
+    public function credit(int|string $primary, ?array $featured = null): void
+    {
+        $featured ??= $this
+            ->featured()
+            ->pluck('artists.id')
+            ->all();
+        $featured = FeaturedArtists::without($featured, $primary);
+
+        DB::transaction(function () use ($primary, $featured) {
+            $this
+                ->artists()
+                ->wherePivotIn('type', [TrackArtist::PRIMARY, TrackArtist::FEATURE])
+                ->detach();
+            $this
+                ->artists()
+                ->attach((int) $primary, ['type' => TrackArtist::PRIMARY]);
+
+            foreach ($featured as $artistId) {
+                $this
+                    ->artists()
+                    ->attach($artistId, ['type' => TrackArtist::FEATURE]);
+            }
+        });
+
+        $this->unsetRelation('featured');
     }
 
     /**
@@ -401,7 +447,7 @@ class Track extends Model implements CanBeTakenDown
     {
         $id = is_string($artist) ? $artist : $artist->id;
         $query->whereHas('artists', function (Builder $q) use ($id) {
-            $q->whereNot('track_artist.type', 'primary');
+            $q->where('track_artist.type', TrackArtist::FEATURE);
             $q->where(function (Builder $qx) use ($id) {
                 $qx
                     ->where('artists.username', $id)

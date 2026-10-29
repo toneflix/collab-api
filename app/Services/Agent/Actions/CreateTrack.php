@@ -6,7 +6,8 @@ use App\Models\AgentStep;
 use App\Models\Project;
 
 /**
- * Adds an instrumental track to an album's project.
+ * Adds an instrumental track to an album's project, with the artists it
+ * features.
  */
 class CreateTrack implements AgentAction
 {
@@ -28,8 +29,24 @@ class CreateTrack implements AgentAction
                 'artist_id' => $step->from($input['artist'], 'artist_id'),
             ]);
 
+        $track->feature(self::featuredIds($step));
+
         $step->remember(['project_track_id' => $track->id, 'project_id' => $project->id]);
 
         return true;
+    }
+
+    /**
+     * The ids of the artists the step's track features, made by earlier steps.
+     *
+     * @return list<int>
+     */
+    public static function featuredIds(AgentStep $step): array
+    {
+        return collect($step->input['featuring'] ?? [])
+            ->map(fn(string $key) => (int) $step->from($key, 'artist_id'))
+            ->filter()
+            ->values()
+            ->all();
     }
 }

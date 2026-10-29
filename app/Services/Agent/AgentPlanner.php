@@ -10,6 +10,7 @@ use App\Models\Release;
 use App\Models\User;
 use App\Services\Ai\AiSettings;
 use App\Services\Ai\Tasks\GenerateArtwork;
+use App\Services\Artists\FeaturedArtists;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
@@ -199,13 +200,19 @@ class AgentPlanner
             foreach ($album['tracks'] as $track) {
                 $kind = $track['instrumental'] ? 'track' : 'song';
                 $source = "{$kind}:{$track['key']}";
+                $featuring = array_map(fn(string $key) => "artist:{$key}", $track['featuring']);
 
-                $steps[] = $this->step($source, $kind, [$artist, $project], [
+                $steps[] = $this->step($source, $kind, [$artist, ...$featuring, $project], [
                     'title' => $track['title'],
                     'theme' => $track['theme'],
                     'style' => $track['style'],
                     'mood' => $track['mood'],
                     'artist' => $artist,
+                    'featuring' => $featuring,
+                    'voices' => array_values(array_filter([
+                        $names[$album['artist']] ?? null,
+                        ...array_map(fn(string $key) => $names[$key] ?? null, $track['featuring']),
+                    ])),
                     'project' => $project,
                     'genre_id' => $album['genre_id'],
                 ]);
@@ -444,6 +451,7 @@ class AgentPlanner
             '"songs" are lyric sheets only, with no music. Use them only when the instructions ask for written lyrics, lyric sheets or compositions without music; tracks, singles, EPs and albums are never "songs".',
             'Each track has a "style": one or two sentences for a music generator describing genre, tempo, instruments, vocals and mood. Never name real artists in it.',
             'Each track with vocals has a "theme": what its lyrics are about, in one sentence.',
+            'A track can feature other artists, a collaboration like "Dave featuring Daniel": list the keys of the featured artists from "artists" in the track\'s "featuring", never the album\'s own artist. Add features only when the instructions ask for features, collaborations or duets, and say in the track\'s "style" how the voices share it, like "duet, male and female vocals".',
             'Albums are new studio projects. A "project" the instructions ask for (rather than an album, EP or single) is a studio project that isn\'t released: list it in "albums" with "release" set to false. Also set "release" to false when the instructions say not to release.',
             '"releases" release the account\'s existing projects, named by "#id" or their exact title, only when the instructions ask for it. "version" labels a new version, like "Deluxe" or "Remastered", when the project was released before; set "retire" to true when the new version should replace the earlier ones.',
             '"updates" touch up the account\'s existing work, only when the instructions ask for it. Name each by a project\'s "#id", or by the exact title of a project, album or track the instructions mention, even when it isn\'t listed below: "artwork" draws a picture for a project and whatever of it has none, "lyrics" times its untimed lyrics to the audio. "cover" describes the picture. A project both updated and released gets the update first.',
@@ -452,7 +460,7 @@ class AgentPlanner
             'Keep every name and title short and plain, with no quotes or emoji.',
             'Answer with JSON only, no other text, in this shape:',
             '{"artists": [{"key": "a1", "name": "", "about": "two or three sentence bio", "look": ""}],'
-                . ' "albums": [{"key": "al1", "title": "", "artist": "a1", "genre": "", "description": "", "cover": "", "release": true, "tracks": [{"title": "", "style": "", "theme": "", "mood": "", "instrumental": false}]}],'
+                . ' "albums": [{"key": "al1", "title": "", "artist": "a1", "genre": "", "description": "", "cover": "", "release": true, "tracks": [{"title": "", "style": "", "theme": "", "mood": "", "instrumental": false, "featuring": []}]}],'
                 . ' "releases": [{"project": "#id or existing project title", "title": "", "version": "", "artist": "a1", "genre": "", "description": "", "cover": "", "retire": false}],'
                 . ' "updates": [{"project": "#id or existing project title", "artwork": true, "lyrics": true, "cover": ""}],'
                 . ' "sweep": {"artwork": false, "lyrics": false},'
@@ -548,9 +556,16 @@ class AgentPlanner
             throw new RuntimeException('The plan had albums or releases but no artists.');
         }
 
-        $artistKey = fn($ref) => $artists->firstWhere('ref', (string) $ref)['key']
-            ?? $artists->first(fn(array $artist) => mb_strtolower($artist['name']) === mb_strtolower((string) $ref))['key']
-            ?? $artists->first()['key'];
+        $findArtist = function (mixed $ref) use ($artists): ?string {
+            if (! is_scalar($ref)) {
+                return null;
+            }
+
+            return $artists->firstWhere('ref', (string) $ref)['key']
+                ?? $artists->first(fn(array $artist) => mb_strtolower($artist['name']) === mb_strtolower((string) $ref))['key']
+                ?? null;
+        };
+        $artistKey = fn($ref) => $findArtist($ref) ?? $artists->first()['key'];
 
         $left = $maxTracks;
         $trackNumber = 0;
@@ -558,6 +573,7 @@ class AgentPlanner
 
         foreach ($this->list($answer['albums'] ?? null) as $i => $album) {
             $tracks = [];
+            $main = $artistKey($album['artist'] ?? null);
 
             foreach ($this->list($album['tracks'] ?? null) as $track) {
                 $title = $this->text($track['title'] ?? null, 120);
@@ -575,6 +591,7 @@ class AgentPlanner
                     'theme' => $this->text($track['theme'] ?? null, 400),
                     'mood' => $this->text($track['mood'] ?? null, 40) ?: null,
                     'instrumental' => $instrumental,
+                    'featuring' => $this->featuring($track['featuring'] ?? null, $findArtist, $main),
                 ];
                 $left--;
             }
@@ -588,7 +605,7 @@ class AgentPlanner
             $albums[] = [
                 'key' => 'al' . ($i + 1),
                 'title' => $title,
-                'artist' => $artistKey($album['artist'] ?? null),
+                'artist' => $main,
                 'genre_id' => $byName[mb_strtolower(trim((string) ($album['genre'] ?? '')))] ?? $fallbackGenre,
                 'description' => $this->text($album['description'] ?? null, 2000),
                 'cover' => $this->text($album['cover'] ?? null, 400),
@@ -625,7 +642,10 @@ class AgentPlanner
                 : 'The plan had no albums, releases, updates, tracks or songs.');
         }
 
-        $used = collect([...$albums, ...$releases])->pluck('artist');
+        $featured = collect($albums)->flatMap(fn(array $album) => array_merge(...array_column($album['tracks'], 'featuring')));
+        $used = collect([...$albums, ...$releases])
+            ->pluck('artist')
+            ->concat($featured);
 
         return [
             'artists' => $artists
@@ -638,6 +658,23 @@ class AgentPlanner
             'updates' => $updates,
             'songs' => $songs,
         ];
+    }
+
+    /**
+     * Keys of the planned artists a track features, without its main artist,
+     * up to FeaturedArtists::MAX.
+     *
+     * @return list<string>
+     */
+    protected function featuring(mixed $refs, callable $findArtist, string $main): array
+    {
+        return collect(is_array($refs) ? $refs : [$refs])
+            ->map(fn($ref) => $findArtist($ref))
+            ->filter(fn(?string $key) => $key !== null && $key !== $main)
+            ->unique()
+            ->take(FeaturedArtists::MAX)
+            ->values()
+            ->all();
     }
 
     /**

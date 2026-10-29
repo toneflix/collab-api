@@ -175,9 +175,7 @@ class ReleaseAlbum implements AgentAction
         $track->duration = $projectTrack->duration;
         $track->saveQuietly();
 
-        $track
-            ->artists()
-            ->sync([$artist->id => ['type' => 'primary']]);
+        $track->credit($artist->id, $projectTrack->featuredIds());
 
         $track->queueSoundChecks(false);
     }
