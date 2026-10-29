@@ -47,6 +47,7 @@ class ContentAgent
     public function __construct(
         protected AgentPlanner $planner,
         protected AiStudio $studio,
+        protected AgentRunParts $parts,
     ) {}
 
     /**
@@ -223,6 +224,22 @@ class ContentAgent
     }
 
     /**
+     * Take a part, like an album or a track, out of a failed or stopped run
+     * so a retry carries on without it.
+     */
+    public function remove(AgentRun $run, string $part): AgentRun
+    {
+        if (! in_array($run->status, [AgentRun::FAILED, AgentRun::CANCELLED], true)) {
+            throw ValidationException::withMessages(['run' => 'Only failed or stopped runs can have parts removed.']);
+        }
+
+        $this->parts->remove($run, $part);
+        $this->announce($run);
+
+        return $run->refresh();
+    }
+
+    /**
      * Queue a failed or cancelled run again. Steps that are done stay done,
      * so it carries on where it stopped.
      */
@@ -263,7 +280,7 @@ class ContentAgent
         $run
             ->steps()
             ->where('status', AgentStep::SKIPPED)
-            ->update(['status' => AgentStep::PENDING]);
+            ->update(['status' => AgentStep::PENDING, 'started_at' => null]);
 
         $run
             ->forceFill(['status' => AgentRun::QUEUED, 'error' => null, 'failure' => null, 'finished_at' => null])

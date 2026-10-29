@@ -68,7 +68,7 @@ class MakeVoice implements AgentAction
             ->count();
 
         if ($unfinished >= AiStudio::MAX_UNFINISHED) {
-            return false;
+            return $step->waitForSlot();
         }
 
         $job = $this->voices->generate($artist, $step->run->owner);
