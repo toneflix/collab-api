@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\PayoutController;
 use App\Http\Controllers\Admin\PayoutSettingsController;
 use App\Http\Controllers\Admin\PlanController;
 use App\Http\Controllers\Admin\RealtimeSettingsController;
+use App\Http\Controllers\Admin\RoyaltyController;
 use App\Http\Controllers\Admin\SoundSettingsController;
 use App\Http\Controllers\Admin\StatsController;
 use App\Http\Controllers\Admin\UserController;
@@ -115,6 +116,17 @@ Route::middleware(['auth:sanctum'])
         Route::post('payouts/{payout}/approve', [PayoutController::class, 'approve'])->name('payouts.approve');
         Route::post('payouts/{payout}/reject', [PayoutController::class, 'reject'])->name('payouts.reject');
         Route::post('payouts/{payout}/sync', [PayoutController::class, 'sync'])->name('payouts.sync');
+
+        // Royalty program invites and contracts
+        Route::prefix('royalties')->name('royalties.')->group(function () {
+            Route::get('invites', [RoyaltyController::class, 'invites'])->name('invites.index');
+            Route::post('invites', [RoyaltyController::class, 'invite'])->middleware('throttle:20,1')->name('invites.store');
+            Route::post('invites/{invite}/resend', [RoyaltyController::class, 'resend'])->middleware('throttle:10,1')->name('invites.resend');
+            Route::post('invites/{invite}/cancel', [RoyaltyController::class, 'cancel'])->name('invites.cancel');
+            Route::get('contracts', [RoyaltyController::class, 'contracts'])->name('contracts.index');
+            Route::put('contracts/{contract}', [RoyaltyController::class, 'update'])->name('contracts.update');
+            Route::post('contracts/{contract}/end', [RoyaltyController::class, 'end'])->name('contracts.end');
+        });
 
         // Reported and flagged content, takedowns and appeals
         Route::prefix('moderation')->name('moderation.')->group(function () {

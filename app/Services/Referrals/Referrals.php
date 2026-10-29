@@ -3,6 +3,7 @@
 namespace App\Services\Referrals;
 
 use App\Helpers\Providers;
+use App\Models\RoyaltyInvite;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Notifications\SaleNotification;
@@ -94,6 +95,12 @@ class Referrals
      */
     public function terms(User $referrer): ReferralTerms
     {
+        $contract = $referrer->currentRoyaltyContract();
+
+        if ($contract) {
+            return new ReferralTerms('royalty', $contract->rate, $contract->months, $contract->id);
+        }
+
         return new ReferralTerms(
             'loyalty',
             max(0, min(100, (float) Providers::config('loyalty_rate', 10))),
@@ -176,11 +183,20 @@ class Referrals
         ];
     }
 
+    /**
+     * Whether another user, or an open royalty invite, holds the code.
+     */
     protected function taken(string $code, User $user): bool
     {
-        return User::query()
+        $byUser = User::query()
             ->where('referral_code', $code)
             ->whereKeyNot($user->id)
+            ->exists();
+
+        return $byUser || RoyaltyInvite::query()
+            ->open()
+            ->where('code', $code)
+            ->where(fn($q) => $q->whereNull('user_id')->orWhere('user_id', '!=', $user->id))
             ->exists();
     }
 }

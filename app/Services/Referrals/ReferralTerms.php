@@ -13,11 +13,13 @@ class ReferralTerms
     /**
      * @param  float  $rate  Percent of the platform's share of each payment.
      * @param  int  $months  How long after sign-up payments count, 0 for no end.
+     * @param  ?int  $contractId  The royalty contract the terms come from.
      */
     public function __construct(
         public readonly string $program,
         public readonly float $rate,
         public readonly int $months,
+        public readonly ?int $contractId = null,
     ) {}
 
     /**
@@ -35,14 +37,15 @@ class ReferralTerms
     }
 
     /**
-     * @return array{program: string, rate: float, months: int}
+     * @return array{program: string, rate: float, months: int, contract_id?: int}
      */
     public function toArray(): array
     {
-        return [
+        return array_filter([
             'program' => $this->program,
             'rate' => $this->rate,
             'months' => $this->months,
-        ];
+            'contract_id' => $this->contractId,
+        ], fn($value) => $value !== null);
     }
 }
