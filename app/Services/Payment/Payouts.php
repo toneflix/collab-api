@@ -316,10 +316,10 @@ class Payouts
     }
 
     /**
-     * An admin adds to or takes from the creator's balance. It is available
-     * at once, and taking more than is available is refused.
+     * An admin, or the console when null, adds to or takes from the creator's
+     * balance. It is available at once, and taking more than is available is refused.
      */
-    public function adjust(User $user, float $amount, string $note, User $admin): Transaction
+    public function adjust(User $user, float $amount, string $note, ?User $admin): Transaction
     {
         $amount = round($amount, 2);
 
@@ -345,7 +345,7 @@ class Payouts
                 'due' => 0,
                 'recipient_id' => $user->id,
                 'recipient_share' => $amount,
-                'meta' => ['message' => $note, 'admin_id' => $admin->id],
+                'meta' => ['message' => $note, 'admin_id' => $admin?->id],
                 'paid_at' => now(),
             ]);
             $transaction

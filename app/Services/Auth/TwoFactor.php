@@ -82,7 +82,14 @@ class TwoFactor
     public function disable(User $user, ?string $code): void
     {
         $this->check($user, $code);
+        $this->reset($user);
+    }
 
+    /**
+     * Clear the secret and recovery codes without asking for a code.
+     */
+    public function reset(User $user): void
+    {
         $user
             ->forceFill([
                 'two_factor_secret' => null,
