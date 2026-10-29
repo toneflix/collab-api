@@ -25,11 +25,10 @@ class TrackController extends Controller
             ->where(fn($q) => $q->where('slug', $release_id)->when(is_numeric($release_id), fn($q) => $q->orWhere('releases.id', $release_id)))
             ->firstOrFail();
 
-        $query = $release
+        $tracks = $release
             ->tracks()
-            ->getQuery();
-
-        $tracks = $query->paginate($request->perPage(15));
+            ->with('release')
+            ->paginate($request->perPage(15));
 
         return (new TrackCollection($tracks))
             ->additional([

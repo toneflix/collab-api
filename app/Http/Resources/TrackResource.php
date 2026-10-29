@@ -32,6 +32,11 @@ class TrackResource extends JsonResource
                 $with->contains('release') && ! $with->contains('tracks'),
                 fn() => new ReleaseResource($this->release)
             ),
+            'album' => $this->when($this->inAlbum(), fn() => [
+                'id' => $this->release->id,
+                'slug' => $this->release->slug,
+                'title' => $this->release->title,
+            ]),
             'artist' => $this->when($with->contains('artist') && $this->artist, fn() => [
                 'id' => $this->artist->id,
                 'name' => $this->artist->name,

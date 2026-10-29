@@ -72,7 +72,9 @@ class TrackController extends Controller
                 fn(Builder $q) => $q->forFeaturedArtist($request->artist_id)
             );
 
-        $tracks = $query->paginate($request->perPage(15));
+        $tracks = $query
+            ->with('release')
+            ->paginate($request->perPage(15));
 
         return (new TrackCollection($tracks))
             ->additional([
