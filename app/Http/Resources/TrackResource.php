@@ -48,9 +48,11 @@ class TrackResource extends JsonResource
                 'interaction' => $interaction,
                 'liked' => $interaction['liked'] ?? false,
                 'likes' => $interaction['likes'] ?? 0,
+                'saved' => $interaction['saved'] ?? false,
             ], [
                 'liked' => $interaction['liked'] ?? false,
                 'likes' => $interaction['likes'] ?? 0,
+                'saved' => $interaction['saved'] ?? false,
             ]),
             'format' => $this->meta['format'] ?? 'mp3',
             'privacy' => $this->privacy,

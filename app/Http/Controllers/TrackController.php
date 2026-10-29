@@ -52,6 +52,10 @@ class TrackController extends Controller
                 fn(Builder $q) => $q->likedBy($request->user('sanctum'))
             )
             ->when(
+                $filters->contains('saved') && $request->user('sanctum'),
+                fn(Builder $q) => $q->savedBy($request->user('sanctum'))
+            )
+            ->when(
                 $filters->contains('own_collabs') && $request->user('sanctum'),
                 fn(Builder $q) => $q->userCollabs($request->user('sanctum'), $request->period)
             )
