@@ -3,6 +3,7 @@
 namespace App\Services\Moderation;
 
 use App\Contracts\CanBeTakenDown;
+use App\Contracts\Reportable;
 use App\Models\Release;
 use App\Models\Safety;
 use App\Models\Scopes\RestrictBlockedUserScope;
@@ -11,6 +12,7 @@ use App\Models\User;
 use App\Services\Artists\ArtistClaims;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -159,8 +161,21 @@ class ModerationQueue
             return null;
         }
 
+        return $this->describe($model);
+    }
+
+    /**
+     * The same description for content already loaded. Pass the owner when
+     * it is loaded too, to save looking it up.
+     *
+     * @return array<string, mixed>
+     */
+    public function describe(Model&Reportable $model, ?User $owner = null): array
+    {
         $ownerId = $model->moderationOwnerId();
-        $owner = $ownerId ? User::query()->withoutGlobalScopes()->find($ownerId) : null;
+        $owner = $owner && (int) $owner->id === $ownerId
+            ? $owner
+            : ($ownerId ? User::query()->withoutGlobalScopes()->find($ownerId) : null);
 
         return [
             'type' => $this->reportables->nameFor($model::class),
