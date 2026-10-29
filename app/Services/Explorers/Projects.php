@@ -17,7 +17,7 @@ class Projects
     {
         if ($this->request->has('new_projects')) {
             $resource = (new ProjectController)->index(Request::createFrom($this->request)->merge([
-                'filters' => 'active,latest,open',
+                'filters' => 'latest,open',
                 'period' => $this->request->input('period', 'month'),
                 'limit' => $this->request->input('new_projects', 18),
             ]));
@@ -30,7 +30,7 @@ class Projects
 
         if ($this->request->has('top_projects')) {
             $resource = (new ProjectController)->index(Request::createFrom($this->request)->merge([
-                'filters' => 'active,top,open',
+                'filters' => 'top,open',
                 'period' => $this->request->input('period', 'month'),
                 'limit' => $this->request->input('top_projects', 18),
             ]));
@@ -43,7 +43,7 @@ class Projects
 
         if ($this->request->has('active_projects')) {
             $resource = (new ProjectController)->index(Request::createFrom($this->request)->merge([
-                'filters' => 'active,latest,open',
+                'filters' => 'active,open',
                 'period' => $this->request->input('period', 'month'),
                 'limit' => $this->request->input('active_projects', 18),
             ]));
@@ -55,7 +55,7 @@ class Projects
         }
         if ($this->request->has('random_projects')) {
             $resource = (new ProjectController)->index(Request::createFrom($this->request)->merge([
-                'filters' => 'active,random,open',
+                'filters' => 'random,open',
                 'period' => $this->request->input('period', 'month'),
                 'limit' => $this->request->input('random_projects', 18),
             ]));

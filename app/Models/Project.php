@@ -19,6 +19,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Facades\DB;
 use Toneflix\LaravelFileable\Traits\Fileable;
 use Toneflix\SocialInteractions\Traits\HasSocialInteractions;
 
@@ -280,19 +281,21 @@ class Project extends Model implements CanBeTakenDown
         }
     }
 
+    /**
+     * Rank projects by the votes they got in the last given days, keeping projects without votes after them.
+     */
     public function scopeTop(Builder $query, $top = true, int $days = 7): void
     {
         $scope = fn(Builder $q) => $q
             ->whereBetween('social_interactions.created_at', [now()->subDays($days), now()]);
 
-        $query->withSum(['socialInteractions' => $scope], 'votes');
-        $query->whereHas('socialInteractions', $scope);
+        $direction = $top === true ? 'desc' : 'asc';
+        $nulls = DB::getDriverName() === 'pgsql' ? ' nulls last' : '';
 
-        if ($top === true) {
-            $query->latest('social_interactions_sum_votes');
-        } else {
-            $query->oldest('social_interactions_sum_votes');
-        }
+        $query
+            ->withSum(['socialInteractions' => $scope], 'votes')
+            ->orderByRaw("social_interactions_sum_votes {$direction}{$nulls}")
+            ->latest('projects.id');
     }
 
     public function scopeCollaber(Builder $query, User|string $user, ?int $days = null): void
