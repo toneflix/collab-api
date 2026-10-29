@@ -128,7 +128,7 @@ class Limits
 
     protected function canUpgrade(): bool
     {
-        return Plan::active()
+        return Plan::onOffer()
             ->where('price', '>', $this->plan()->price)
             ->exists();
     }

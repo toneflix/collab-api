@@ -151,7 +151,7 @@ class SongProjects
      * song model's limits and the writer's access and credits. A voice
      * artist sings it in that artist's voice.
      *
-     * @param  array{prompt?: ?string, seconds?: ?int, voice_artist_id?: ?int}  $data
+     * @param  array{prompt?: ?string, seconds?: ?int, voice_artist_id?: ?int, vocal_gender?: ?string}  $data
      * @return array<string, mixed>
      */
     protected function musicInput(Song $song, User $user, array $data): array
@@ -195,6 +195,7 @@ class SongProjects
             'instrumental' => $model->instrumentalOption() ? false : null,
             'split' => false,
             'voice_artist_id' => $voice?->artist_id,
+            'vocal_gender' => in_array($data['vocal_gender'] ?? null, ['m', 'f'], true) ? $data['vocal_gender'] : null,
             ...$model->jobSettings(),
         ], fn($value) => $value !== null);
     }

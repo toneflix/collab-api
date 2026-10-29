@@ -17,7 +17,7 @@ class PlanController extends Controller
     public function index()
     {
         // Admins add plans by hand, so the list stays short.
-        $plans = Plan::active()
+        $plans = Plan::onOffer()
             ->ordered()
             ->get();
 

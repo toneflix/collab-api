@@ -144,6 +144,7 @@ class SunoMusic extends MusicModel
                 'prompt' => $instrumental ? null : $lyrics,
                 'lyrics' => ! $instrumental && str_starts_with($version, 'V6') ? $lyrics : null,
                 'duration' => in_array($version, self::TIMED, true) && ! empty($input['seconds']) ? (int) $input['seconds'] : null,
+                'vocalGender' => ! $instrumental && in_array($input['vocal_gender'] ?? null, ['m', 'f'], true) ? $input['vocal_gender'] : null,
                 ...$persona,
             ], fn($value) => $value !== null);
         }

@@ -246,7 +246,7 @@ class Checkout
     protected function forPremium(User $payer, string|int|null $plan, int|string|null $cycles = null): array
     {
         /** @var Plan|null $model */
-        $model = Plan::active()
+        $model = Plan::onOffer()
             ->where('is_default', false)
             ->where(fn(Builder $q) => $q->where('slug', (string) $plan)->when(is_numeric($plan), fn($q) => $q->orWhere('id', $plan)))
             ->first();

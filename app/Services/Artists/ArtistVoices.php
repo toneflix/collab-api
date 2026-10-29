@@ -137,6 +137,7 @@ class ArtistVoices
                 'lyrics' => self::SAMPLE_LYRICS,
                 'seconds' => $model->maxSeconds() ? max(self::SAMPLE_SECONDS, $model->minSeconds()) : null,
                 'instrumental' => false,
+                'vocal_gender' => $voice->gender(),
                 ...$model->jobSettings(),
             ], fn($value) => $value !== null));
         } catch (Throwable $e) {

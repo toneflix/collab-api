@@ -10,6 +10,7 @@ use App\Http\Resources\ReleaseResource;
 use App\Models\Project;
 use App\Models\Release;
 use App\Models\Track;
+use App\Services\Artists\FeaturedArtists;
 use App\Services\Limits;
 use App\Services\Releases\ReleaseVersions;
 use App\Services\Reputation;
@@ -293,6 +294,8 @@ class ReleaseController extends Controller
             return;
         }
 
+        FeaturedArtists::prepare($request);
+
         ['tracks' => $tracks] = $this->validate($request, [
             'tracks.*.id' => ['nullable', 'required_without:tracks.*.project_track_id', 'exists:tracks,id'],
             'tracks.*.title' => ['required', 'string'],
@@ -305,6 +308,7 @@ class ReleaseController extends Controller
             'tracks.*.description' => ['nullable', 'string'],
             'tracks.*.project_track_id' => ['nullable', 'exists:project_tracks,id'],
             'tracks.*.stems_price' => ['nullable', 'numeric', 'min:0', 'max:9999999'],
+            ...FeaturedArtists::rules('tracks.*.featured_ids'),
         ], [
             // 'tracks.*.id' => 'Invalid track.'
         ], [
@@ -319,6 +323,8 @@ class ReleaseController extends Controller
             'tracks.*.project_track_id' => 'project track',
             'tracks.*.description' => 'description',
             'tracks.*.stems_price' => 'stems price',
+            'tracks.*.featured_ids' => 'featured artists',
+            'tracks.*.featured_ids.*' => 'featured artist',
         ]);
 
         foreach ($tracks as $i => $form) {
@@ -358,22 +364,23 @@ class ReleaseController extends Controller
                         $track->saveQuietly();
                     }
 
-                    $artists = [];
-
-                    // Update the track artist
-                    if (isset($form['artist_id'])) {
-                        $artists[$form['artist_id']] = ['type' => 'primary'];
-                        if ($track->projectTrack) {
-                            $track->projectTrack->artist_id = $form['artist_id'];
-                        }
-                    }
+                    // A new track from the studio starts with its project track's features.
+                    $featured = array_key_exists('featured_ids', $form)
+                        ? $form['featured_ids'] ?? []
+                        : ($track->wasRecentlyCreated ? $track->projectTrack?->featuredIds() : null);
 
                     // Update the related project track
                     if ($track->projectTrack) {
+                        $track->projectTrack->artist_id = $form['artist_id'];
                         $track->projectTrack->genre_id = $form['genre_id'];
                         $track->projectTrack->saveQuietly();
+
+                        if (array_key_exists('featured_ids', $form)) {
+                            $track->projectTrack->feature($featured);
+                        }
                     }
-                    $track->artists()->sync($artists);
+
+                    $track->credit($form['artist_id'], $featured);
 
                     // Saved quietly above, so the lyrics and tags from the studio are queued here.
                     if ($track->wasRecentlyCreated) {

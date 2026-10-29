@@ -234,6 +234,39 @@ class PlanTest extends TestCase
         $this->assertNotContains('used', collect($this->getJson('/api/plans')->json('data'))->pluck('slug'));
     }
 
+    public function test_hidden_plans_are_only_seen_by_admins_and_cannot_be_bought(): void
+    {
+        $this->admin();
+
+        $slug = $this
+            ->postJson('/api/admin/plans', ['name' => 'Partner', 'price' => 5000, 'interval' => 'month', 'hidden' => true])
+            ->assertCreated()
+            ->assertJsonPath('data.hidden', true)
+            ->json('data.slug');
+
+        $this->assertContains($slug, collect($this->getJson('/api/admin/plans')->json('data'))->pluck('slug'));
+        $this->assertNotContains($slug, collect($this->getJson('/api/plans')->json('data'))->pluck('slug'));
+
+        $this->actingAsFresh(User::factory()->create());
+
+        $this
+            ->postJson('/api/payments', ['purpose' => 'premium', 'plan' => $slug])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('plan');
+    }
+
+    public function test_the_default_plan_cannot_be_hidden(): void
+    {
+        $this->admin();
+
+        $default = Plan::default();
+
+        $this
+            ->putJson("/api/admin/plans/{$default->id}", ['hidden' => true])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('hidden');
+    }
+
     public function test_a_subscriber_gets_the_features_of_their_plan(): void
     {
         $plan = Plan::create([

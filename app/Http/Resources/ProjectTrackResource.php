@@ -30,6 +30,14 @@ class ProjectTrackResource extends JsonResource
                 fn() => new ArtistResource($this->artist),
                 new \stdClass
             ),
+            'featured' => $this->when(
+                $with->contains('artist') || $with->contains('artists'),
+                function () {
+                    $featured = $this->featured;
+
+                    return ArtistCreditResource::collection($featured);
+                }
+            ),
             'preview' => $this->mediaFileInfo['preview']['dynamicLink'],
             'privacy' => $this->privacy,
             'duration' => $this->duration,

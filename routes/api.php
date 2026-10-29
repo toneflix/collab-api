@@ -25,6 +25,7 @@ use App\Http\Controllers\SocialInteractionController;
 use App\Http\Controllers\SunoCallbackController;
 use App\Http\Controllers\TopicController;
 use App\Http\Controllers\TrackController;
+use App\Http\Controllers\TrackCreditsController;
 use App\Http\Controllers\UserController;
 use App\Services\Notifications\WebPush;
 use App\Services\Realtime\Realtime;
@@ -70,6 +71,8 @@ Route::apiResource('tracks', TrackController::class)
     ->only(['index', 'show']);
 Route::get('tracks/{track}/lyrics', [LyricsController::class, 'show'])
     ->name('tracks.lyrics');
+Route::get('tracks/{track}/credits', [TrackCreditsController::class, 'show'])
+    ->name('tracks.credits');
 Route::apiResource('genres', GenreController::class)
     ->only(['index', 'show']);
 Route::get('topics', [TopicController::class, 'index'])

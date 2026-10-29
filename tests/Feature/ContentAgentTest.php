@@ -25,11 +25,15 @@ use App\Models\User;
 use App\Services\Agent\Actions\DrawArtwork;
 use App\Services\Agent\AgentPlanner;
 use App\Services\Agent\ContentAgent;
+use App\Services\Ai\AiJobStopped;
+use App\Services\Ai\AiJobStops;
 use App\Services\Ai\AiSettings;
+use App\Services\Ai\AiStudio;
 use App\Services\Ai\Credits;
 use App\Services\Ai\Music\MusicVersions;
 use App\Services\Composer\Ai\LyricModel;
 use App\Services\Realtime\RealtimeSettings;
+use Closure;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Event;
@@ -45,7 +49,7 @@ class ContentAgentTest extends TestCase
 {
     use DatabaseTransactions;
 
-    /** @var list<string|RuntimeException> */
+    /** @var list<string|RuntimeException|Closure(): string> */
     public array $answers = [];
 
     /** @var list<array{system: string, prompt: string, maxTokens: int}> */
@@ -90,6 +94,10 @@ class ContentAgentTest extends TestCase
 
                 if ($answer instanceof RuntimeException) {
                     throw $answer;
+                }
+
+                if ($answer instanceof Closure) {
+                    return $answer();
                 }
 
                 return $answer;
@@ -340,6 +348,77 @@ class ContentAgentTest extends TestCase
 
         // Plan 2 + two lyrics at 2 + vocal 30 + instrumental 60s at 5 per 10s + timing 2.
         $this->assertSame(68, $run->credits);
+    }
+
+    public function test_a_run_makes_tracks_that_feature_other_artists(): void
+    {
+        $owner = $this->ownerWith(200);
+        $this->answers[] = $this->plan([
+            'songs' => [],
+            'artists' => [
+                ['key' => 'a1', 'name' => 'Ada Lumen', 'about' => 'A singer from Lagos.'],
+                ['key' => 'a2', 'name' => 'Daniel Okoro', 'about' => 'A rapper from Abuja.'],
+            ],
+            'albums' => [[
+                'key' => 'al1',
+                'title' => 'Two Cities',
+                'artist' => 'a1',
+                'genre' => $this->genre->title,
+                'tracks' => [
+                    ['title' => 'Bridges', 'style' => 'Afrobeats duet, female and male vocals', 'theme' => 'Two cities', 'featuring' => ['a2', 'a1', 'Daniel Okoro', 'nobody']],
+                    ['title' => 'Interlude', 'style' => 'Soft keys', 'instrumental' => true, 'featuring' => ['a2']],
+                ],
+            ]],
+        ]);
+
+        $run = $this->advance($this->queueRun($owner));
+
+        $this->assertStringContainsString('"featuring"', $this->asked[0]['system']);
+        $this->assertSame(['a2'], $run->plan['albums'][0]['tracks'][0]['featuring']);
+        $this->assertCount(2, $run->plan['artists']);
+        $this->assertContains('artist:a2', $this->step($run, 'song:t1')->depends_on);
+        $this->assertStringContainsString('Sung by: Ada Lumen featuring Daniel Okoro', $this->asked[1]['prompt']);
+
+        $daniel = (int) $this->step($run, 'artist:a2')->output['artist_id'];
+        $song = Song::query()->findOrFail($this->step($run, 'song:t1')->output['song_id']);
+        $instrumental = ProjectTrack::query()->findOrFail($this->step($run, 'track:t2')->output['project_track_id']);
+
+        $this->assertSame([$daniel], $song->track->featuredIds());
+        $this->assertSame([$daniel], $instrumental->featuredIds());
+
+        $stem = ProjectTrackStem::factory()
+            ->create(['track_id' => $song->track->id, 'user_id' => $owner->id, 'title' => 'Bridges', 'src' => 'song.mp3']);
+
+        foreach (['music:t1' => $stem->id, 'music:t2' => 1] as $key => $stemId) {
+            AiJob::query()
+                ->findOrFail($this->step($run, $key)->output['ai_job_id'])
+                ->forceFill(['status' => AiJob::SUCCEEDED, 'output' => ['stems' => [$stemId]]])
+                ->save();
+        }
+
+        $run = $this->advance($run);
+
+        AiJob::query()
+            ->findOrFail($this->step($run, 'lyrics:t1')->output['ai_job_id'])
+            ->forceFill(['status' => AiJob::SUCCEEDED, 'output' => ['lines' => 4]])
+            ->save();
+
+        foreach ([$song->track, $instrumental] as $track) {
+            $track->refresh();
+            $track->meta = [...collect($track->meta)->all(), 'mix' => ['status' => 'ready', 'id' => 'x']];
+            $track->saveQuietly();
+        }
+
+        $run = $this->advance($run);
+
+        $this->assertSame(AgentRun::SUCCEEDED, $run->status);
+
+        $released = Track::query()
+            ->where('project_track_id', $song->track->id)
+            ->firstOrFail();
+
+        $this->assertSame((int) $this->step($run, 'artist:a1')->output['artist_id'], (int) $released->artist->id);
+        $this->assertSame([$daniel], $released->featured()->pluck('artists.id')->map(fn($id) => (int) $id)->all());
     }
 
     public function test_artists_get_a_voice_sample_their_songs_are_sung_in(): void
@@ -988,6 +1067,83 @@ class ContentAgentTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.steps.0.key', 'artist:a1')
             ->assertJsonPath('data.counts.tracks', 2);
+    }
+
+    public function test_stopping_a_running_run_stops_and_refunds_its_ai_jobs_and_retry_starts_them_again(): void
+    {
+        $owner = $this->ownerWith(500);
+        $this->answers[] = $this->plan(['songs' => []]);
+
+        $run = $this->advance($this->queueRun($owner));
+
+        $vocal = AiJob::query()->findOrFail($this->step($run, 'music:t1')->output['ai_job_id']);
+        $instrumental = AiJob::query()->findOrFail($this->step($run, 'music:t2')->output['ai_job_id']);
+        $vocal
+            ->forceFill(['status' => AiJob::RUNNING])
+            ->save();
+        $before = Credits::for($owner)->total();
+
+        Sanctum::actingAs($owner);
+
+        $this->postJson("/api/creator/agent/runs/{$run->id}/cancel")
+            ->assertAccepted()
+            ->assertJsonPath('data.status', AgentRun::CANCELLED);
+
+        $this->assertSame(AiJob::FAILED, $instrumental->refresh()->status);
+        $this->assertSame($before + $instrumental->credits, Credits::for($owner)->total());
+        $this->assertSame(AiJob::RUNNING, $vocal->refresh()->status);
+        $this->assertTrue(app(AiJobStops::class)->requested($vocal));
+        $this->assertSame(0, $run->steps()->open()->count());
+
+        app(AiStudio::class)->fail($vocal, new AiJobStopped);
+
+        $this->postJson("/api/creator/agent/runs/{$run->id}/retry")
+            ->assertAccepted();
+
+        $run = $this->advance($run->refresh());
+
+        $this->assertSame(AgentRun::RUNNING, $run->status);
+        $this->assertNotSame($vocal->id, $this->step($run, 'music:t1')->output['ai_job_id']);
+        $this->assertNotSame($instrumental->id, $this->step($run, 'music:t2')->output['ai_job_id']);
+        $this->assertSame(1, Artist::query()->where('user_id', $owner->id)->count());
+    }
+
+    public function test_a_run_stopped_while_it_plans_makes_nothing(): void
+    {
+        $owner = $this->ownerWith(500);
+        $run = $this->queueRun($owner);
+
+        $this->answers[] = function () use ($run) {
+            app(ContentAgent::class)->cancel($run);
+
+            return $this->plan();
+        };
+
+        $run = $this->advance($run);
+
+        $this->assertSame(AgentRun::CANCELLED, $run->status);
+        $this->assertNull($run->plan);
+        $this->assertSame(0, $run->steps()->count());
+    }
+
+    public function test_a_run_stopped_during_a_pass_starts_nothing_more(): void
+    {
+        $owner = $this->ownerWith(500);
+        $run = $this->queueRun($owner);
+
+        $this->answers[] = $this->plan(['songs' => []]);
+        $this->answers[] = function () use ($run) {
+            app(ContentAgent::class)->cancel($run);
+
+            return json_encode(['lines' => ['[Verse 1]', 'Lagos lights are calling out my name']]);
+        };
+
+        $run = $this->advance($run);
+
+        $this->assertSame(AgentRun::CANCELLED, $run->status);
+        $this->assertSame(0, $run->steps()->open()->count());
+        $this->assertSame(0, AiJob::query()->where('user_id', $owner->id)->count());
+        Queue::assertNotPushed(RunAiJob::class);
     }
 
     public function test_runs_are_announced_to_content_admins_and_the_owner(): void

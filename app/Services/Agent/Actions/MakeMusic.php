@@ -92,6 +92,7 @@ class MakeMusic implements AgentAction
                 'prompt' => $this->prompt($model, $input, $voice?->description),
                 'seconds' => (int) $input['seconds'],
                 'voice_artist_id' => $voice && $model->voiceFrom($voice) ? $artist->id : null,
+                'vocal_gender' => $voice?->gender(),
             ]));
         } else {
             $track = ProjectTrack::query()->findOrFail($step->from($input['source'], 'project_track_id'));

@@ -39,6 +39,7 @@ class ProjectResource extends JsonResource
                         ->visibleTo($user)
                         ->when($with->contains('ready'), fn($q) => $q->ready())
                         ->with(['stems', ...$with->intersect(['genre', 'artist'])->all()])
+                        ->when($with->intersect(['artist', 'artists'])->isNotEmpty(), fn($q) => $q->with('featured'))
                         ->limit(self::LIST_LIMIT)
                         ->get()
                 )

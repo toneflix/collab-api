@@ -25,6 +25,7 @@ class PlanResource extends JsonResource
             'features' => $this->allFeatures(),
             'isDefault' => $this->is_default,
             'active' => $this->active,
+            'hidden' => $this->hidden,
             'sort' => $this->sort,
             $this->mergeWhen($request->routeIs('admin.*'), fn() => [
                 'subscribers' => $this->subscriptions()->active()->distinct('user_id')->count('user_id'),

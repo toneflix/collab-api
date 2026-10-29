@@ -78,6 +78,18 @@ class Tracks
             );
         }
 
+        if ($this->request->has('saved_tracks')) {
+            $resource = (new TrackController)->index(Request::createFrom($this->request)->merge([
+                'filters' => 'saved',
+                'limit' => $this->request->input('saved_tracks', 18),
+            ]));
+
+            $this->instance->put(
+                'saved_tracks',
+                Section::from($resource)
+            );
+        }
+
         if ($this->request->has('own_collab_tracks')) {
             $resource = (new TrackController)->index(Request::createFrom($this->request)->merge([
                 'filters' => 'own_collabs',

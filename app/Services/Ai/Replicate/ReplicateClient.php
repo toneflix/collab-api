@@ -2,6 +2,8 @@
 
 namespace App\Services\Ai\Replicate;
 
+use App\Services\Ai\AiJobStopped;
+use App\Services\Ai\AiJobStops;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
@@ -50,6 +52,14 @@ class ReplicateClient
         $prediction = $this->create($model, $input);
 
         while (! in_array($prediction['status'], self::DONE, true)) {
+            try {
+                app(AiJobStops::class)->check();
+            } catch (AiJobStopped $e) {
+                $this->cancel($prediction['id']);
+
+                throw $e;
+            }
+
             if (now()->greaterThan($deadline)) {
                 $this->cancel($prediction['id']);
 

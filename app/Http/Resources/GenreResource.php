@@ -2,9 +2,13 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Genre;
 use Illuminate\Http\Request;
 use Toneflix\ResourceModifier\Services\Json\JsonResource;
 
+/**
+ * @mixin Genre
+ */
 class GenreResource extends JsonResource
 {
     /**
@@ -18,7 +22,11 @@ class GenreResource extends JsonResource
             'id' => $this->id,
             'slug' => $this->slug,
             'title' => $this->title,
-            'imageUrl' => $this->files['image'],
+            'description' => $this->description,
+            'imageUrl' => $this->coverUrl(),
+            'tracksCount' => $this->whenCounted('tracks'),
+            'releasesCount' => $this->whenCounted('releases'),
+            'fansCount' => $this->whenCounted('fans'),
             'updatedAt' => $this->updated_at,
             'createdAt' => $this->created_at,
         ];

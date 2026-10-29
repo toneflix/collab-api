@@ -26,6 +26,9 @@ class AgentRun extends Model
 
     public const CANCELLED = 'cancelled';
 
+    /** Statuses of a run being planned or built */
+    public const ACTIVE = [self::PLANNING, self::RUNNING];
+
     /**
      * The lists runs are shown in, by the statuses in each.
      *
@@ -85,7 +88,7 @@ class AgentRun extends Model
      */
     public function scopeActive(Builder $query): void
     {
-        $query->whereIn('status', [self::PLANNING, self::RUNNING]);
+        $query->whereIn('status', self::ACTIVE);
     }
 
     /**
@@ -119,7 +122,7 @@ class AgentRun extends Model
 
     public function isActive(): bool
     {
-        return in_array($this->status, [self::PLANNING, self::RUNNING], true);
+        return in_array($this->status, self::ACTIVE, true);
     }
 
     public function isFinished(): bool

@@ -368,6 +368,7 @@ class ArtistVoiceTest extends TestCase
         Http::assertSent(fn(Request $request) => $request->url() === self::SUNO . '/api/v1/generate'
             && $request['customMode'] === true
             && $request['instrumental'] === false
+            && $request['vocalGender'] === 'f'
             && str_contains($request['style'], 'A cappella')
             && str_contains($request['style'], 'Warm female alto'));
         Http::assertSent(fn(Request $request) => $request->url() === self::SUNO . '/api/v1/generate/generate-persona'

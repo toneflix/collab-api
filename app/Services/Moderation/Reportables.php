@@ -3,6 +3,7 @@
 namespace App\Services\Moderation;
 
 use App\Contracts\Reportable;
+use App\Models\Artist;
 use App\Models\Comment;
 use App\Models\Project;
 use App\Models\Release;
@@ -27,6 +28,7 @@ class Reportables
         'sound' => Sound::class,
         'song' => Song::class,
         'project' => Project::class,
+        'artist' => Artist::class,
         'comment' => Comment::class,
         'user' => User::class,
     ];
@@ -42,6 +44,7 @@ class Reportables
         'sound' => ['name'],
         'song' => ['title'],
         'project' => ['title'],
+        'artist' => ['name', 'username'],
         'comment' => ['comment'],
         'user' => ['firstname', 'lastname', 'username', 'email'],
     ];
@@ -82,18 +85,30 @@ class Reportables
         $class = self::TYPES[$type];
         $model = new $class;
 
-        return $class::query()
+        $query = $class::query()
             ->withoutGlobalScopes()
-            ->where(function (Builder $q) use ($type, $model, $search) {
-                foreach (self::SEARCH_COLUMNS[$type] as $column) {
-                    $q->orWhereLike($model->qualifyColumn($column), "%{$search}%");
-                }
-
-                if (ctype_digit($search)) {
-                    $q->orWhere($model->getQualifiedKeyName(), (int) $search);
-                }
-            })
             ->latest($model->getQualifiedKeyName());
+
+        return $this->whereMatches($query, $type, $search);
+    }
+
+    /**
+     * Limit a query on one kind of content to rows whose text matches the
+     * search, or whose id is the search.
+     */
+    public function whereMatches(Builder $query, string $type, string $search): Builder
+    {
+        $model = $query->getModel();
+
+        return $query->where(function (Builder $q) use ($type, $model, $search) {
+            foreach (self::SEARCH_COLUMNS[$type] as $column) {
+                $q->orWhereLike($model->qualifyColumn($column), "%{$search}%");
+            }
+
+            if (ctype_digit($search)) {
+                $q->orWhere($model->getQualifiedKeyName(), (int) $search);
+            }
+        });
     }
 
     /**

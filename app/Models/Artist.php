@@ -2,8 +2,10 @@
 
 namespace App\Models;
 
+use App\Contracts\Reportable;
 use App\Helpers\Freq;
 use App\Models\Scopes\HideDeactivatedAccounts;
+use App\Traits\HasReports;
 use App\Traits\ModelCanExtend;
 use Coderflex\Laravisit\Models\Visit;
 use Illuminate\Database\Eloquent\Attributes\ScopedBy;
@@ -20,11 +22,12 @@ use Overtrue\LaravelFollow\Traits\Followable;
 use Toneflix\LaravelFileable\Traits\Fileable;
 
 #[ScopedBy([HideDeactivatedAccounts::class])]
-class Artist extends Model
+class Artist extends Model implements Reportable
 {
     use Fileable;
     use Followable;
     use HasFactory;
+    use HasReports;
     use ModelCanExtend;
 
     /**
@@ -163,6 +166,21 @@ class Artist extends Model
     public function isClaimable(): bool
     {
         return ! $this->user_id;
+    }
+
+    public function moderationOwnerId(): ?int
+    {
+        return $this->user_id ? (int) $this->user_id : null;
+    }
+
+    public function moderationSummary(): array
+    {
+        return [
+            'title' => (string) $this->name,
+            'subtitle' => $this->verified ? 'Verified artist' : 'Artist',
+            'image' => $this->files['image'] ?? null,
+            'link' => $this->username ? "/artist/{$this->username}" : null,
+        ];
     }
 
     public function recommendings(): MorphMany

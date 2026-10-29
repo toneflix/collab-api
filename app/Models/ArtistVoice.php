@@ -90,6 +90,21 @@ class ArtistVoice extends Model
             ->whereNotNull('file');
     }
 
+    /**
+     * The singer's gender from the description, `m` or `f`, or null when it
+     * doesn't say.
+     */
+    public function gender(): ?string
+    {
+        $text = mb_strtolower((string) $this->description);
+
+        return match (true) {
+            (bool) preg_match('/\b(female|woman|girl|alto|soprano|mezzo)\b/', $text) => 'f',
+            (bool) preg_match('/\b(male|man|boy|baritone|tenor|bass)\b/', $text) => 'm',
+            default => null,
+        };
+    }
+
     public function hasSample(): bool
     {
         return $this->status === self::READY && (bool) $this->file;
