@@ -11,13 +11,14 @@ use Illuminate\Http\Request;
 class GenreController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Genres with a cover photo first, then by name.
      */
     public function index(Request $request)
     {
-        $query = Genre::query();
-
-        $genres = $query->paginate($request->perPage(15));
+        $genres = Genre::query()
+            ->orderByRaw('image IS NULL')
+            ->orderBy('title')
+            ->paginate($request->perPage(15));
 
         return (new GenreCollection($genres))
             ->additional([
