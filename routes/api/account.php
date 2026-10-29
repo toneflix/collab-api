@@ -11,6 +11,7 @@ use App\Http\Controllers\Account\NotificationSettingsController;
 use App\Http\Controllers\Account\PaymentsController;
 use App\Http\Controllers\Account\PayoutAccountController;
 use App\Http\Controllers\Account\PayoutController;
+use App\Http\Controllers\Account\ReferralController;
 use App\Http\Controllers\Account\TakedownController;
 use App\Http\Controllers\Account\TwoFactorController;
 use App\Http\Controllers\NotificationRequestController;
@@ -31,6 +32,9 @@ Route::middleware(['auth:sanctum'])
         Route::put('interests', [InterestsController::class, 'update'])->name('interests.update');
         Route::get('ai', [AiCreditsController::class, 'show'])->name('ai.show');
         Route::get('ai/history', [AiCreditsController::class, 'history'])->name('ai.history');
+        Route::get('referrals', [ReferralController::class, 'show'])->name('referrals.show');
+        Route::put('referrals', [ReferralController::class, 'update'])->middleware('throttle:10,1')->name('referrals.update');
+        Route::get('referrals/invites', [ReferralController::class, 'invites'])->name('referrals.invites');
         Route::post('deactivate', [DeactivationController::class, 'deactivate'])->middleware('throttle:5,1')->name('deactivate');
         Route::post('delete', [DeactivationController::class, 'destroy'])->middleware('throttle:5,1')->name('delete');
         Route::get('two-factor', [TwoFactorController::class, 'show'])->name('two-factor.show');

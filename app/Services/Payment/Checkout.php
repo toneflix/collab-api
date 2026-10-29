@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Notifications\SaleNotification;
 use App\Services\Ai\AiSettings;
 use App\Services\Ai\Credits;
+use App\Services\Referrals\Referrals;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
@@ -28,7 +29,10 @@ class Checkout
 {
     public const PURPOSES = ['premium', 'release', 'stems', 'tip', 'credits'];
 
-    public function __construct(protected PaymentGateway $gateway) {}
+    public function __construct(
+        protected PaymentGateway $gateway,
+        protected Referrals $referrals = new Referrals,
+    ) {}
 
     /**
      * Create a pending transaction and start the payment with the gateway.
@@ -148,6 +152,8 @@ class Checkout
                     ->find($locked->recipient_id)
                     ?->notify(new SaleNotification($locked));
             }
+
+            $this->referrals->reward($locked);
 
             return $locked;
         });

@@ -6,6 +6,7 @@ use App\Models\Release;
 use App\Models\Track;
 use App\Models\Transaction;
 use App\Models\User;
+use App\Services\Referrals\Referrals;
 use Illuminate\Http\Request;
 use Toneflix\ResourceModifier\Services\Json\JsonResource;
 
@@ -55,6 +56,14 @@ class TransactionResource extends JsonResource
                     'username' => $item->username,
                     'title' => $item->fullname,
                     'imageUrl' => $item->images['image'] ?? null,
+                ],
+                $item instanceof Transaction && $this->purpose === Referrals::PURPOSE => [
+                    'type' => 'invite',
+                    'id' => $item->user?->id,
+                    'username' => $item->user?->username,
+                    'title' => $item->user?->fullname,
+                    'imageUrl' => $item->user?->images['image'] ?? null,
+                    'purpose' => $item->purpose,
                 ],
                 default => null,
             },

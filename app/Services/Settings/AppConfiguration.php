@@ -26,6 +26,8 @@ class AppConfiguration
         'min_payout_amount' => ['Minimum Withdrawal', 'number', ['required', 'integer', 'min:0'], 'Smallest withdrawal, in the app currency.'],
         'payout_hold_days' => ['Earnings Clearing Days', 'number', ['required', 'integer', 'between:0,90'], 'Days before earnings can be withdrawn.'],
         'payout_auto_approve' => ['Send Withdrawals Automatically', 'boolean', ['required', 'boolean'], 'Send withdrawals without an admin approving each one.'],
+        'loyalty_rate' => ['Invite Reward (%)', 'number', ['required', 'numeric', 'between:0,100'], 'Part of the platform\'s share of each payment an invited person makes that goes to whoever invited them.'],
+        'loyalty_months' => ['Invite Reward Months', 'number', ['required', 'integer', 'between:0,120'], 'How long after sign-up an invited person\'s payments reward the inviter. 0 means no end.'],
         'review_releases' => ['Review Releases', 'boolean', ['required', 'boolean'], 'Hold published releases in a review queue until an admin approves them.'],
         'verify_email' => ['Verify Email', 'boolean', ['required', 'boolean'], 'Ask new users to confirm their email.'],
         'verify_phone' => ['Verify Phone', 'boolean', ['required', 'boolean'], 'Ask new users to confirm their phone number.'],

@@ -20,6 +20,7 @@ use Illuminate\Database\Eloquent\Casts\AsCollection;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
@@ -152,6 +153,7 @@ class User extends Authenticatable implements Commentator, Reportable
             'account_type' => AccountType::class,
             'identities' => 'array',
             'interests_at' => 'datetime',
+            'referred_at' => 'datetime',
             'suspended_until' => 'datetime',
             'deactivated_at' => 'datetime',
             'deletes_at' => 'datetime',
@@ -707,6 +709,22 @@ class User extends Authenticatable implements Commentator, Reportable
         return $this
             ->hasMany(Transaction::class, 'recipient_id')
             ->where('status', 'complete');
+    }
+
+    /**
+     * The user who invited this one.
+     */
+    public function referredBy(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'referred_by_id');
+    }
+
+    /**
+     * The people this user invited.
+     */
+    public function referrals(): HasMany
+    {
+        return $this->hasMany(self::class, 'referred_by_id');
     }
 
     /**
