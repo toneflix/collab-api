@@ -9,7 +9,7 @@ use App\Models\User;
 use Illuminate\Support\Number;
 
 /**
- * Tells a creator someone paid them: for a release, for stems, or as a tip.
+ * Tells a creator someone paid them: for a release, for stems, as a tip, or as someone they invited.
  */
 class SaleNotification extends ActivityNotification
 {
@@ -25,7 +25,7 @@ class SaleNotification extends ActivityNotification
 
     public function __construct(Transaction $transaction)
     {
-        $payer = $transaction->user;
+        $payer = $transaction->user ?? $transaction->transactable?->user;
 
         $this->purpose = $transaction->purpose;
         $this->payer = $payer ? ($payer->fullname ?: $payer->username) : __('Someone');

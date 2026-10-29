@@ -2,6 +2,7 @@
 
 use App\Enums\AccountType;
 use App\Helpers\Providers;
+use App\Http\Controllers\Account\ReferralController;
 use App\Http\Controllers\ArtistClaimController;
 use App\Http\Controllers\ArtistController;
 use App\Http\Controllers\CommentController;
@@ -77,6 +78,9 @@ Route::apiResource('genres', GenreController::class)
     ->only(['index', 'show']);
 Route::get('topics', [TopicController::class, 'index'])
     ->name('topics.index');
+Route::get('referrals/{code}', [ReferralController::class, 'lookup'])
+    ->middleware('throttle:30,1')
+    ->name('referrals.lookup');
 Route::post('topics', [TopicController::class, 'store'])
     ->middleware(['auth:sanctum', 'throttle:10,1'])
     ->name('topics.store');

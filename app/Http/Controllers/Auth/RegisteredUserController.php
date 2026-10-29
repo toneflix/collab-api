@@ -9,6 +9,8 @@ use App\Http\Resources\UserResource;
 use App\Models\User;
 use App\Services\Account\Interests;
 use App\Services\Auth\CodeClock;
+use App\Services\Referrals\Referrals;
+use Closure;
 use DeviceDetector\DeviceDetector;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\Request;
@@ -20,6 +22,11 @@ use Illuminate\Validation\ValidationException;
 
 class RegisteredUserController extends Controller
 {
+    public function __construct(protected Referrals $referrals)
+    {
+        parent::__construct();
+    }
+
     /**
      * Handle an incoming registration request.
      *
@@ -37,6 +44,16 @@ class RegisteredUserController extends Controller
             'firstname' => ['nullable', 'string', 'max:255'],
             'lastname' => ['nullable', 'string', 'max:255'],
             'accept' => ['required', 'accepted'],
+            'referral_code' => [
+                'nullable',
+                'string',
+                'max:40',
+                function (string $attribute, mixed $value, Closure $fail) {
+                    if (! $this->referrals->findReferrer($value)) {
+                        $fail('That invite code is not valid.');
+                    }
+                },
+            ],
             ...Interests::identityRules($request->input('account_type'), true),
         ], [
             'account_type.required' => 'Choose how you\'ll use Toneflix Music.',
@@ -49,6 +66,11 @@ class RegisteredUserController extends Controller
         ]);
 
         $user = $this->createUser($request);
+        $referrer = $this->referrals->findReferrer($request->input('referral_code'));
+
+        if ($referrer) {
+            $this->referrals->attach($user, $referrer);
+        }
 
         return $this->setUserData($request, $user);
     }

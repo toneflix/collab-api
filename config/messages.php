@@ -211,6 +211,11 @@ return [
             'body' => ':payer sent you a tip: ":note" You earned :amount.',
             'action' => 'See earnings',
         ],
+        'referral' => [
+            'subject' => 'You earned :amount from an invite',
+            'body' => ':payer, who joined with your invite, made a payment. You earned :amount.',
+            'action' => 'See earnings',
+        ],
     ],
     'activity::payouts' => [
         'paid' => [
