@@ -14,7 +14,7 @@ class CloudflareLyricModel implements LyricModel
     public function ask(string $system, string $prompt, int $maxTokens = 1200): string
     {
         return CloudflareClient::make()
-            ->chat($this->name(), $system, $prompt, $maxTokens, timeout: $maxTokens > 1200 ? 180 : 60);
+            ->chat($this->name(), $system, $prompt, $maxTokens, timeout: LyricWriter::timeout($maxTokens));
     }
 
     public function name(): string

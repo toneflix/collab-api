@@ -30,6 +30,11 @@ class AgentPlanner
     /** Most artists one run can make */
     public const MAX_ARTISTS = 10;
 
+    /**
+     * Plan tokens set aside for each track.
+     */
+    public const TRACK_TOKENS = 300;
+
     /** Most existing projects one run can release */
     public const MAX_RELEASES = 10;
 
@@ -85,7 +90,7 @@ class AgentPlanner
             'plan',
             $this->system(),
             $this->prompt($run, $genres, $existing, $projects),
-            4000,
+            $this->planTokens($run),
         );
 
         return $this->normalize($answer, $genres, $this->maxTracks($run), $projects, $run->owner);
@@ -435,6 +440,15 @@ class AgentPlanner
     public function maxTracks(AgentRun $run): int
     {
         return min(self::MAX_TRACKS, max(1, (int) $run->option('max_tracks', 12)));
+    }
+
+    /**
+     * Tokens the plan answer may use: room for the artists, albums and
+     * releases, plus each track the run allows.
+     */
+    public function planTokens(AgentRun $run): int
+    {
+        return 3000 + $this->maxTracks($run) * self::TRACK_TOKENS;
     }
 
     public function seconds(AgentRun $run): int

@@ -259,7 +259,7 @@ class ContentAgentTest extends TestCase
         $run = $this->advance($this->queueRun($owner));
 
         $this->assertSame(AgentRun::RUNNING, $run->status);
-        $this->assertSame(4000, $this->asked[0]['maxTokens']);
+        $this->assertSame(3000 + 12 * AgentPlanner::TRACK_TOKENS, $this->asked[0]['maxTokens']);
         $this->assertStringContainsString($this->genre->title, $this->asked[0]['prompt']);
         $this->assertSame(['artists' => 1, 'albums' => 1, 'tracks' => 2], [
             'artists' => count($run->plan['artists']),
@@ -1178,6 +1178,28 @@ class ContentAgentTest extends TestCase
 
         $this->assertSame(AgentRun::FAILED, $run->status);
         $this->assertSame(200, Credits::for($owner)->total());
+    }
+
+    public function test_a_plan_cut_off_mid_answer_says_so_and_refunds(): void
+    {
+        $owner = $this->ownerWith(200);
+        $this->answers[] = '{"artists": [{"key": "a1", "name": "Nova"}], "albums": [{"key": "al1", "title": "Glow", "tracks": [{"title": "Ri';
+
+        $run = $this->advance($this->queueRun($owner));
+
+        $this->assertSame(AgentRun::FAILED, $run->status);
+        $this->assertStringContainsString('cut off', (string) $run->error);
+        $this->assertSame(200, Credits::for($owner)->total());
+    }
+
+    public function test_the_plan_answer_grows_with_the_tracks_a_run_allows(): void
+    {
+        $owner = $this->ownerWith(500);
+        $this->answers[] = $this->plan();
+
+        $this->advance($this->queueRun($owner, ['max_tracks' => 30]));
+
+        $this->assertSame(3000 + 30 * AgentPlanner::TRACK_TOKENS, $this->asked[0]['maxTokens']);
     }
 
     public function test_only_agent_accounts_can_own_runs(): void

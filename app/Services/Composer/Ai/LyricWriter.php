@@ -55,6 +55,15 @@ class LyricWriter
     ) {}
 
     /**
+     * Seconds to wait for an answer of up to `$maxTokens`: a minute for short
+     * asks, longer for long ones.
+     */
+    public static function timeout(int $maxTokens): int
+    {
+        return $maxTokens > 1200 ? max(180, intdiv($maxTokens, 40)) : 60;
+    }
+
+    /**
      * Ask for suggestions at a line of the lyrics, counted from 1.
      *
      * @return array{kind: string, line: int, options: list<list<string>>, credits: int, balance: int}
