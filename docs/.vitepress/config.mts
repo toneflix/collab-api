@@ -58,6 +58,7 @@ export default defineConfig({
           { text: 'Notifications', link: '/features/notifications' },
           { text: 'Payments', link: '/features/payments' },
           { text: 'Payouts', link: '/features/payouts' },
+          { text: 'Stream earnings', link: '/features/streams' },
           { text: 'Invites', link: '/features/invites' },
           { text: 'Moderation', link: '/features/moderation' },
         ],

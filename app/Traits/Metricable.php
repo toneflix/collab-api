@@ -4,18 +4,16 @@ namespace App\Traits;
 
 use App\Helpers\Freq;
 use App\Models\Recommendation;
-use App\Models\Release;
 use App\Models\Track;
 use App\Models\User;
 use App\Services\Reputation;
-use Coderflex\Laravisit\Concerns\HasVisits;
+use App\Services\Streams\StreamPlays;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 trait Metricable
 {
     use FilterByPlayPopularityTimeFrame;
-    use HasVisits;
 
     public function recommendations(): MorphMany
     {
@@ -48,13 +46,7 @@ trait Metricable
     {
         $days = Freq::period($period);
 
-        if ($this instanceof Release) {
-            $query->popularLastDays($days);
-        } elseif ($this instanceof Track) {
-            $query->popularPlayedLastDays($days);
-        } else {
-            $query->popularLastDays($days);
-        }
+        $query->popularPlayedLastDays($days);
     }
 
     /**
@@ -112,7 +104,7 @@ trait Metricable
                     'recommendations',
                     fn(Builder $q) => $q->where('recommendations.user_id', $user->id)
                 )
-                ->orWhereHas('visits', fn(Builder $q) => $q->where('data->user', $user->id))
+                ->orWhereHas('plays', fn(Builder $q) => $q->where('track_plays.user_id', $user->id))
                 ->when(
                     $this instanceof Track,
                     fn(Builder $q) => $q->orWhereHas(
@@ -126,36 +118,27 @@ trait Metricable
     }
 
     /**
-     * Record a new stream for the model.
+     * Record a view, or a play of $seconds for tracks, by a signed-in user,
+     * and credit the owner's reputation.
      */
-    public function stream($duration = 0, ?User $user = null): void
+    public function stream(int|float $seconds = 0, ?User $user = null): void
     {
         if (! $user) {
             return;
         }
 
-        $this->visits()
-            ->when($duration > 0, fn($q) => $q->where('created_at', '>=', now()->subSeconds($this->duration ?? 0)))
-            ->updateOrCreate([
-                'data->user' => $user->id,
-            ], [
-                'data' => collect([
-                    'user_agent' => request(null)->userAgent(),
-                    'user' => $user->id,
-                    'ip' => request(null)->ip(),
-                ])->when($duration > 0, fn($c) => $c->merge(['duration' => $duration]))->toArray(),
-            ]);
-
-        // Compute the reputation owner and type
         if ($this instanceof Track) {
-            $owner = $this->release->user;
-            $event = $duration > 0 ? 'track_views' : 'track_streams';
+            app(StreamPlays::class)->record($this, $user, (int) $seconds);
+
+            $owner = $this->release?->user;
+            $event = $seconds > 0 ? 'track_views' : 'track_streams';
         } else {
             $owner = $this->user;
             $event = 'release_views';
         }
 
-        // Add reputation for the owner
-        (new Reputation($owner, $event))->add();
+        if ($owner) {
+            (new Reputation($owner, $event))->add();
+        }
     }
 }

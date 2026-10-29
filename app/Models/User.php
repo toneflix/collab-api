@@ -13,7 +13,6 @@ use App\Notifications\SendCode;
 use App\Traits\HasReports;
 use App\Traits\ModelCanExtend;
 use BeyondCode\Comments\Contracts\Commentator;
-use Coderflex\Laravisit\Models\Visit;
 use Illuminate\Database\Eloquent\Attributes\ScopedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\AsCollection;
@@ -191,7 +190,7 @@ class User extends Authenticatable implements Commentator, Reportable
                 ->recommendings()
                 ->delete();
             $model
-                ->viewingHistory()
+                ->trackPlays()
                 ->delete();
             $model
                 ->recommendations()
@@ -770,9 +769,12 @@ class User extends Authenticatable implements Commentator, Reportable
         );
     }
 
-    public function viewingHistory()
+    /**
+     * The user's plays of tracks, one row per track and day.
+     */
+    public function trackPlays(): HasMany
     {
-        return $this->hasMany(Visit::class, 'data->user');
+        return $this->hasMany(TrackPlay::class);
     }
 
     public function moderationOwnerId(): ?int

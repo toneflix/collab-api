@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Models\Release;
+use App\Models\StreamPeriod;
 use App\Models\Track;
 use App\Models\Transaction;
 use App\Models\User;
@@ -64,6 +65,12 @@ class TransactionResource extends JsonResource
                     'title' => $item->user?->fullname,
                     'imageUrl' => $item->user?->images['image'] ?? null,
                     'purpose' => $item->purpose,
+                ],
+                $item instanceof StreamPeriod => [
+                    'type' => 'streams',
+                    'id' => $item->id,
+                    'title' => $item->month->format('F Y'),
+                    'plays' => $this->meta['plays'] ?? null,
                 ],
                 default => null,
             },

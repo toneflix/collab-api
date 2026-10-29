@@ -15,6 +15,7 @@ use App\Http\Controllers\Admin\RealtimeSettingsController;
 use App\Http\Controllers\Admin\RoyaltyController;
 use App\Http\Controllers\Admin\SoundSettingsController;
 use App\Http\Controllers\Admin\StatsController;
+use App\Http\Controllers\Admin\StreamController;
 use App\Http\Controllers\Admin\UserController;
 use App\Models\Release;
 use App\Models\Scopes\RestrictBlockedUserScope;
@@ -111,6 +112,8 @@ Route::middleware(['auth:sanctum'])
 
         // Creators' withdrawal requests
         Route::get('payouts', [PayoutController::class, 'index'])->name('payouts.index');
+        Route::get('payouts/streams', [StreamController::class, 'index'])->name('payouts.streams.index');
+        Route::post('payouts/streams/settle', [StreamController::class, 'settle'])->middleware('throttle:10,1')->name('payouts.streams.settle');
         Route::get('payouts/settings', [PayoutSettingsController::class, 'show'])->name('payouts.settings.show');
         Route::put('payouts/settings', [PayoutSettingsController::class, 'update'])->name('payouts.settings.update');
         Route::post('payouts/{payout}/approve', [PayoutController::class, 'approve'])->name('payouts.approve');

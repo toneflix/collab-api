@@ -44,6 +44,11 @@ Schedule::command('agent:tick')
     ->everyMinute()
     ->withoutOverlapping();
 
+// Pay creators last month's stream earnings.
+Schedule::command('earnings:settle-streams')
+    ->monthlyOn(1, '03:00')
+    ->withoutOverlapping();
+
 // Erase deleted accounts whose owners did not sign in during the grace period.
 Schedule::command('accounts:purge')
     ->dailyAt('02:30')

@@ -34,7 +34,7 @@ class ClearDummyUserData extends Command
         //   Release
         //   Track
         //   Transaction
-        //   Coderflex\Laravisit\Models\Visit
+        //   TrackPlay
         //   Overtrue\LaravelFollow\Followable
         //   Toneflix\ApprovableNotifications\Models\Notification
         //   Project
@@ -62,7 +62,7 @@ class ClearDummyUserData extends Command
 
         collect([
             'Artist', 'User', 'Transaction', 'Release', 'Track', 'TrackArtist', 'Project', 'ProjectTrack', 'Followable',
-            'ProjectCollaborator', 'SocialInteractions', 'SocialInteractionSave', 'ApprovableNotification', 'Laravisit',
+            'ProjectCollaborator', 'SocialInteractions', 'SocialInteractionSave', 'ApprovableNotification', 'TrackPlay',
             'Recommendation',
         ])->each(fn(string $t) => $this->resetAutoincrement($t));
     }

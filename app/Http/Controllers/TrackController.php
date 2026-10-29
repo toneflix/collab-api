@@ -14,6 +14,7 @@ use App\Models\Track;
 use App\Models\User;
 use App\Services\Releases\Downloads;
 use App\Services\Storage\DownloadLink;
+use App\Services\Streams\StreamPlays;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 
@@ -112,17 +113,19 @@ class TrackController extends Controller
     }
 
     /**
-     * Update the specified resource in storage.
+     * Record that the signed-in listener played the track for some seconds.
      */
-    public function update(Request $request, Release $release, Track $track)
+    public function play(Request $request, Track $track, StreamPlays $plays)
     {
-        $this->validate($request, [
-            'duration' => 'nullable|numeric|min:0',
+        $valid = $request->validate([
+            'seconds' => ['required', 'integer', 'min:1', 'max:86400'],
         ]);
 
-        $track->stream($request->integer('duration'), $request->user('sanctum'));
+        $plays->record($track, $request->user(), (int) $valid['seconds']);
 
-        return (new TrackResource($track))
+        $played = ['trackId' => $track->id, 'seconds' => (int) $valid['seconds']];
+
+        return (new ActionResource($played))
             ->additional([
                 'message' => HttpStatus::message(HttpStatus::OK),
                 'status' => 'success',

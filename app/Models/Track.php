@@ -27,6 +27,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Illuminate\Support\Facades\DB;
@@ -204,7 +205,7 @@ class Track extends Model implements CanBeTakenDown
 
         static::addGlobalScopes([
             fn(Builder $query) => $query->withCount([
-                'visits as streams' => fn($q) => $q->where('data->duration', '>', 0),
+                'plays as streams',
             ]),
         ]);
     }
@@ -331,6 +332,14 @@ class Track extends Model implements CanBeTakenDown
     /**
      * Get the project track that owns the Track
      */
+    /**
+     * Signed-in plays, one row per listener and day.
+     */
+    public function plays(): HasMany
+    {
+        return $this->hasMany(TrackPlay::class);
+    }
+
     public function projectTrack(): BelongsTo
     {
         return $this->belongsTo(ProjectTrack::class);

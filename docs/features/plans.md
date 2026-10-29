@@ -25,6 +25,7 @@ Features are listed in `App\Enums\Feature`. Each has a type:
 | `history_days` Version history (days) | limit | 30 |
 | `ai_tools` AI studio tools | toggle | off |
 | `ai_credits` AI credits each month | credits | 0 |
+| `earn_streams` Earn from streams ([Stream earnings](./streams)) | toggle | off (on for Premium) |
 
 The fallback is what an account gets when its plan does not set a feature.
 

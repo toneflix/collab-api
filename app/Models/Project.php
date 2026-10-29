@@ -9,7 +9,6 @@ use App\Models\Scopes\RestrictBlockedUserScope;
 use App\Traits\ModelCanExtend;
 use App\Traits\TakesDown;
 use BeyondCode\Comments\Traits\HasComments;
-use Coderflex\Laravisit\Concerns\HasVisits;
 use Illuminate\Database\Eloquent\Attributes\ScopedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -39,7 +38,6 @@ class Project extends Model implements CanBeTakenDown
     use HasComments;
     use HasFactory;
     use HasSocialInteractions;
-    use HasVisits;
     use ModelCanExtend;
     use TakesDown;
 

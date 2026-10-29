@@ -7,7 +7,6 @@ use App\Helpers\Freq;
 use App\Models\Scopes\HideDeactivatedAccounts;
 use App\Traits\HasReports;
 use App\Traits\ModelCanExtend;
-use Coderflex\Laravisit\Models\Visit;
 use Illuminate\Database\Eloquent\Attributes\ScopedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -122,16 +121,19 @@ class Artist extends Model implements Reportable
         return $this->hasMany(Release::class);
     }
 
-    public function tracksViews(): HasManyThrough
+    /**
+     * Plays of the artist's tracks.
+     */
+    public function trackPlays(): HasManyThrough
     {
         return $this->hasManyThrough(
-            Visit::class,
+            TrackPlay::class,
             TrackArtist::class,
             'artist_id',
-            'visitable_id',
+            'track_id',
             'id',
             'track_id'
-        )->where('laravisits.visitable_type', Track::class);
+        );
     }
 
     /**
@@ -230,12 +232,15 @@ class Artist extends Model implements Reportable
     {
         $days = Freq::period($period);
 
-        $scope = fn(Builder $q) => $q
-            ->where('data->duration', '>', 0)
-            ->whereBetween('laravisits.created_at', [now()->subDays($days), now()]);
+        $since = now()
+            ->subDays($days)
+            ->toDateString();
 
-        $query->withCount(['tracksViews' => $scope])
-            ->whereHas('tracksViews', $scope)
-            ->orderBy('tracks_views_count', $direction);
+        $scope = fn(Builder $q) => $q->where('track_plays.played_on', '>=', $since);
+
+        $query
+            ->withCount(['trackPlays' => $scope])
+            ->whereHas('trackPlays', $scope)
+            ->orderBy('track_plays_count', $direction);
     }
 }
