@@ -30,7 +30,8 @@ Route::middleware(['auth:sanctum'])
         // Numbers for the admin overview
         Route::get('stats', StatsController::class)->name('stats');
 
-        Route::apiResource('genres', GenreController::class)->except(['index']);
+        // Genres and their cover photos
+        Route::apiResource('genres', GenreController::class);
 
         // General app settings
         Route::get('configuration', [ConfigurationController::class, 'show'])->name('configuration.show');
