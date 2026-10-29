@@ -47,6 +47,8 @@ Route::middleware(['auth:sanctum'])
         Route::get('purchases', [PaymentsController::class, 'purchases'])->name('purchases');
         Route::get('earnings', [PaymentsController::class, 'earnings'])->name('earnings');
         Route::get('earnings/streams', [StreamController::class, 'show'])->name('earnings.streams');
+        Route::get('earnings/streams/tracks', [StreamController::class, 'tracks'])->name('earnings.streams.tracks');
+        Route::get('stats/{type}/{id}', [StreamController::class, 'stats'])->whereIn('type', ['track', 'album', 'project'])->whereNumber('id')->name('stats.show');
         Route::get('subscription', [PaymentsController::class, 'subscription'])->name('subscription');
         Route::get('takedowns', [TakedownController::class, 'index'])->name('takedowns.index');
         Route::post('takedowns/{takedown}/appeal', [TakedownController::class, 'appeal'])->middleware('throttle:5,1')->name('takedowns.appeal');

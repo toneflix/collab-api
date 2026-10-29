@@ -22,6 +22,10 @@ class ReferredUserResource extends JsonResource
             'imageUrl' => $this->images['image'] ?? null,
             'joinedAt' => $this->referred_at,
             'earned' => round((float) ($this->referral_earned ?? 0), 2),
+            'payments' => (int) ($this->referral_payments ?? 0),
+            'monthEarned' => $this->when(isset($this->month_earned), fn() => round((float) $this->month_earned, 2)),
+            'monthPayments' => $this->when(isset($this->month_payments), fn() => (int) $this->month_payments),
+            'rewardsEndAt' => $this->rewards_end_at,
         ];
     }
 }

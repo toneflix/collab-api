@@ -9,7 +9,8 @@ use App\Models\TrackPlay;
 use App\Models\User;
 
 /**
- * Records signed-in plays and decides which ones are paid.
+ * Records signed-in plays and decides which ones are paid. A paid play is
+ * held when a stream check is open for its listener and owner that month.
  */
 class StreamPlays
 {
@@ -24,8 +25,15 @@ class StreamPlays
         }
 
         $play = $this->today($track, $listener);
+        $wasPaid = $play->paid;
+
         $play->seconds = max($play->seconds, $seconds);
         $play->paid = $play->paid || $this->pays($track, $listener, $play);
+
+        if ($play->paid && ! $wasPaid && $play->owner_id) {
+            $play->held = (new StreamChecks)->holds($listener->id, (int) $play->owner_id, $play->played_on);
+        }
+
         $play->save();
 
         return $play;

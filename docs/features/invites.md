@@ -16,6 +16,13 @@ Both settings are under **Configuration > Invites** (see [App configuration](../
 
 Each reward is a `transactions` row with purpose `referral`, `amount` 0, the inviter as `recipient_id`, the reward in `recipient_share`, and the payment it came from as `transactable`. It counts toward the balance, clears after `payout_hold_days` and is withdrawn like any other earning (see [Payouts](./payouts)). The inviter gets a `sales` notification.
 
+## Reports
+
+Inviters and royals see what invites earned them on the **Invites** page:
+
+- `GET account/referrals` includes `months`: earnings and payments for each of the last twelve months.
+- `GET account/referrals/invites` lists each invitee with total `earned`, `payments` and `rewardsEndAt` (when their payments stop counting, empty when the terms have no end). With `month=YYYY-MM` it adds `monthEarned` and `monthPayments` and lists the month's biggest earners first.
+
 ## In code
 
 - `App\Services\Referrals\Referrals`: codes, `attach()` at sign-up, `terms()`, `reward()` (called from `Checkout::settle()`) and `summary()`.

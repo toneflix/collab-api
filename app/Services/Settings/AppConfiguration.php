@@ -34,6 +34,8 @@ class AppConfiguration
         'stream_weight_collaboration' => ['Collaboration Stream Weight', 'decimal', ['required', 'numeric', 'between:0,10'], 'How much a paid stream of a collaboration counts.'],
         'stream_weight_recorded' => ['Recorded Stream Weight', 'decimal', ['required', 'numeric', 'between:0,10'], 'How much a paid stream of recorded music counts.'],
         'stream_weight_agentic' => ['Agentic Stream Weight', 'decimal', ['required', 'numeric', 'between:0,10'], 'How much a paid stream of agentic music counts. Unranked tracks count the same until ranked.'],
+        'stream_check_plays' => ['Stream Check Plays', 'number', ['required', 'integer', 'between:1,100000'], 'Paid streams one listener gives one creator in a month before they are checked.'],
+        'stream_check_share' => ['Stream Check Share (%)', 'decimal', ['required', 'numeric', 'between:1,100'], 'Part of a listener\'s paid streams in a month going to one creator that holds them for review.'],
         'review_releases' => ['Review Releases', 'boolean', ['required', 'boolean'], 'Hold published releases in a review queue until an admin approves them.'],
         'verify_email' => ['Verify Email', 'boolean', ['required', 'boolean'], 'Ask new users to confirm their email.'],
         'verify_phone' => ['Verify Phone', 'boolean', ['required', 'boolean'], 'Ask new users to confirm their phone number.'],

@@ -3,9 +3,9 @@
 namespace App\Services\Streams;
 
 use App\Enums\HttpStatus;
-use App\Enums\TrackOrigin;
 use App\Helpers\Providers;
 use App\Models\StreamPeriod;
+use App\Models\Subscription;
 use App\Models\TrackPlay;
 use App\Models\Transaction;
 use App\Models\User;
@@ -42,6 +42,8 @@ class StreamEarnings
             return $period;
         }
 
+        (new StreamChecks)->scan($month);
+
         $period
             ->fill($this->preview($month))
             ->fill(['status' => StreamPeriod::SETTLING])
@@ -75,15 +77,11 @@ class StreamEarnings
         $rules = StreamRules::current();
         [$from, $to] = $this->bounds($month);
 
-        $revenue = (float) Transaction::query()
-            ->where('purpose', 'premium')
-            ->where('status', 'complete')
-            ->whereBetween('paid_at', [$from, $to])
-            ->sum('amount');
+        $revenue = $this->revenue($from, $to);
         $totals = $this
             ->paidPlays($month)
             ->selectRaw('count(*) as plays')
-            ->selectRaw($this->weightSql($rules) . ' as weighted')
+            ->selectRaw($rules->weightSql() . ' as weighted')
             ->first();
 
         $pool = round($revenue * $rules->poolShare / 100, 2);
@@ -101,9 +99,40 @@ class StreamEarnings
     }
 
     /**
+     * Premium revenue that falls in the month. A payment for several months
+     * counts in each month its period covers, in proportion to the days.
+     */
+    public function revenue(Carbon $from, Carbon $to): float
+    {
+        $end = $to
+            ->copy()
+            ->addSecond();
+        $revenue = 0.0;
+
+        Subscription::query()
+            ->whereNotNull('transaction_id')
+            ->where('amount', '>', 0)
+            ->where('starts_at', '<', $end)
+            ->where('ends_at', '>', $from)
+            ->select(['id', 'amount', 'starts_at', 'ends_at'])
+            ->chunkById(1000, function ($periods) use ($from, $end, &$revenue) {
+                foreach ($periods as $period) {
+                    $length = $period->starts_at->diffInSeconds($period->ends_at);
+                    $overlap = $period->starts_at
+                        ->max($from)
+                        ->diffInSeconds($period->ends_at->min($end));
+
+                    $revenue += $length > 0 ? $period->amount * $overlap / $length : 0;
+                }
+            });
+
+        return round($revenue, 2);
+    }
+
+    /**
      * A creator's paid streams this month and what they earned from streams so far.
      *
-     * @return array{plays: int, weighted: float, estimate: float, earned: float, lastRate: float, currency: string}
+     * @return array{plays: int, held: int, weighted: float, estimate: float, earned: float, lastRate: float, currency: string}
      */
     public function summary(User $user): array
     {
@@ -112,8 +141,15 @@ class StreamEarnings
             ->paidPlays(now())
             ->where('track_plays.owner_id', $user->id)
             ->selectRaw('count(*) as plays')
-            ->selectRaw($this->weightSql($rules) . ' as weighted')
+            ->selectRaw($rules->weightSql() . ' as weighted')
             ->first();
+        [$from, $to] = $this->bounds(now());
+        $held = TrackPlay::query()
+            ->where('owner_id', $user->id)
+            ->where('paid', true)
+            ->where('held', true)
+            ->whereBetween('played_on', [$from->toDateString(), $to->toDateString()])
+            ->count();
         $last = StreamPeriod::query()
             ->where('status', StreamPeriod::SETTLED)
             ->latest('month')
@@ -127,6 +163,7 @@ class StreamEarnings
 
         return [
             'plays' => (int) $mine->plays,
+            'held' => $held,
             'weighted' => $weighted,
             'estimate' => round($weighted * (float) ($last?->rate ?? 0), 2),
             'earned' => round((float) $earned, 2),
@@ -151,7 +188,7 @@ class StreamEarnings
             ->whereNotNull('track_plays.owner_id')
             ->select('track_plays.owner_id')
             ->selectRaw('count(*) as plays')
-            ->selectRaw($this->weightSql($rules) . ' as weighted')
+            ->selectRaw($rules->weightSql() . ' as weighted')
             ->groupBy('track_plays.owner_id')
             ->orderBy('track_plays.owner_id')
             ->chunk(500, function ($rows) use ($period) {
@@ -208,7 +245,7 @@ class StreamEarnings
     }
 
     /**
-     * Paid plays in a month, joined to their tracks for the weights.
+     * Paid plays in a month that no stream check holds, joined to their tracks for the weights.
      */
     protected function paidPlays(Carbon $month): QueryBuilder
     {
@@ -218,6 +255,7 @@ class StreamEarnings
             ->toBase()
             ->join('tracks', 'tracks.id', '=', 'track_plays.track_id')
             ->where('track_plays.paid', true)
+            ->where('track_plays.held', false)
             ->whereBetween('track_plays.played_on', [$from->toDateString(), $to->toDateString()]);
     }
 
@@ -234,14 +272,5 @@ class StreamEarnings
             ->endOfMonth();
 
         return [$from, $to];
-    }
-
-    protected function weightSql(StreamRules $rules): string
-    {
-        $collab = $rules->weight(TrackOrigin::COLLABORATION);
-        $recorded = $rules->weight(TrackOrigin::RECORDED);
-        $agentic = $rules->weight(TrackOrigin::AGENTIC);
-
-        return "coalesce(sum(case tracks.origin when 'collaboration' then {$collab} when 'recorded' then {$recorded} else {$agentic} end), 0)";
     }
 }

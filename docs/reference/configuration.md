@@ -32,6 +32,8 @@ If you edit the table directly, run `php artisan cache:forget configuration::bui
 | `stream_weight_collaboration` | `1.5` | What a paid stream of a collaboration counts. |
 | `stream_weight_recorded` | `1` | What a paid stream of recorded music counts. |
 | `stream_weight_agentic` | `0.5` | What a paid stream of agentic or unranked music counts. |
+| `stream_check_plays` | `100` | Paid streams one listener gives one creator in a month before a [stream check](../features/streams#stream-checks). |
+| `stream_check_share` | `80` | Percent of a listener's paid streams in a month going to one creator that opens a check. |
 | `payout_auto_approve` | `false` | Send withdrawals without an admin approving each one. |
 | `verify_email` | `false` | Ask new users to confirm their email. |
 | `verify_phone` | `false` | Ask new users to confirm their phone. |
