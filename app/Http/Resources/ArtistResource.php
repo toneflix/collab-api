@@ -39,6 +39,7 @@ class ArtistResource extends JsonResource
             'projectsCount' => 0,
             'canEdit' => (bool) $viewer?->can('update', $this->resource),
             'canVerify' => (bool) $viewer?->can('verify', $this->resource),
+            'canVoice' => (bool) $viewer?->can('voice', $this->resource),
             'claimable' => $this->isClaimable(),
             'yourClaim' => $this->when(
                 $request->routeIs('artists.show') && $this->isClaimable(),

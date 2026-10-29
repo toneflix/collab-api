@@ -2,6 +2,8 @@
 
 namespace App\Services\Ai\Music;
 
+use App\Models\ArtistVoice;
+
 /**
  * MiniMax Music 1.5: songs up to 4 minutes sung from the lyrics, which can
  * follow a reference song, voice or instrumental.
@@ -29,6 +31,16 @@ class MiniMaxMusic15 extends ReplicateMusic
     public function references(): array
     {
         return ['song', 'voice', 'instrumental'];
+    }
+
+    public function takesVoices(): bool
+    {
+        return true;
+    }
+
+    public function voiceFrom(ArtistVoice $voice): ?string
+    {
+        return $voice->hasSample() && $voice->seconds > static::REFERENCE_MIN_SECONDS ? self::VOICE_FILE : null;
     }
 
     public function input(array $input, ?string $reference = null): array

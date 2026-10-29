@@ -3,6 +3,7 @@
 namespace App\Services\Ai\Music;
 
 use App\Enums\AiEngine;
+use App\Models\ArtistVoice;
 use App\Services\Ai\AiSettings;
 
 /**
@@ -46,6 +47,12 @@ abstract class MusicModel
     public const CREDITS_SETTING = '';
 
     public const PRICING = self::PER_SONG;
+
+    /** Sings in a voice from the artist's sample file */
+    public const VOICE_FILE = 'file';
+
+    /** Sings in a voice the engine built for the artist */
+    public const VOICE_PERSONA = 'persona';
 
     /** Shortest reference audio the model takes, in seconds */
     public const REFERENCE_MIN_SECONDS = 15;
@@ -185,6 +192,23 @@ abstract class MusicModel
     }
 
     /**
+     * Whether it can sing in an artist's voice.
+     */
+    public function takesVoices(): bool
+    {
+        return false;
+    }
+
+    /**
+     * How it sings in the voice, VOICE_FILE or VOICE_PERSONA, or null when it
+     * can't use this one.
+     */
+    public function voiceFrom(ArtistVoice $voice): ?string
+    {
+        return null;
+    }
+
+    /**
      * Credits per song, or per 10 seconds, as admins set it.
      */
     public function rate(): int
@@ -221,6 +245,7 @@ abstract class MusicModel
             'instrumental' => ['nullable', 'boolean'],
             'seed' => ['nullable', 'integer', 'min:0', 'max:4294967295'],
             'reference_kind' => $this->references() ? ['nullable', 'string', 'in:' . implode(',', $this->references())] : null,
+            'voice_artist_id' => $this->takesVoices() ? ['nullable', 'integer'] : ['prohibited'],
         ]);
     }
 
@@ -257,6 +282,7 @@ abstract class MusicModel
             'instrumentalOnly' => $this->instrumentalOnly(),
             'references' => $this->references(),
             'referenceMinSeconds' => static::REFERENCE_MIN_SECONDS,
+            'voices' => $this->takesVoices(),
         ];
     }
 }

@@ -7,6 +7,7 @@ use App\Http\Controllers\ArtistController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\Creator\AiArtworkController;
 use App\Http\Controllers\Creator\AiController;
+use App\Http\Controllers\Creator\ArtistVoiceController;
 use App\Http\Controllers\ExploreController;
 use App\Http\Controllers\FaustEffectController;
 use App\Http\Controllers\FileDownloadController;
@@ -118,6 +119,11 @@ Route::get('ai/jobs/{job}/versions/{version}/audio', [AiController::class, 'vers
     ->whereNumber('version')
     ->middleware('signed')
     ->name('ai.jobs.versions.audio');
+
+// An artist's voice sample, from the signed link on the voice
+Route::get('artists/{artist}/voice/audio', [ArtistVoiceController::class, 'audio'])
+    ->middleware('signed')
+    ->name('artists.voice.audio');
 
 // An image an artwork job drew, from the signed link on the job
 Route::get('ai/jobs/{job}/artwork/{image}', [AiArtworkController::class, 'image'])

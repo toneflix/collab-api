@@ -12,6 +12,7 @@ use App\Services\Ai\Music\MusicModel;
 use App\Services\Ai\Music\MusicVersions;
 use App\Services\Ai\Music\ReferenceAudio;
 use App\Services\Ai\Music\Song;
+use App\Services\Artists\ArtistVoices;
 use App\Services\Audio\StemAudio;
 use App\Services\Studio\StemFiles;
 use Throwable;
@@ -31,6 +32,7 @@ class GenerateMusic implements AiTask
         protected ReferenceAudio $references,
         protected StemAudio $audio,
         protected MusicVersions $versions,
+        protected ArtistVoices $voices,
     ) {}
 
     public function credits(array $input): int
@@ -53,13 +55,12 @@ class GenerateMusic implements AiTask
 
     public function handle(AiJob $job): array
     {
-        $input = $job->input;
-        $reference = $this->references->local($input, $job->track);
+        $model = $this->model($job->input);
+        [$input, $sample] = $this->withVoice($model, $job->input);
+        $reference = $sample ?? $this->references->local($input, $job->track);
 
         try {
-            $songs = $this
-                ->model($input)
-                ->generate($input, $reference);
+            $songs = $model->generate($input, $reference);
         } finally {
             $this->references->forget($input);
 
@@ -75,6 +76,26 @@ class GenerateMusic implements AiTask
         } finally {
             array_map(fn(Song $song) => $song->forget(), $songs);
         }
+    }
+
+    /**
+     * The job's input set to sing in its artist's voice, and a local copy of
+     * the voice's sample when the model follows the sample itself.
+     *
+     * @param  array<string, mixed>  $input
+     * @return array{0: array<string, mixed>, 1: ?string}
+     */
+    protected function withVoice(MusicModel $model, array $input): array
+    {
+        $voice = $this->voices->forJob($input);
+
+        return match ($voice ? $model->voiceFrom($voice) : null) {
+            MusicModel::VOICE_PERSONA => [[...$input, 'persona' => ['id' => $voice->persona_id, 'kind' => $voice->persona_kind]], null],
+            MusicModel::VOICE_FILE => empty($input['reference_file']) && empty($input['reference_stem_id'])
+                ? [[...$input, 'reference_kind' => 'voice'], $this->voices->local($voice)]
+                : [$input, null],
+            default => [$input, null],
+        };
     }
 
     /**
