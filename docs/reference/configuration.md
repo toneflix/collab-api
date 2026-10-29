@@ -26,6 +26,12 @@ If you edit the table directly, run `php artisan cache:forget configuration::bui
 | `payout_hold_days` | `7` | Days before earnings can be withdrawn. |
 | `loyalty_rate` | `10` | Percent of the platform's share of an invited person's payments that goes to the inviter. See [Invites](../features/invites). |
 | `loyalty_months` | `12` | Months after sign-up an invited person's payments count. 0 means no end. |
+| `stream_pool_share` | `30` | Percent of each month's Premium revenue shared among creators by paid streams. See [Stream earnings](../features/streams). |
+| `stream_min_seconds` | `30` | Seconds a signed-in listener must play a track for a paid stream. |
+| `stream_daily_cap` | `200` | Most paid streams one listener can give in a day. |
+| `stream_weight_collaboration` | `1.5` | What a paid stream of a collaboration counts. |
+| `stream_weight_recorded` | `1` | What a paid stream of recorded music counts. |
+| `stream_weight_agentic` | `0.5` | What a paid stream of agentic or unranked music counts. |
 | `payout_auto_approve` | `false` | Send withdrawals without an admin approving each one. |
 | `verify_email` | `false` | Ask new users to confirm their email. |
 | `verify_phone` | `false` | Ask new users to confirm their phone. |

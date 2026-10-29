@@ -47,7 +47,7 @@ class Recommend extends Command
             ->where(function (Builder $q) {
                 $q->has('followings')
                     ->orHas('socialInteracts')
-                    ->orHas('viewingHistory');
+                    ->orHas('trackPlays');
             })
             ->cursor();
 

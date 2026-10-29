@@ -216,6 +216,11 @@ return [
             'body' => ':payer, who joined with your invite, made a payment. You earned :amount.',
             'action' => 'See earnings',
         ],
+        'streams' => [
+            'subject' => 'You earned :amount from streams',
+            'body' => 'Your paid streams in :title earned :amount.',
+            'action' => 'See earnings',
+        ],
     ],
     'activity::payouts' => [
         'paid' => [

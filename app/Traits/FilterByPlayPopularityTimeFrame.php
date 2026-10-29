@@ -20,9 +20,10 @@ trait FilterByPlayPopularityTimeFrame
     public function scopeWithTotalPlaysCount(Builder $builder): Builder
     {
         return $builder->withCount([
-            'visits as visit_count_total' => fn(Builder $q) => $q
-                ->where('data->duration', '>', 0)
-                ->when($this->userThatPlayedId, fn(Builder $q) => $q->where('data->user', $this->userThatPlayedId)),
+            'plays as visit_count_total' => fn(Builder $q) => $q->when(
+                $this->userThatPlayedId,
+                fn(Builder $q) => $q->where('track_plays.user_id', $this->userThatPlayedId),
+            ),
         ]);
     }
 
@@ -51,7 +52,7 @@ trait FilterByPlayPopularityTimeFrame
      */
     public function scopePopularPlayedLastDays(Builder $builder, int $days): Builder
     {
-        return $builder->popularBetween(
+        return $builder->popularPlayedBetween(
             now()->subDays($days),
             now()
         );
@@ -84,7 +85,7 @@ trait FilterByPlayPopularityTimeFrame
      */
     public function scopePopularPlayedThisMonth(Builder $builder): Builder
     {
-        return $builder->popularBetween(
+        return $builder->popularPlayedBetween(
             now()->startOfMonth(),
             now()->endOfMonth(),
         );
@@ -95,7 +96,7 @@ trait FilterByPlayPopularityTimeFrame
      */
     public function scopePopularPlayedLastMonth(Builder $builder): Builder
     {
-        return $builder->popularBetween(
+        return $builder->popularPlayedBetween(
             now()->startOfMonth()->subMonthWithoutOverflow(),
             now()->subMonthWithoutOverflow()->endOfMonth()
         );
@@ -106,7 +107,7 @@ trait FilterByPlayPopularityTimeFrame
      */
     public function scopePopularPlayedThisYear(Builder $builder): Builder
     {
-        return $builder->popularBetween(
+        return $builder->popularPlayedBetween(
             now()->startOfYear(),
             now()->endOfYear(),
         );
@@ -117,7 +118,7 @@ trait FilterByPlayPopularityTimeFrame
      */
     public function scopePopularPlayedLastYear(Builder $builder): Builder
     {
-        return $builder->popularBetween(
+        return $builder->popularPlayedBetween(
             now()->startOfYear()->subYearWithoutOverflow(),
             now()->subYearWithoutOverflow()->endOfYear()
         );
@@ -128,9 +129,10 @@ trait FilterByPlayPopularityTimeFrame
      */
     public function scopePopularPlayedBetween(Builder $builder, Carbon $from, Carbon $to): Builder
     {
-        return $builder->whereHas('visits', $this->betweenPlayedScope($from, $to))
+        return $builder
+            ->whereHas('plays', $this->betweenPlayedScope($from, $to))
             ->withCount([
-                'visits as visit_count_total' => $this->betweenPlayedScope($from, $to),
+                'plays as visit_count_total' => $this->betweenPlayedScope($from, $to),
             ]);
     }
 
@@ -145,8 +147,7 @@ trait FilterByPlayPopularityTimeFrame
     protected function betweenPlayedScope(Carbon $from, Carbon $to): Closure
     {
         return fn($query) => $query
-            ->when($this->userThatPlayedId, fn(Builder $q) => $q->where('data->user', $this->userThatPlayedId))
-            ->where('data->duration', '>', 0)
-            ->whereBetween('created_at', [$from, $to]);
+            ->when($this->userThatPlayedId, fn(Builder $q) => $q->where('track_plays.user_id', $this->userThatPlayedId))
+            ->whereBetween('track_plays.played_on', [$from->toDateString(), $to->toDateString()]);
     }
 }

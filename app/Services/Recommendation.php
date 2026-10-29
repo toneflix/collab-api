@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\PeriodDays;
 use App\Models\Artist;
 use App\Models\Track;
+use App\Models\TrackPlay;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -88,11 +89,10 @@ class Recommendation
         $since = now()
             ->subDays($this->historyDays);
 
-        $streamed = DB::table('laravisits')
-            ->where('visitable_type', (new Track)->getMorphClass())
-            ->where('data->user', $this->user->id)
-            ->where('created_at', '>=', $since)
-            ->pluck('visitable_id');
+        $streamed = TrackPlay::query()
+            ->where('user_id', $this->user->id)
+            ->where('played_on', '>=', $since->toDateString())
+            ->pluck('track_id');
 
         $liked = DB::table(config('social-interactions.tables.interactions', 'social_interactions'))
             ->where('interactable_type', (new Track)->getMorphClass())
@@ -172,8 +172,8 @@ class Recommendation
                     ->orWhereHas('artists', fn(Builder $q) => $q->whereIn('artists.id', $artists));
             })
             ->whereDoesntHave('release', fn(Builder $q) => $q->where('user_id', $this->user->id))
-            ->withCount(['visits as plays' => fn(Builder $q) => $q->where('data->duration', '>', 0)])
-            ->orderByDesc('plays')
+            ->withCount('plays')
+            ->orderByDesc('plays_count')
             ->inRandomOrder()
             ->limit($this->limit)
             ->get()

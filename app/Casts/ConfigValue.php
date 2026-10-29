@@ -36,6 +36,7 @@ class ConfigValue implements CastsAttributes
             is_array($value) => json_encode($value, JSON_FORCE_OBJECT),
             is_bool($value) => $value ? '1' : '0',
             in_array(mb_strtolower($type), ['number', 'integer', 'int']) => (int) $value,
+            in_array(mb_strtolower($type), ['decimal', 'float']) => (string) (float) $value,
             default => (string) $value,
         };
     }
@@ -91,6 +92,7 @@ class ConfigValue implements CastsAttributes
             in_array(mb_strtolower($type), ['bool', 'boolean']) => filter_var($value, FILTER_VALIDATE_BOOLEAN),
             in_array(mb_strtolower($type), ['json', 'array']) => json_decode($value, true),
             in_array(mb_strtolower($type), ['number', 'integer', 'int']) => (int) $value,
+            in_array(mb_strtolower($type), ['decimal', 'float']) => (float) $value,
             default => $value,
         };
     }

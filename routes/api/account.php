@@ -12,6 +12,7 @@ use App\Http\Controllers\Account\PaymentsController;
 use App\Http\Controllers\Account\PayoutAccountController;
 use App\Http\Controllers\Account\PayoutController;
 use App\Http\Controllers\Account\ReferralController;
+use App\Http\Controllers\Account\StreamController;
 use App\Http\Controllers\Account\TakedownController;
 use App\Http\Controllers\Account\TwoFactorController;
 use App\Http\Controllers\NotificationRequestController;
@@ -45,6 +46,7 @@ Route::middleware(['auth:sanctum'])
         Route::apiResource('/', Account::class)->parameter('', 'field')->only(['index', 'update']);
         Route::get('purchases', [PaymentsController::class, 'purchases'])->name('purchases');
         Route::get('earnings', [PaymentsController::class, 'earnings'])->name('earnings');
+        Route::get('earnings/streams', [StreamController::class, 'show'])->name('earnings.streams');
         Route::get('subscription', [PaymentsController::class, 'subscription'])->name('subscription');
         Route::get('takedowns', [TakedownController::class, 'index'])->name('takedowns.index');
         Route::post('takedowns/{takedown}/appeal', [TakedownController::class, 'appeal'])->middleware('throttle:5,1')->name('takedowns.appeal');

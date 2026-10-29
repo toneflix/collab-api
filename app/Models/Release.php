@@ -13,9 +13,6 @@ use App\Traits\ModelCanExtend;
 use App\Traits\Purchasable;
 use App\Traits\TakesDown;
 use BeyondCode\Comments\Traits\HasComments;
-use Coderflex\Laravisit\Concerns\CanVisit;
-use Coderflex\Laravisit\Concerns\HasVisits;
-use Coderflex\Laravisit\Models\Visit;
 use Illuminate\Database\Eloquent\Attributes\ScopedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -24,6 +21,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Toneflix\LaravelFileable\Traits\Fileable;
 use Toneflix\SocialInteractions\Traits\HasSocialInteractions;
 
@@ -31,7 +29,7 @@ use Toneflix\SocialInteractions\Traits\HasSocialInteractions;
     RestrictBlockedUserScope::class,
     HideDeactivatedAccounts::class,
 ])]
-class Release extends Model implements CanBeTakenDown, CanVisit
+class Release extends Model implements CanBeTakenDown
 {
     use Fileable;
     use HasAiReviews;
@@ -39,7 +37,6 @@ class Release extends Model implements CanBeTakenDown, CanVisit
     use HasFactory;
     use HasLikedScope;
     use HasSocialInteractions;
-    use HasVisits;
     use Metricable;
     use ModelCanExtend;
     use Purchasable;
@@ -246,19 +243,22 @@ class Release extends Model implements CanBeTakenDown, CanVisit
     }
 
     /**
-     * Get all of the tracks for the Release
+     * Plays of the release's tracks.
+     */
+    public function plays(): HasManyThrough
+    {
+        return $this->hasManyThrough(TrackPlay::class, Track::class);
+    }
+
+    /**
+     * How many plays the release's tracks have.
      */
     public function streams(): Attribute
     {
         return Attribute::make(
-            get: fn() => Visit::whereHasMorph(
-                'visitable',
-                [Track::class],
-                fn($q) => $q->where('data->duration', '>', 0)->whereHas(
-                    'release',
-                    fn($q) => $q->whereId($this->id)
-                )
-            )->count(),
+            get: fn() => $this
+                ->plays()
+                ->count(),
         );
     }
 
