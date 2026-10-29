@@ -44,6 +44,20 @@ To build without publishing, start the workflow by hand from the Actions tab (*A
 
 The **build** choice picks *production* (the default) or *test*. A test build talks to the staging API (`VITE_STAGING_API_BASE_URL`, or `VITE_API_BASE_URL` when that variable is not set), has debug logging on, gets `-test` after its version name, and only ever goes to the internal track when deployed. It keeps the same package name, so it replaces the store app on a phone instead of installing beside it.
 
+### Release notes
+
+Every upload fills Play's *What's new* text from the pull requests and direct commits made since the last release commit (`chore: Android release …`, which the workflow commits after each deploy). A production build counts from the last production release, so changes shipped in test builds show up again.
+
+The notes come from Conventional Commit titles: `feat` goes under *What's new*, `perf` under *Improved* and `fix` under *Fixed*. Other types (`chore`, `ci`, `docs`, `refactor`, `test`) are left out, so write `feat` and `fix` titles the way people using the app should read them. The text stops before Play's 500 character limit and ends with "And more fixes and improvements" when changes were left out. With nothing to list it says "Bug fixes and performance improvements."
+
+To change the wording, add a `Release note:` line to the commit message, such as `Release note: Loop any section of a song in the studio`. `Release note: none` leaves a change out. For a pull request, the line goes in the merge commit's message.
+
+The run summary shows the text that was sent. To preview it locally:
+
+```bash
+node .github/scripts/release-notes.mjs whatsnew --skip-test-releases
+```
+
 ### One-time setup
 
 1. **Create an upload key** and keep it safe. Google Play needs every update signed with it.
