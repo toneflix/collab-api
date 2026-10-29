@@ -1049,6 +1049,96 @@ class ContentAgentTest extends TestCase
         $this->assertSame('HTTP 402: insufficient Replicate credit', $music['failure']);
     }
 
+    public function test_a_failing_track_can_be_removed_before_retrying(): void
+    {
+        $owner = $this->ownerWith(500);
+        $this->answers[] = $this->plan(['songs' => []]);
+
+        $run = $this->advance($this->queueRun($owner));
+
+        $vocal = AiJob::query()->findOrFail($this->step($run, 'music:t1')->output['ai_job_id']);
+        $failing = AiJob::query()->findOrFail($this->step($run, 'music:t2')->output['ai_job_id']);
+        $failing
+            ->forceFill(['status' => AiJob::FAILED, 'failure' => 'HTTP 500: boom'])
+            ->save();
+
+        $run = $this->advance($run);
+
+        $this->assertSame(AgentRun::FAILED, $run->status);
+
+        Sanctum::actingAs($owner);
+
+        $this->postJson("/api/creator/agent/runs/{$run->id}/remove", ['part' => 'track:t9'])
+            ->assertUnprocessable();
+
+        $this->postJson("/api/creator/agent/runs/{$run->id}/remove", ['part' => 'track:t2'])
+            ->assertAccepted()
+            ->assertJsonPath('data.counts.tracks', 1)
+            ->assertJsonPath('data.plan.albums.0.tracks.0.key', 't1');
+
+        $run->refresh();
+
+        $this->assertFalse($run->steps()->where('key', 'music:t2')->exists());
+        $this->assertTrue($run->steps()->where('key', 'track:t2')->exists());
+        $this->assertNotContains('mix:t2', $this->step($run, 'release:al1')->depends_on);
+        $this->assertSame(['song:t1'], $this->step($run, 'release:al1')->input['tracks']);
+
+        $this->postJson("/api/creator/agent/runs/{$run->id}/retry")
+            ->assertAccepted();
+
+        $vocal
+            ->forceFill(['status' => AiJob::SUCCEEDED, 'output' => ['stems' => [1]]])
+            ->save();
+
+        $run = $this->advance($run->refresh());
+
+        $this->assertSame(AgentRun::RUNNING, $run->status);
+        $this->assertSame(AgentStep::DONE, $this->step($run, 'music:t1')->status);
+        $this->assertSame(1, AiJob::query()->where('user_id', $owner->id)->where('kind', 'music')->where('status', '!=', AiJob::FAILED)->count());
+    }
+
+    public function test_removing_an_albums_last_track_removes_the_album_and_running_runs_cannot_change(): void
+    {
+        $owner = $this->ownerWith(500);
+        $this->answers[] = $this->plan(['songs' => []]);
+
+        $run = $this->advance($this->queueRun($owner));
+
+        Sanctum::actingAs($owner);
+
+        $this->postJson("/api/creator/agent/runs/{$run->id}/remove", ['part' => 'album:al1'])
+            ->assertUnprocessable();
+
+        app(ContentAgent::class)->cancel($run);
+
+        $this->postJson("/api/creator/agent/runs/{$run->id}/remove", ['part' => 'track:t1'])
+            ->assertAccepted();
+        $this->postJson("/api/creator/agent/runs/{$run->id}/remove", ['part' => 'track:t2'])
+            ->assertAccepted()
+            ->assertJsonPath('data.counts.albums', 0);
+
+        $this->assertFalse($run->steps()->where('key', 'release:al1')->exists());
+        $this->assertSame(AgentStep::DONE, $this->step($run, 'project:al1')->status);
+    }
+
+    public function test_retry_restarts_the_time_limit_of_steps_that_were_waiting(): void
+    {
+        $owner = $this->ownerWith(500);
+        $this->answers[] = $this->plan(['songs' => []]);
+
+        $run = $this->advance($this->queueRun($owner));
+
+        $this
+            ->step($run, 'music:t1')
+            ->forceFill(['started_at' => now()->subHours(3)])
+            ->save();
+
+        app(ContentAgent::class)->cancel($run);
+        app(ContentAgent::class)->retry($run->refresh());
+
+        $this->assertNull($this->step($run, 'music:t1')->started_at);
+    }
+
     public function test_a_failed_step_stops_the_run_and_retry_carries_on(): void
     {
         $owner = $this->ownerWith(200);

@@ -107,6 +107,15 @@ class ContentAgentController extends Controller
         return $this->changed($run, 'Run stopped.');
     }
 
+    public function removePart(Request $request, AgentRun $run)
+    {
+        $valid = $request->validate(['part' => ['required', 'string', 'max:100']]);
+
+        $run = $this->agent->remove($run, $valid['part']);
+
+        return $this->changed($run, 'Removed from the run.');
+    }
+
     public function retry(AgentRun $run)
     {
         $run = $this->agent->retry($run);

@@ -107,6 +107,17 @@ class AgentStep extends Model
     }
 
     /**
+     * Wait for a free AI job slot. The step's time limit starts once its
+     * job does, not while it waits for one.
+     */
+    public function waitForSlot(): bool
+    {
+        $this->started_at = null;
+
+        return false;
+    }
+
+    /**
      * Merge values into the step's output and save it.
      *
      * @param  array<string, mixed>  $values

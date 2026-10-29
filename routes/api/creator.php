@@ -44,6 +44,7 @@ Route::middleware(['auth:sanctum'])
         Route::get('agent/runs/{run}', [ContentAgentController::class, 'show'])->whereNumber('run')->name('agent.runs.show');
         Route::post('agent/runs/{run}/cancel', [ContentAgentController::class, 'cancel'])->whereNumber('run')->name('agent.runs.cancel');
         Route::post('agent/runs/{run}/retry', [ContentAgentController::class, 'retry'])->whereNumber('run')->name('agent.runs.retry');
+        Route::post('agent/runs/{run}/remove', [ContentAgentController::class, 'removePart'])->whereNumber('run')->name('agent.runs.remove');
         // A track must belong to its project, and a stem, asset or version to its track.
         Route::scopeBindings()->group(function () {
             Route::apiResource('projects/{project}/tracks', ProjectTrackController::class)->names('projects.tracks');

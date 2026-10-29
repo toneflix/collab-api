@@ -73,7 +73,7 @@ class SyncLyrics implements AgentAction
             ->count();
 
         if ($unfinished >= AiStudio::MAX_UNFINISHED) {
-            return false;
+            return $step->waitForSlot();
         }
 
         $job = $this->studio->start($owner, $track, 'lyrics', [

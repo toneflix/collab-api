@@ -77,7 +77,7 @@ class MakeMusic implements AgentAction
             ->count();
 
         if ($unfinished >= AiStudio::MAX_UNFINISHED) {
-            return false;
+            return $step->waitForSlot();
         }
 
         [$kind] = explode(':', (string) $input['source']);

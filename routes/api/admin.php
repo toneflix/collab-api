@@ -97,6 +97,7 @@ Route::middleware(['auth:sanctum'])
             Route::get('runs/{run}', [ContentAgentController::class, 'show'])->whereNumber('run')->name('runs.show');
             Route::post('runs/{run}/cancel', [ContentAgentController::class, 'cancel'])->whereNumber('run')->name('runs.cancel');
             Route::post('runs/{run}/retry', [ContentAgentController::class, 'retry'])->whereNumber('run')->name('runs.retry');
+            Route::post('runs/{run}/remove', [ContentAgentController::class, 'removePart'])->whereNumber('run')->name('runs.remove');
             Route::get('owners', [ContentAgentController::class, 'owners'])->name('owners');
             Route::put('accounts/{managedUser}', [ContentAgentController::class, 'account'])->whereNumber('managedUser')->name('accounts.update');
         });
