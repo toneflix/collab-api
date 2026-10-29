@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\AdminAction;
 use App\Models\Artist;
 use App\Models\Genre;
 use App\Models\Project;
@@ -274,6 +275,115 @@ class AdminContentTest extends TestCase
         $this
             ->getJson('/api/admin/content/artist?status=unclaimed&search=Unclaimed Admin')
             ->assertJsonPath('meta.total', 1);
+    }
+
+    public function test_admin_makes_marked_tracks_public(): void
+    {
+        $release = Release::factory()
+            ->create(['user_id' => $this->owner->id, 'artist_id' => $this->artist->id]);
+
+        $private = Track::factory()
+            ->count(2)
+            ->create(['release_id' => $release->id, 'privacy' => 'private']);
+
+        $public = Track::factory()
+            ->create(['release_id' => $release->id, 'privacy' => 'public']);
+
+        $other = Track::factory()
+            ->create(['release_id' => $release->id, 'privacy' => 'private']);
+
+        $ids = [...$private->modelKeys(), $public->id];
+
+        Sanctum::actingAs($this->admin);
+
+        $this
+            ->getJson('/api/admin/content/track')
+            ->assertJsonPath('bulkActions.0.key', 'make_public');
+
+        $this
+            ->postJson('/api/admin/content/track/bulk', ['action' => 'make_public', 'ids' => $ids])
+            ->assertStatus(202)
+            ->assertJsonPath('data.changed', 2)
+            ->assertJsonPath('data.unchanged', 1)
+            ->assertJsonPath('message', '2 items updated.');
+
+        $this->assertSame(
+            ['public'],
+            Track::query()
+                ->withoutGlobalScopes()
+                ->whereKey($ids)
+                ->pluck('privacy')
+                ->unique()
+                ->values()
+                ->all(),
+        );
+        $this->assertSame('private', $other->fresh()->privacy);
+        $this->assertSame(
+            2,
+            AdminAction::query()
+                ->where('user_id', $this->owner->id)
+                ->where('details->change', 'Make public')
+                ->count(),
+        );
+    }
+
+    public function test_bulk_actions_are_checked_per_kind(): void
+    {
+        $artist = Artist::factory()
+            ->create(['verified' => false]);
+
+        Sanctum::actingAs($this->admin);
+
+        $this
+            ->postJson('/api/admin/content/artist/bulk', ['action' => 'make_public', 'ids' => [$artist->id]])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('action');
+        $this
+            ->postJson('/api/admin/content/artist/bulk', ['action' => 'verify', 'ids' => range(1, 51)])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('ids');
+        $this
+            ->postJson('/api/admin/content/artist/bulk', ['action' => 'verify', 'ids' => [$artist->id]])
+            ->assertStatus(202)
+            ->assertJsonPath('data.changed', 1);
+
+        $this->assertTrue((bool) $artist->fresh()->verified);
+    }
+
+    public function test_admin_publishes_marked_drafts_and_compositions(): void
+    {
+        $draft = Release::factory()
+            ->create(['user_id' => $this->owner->id, 'artist_id' => $this->artist->id, 'draft' => true]);
+
+        Sanctum::actingAs($this->admin);
+
+        $songId = $this
+            ->postJson('/api/admin/content/song', [
+                'user_id' => $this->owner->id,
+                'title' => 'Bulk Lyrics',
+                'body' => 'One line',
+            ])
+            ->json('data.id');
+
+        $this
+            ->postJson('/api/admin/content/release/bulk', ['action' => 'publish', 'ids' => [$draft->id]])
+            ->assertStatus(202)
+            ->assertJsonPath('data.changed', 1);
+        $this
+            ->postJson('/api/admin/content/song/bulk', ['action' => 'publish', 'ids' => [$songId]])
+            ->assertStatus(202)
+            ->assertJsonPath('data.changed', 1);
+
+        $draft->refresh();
+
+        $this->assertFalse((bool) $draft->draft);
+        $this->assertFalse($draft->isInReview());
+        $this->assertTrue(
+            Song::query()
+                ->withoutGlobalScopes()
+                ->findOrFail($songId)
+                ->isPublished(),
+        );
     }
 
     public function test_artists_are_deleted_through_moderation(): void

@@ -62,6 +62,28 @@ class ProjectType extends ContentType
         return $item;
     }
 
+    public function bulkActions(): array
+    {
+        return [
+            'make_public' => 'Make public',
+            'make_private' => 'Make private',
+        ];
+    }
+
+    public function applyBulk(Model $item, string $action, User $admin): bool
+    {
+        /** @var Project $item */
+        $privacy = $action === 'make_public' ? 'public' : 'private';
+
+        if ($item->privacy === $privacy) {
+            return false;
+        }
+
+        $item->privacy = $privacy;
+
+        return $item->save();
+    }
+
     public function fields(Model $item): array
     {
         /** @var Project $item */

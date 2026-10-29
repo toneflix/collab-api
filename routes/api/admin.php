@@ -39,6 +39,9 @@ Route::middleware(['auth:sanctum'])
             Route::get('owners', [ContentController::class, 'owners'])->name('owners');
             Route::get('{type}', [ContentController::class, 'index'])->name('index');
             Route::post('{type}', [ContentController::class, 'store'])->middleware('throttle:60,1')->name('store');
+            Route::post('{type}/bulk', [ContentController::class, 'bulk'])
+                ->middleware('throttle:30,1')
+                ->name('bulk');
             Route::get('{type}/{id}', [ContentController::class, 'show'])->whereNumber('id')->name('show');
             Route::put('{type}/{id}', [ContentController::class, 'update'])->whereNumber('id')->name('update');
         });

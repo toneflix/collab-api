@@ -26,6 +26,9 @@ class ContentCatalog
     /** The permission the content pages need */
     public const PERMISSION = Moderation::PERMISSION;
 
+    /** Most items one bulk action changes, one list page */
+    public const BULK_LIMIT = 50;
+
     /**
      * @var array<string, class-string<ContentType>>
      */
@@ -102,6 +105,30 @@ class ContentCatalog
     }
 
     /**
+     * Apply one bulk action to marked content, each item in its own
+     * transaction. Returns how many items changed.
+     *
+     * @param  list<int>  $ids
+     */
+    public function bulk(string $name, array $ids, string $action, User $admin): int
+    {
+        $type = $this->type($name);
+        $label = $type->bulkActions()[$action];
+
+        return $type
+            ->findMany(array_slice($ids, 0, self::BULK_LIMIT))
+            ->sum(function (Model $item) use ($type, $action, $admin, $label) {
+                $changed = DB::transaction(fn() => $type->applyBulk($item, $action, $admin));
+
+                if ($changed) {
+                    $this->audit($item, $admin, 'content.updated', ['change' => $label]);
+                }
+
+                return (int) $changed;
+            });
+    }
+
+    /**
      * Load the owners of a page of content in one query, for the list rows.
      *
      * @param  Collection<int, Model>  $items
@@ -119,7 +146,10 @@ class ContentCatalog
         $items->each(fn(Model $item) => $item->setRelation('catalogOwner', $owners->get($ids[spl_object_id($item)])));
     }
 
-    protected function audit(Model $item, User $admin, string $action): void
+    /**
+     * @param  array<string, mixed>  $extra
+     */
+    protected function audit(Model $item, User $admin, string $action, array $extra = []): void
     {
         $owner = $item->moderationOwnerId();
 
@@ -136,6 +166,7 @@ class ContentCatalog
                     'type' => $this->reportables->nameFor($item::class),
                     'id' => $item->getKey(),
                     'title' => $item->moderationSummary()['title'],
+                    ...$extra,
                 ],
             ]);
     }

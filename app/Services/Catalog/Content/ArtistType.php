@@ -60,6 +60,28 @@ class ArtistType extends ContentType
         return $item;
     }
 
+    public function bulkActions(): array
+    {
+        return [
+            'verify' => 'Verify',
+            'unverify' => 'Remove verification',
+        ];
+    }
+
+    public function applyBulk(Model $item, string $action, User $admin): bool
+    {
+        /** @var Artist $item */
+        $verified = $action === 'verify';
+
+        if ((bool) $item->verified === $verified) {
+            return false;
+        }
+
+        $item->verified = $verified;
+
+        return $item->save();
+    }
+
     public function fields(Model $item): array
     {
         /** @var Artist $item */

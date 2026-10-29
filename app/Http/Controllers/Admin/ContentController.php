@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Enums\HttpStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\ActionResource;
 use App\Http\Resources\AdminContentCollection;
 use App\Http\Resources\AdminContentResource;
 use App\Http\Resources\ContentOwnerCollection;
@@ -52,8 +53,13 @@ class ContentController extends Controller
 
         $this->catalog->withOwners($items->getCollection());
 
+        $actions = collect($content->bulkActions())
+            ->map(fn(string $label, string $key) => ['key' => $key, 'label' => $label])
+            ->values();
+
         return (new AdminContentCollection($items))
             ->additional([
+                'bulkActions' => $actions,
                 'message' => HttpStatus::message(HttpStatus::OK),
                 'status' => 'success',
                 'status_code' => HttpStatus::OK,
@@ -101,6 +107,32 @@ class ContentController extends Controller
         return (new AdminContentResource($item))
             ->additional([
                 'message' => 'Saved.',
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
+    }
+
+    /**
+     * Apply one change to many marked items, such as making them public.
+     */
+    public function bulk(Request $request, string $type)
+    {
+        $content = $this->catalog->type($type);
+
+        $valid = $request->validate([
+            'action' => ['required', 'string', Rule::in(array_keys($content->bulkActions()))],
+            'ids' => ['required', 'array', 'min:1', 'max:' . ContentCatalog::BULK_LIMIT],
+            'ids.*' => ['integer', 'distinct'],
+        ]);
+
+        $changed = $this->catalog->bulk($type, $valid['ids'], $valid['action'], $request->user());
+        $result = ['changed' => $changed, 'unchanged' => count($valid['ids']) - $changed];
+
+        return (new ActionResource($result))
+            ->additional([
+                'message' => trans_choice('{0} Nothing changed.|{1} 1 item updated.|[2,*] :count items updated.', $changed),
                 'status' => 'success',
                 'status_code' => HttpStatus::ACCEPTED,
             ])
