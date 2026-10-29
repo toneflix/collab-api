@@ -156,6 +156,7 @@ class PlanController extends Controller
             'features' => ['nullable', 'array'],
             'is_default' => ['nullable', 'boolean'],
             'active' => ['nullable', 'boolean'],
+            'hidden' => ['nullable', 'boolean'],
             'sort' => ['nullable', 'integer'],
         ];
 
@@ -185,6 +186,10 @@ class PlanController extends Controller
 
         if ($isDefault && $request->has('active') && ! $request->boolean('active')) {
             throw ValidationException::withMessages(['active' => 'The default plan can\'t be deactivated.']);
+        }
+
+        if ($isDefault && $request->boolean('hidden')) {
+            throw ValidationException::withMessages(['hidden' => 'The default plan can\'t be hidden.']);
         }
 
         // Unknown keys are dropped; missing keys keep their current value.
@@ -220,6 +225,7 @@ class PlanController extends Controller
                     ->where('is_default', true)
                     ->update(['is_default' => false]);
                 $plan->active = true;
+                $plan->hidden = false;
             }
 
             $plan->save();

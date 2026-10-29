@@ -22,6 +22,7 @@ class Plan extends Model
         'interval_count' => 1,
         'is_default' => false,
         'active' => true,
+        'hidden' => false,
         'sort' => 0,
     ];
 
@@ -36,6 +37,7 @@ class Plan extends Model
         'features',
         'is_default',
         'active',
+        'hidden',
         'sort',
     ];
 
@@ -48,6 +50,7 @@ class Plan extends Model
             'features' => 'array',
             'is_default' => 'boolean',
             'active' => 'boolean',
+            'hidden' => 'boolean',
             'sort' => 'integer',
         ];
     }
@@ -77,6 +80,16 @@ class Plan extends Model
     public function scopeActive(Builder $query): void
     {
         $query->where('active', true);
+    }
+
+    /**
+     * Active plans anyone can see and buy. Hidden plans are only granted by admins.
+     */
+    public function scopeOnOffer(Builder $query): void
+    {
+        $query
+            ->where('active', true)
+            ->where('hidden', false);
     }
 
     public function scopeOrdered(Builder $query): void
