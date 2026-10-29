@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\AssistantController;
 use App\Http\Controllers\Admin\AuthPagesController;
 use App\Http\Controllers\Admin\ConfigurationController;
 use App\Http\Controllers\Admin\ContentAgentController;
+use App\Http\Controllers\Admin\ContentController;
 use App\Http\Controllers\Admin\GenreController;
 use App\Http\Controllers\Admin\ModerationController;
 use App\Http\Controllers\Admin\PayoutController;
@@ -32,6 +33,15 @@ Route::middleware(['auth:sanctum'])
 
         // Genres and their cover photos
         Route::apiResource('genres', GenreController::class);
+
+        // Tracks, releases, compositions, projects and artists
+        Route::prefix('content')->name('content.')->group(function () {
+            Route::get('owners', [ContentController::class, 'owners'])->name('owners');
+            Route::get('{type}', [ContentController::class, 'index'])->name('index');
+            Route::post('{type}', [ContentController::class, 'store'])->middleware('throttle:60,1')->name('store');
+            Route::get('{type}/{id}', [ContentController::class, 'show'])->whereNumber('id')->name('show');
+            Route::put('{type}/{id}', [ContentController::class, 'update'])->whereNumber('id')->name('update');
+        });
 
         // General app settings
         Route::get('configuration', [ConfigurationController::class, 'show'])->name('configuration.show');
