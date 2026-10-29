@@ -7,7 +7,9 @@ use App\Enums\Feature;
 use App\Jobs\AdvanceAgentRun;
 use App\Models\AgentRun;
 use App\Models\AgentStep;
+use App\Models\AiJob;
 use App\Models\User;
+use App\Services\Ai\AiStudio;
 use App\Services\Ai\Credits;
 use App\Services\Limits;
 use App\Services\Realtime\Realtime;
@@ -38,7 +40,10 @@ class ContentAgent
     /** Minutes a step may wait on queued work before it fails */
     public const STEP_TIMEOUT = 60;
 
-    public function __construct(protected AgentPlanner $planner) {}
+    public function __construct(
+        protected AgentPlanner $planner,
+        protected AiStudio $studio,
+    ) {}
 
     /**
      * @param  array<string, mixed>  $options
@@ -165,28 +170,52 @@ class ContentAgent
     }
 
     /**
-     * Stop a run. Steps not started are skipped; AI work already started
-     * finishes on the owner's tracks.
+     * Stop a run, queued or under way. Its open steps are skipped and the AI
+     * jobs they wait on are stopped and refunded; work already done stays.
      */
     public function cancel(AgentRun $run): AgentRun
     {
-        if ($run->isFinished()) {
+        $cancelled = AgentRun::query()
+            ->whereKey($run->id)
+            ->whereIn('status', [AgentRun::QUEUED, ...AgentRun::ACTIVE])
+            ->update(['status' => AgentRun::CANCELLED, 'finished_at' => now(), 'updated_at' => now()]);
+
+        $run->refresh();
+
+        if (! $cancelled) {
             return $run;
         }
+
+        $this->halt($run);
+        $this->announce($run);
+        $this->next();
+
+        return $run;
+    }
+
+    /**
+     * Skip a stopped run's open steps and stop the AI jobs they wait on.
+     */
+    protected function halt(AgentRun $run): void
+    {
+        $jobs = $run
+            ->steps()
+            ->open()
+            ->whereNotNull('output->ai_job_id')
+            ->toBase()
+            ->select('output->ai_job_id as ai_job_id')
+            ->pluck('ai_job_id');
 
         $run
             ->steps()
             ->open()
             ->update(['status' => AgentStep::SKIPPED]);
 
-        $run
-            ->forceFill(['status' => AgentRun::CANCELLED, 'finished_at' => now()])
-            ->save();
-
-        $this->announce($run);
-        $this->next();
-
-        return $run;
+        AiJob::query()
+            ->whereKey($jobs)
+            ->unfinished()
+            ->lazyById(50)
+            ->each(fn(AiJob $job) => $this->studio->stop($job));
     }
 
     /**
@@ -203,6 +232,29 @@ class ContentAgent
             ->steps()
             ->where('status', AgentStep::FAILED)
             ->update(['status' => AgentStep::PENDING, 'output' => null, 'error' => null, 'started_at' => null]);
+
+        $jobs = $run
+            ->steps()
+            ->where('status', AgentStep::SKIPPED)
+            ->whereNotNull('output->ai_job_id')
+            ->toBase()
+            ->select(['id', 'output->ai_job_id as ai_job_id'])
+            ->pluck('ai_job_id', 'id')
+            ->map(fn($id) => (int) $id);
+
+        $stopped = AiJob::query()
+            ->whereKey($jobs->values())
+            ->where('status', AiJob::FAILED)
+            ->pluck('id');
+
+        $restart = $jobs
+            ->filter(fn(int $job) => $stopped->contains($job))
+            ->keys();
+
+        // Steps whose AI job was stopped with the run start their work over.
+        AgentStep::query()
+            ->whereKey($restart)
+            ->update(['output' => null, 'started_at' => null]);
 
         $run
             ->steps()
@@ -234,6 +286,17 @@ class ContentAgent
         }
 
         DB::transaction(function () use ($run, $plan) {
+            $status = AgentRun::query()
+                ->whereKey($run->id)
+                ->lockForUpdate()
+                ->value('status');
+
+            if ($status !== AgentRun::PLANNING) {
+                $run->status = $status;
+
+                return;
+            }
+
             foreach ($this->planner->steps($run, $plan) as $position => $step) {
                 $run
                     ->steps()
@@ -313,6 +376,10 @@ class ContentAgent
                 return;
             }
 
+            if (! $this->stillRunning($run)) {
+                return;
+            }
+
             if (collect($step->depends_on ?? [])->contains(fn(string $key) => ! $done->has($key))) {
                 continue;
             }
@@ -330,13 +397,7 @@ class ContentAgent
             }
         }
 
-        $status = AgentRun::query()
-            ->whereKey($run->id)
-            ->value('status');
-
-        if ($status !== AgentRun::RUNNING) {
-            $run->status = $status;
-
+        if (! $this->stillRunning($run)) {
             return;
         }
 
@@ -350,6 +411,23 @@ class ContentAgent
                 ->forceFill(['status' => AgentRun::SUCCEEDED, 'finished_at' => now()])
                 ->save();
         }
+    }
+
+    /**
+     * Whether the run is still being built. A run cancelled during the pass
+     * has the steps and AI jobs the pass started since stopped too.
+     */
+    protected function stillRunning(AgentRun $run): bool
+    {
+        $run->status = AgentRun::query()
+            ->whereKey($run->id)
+            ->value('status');
+
+        if ($run->status === AgentRun::CANCELLED) {
+            $this->halt($run);
+        }
+
+        return $run->status === AgentRun::RUNNING;
     }
 
     /**
@@ -402,19 +480,25 @@ class ContentAgent
 
         $reason = $error instanceof Throwable ? $this->reason($error) : $error;
 
-        $run
-            ->steps()
-            ->open()
-            ->update(['status' => AgentStep::SKIPPED]);
-
-        $run
-            ->forceFill([
+        $failed = AgentRun::query()
+            ->whereKey($run->id)
+            ->whereIn('status', AgentRun::ACTIVE)
+            ->update([
                 'status' => AgentRun::FAILED,
                 'error' => $step ? 'Stopped at "' . ($step->input['title'] ?? $step->input['name'] ?? $step->key) . "\": {$reason}" : $reason,
                 'failure' => $error instanceof Throwable ? class_basename($error) . ': ' . $error->getMessage() : $error,
                 'finished_at' => now(),
-            ])
-            ->save();
+                'updated_at' => now(),
+            ]);
+
+        $run->refresh();
+
+        if ($failed) {
+            $run
+                ->steps()
+                ->open()
+                ->update(['status' => AgentStep::SKIPPED]);
+        }
     }
 
     /**

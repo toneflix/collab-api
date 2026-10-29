@@ -10,7 +10,10 @@ use App\Models\Plan;
 use App\Models\Project;
 use App\Models\ProjectTrack;
 use App\Models\User;
+use App\Services\Ai\AiJobStopped;
+use App\Services\Ai\AiJobStops;
 use App\Services\Ai\AiSettings;
+use App\Services\Ai\AiStudio;
 use App\Services\Ai\Credits;
 use App\Services\Ai\Replicate\ReplicateClient;
 use App\Services\Audio\StemAudio;
@@ -386,6 +389,70 @@ class AiMusicTest extends TestCase
 
         $this->assertSame(AiJob::FAILED, $job->fresh()->status);
         $this->assertSame(100, Credits::for($this->owner)->total());
+    }
+
+    public function test_a_queued_job_that_is_stopped_never_runs_and_is_refunded(): void
+    {
+        $job = AiJob::create(['user_id' => $this->owner->id, 'project_track_id' => $this->track->id, 'kind' => 'music', 'input' => ['prompt' => 'Jazz', 'seconds' => 10], 'credits' => 5]);
+        Credits::for($this->owner)->spend(5, 'Music: Jazz', $job);
+
+        app(AiStudio::class)->stop($job);
+        app(AiStudio::class)->run($job);
+
+        $job->refresh();
+
+        $this->assertSame(AiJob::FAILED, $job->status);
+        $this->assertSame('Stopped before it finished. Your credits were refunded.', $job->error);
+        $this->assertNull($job->started_at);
+        $this->assertSame(100, Credits::for($this->owner)->total());
+    }
+
+    public function test_a_running_job_that_is_stopped_ends_at_its_next_check_and_is_refunded(): void
+    {
+        Sanctum::actingAs($this->owner);
+
+        Audio::fake(function () {
+            $job = AiJob::query()
+                ->latest('id')
+                ->firstOrFail();
+
+            app(AiStudio::class)->stop($job);
+            app(AiJobStops::class)->check();
+        });
+
+        $id = $this
+            ->postJson($this->url(), ['prompt' => 'Amapiano log drums', 'seconds' => 60])
+            ->assertCreated()
+            ->json('data.id');
+
+        $job = AiJob::findOrFail($id);
+
+        $this->assertSame(AiJob::FAILED, $job->status);
+        $this->assertStringStartsWith('Stopped', $job->error);
+        $this->assertSame(100, Credits::for($this->owner)->total());
+        $this->assertFalse(app(AiJobStops::class)->requested($job));
+    }
+
+    public function test_a_stopped_job_cancels_its_replicate_prediction(): void
+    {
+        $job = AiJob::create(['user_id' => $this->owner->id, 'kind' => 'music', 'status' => AiJob::RUNNING, 'input' => ['prompt' => 'Jazz'], 'credits' => 5]);
+
+        Http::fake([
+            self::API . '/models/elevenlabs/music/predictions' => Http::response(['id' => 'p-slow', 'status' => 'processing'], 201),
+            self::API . '/predictions/p-slow' => function () use ($job) {
+                app(AiJobStops::class)->request($job);
+
+                return Http::response(['id' => 'p-slow', 'status' => 'processing']);
+            },
+            self::API . '/predictions/p-slow/cancel' => Http::response(['id' => 'p-slow', 'status' => 'canceled']),
+        ]);
+
+        try {
+            app(AiJobStops::class)->watch($job, fn() => ReplicateClient::make()->run('elevenlabs/music', ['prompt' => 'Jazz']));
+            $this->fail('The run was not stopped.');
+        } catch (AiJobStopped) {
+            Http::assertSent(fn(Request $request) => $request->url() === self::API . '/predictions/p-slow/cancel');
+        }
     }
 
     /**

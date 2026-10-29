@@ -33,7 +33,10 @@ class AiStudio
      */
     public const MAX_UNFINISHED = 3;
 
-    public function __construct(protected MusicVersions $versions) {}
+    public function __construct(
+        protected MusicVersions $versions,
+        protected AiJobStops $stops,
+    ) {}
 
     /**
      * @param  array<string, mixed>  $input
@@ -74,22 +77,20 @@ class AiStudio
 
     public function run(AiJob $job): AiJob
     {
-        if ($job->status !== AiJob::QUEUED) {
-            return $job;
+        if (! $this->claim($job, ['started_at' => now()])) {
+            return $job->refresh();
         }
 
-        $job
-            ->forceFill(['status' => AiJob::RUNNING, 'started_at' => now()])
-            ->save();
+        $job->refresh();
         $this->announce($job);
 
         $history = $job->track ? TrackHistory::for($job->track) : null;
         $history?->baseline();
 
         try {
-            $output = $job
+            $output = $this->stops->watch($job, fn() => $job
                 ->task()
-                ->handle($job);
+                ->handle($job));
         } catch (Throwable $e) {
             return $this->fail($job, $e);
         }
@@ -97,6 +98,38 @@ class AiStudio
         $job->forceFill(['status' => AiJob::SUCCEEDED, 'finished_at' => now()]);
 
         return $this->publish($job, $history, $output);
+    }
+
+    /**
+     * Stop a job and refund it. One still queued stops now; a running one
+     * stops at the next check of its provider client.
+     */
+    public function stop(AiJob $job): void
+    {
+        if ($this->claim($job)) {
+            $this->fail($job->refresh(), new AiJobStopped);
+
+            return;
+        }
+
+        if ($job->refresh()->status === AiJob::RUNNING) {
+            $this->stops->request($job);
+        }
+    }
+
+    /**
+     * Move a queued job to running, and say whether this call did it.
+     *
+     * @param  array<string, mixed>  $values
+     */
+    protected function claim(AiJob $job, array $values = []): bool
+    {
+        $claimed = AiJob::query()
+            ->whereKey($job->id)
+            ->where('status', AiJob::QUEUED)
+            ->update([...$values, 'status' => AiJob::RUNNING, 'updated_at' => now()]);
+
+        return $claimed > 0;
     }
 
     /**
@@ -198,11 +231,15 @@ class AiStudio
      */
     public function fail(AiJob $job, Throwable|string $error): AiJob
     {
-        $this->log($job, $error);
+        if (! $error instanceof AiJobStopped) {
+            $this->log($job, $error);
+        }
 
         $job->forceFill([
             'status' => AiJob::FAILED,
-            'error' => 'Something went wrong while making this. Your credits were refunded.',
+            'error' => $error instanceof AiJobStopped
+                ? 'Stopped before it finished. Your credits were refunded.'
+                : 'Something went wrong while making this. Your credits were refunded.',
             'failure' => $this->reason($error),
             'finished_at' => now(),
         ])->save();

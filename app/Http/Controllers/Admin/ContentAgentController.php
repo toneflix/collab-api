@@ -104,7 +104,7 @@ class ContentAgentController extends Controller
     {
         $run = $this->agent->cancel($run);
 
-        return $this->changed($run, 'Run cancelled.');
+        return $this->changed($run, 'Run stopped.');
     }
 
     public function retry(AgentRun $run)
