@@ -17,7 +17,7 @@ class ReplicateLyricModel implements LyricModel
                 'system_prompt' => $system,
                 'prompt' => $prompt,
                 'max_tokens' => $maxTokens,
-            ], $maxTokens > 1200 ? 180 : 60);
+            ], LyricWriter::timeout($maxTokens));
 
         return collect((array) $prediction['output'])
             ->flatten()
