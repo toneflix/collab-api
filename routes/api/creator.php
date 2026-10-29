@@ -3,6 +3,7 @@
 use App\Http\Controllers\Creator\AiArtworkController;
 use App\Http\Controllers\Creator\AiController;
 use App\Http\Controllers\Creator\ArtistController;
+use App\Http\Controllers\Creator\ArtistVoiceController;
 use App\Http\Controllers\Creator\AudioTagController;
 use App\Http\Controllers\Creator\ContentAgentController;
 use App\Http\Controllers\Creator\LyricsController;
@@ -25,6 +26,16 @@ Route::middleware(['auth:sanctum'])
         Route::apiResource('releases/{release}/tracks', TrackController::class)->names('releases.tracks');
         Route::post('releases/generic/tracks/save', [TrackController::class, 'save'])->name('releases.save.track');
         Route::apiResource('artists', ArtistController::class)->only(['store', 'update']);
+
+        // Artists' voices for AI music
+        Route::get('voices', [ArtistVoiceController::class, 'index'])->name('voices.index');
+        Route::get('artists/{artist}/voice', [ArtistVoiceController::class, 'show'])->name('artists.voice.show');
+        Route::put('artists/{artist}/voice', [ArtistVoiceController::class, 'update'])->name('artists.voice.update');
+        Route::delete('artists/{artist}/voice', [ArtistVoiceController::class, 'destroy'])->name('artists.voice.destroy');
+        Route::post('artists/{artist}/voice/sample', [ArtistVoiceController::class, 'sample'])->middleware('throttle:10,1')->name('artists.voice.sample');
+        Route::post('artists/{artist}/voice/generate', [ArtistVoiceController::class, 'generate'])->middleware('throttle:10,1')->name('artists.voice.generate');
+        Route::post('artists/{artist}/voice/check', [ArtistVoiceController::class, 'check'])->middleware('throttle:10,1')->name('artists.voice.check');
+        Route::post('artists/{artist}/voice/check/restart', [ArtistVoiceController::class, 'restart'])->middleware('throttle:10,1')->name('artists.voice.restart');
         Route::apiResource('projects', ProjectController::class);
 
         // Content agent runs of the user's agent account

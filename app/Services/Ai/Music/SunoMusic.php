@@ -3,6 +3,7 @@
 namespace App\Services\Ai\Music;
 
 use App\Enums\AiEngine;
+use App\Models\ArtistVoice;
 use App\Services\Ai\AiSettings;
 use App\Services\Ai\Suno\SunoClient;
 
@@ -42,6 +43,9 @@ class SunoMusic extends MusicModel
 
     /** Versions that follow a requested length */
     protected const TIMED = ['V6', 'V5_5'];
+
+    /** Versions that sing in a voice built from a person's recording */
+    protected const VOICED = ['V6', 'V5_5', 'V5'];
 
     public function name(): string
     {
@@ -101,6 +105,22 @@ class SunoMusic extends MusicModel
         return ['song'];
     }
 
+    public function takesVoices(): bool
+    {
+        return true;
+    }
+
+    public function voiceFrom(ArtistVoice $voice): ?string
+    {
+        if (! $voice->persona_id) {
+            return null;
+        }
+
+        return $voice->persona_kind !== ArtistVoice::VOICE_PERSONA || in_array($this->version(), self::VOICED, true)
+            ? self::VOICE_PERSONA
+            : null;
+    }
+
     /**
      * The request for Suno. With lyrics or for an instrumental, the prompt is
      * the style and the length is followed. Otherwise Suno writes the lyrics
@@ -112,6 +132,7 @@ class SunoMusic extends MusicModel
         $lyrics = trim((string) ($input['lyrics'] ?? ''));
         $instrumental = (bool) ($input['instrumental'] ?? false);
         $version = $input['suno_version'] ?? $this->version();
+        $persona = $this->persona($input, $version);
 
         if (! $reference && ($instrumental || $lyrics !== '')) {
             return array_filter([
@@ -123,6 +144,8 @@ class SunoMusic extends MusicModel
                 'prompt' => $instrumental ? null : $lyrics,
                 'lyrics' => ! $instrumental && str_starts_with($version, 'V6') ? $lyrics : null,
                 'duration' => in_array($version, self::TIMED, true) && ! empty($input['seconds']) ? (int) $input['seconds'] : null,
+                'vocalGender' => ! $instrumental && in_array($input['vocal_gender'] ?? null, ['m', 'f'], true) ? $input['vocal_gender'] : null,
+                ...$persona,
             ], fn($value) => $value !== null);
         }
 
@@ -133,7 +156,30 @@ class SunoMusic extends MusicModel
             'prompt' => $prompt,
             'lyrics' => $lyrics !== '' ? $lyrics : null,
             'audioUrls' => $reference ? [$reference] : null,
+            ...$persona,
         ], fn($value) => $value !== null);
+    }
+
+    /**
+     * The fields that sing in the job's artist voice, if it has one.
+     *
+     * @param  array<string, mixed>  $input
+     * @return array{personaId?: string, personaModel?: string}
+     */
+    protected function persona(array $input, string $version): array
+    {
+        $id = $input['persona']['id'] ?? null;
+
+        if (! $id) {
+            return [];
+        }
+
+        $voice = ($input['persona']['kind'] ?? null) === ArtistVoice::VOICE_PERSONA;
+
+        return array_filter([
+            'personaId' => (string) $id,
+            'personaModel' => in_array($version, self::VOICED, true) ? ($voice ? 'voice_persona' : 'style_persona') : null,
+        ]);
     }
 
     public function generate(array $input, ?string $reference = null): array

@@ -8,6 +8,7 @@ use App\Services\Agent\Actions\CreateProject;
 use App\Services\Agent\Actions\CreateTrack;
 use App\Services\Agent\Actions\DrawArtwork;
 use App\Services\Agent\Actions\MakeMusic;
+use App\Services\Agent\Actions\MakeVoice;
 use App\Services\Agent\Actions\MixTrack;
 use App\Services\Agent\Actions\ReleaseAlbum;
 use App\Services\Agent\Actions\SyncLyrics;
@@ -38,6 +39,7 @@ class AgentStep extends Model
      */
     public const ACTIONS = [
         'artist' => CreateArtist::class,
+        'voice' => MakeVoice::class,
         'project' => CreateProject::class,
         'song' => WriteSong::class,
         'track' => CreateTrack::class,

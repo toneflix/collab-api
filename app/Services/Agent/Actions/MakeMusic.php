@@ -4,6 +4,7 @@ namespace App\Services\Agent\Actions;
 
 use App\Models\AgentStep;
 use App\Models\AiJob;
+use App\Models\Artist;
 use App\Models\ProjectTrack;
 use App\Models\Song;
 use App\Services\Ai\AiSettings;
@@ -14,8 +15,9 @@ use RuntimeException;
 
 /**
  * Generates a track's music with an AI job: a song's lyrics are sung with
- * the Composer music model, instrumentals use the studio's. When the model
- * makes several versions, the first goes on the track.
+ * the Composer music model in its artist's voice, instrumentals use the
+ * studio's. When the model makes several versions, the first goes on the
+ * track.
  */
 class MakeMusic implements AgentAction
 {
@@ -83,11 +85,15 @@ class MakeMusic implements AgentAction
         if ($kind === 'song') {
             $song = Song::query()->findOrFail($step->from($input['source'], 'song_id'));
             $model = AiSettings::composerMusicModel();
+            $artist = isset($input['artist']) ? Artist::query()->find($step->from($input['artist'], 'artist_id')) : null;
+            $voice = $artist?->voice;
 
-            $job = $this->songs->generate($song, $owner, [
-                'prompt' => $this->prompt($model, $input),
+            $job = $this->songs->generate($song, $owner, array_filter([
+                'prompt' => $this->prompt($model, $input, $voice?->description),
                 'seconds' => (int) $input['seconds'],
-            ]);
+                'voice_artist_id' => $voice && $model->voiceFrom($voice) ? $artist->id : null,
+                'vocal_gender' => $voice?->gender(),
+            ]));
         } else {
             $track = ProjectTrack::query()->findOrFail($step->from($input['source'], 'project_track_id'));
             $model = AiSettings::musicModel();
@@ -110,14 +116,16 @@ class MakeMusic implements AgentAction
     }
 
     /**
-     * The track's style, cut to the model's prompt length.
+     * The track's style, led by its singer's voice when it has one, cut to
+     * the model's prompt length.
      *
      * @param  array<string, mixed>  $input
      */
-    protected function prompt(MusicModel $model, array $input): string
+    protected function prompt(MusicModel $model, array $input, ?string $voice = null): string
     {
         [$min, $max] = $model->promptLength();
-        $prompt = trim((string) $input['style']) ?: (string) $input['title'];
+        $style = trim((string) $input['style']) ?: (string) $input['title'];
+        $prompt = filled($voice) ? "Vocals: {$voice}. {$style}" : $style;
 
         if (mb_strlen($prompt) < $min) {
             $prompt = trim($prompt . ', ' . $input['title']);

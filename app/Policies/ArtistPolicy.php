@@ -20,6 +20,17 @@ class ArtistPolicy
     }
 
     /**
+     * Only the account that manages the artist can give it a voice for AI
+     * music.
+     */
+    public function voice(User $user, Artist $artist): Response
+    {
+        return $artist->isManagedBy($user)
+            ? Response::allow()
+            : Response::deny('Only the artist\'s account can manage its voice.');
+    }
+
+    /**
      * People can ask to manage an artist no account manages yet.
      */
     public function claim(User $user, Artist $artist): Response

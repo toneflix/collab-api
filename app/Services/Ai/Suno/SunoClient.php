@@ -119,6 +119,84 @@ class SunoClient
     }
 
     /**
+     * Build a reusable voice from a song Suno made, sung between two times
+     * 10 to 30 seconds apart, and return its persona id.
+     */
+    public function persona(string $task, string $audioId, string $name, string $description, float $from, float $to): string
+    {
+        $response = $this
+            ->http()
+            ->post('api/v1/generate/generate-persona', [
+                'taskId' => $task,
+                'audioId' => $audioId,
+                'name' => $name,
+                'description' => $description,
+                'vocalStart' => round($from, 2),
+                'vocalEnd' => round($to, 2),
+            ]);
+
+        $persona = $this->data($response)['personaId'] ?? null;
+
+        if (! $persona) {
+            throw new SunoException('Suno returned no persona.');
+        }
+
+        return (string) $persona;
+    }
+
+    /**
+     * Start checking that a voice recording is its owner's: Suno writes a
+     * phrase for them to record. Returns the task to look up the phrase with.
+     */
+    public function startVoiceCheck(string $url, int $from, int $to, string $language = 'en'): string
+    {
+        return $this->start('api/v1/voice/validate', [
+            'voiceUrl' => $url,
+            'vocalStartS' => $from,
+            'vocalEndS' => $to,
+            'language' => $language,
+        ]);
+    }
+
+    /**
+     * Wait for the phrase the owner has to record.
+     */
+    public function voicePhrase(string $task): string
+    {
+        $data = $this->await('api/v1/voice/validate-info', $task, ['wait_validating', 'success'], ['processing_validate_fail', 'fail']);
+        $phrase = trim((string) ($data['validateInfo'] ?? ''));
+
+        if ($phrase === '') {
+            throw new SunoException('Suno returned no phrase to record.');
+        }
+
+        return $phrase;
+    }
+
+    /**
+     * Build the voice from the owner's recording of the phrase and return its
+     * voice id once Suno has checked it.
+     */
+    public function createVoice(string $checkTask, string $recordingUrl, string $name, ?string $description = null): string
+    {
+        $task = $this->start('api/v1/voice/generate', array_filter([
+            'taskId' => $checkTask,
+            'verifyUrl' => $recordingUrl,
+            'voiceName' => $name,
+            'description' => $description,
+        ], fn($value) => $value !== null && $value !== ''));
+
+        $data = $this->await('api/v1/voice/record-info', $task, ['success'], ['processing_validate_fail', 'fail']);
+        $voice = $data['voiceId'] ?? null;
+
+        if (! $voice) {
+            throw new SunoException('Suno returned no voice.');
+        }
+
+        return (string) $voice;
+    }
+
+    /**
      * Upload a local file so Suno can read it, and return its URL. Uploads
      * are deleted after 3 days.
      */
@@ -219,6 +297,39 @@ class SunoClient
 
             if (in_array($status, self::FAILED, true) || $status === 'CALLBACK_EXCEPTION') {
                 throw new SunoException(trim("Suno task {$status}. " . ($data['errorMessage'] ?? '')));
+            }
+
+            if (now()->greaterThan($deadline)) {
+                throw new SunoException("Suno took longer than {$timeout} seconds.");
+            }
+
+            Sleep::for(self::POLL_SECONDS)->seconds();
+        }
+    }
+
+    /**
+     * Poll a voice task until its status is one of the done ones.
+     *
+     * @param  list<string>  $done
+     * @param  list<string>  $failed
+     * @return array<string, mixed>
+     */
+    protected function await(string $path, string $task, array $done, array $failed): array
+    {
+        $timeout = (int) ($this->config['timeout'] ?? 600);
+        $deadline = now()
+            ->addSeconds($timeout);
+
+        while (true) {
+            $data = $this->data($this->http()->get($path, ['taskId' => $task]));
+            $status = strtolower((string) ($data['status'] ?? ''));
+
+            if (in_array($status, $done, true)) {
+                return $data;
+            }
+
+            if (in_array($status, $failed, true)) {
+                throw new SunoException(trim("Suno voice task {$status}. " . ($data['errorMessage'] ?? '')));
             }
 
             if (now()->greaterThan($deadline)) {

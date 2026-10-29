@@ -16,6 +16,7 @@ use App\Services\Ai\Edit\EditWindow;
 use App\Services\Ai\Music\MusicVersions;
 use App\Services\Ai\Music\ReferenceAudio;
 use App\Services\Ai\Tasks\EditSection;
+use App\Services\Artists\ArtistVoices;
 use Illuminate\Http\Request;
 use Throwable;
 
@@ -25,7 +26,7 @@ use Throwable;
  */
 class AiController extends Controller
 {
-    public function music(Request $request, AiStudio $studio, ReferenceAudio $references, Project $project, ProjectTrack $track)
+    public function music(Request $request, AiStudio $studio, ReferenceAudio $references, ArtistVoices $voices, Project $project, ProjectTrack $track)
     {
         $this->authorize('update', $track);
 
@@ -41,6 +42,7 @@ class AiController extends Controller
             'reference_stem_id.prohibited' => 'Reference audio can\'t be used right now.',
         ]);
 
+        $voice = ! empty($valid['voice_artist_id']) ? $voices->forMusic($request->user(), $valid['voice_artist_id'], $model) : null;
         $reference = $references->keep($model, $track, $request->file('reference'), $valid['reference_stem_id'] ?? null);
 
         $input = array_filter([
@@ -53,6 +55,7 @@ class AiController extends Controller
             'split' => (bool) ($valid['split'] ?? false),
             'stems_engine' => ! empty($valid['split']) ? AiSettings::stemsEngine()->value : null,
             'reference_kind' => $reference ? ($valid['reference_kind'] ?? $model->references()[0]) : null,
+            'voice_artist_id' => $voice?->artist_id,
             ...$reference,
             ...$model->jobSettings(),
         ], fn($value) => $value !== null);

@@ -31,6 +31,7 @@ class SongProjectController extends Controller
             'generate' => ['nullable', 'boolean'],
             'prompt' => ['nullable', 'required_if_accepted:generate', 'string', 'max:2000'],
             'seconds' => ['nullable', 'integer', 'min:1', 'max:600'],
+            'voice_artist_id' => ['nullable', 'integer'],
         ]);
 
         $project = isset($data['project_id']) ? Project::find($data['project_id']) : null;

@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\Ai\AiSettings;
 use App\Services\Ai\AiStudio;
 use App\Services\Ai\Credits;
+use App\Services\Artists\ArtistVoices;
 use App\Services\Limits;
 use App\Services\Lyrics\LyricAligner;
 use App\Services\Lyrics\Lyrics;
@@ -34,6 +35,7 @@ class SongProjects
         protected Lyrics $lyrics,
         protected LyricAligner $aligner,
         protected AiStudio $studio,
+        protected ArtistVoices $voices,
     ) {}
 
     /**
@@ -41,7 +43,7 @@ class SongProjects
      * With `generate`, AI makes a song from the lyrics on the track; that is
      * checked before anything is created.
      *
-     * @param  array{title?: ?string, privacy?: ?string, genre_id: string, artist_id: string, generate?: bool, prompt?: ?string, seconds?: ?int}  $data
+     * @param  array{title?: ?string, privacy?: ?string, genre_id: string, artist_id: string, generate?: bool, prompt?: ?string, seconds?: ?int, voice_artist_id?: ?int}  $data
      * @return array{track: ProjectTrack, job: ?AiJob}
      */
     public function create(Song $song, User $user, array $data, ?Project $project = null): array
@@ -113,7 +115,7 @@ class SongProjects
     /**
      * Have AI sing the song's lyrics onto the track it already has.
      *
-     * @param  array{prompt?: ?string, seconds?: ?int}  $data
+     * @param  array{prompt?: ?string, seconds?: ?int, voice_artist_id?: ?int}  $data
      */
     public function generate(Song $song, User $user, array $data): AiJob
     {
@@ -146,9 +148,10 @@ class SongProjects
 
     /**
      * The AI music job's input for the song, checked against the Composer
-     * song model's limits and the writer's access and credits.
+     * song model's limits and the writer's access and credits. A voice
+     * artist sings it in that artist's voice.
      *
-     * @param  array{prompt?: ?string, seconds?: ?int}  $data
+     * @param  array{prompt?: ?string, seconds?: ?int, voice_artist_id?: ?int, vocal_gender?: ?string}  $data
      * @return array<string, mixed>
      */
     protected function musicInput(Song $song, User $user, array $data): array
@@ -178,6 +181,7 @@ class SongProjects
             ? min(max((int) ($data['seconds'] ?? self::DEFAULT_SECONDS), $model->minSeconds()), $model->maxSeconds(), AiSettings::musicMaxSeconds())
             : null;
         $cost = $model->credits((int) $seconds);
+        $voice = ! empty($data['voice_artist_id']) ? $this->voices->forMusic($user, $data['voice_artist_id'], $model) : null;
 
         if ($credits->total() < $cost) {
             throw ValidationException::withMessages(['generate' => "This needs {$cost} credits, but you have {$credits->total()}."]);
@@ -190,6 +194,8 @@ class SongProjects
             'seconds' => $seconds,
             'instrumental' => $model->instrumentalOption() ? false : null,
             'split' => false,
+            'voice_artist_id' => $voice?->artist_id,
+            'vocal_gender' => in_array($data['vocal_gender'] ?? null, ['m', 'f'], true) ? $data['vocal_gender'] : null,
             ...$model->jobSettings(),
         ], fn($value) => $value !== null);
     }

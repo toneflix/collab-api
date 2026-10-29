@@ -6,6 +6,7 @@ use App\Services\Ai\Tasks\AiTask;
 use App\Services\Ai\Tasks\EditSection;
 use App\Services\Ai\Tasks\GenerateArtwork;
 use App\Services\Ai\Tasks\GenerateMusic;
+use App\Services\Ai\Tasks\GenerateVoice;
 use App\Services\Ai\Tasks\SplitStems;
 use App\Services\Ai\Tasks\TranscribeLyrics;
 use Illuminate\Database\Eloquent\Builder;
@@ -35,6 +36,7 @@ class AiJob extends Model
         'lyrics' => TranscribeLyrics::class,
         'edit' => EditSection::class,
         'artwork' => GenerateArtwork::class,
+        'voice' => GenerateVoice::class,
     ];
 
     protected $attributes = [

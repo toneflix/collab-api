@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Overtrue\LaravelFollow\Traits\Followable;
 use Toneflix\LaravelFileable\Traits\Fileable;
@@ -141,6 +142,14 @@ class Artist extends Model implements Reportable
         return $this
             ->belongsTo(User::class)
             ->withDefault(fn() => User::firstWhere('curator', true));
+    }
+
+    /**
+     * How the artist sings, for AI music.
+     */
+    public function voice(): HasOne
+    {
+        return $this->hasOne(ArtistVoice::class);
     }
 
     /**
