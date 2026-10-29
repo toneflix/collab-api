@@ -24,11 +24,15 @@ use App\Models\User;
 use App\Services\Agent\Actions\DrawArtwork;
 use App\Services\Agent\AgentPlanner;
 use App\Services\Agent\ContentAgent;
+use App\Services\Ai\AiJobStopped;
+use App\Services\Ai\AiJobStops;
 use App\Services\Ai\AiSettings;
+use App\Services\Ai\AiStudio;
 use App\Services\Ai\Credits;
 use App\Services\Ai\Music\MusicVersions;
 use App\Services\Composer\Ai\LyricModel;
 use App\Services\Realtime\RealtimeSettings;
+use Closure;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Event;
@@ -44,7 +48,7 @@ class ContentAgentTest extends TestCase
 {
     use DatabaseTransactions;
 
-    /** @var list<string|RuntimeException> */
+    /** @var list<string|RuntimeException|Closure(): string> */
     public array $answers = [];
 
     /** @var list<array{system: string, prompt: string, maxTokens: int}> */
@@ -89,6 +93,10 @@ class ContentAgentTest extends TestCase
 
                 if ($answer instanceof RuntimeException) {
                     throw $answer;
+                }
+
+                if ($answer instanceof Closure) {
+                    return $answer();
                 }
 
                 return $answer;
@@ -909,6 +917,83 @@ class ContentAgentTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.steps.0.key', 'artist:a1')
             ->assertJsonPath('data.counts.tracks', 2);
+    }
+
+    public function test_stopping_a_running_run_stops_and_refunds_its_ai_jobs_and_retry_starts_them_again(): void
+    {
+        $owner = $this->ownerWith(500);
+        $this->answers[] = $this->plan(['songs' => []]);
+
+        $run = $this->advance($this->queueRun($owner));
+
+        $vocal = AiJob::query()->findOrFail($this->step($run, 'music:t1')->output['ai_job_id']);
+        $instrumental = AiJob::query()->findOrFail($this->step($run, 'music:t2')->output['ai_job_id']);
+        $vocal
+            ->forceFill(['status' => AiJob::RUNNING])
+            ->save();
+        $before = Credits::for($owner)->total();
+
+        Sanctum::actingAs($owner);
+
+        $this->postJson("/api/creator/agent/runs/{$run->id}/cancel")
+            ->assertAccepted()
+            ->assertJsonPath('data.status', AgentRun::CANCELLED);
+
+        $this->assertSame(AiJob::FAILED, $instrumental->refresh()->status);
+        $this->assertSame($before + $instrumental->credits, Credits::for($owner)->total());
+        $this->assertSame(AiJob::RUNNING, $vocal->refresh()->status);
+        $this->assertTrue(app(AiJobStops::class)->requested($vocal));
+        $this->assertSame(0, $run->steps()->open()->count());
+
+        app(AiStudio::class)->fail($vocal, new AiJobStopped);
+
+        $this->postJson("/api/creator/agent/runs/{$run->id}/retry")
+            ->assertAccepted();
+
+        $run = $this->advance($run->refresh());
+
+        $this->assertSame(AgentRun::RUNNING, $run->status);
+        $this->assertNotSame($vocal->id, $this->step($run, 'music:t1')->output['ai_job_id']);
+        $this->assertNotSame($instrumental->id, $this->step($run, 'music:t2')->output['ai_job_id']);
+        $this->assertSame(1, Artist::query()->where('user_id', $owner->id)->count());
+    }
+
+    public function test_a_run_stopped_while_it_plans_makes_nothing(): void
+    {
+        $owner = $this->ownerWith(500);
+        $run = $this->queueRun($owner);
+
+        $this->answers[] = function () use ($run) {
+            app(ContentAgent::class)->cancel($run);
+
+            return $this->plan();
+        };
+
+        $run = $this->advance($run);
+
+        $this->assertSame(AgentRun::CANCELLED, $run->status);
+        $this->assertNull($run->plan);
+        $this->assertSame(0, $run->steps()->count());
+    }
+
+    public function test_a_run_stopped_during_a_pass_starts_nothing_more(): void
+    {
+        $owner = $this->ownerWith(500);
+        $run = $this->queueRun($owner);
+
+        $this->answers[] = $this->plan(['songs' => []]);
+        $this->answers[] = function () use ($run) {
+            app(ContentAgent::class)->cancel($run);
+
+            return json_encode(['lines' => ['[Verse 1]', 'Lagos lights are calling out my name']]);
+        };
+
+        $run = $this->advance($run);
+
+        $this->assertSame(AgentRun::CANCELLED, $run->status);
+        $this->assertSame(0, $run->steps()->open()->count());
+        $this->assertSame(0, AiJob::query()->where('user_id', $owner->id)->count());
+        Queue::assertNotPushed(RunAiJob::class);
     }
 
     public function test_runs_are_announced_to_content_admins_and_the_owner(): void
