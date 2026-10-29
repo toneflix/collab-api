@@ -100,6 +100,56 @@ class ReleaseType extends ContentType
         return $item;
     }
 
+    public function bulkActions(): array
+    {
+        return [
+            'publish' => 'Publish',
+            'make_public' => 'Make public',
+            'make_private' => 'Make private',
+        ];
+    }
+
+    public function applyBulk(Model $item, string $action, User $admin): bool
+    {
+        /** @var Release $item */
+        if ($action === 'publish') {
+            return $this->publish($item, $admin);
+        }
+
+        $privacy = $action === 'make_public' ? 'public' : 'private';
+
+        if ($item->privacy === $privacy) {
+            return false;
+        }
+
+        $item->privacy = $privacy;
+
+        return $item->save();
+    }
+
+    /**
+     * Take a draft or a release in review live, the same way saving the form does.
+     */
+    protected function publish(Release $item, User $admin): bool
+    {
+        if (! $item->draft && ! $item->isInReview()) {
+            return false;
+        }
+
+        if ($item->draft) {
+            $item->draft = false;
+            $item->save();
+
+            $this->versions->published($item);
+        }
+
+        if ($item->isInReview()) {
+            $this->versions->approve($item, $admin);
+        }
+
+        return true;
+    }
+
     public function fields(Model $item): array
     {
         /** @var Release $item */

@@ -74,6 +74,28 @@ class SongType extends ContentType
         return $this->finish($song, $data);
     }
 
+    public function bulkActions(): array
+    {
+        return [
+            'publish' => 'Publish',
+            'unpublish' => 'Unpublish',
+        ];
+    }
+
+    public function applyBulk(Model $item, string $action, User $admin): bool
+    {
+        /** @var Song $item */
+        $published = $action === 'publish';
+
+        if ($item->isPublished() === $published) {
+            return false;
+        }
+
+        $this->finish($item, ['published' => $published]);
+
+        return true;
+    }
+
     public function fields(Model $item): array
     {
         /** @var Song $item */

@@ -7,6 +7,7 @@ use App\Contracts\Reportable;
 use App\Models\User;
 use App\Services\Moderation\Reportables;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 
@@ -68,6 +69,24 @@ abstract class ContentType
     abstract protected function whereStatus(Builder $query, string $status): void;
 
     /**
+     * Changes admins can apply to many marked items at once, as action => label.
+     *
+     * @return array<string, string>
+     */
+    public function bulkActions(): array
+    {
+        return [];
+    }
+
+    /**
+     * Apply one bulk action to an item. False when the item already matched.
+     */
+    public function applyBulk(Model $item, string $action, User $admin): bool
+    {
+        return false;
+    }
+
+    /**
      * Relations the admin list loads with each row.
      *
      * @return array<int|string, mixed>
@@ -113,6 +132,20 @@ abstract class ContentType
         return $this
             ->baseQuery()
             ->find($id);
+    }
+
+    /**
+     * Several pieces of content by id, wherever they are shown.
+     *
+     * @param  list<int>  $ids
+     * @return Collection<int, Model>
+     */
+    public function findMany(array $ids): Collection
+    {
+        return $this
+            ->baseQuery()
+            ->whereKey($ids)
+            ->get();
     }
 
     protected function baseQuery(): Builder
