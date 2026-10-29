@@ -2,6 +2,7 @@
 
 namespace App\Services\Ai\Suno;
 
+use App\Services\Ai\AiJobStops;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
@@ -207,6 +208,8 @@ class SunoClient
             ->addSeconds($timeout);
 
         while (true) {
+            app(AiJobStops::class)->check();
+
             $data = $this->data($this->http()->get($path, ['taskId' => $task]));
             $status = (string) ($data[$statusKey] ?? 'PENDING');
 

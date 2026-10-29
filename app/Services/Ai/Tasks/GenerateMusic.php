@@ -5,6 +5,7 @@ namespace App\Services\Ai\Tasks;
 use App\Enums\AiEngine;
 use App\Models\AiJob;
 use App\Models\ProjectTrackStem;
+use App\Services\Ai\AiJobStopped;
 use App\Services\Ai\AiSettings;
 use App\Services\Ai\AiStudio;
 use App\Services\Ai\Music\ElevenLabsMusic;
@@ -170,6 +171,8 @@ class GenerateMusic implements AiTask
 
         try {
             return $this->splitter->separate($job->track, $job->user, $path, $title, $meta, $engine);
+        } catch (AiJobStopped $e) {
+            throw $e;
         } catch (Throwable $e) {
             $this->studio->failStep($job, $e, 'Split into stems', AiSettings::stemsCredits($engine));
 

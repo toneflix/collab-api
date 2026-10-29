@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Enums\AiEngine;
 use App\Helpers\Providers;
 use App\Notifications\Channels\PushChannel;
+use App\Services\Ai\AiJobStops;
 use App\Services\Ai\AiSettings;
 use App\Services\Ai\Replicate\ReplicateProvider;
 use App\Services\Assistant\Ai\AssistantModel;
@@ -55,6 +56,8 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(LyricModel::class, fn($app) => $app->make(
             AiSettings::engine('ai_composer_engine') === AiEngine::CLOUDFLARE ? CloudflareLyricModel::class : ReplicateLyricModel::class
         ));
+
+        $this->app->scoped(AiJobStops::class);
 
         $this->app->singleton(PayoutProviders::class, fn($app) => new PayoutProviders([
             $app->make(PaystackGateway::class),
