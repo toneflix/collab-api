@@ -1012,6 +1012,43 @@ class ContentAgentTest extends TestCase
         $this->assertSame(AgentStep::WAITING, $this->step($run, 'music:t2')->status, (string) $this->step($run, 'music:t2')->error);
     }
 
+    public function test_ai_provider_errors_are_shown_to_admins_only(): void
+    {
+        $owner = $this->ownerWith(200);
+        $this->answers[] = $this->plan(['songs' => []]);
+
+        $run = $this->advance($this->queueRun($owner));
+
+        $job = AiJob::query()->findOrFail($this->step($run, 'music:t1')->output['ai_job_id']);
+        $job
+            ->forceFill(['status' => AiJob::FAILED, 'failure' => 'HTTP 402: insufficient Replicate credit'])
+            ->save();
+
+        $run = $this->advance($run);
+
+        Sanctum::actingAs($owner);
+
+        $body = $this->getJson("/api/creator/agent/runs/{$run->id}")
+            ->assertOk()
+            ->assertJsonPath('data.status', AgentRun::FAILED)
+            ->assertJsonMissingPath('data.failure')
+            ->json('data');
+
+        $this->assertStringNotContainsString('Replicate', json_encode($body));
+        $this->assertStringContainsString('the AI couldn\'t make this track', $body['error']);
+
+        $this->admin();
+
+        $steps = $this->getJson("/api/admin/agent/runs/{$run->id}")
+            ->assertOk()
+            ->assertJsonPath('data.failure', 'HTTP 402: insufficient Replicate credit')
+            ->json('data.steps');
+
+        $music = collect($steps)->firstWhere('key', 'music:t1');
+
+        $this->assertSame('HTTP 402: insufficient Replicate credit', $music['failure']);
+    }
+
     public function test_a_failed_step_stops_the_run_and_retry_carries_on(): void
     {
         $owner = $this->ownerWith(200);

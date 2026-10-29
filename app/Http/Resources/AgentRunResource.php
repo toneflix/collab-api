@@ -54,7 +54,7 @@ class AgentRunResource extends JsonResource
             ] : null),
             'credits' => $this->credits,
             'error' => $this->error,
-            'failure' => $this->failure,
+            'failure' => $this->when($request->is('api/admin/*'), $this->failure),
             'owner' => $this->whenLoaded('owner', fn() => [
                 'id' => $this->owner->id,
                 'name' => $this->owner->fullname,

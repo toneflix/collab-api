@@ -7,11 +7,11 @@ use App\Models\AiJob;
 use App\Models\Artist;
 use App\Models\ProjectTrack;
 use App\Models\Song;
+use App\Services\Agent\AgentStepFailed;
 use App\Services\Ai\AiSettings;
 use App\Services\Ai\AiStudio;
 use App\Services\Ai\Music\MusicModel;
 use App\Services\Composer\SongProjects;
-use RuntimeException;
 
 /**
  * Generates a track's music with an AI job: a song's lyrics are sung with
@@ -35,7 +35,7 @@ class MakeMusic implements AgentAction
         }
 
         if ($job->status === AiJob::FAILED) {
-            throw new RuntimeException('Music: ' . ($job->failure ?: $job->error ?: 'the AI job failed.'));
+            throw new AgentStepFailed('Music: the AI couldn\'t make this track. Its credits were refunded.', $job->failure ?: $job->error);
         }
 
         if ($job->status !== AiJob::SUCCEEDED) {
@@ -52,7 +52,7 @@ class MakeMusic implements AgentAction
 
         if (isset($output['versions']) && ! isset($output['choosing'])) {
             if (! empty($step->output['chose'])) {
-                throw new RuntimeException('Music: ' . ($job->failure ?: 'the version couldn\'t be added to the track.'));
+                throw new AgentStepFailed('Music: the version couldn\'t be added to the track.', $job->failure);
             }
 
             $this->studio->choose($job, 0);
