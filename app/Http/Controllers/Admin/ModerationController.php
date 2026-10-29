@@ -19,6 +19,7 @@ use App\Models\ArtistClaim;
 use App\Models\Release;
 use App\Models\Safety;
 use App\Models\Takedown;
+use App\Models\Track;
 use App\Services\Artists\ArtistClaims;
 use App\Services\Moderation\Ai\AiModerator;
 use App\Services\Moderation\Moderation;
@@ -175,6 +176,16 @@ class ModerationController extends Controller
     public function aiReviewRelease(Request $request, Release $reviewRelease, AiModerator $moderator)
     {
         $review = $moderator->send($reviewRelease, $request->user());
+
+        return $this->sentToAi($review);
+    }
+
+    /**
+     * Ask the AI moderator whether a direct upload is recorded music or agentic.
+     */
+    public function aiReviewTrack(Request $request, Track $rankTrack, AiModerator $moderator)
+    {
+        $review = $moderator->send($rankTrack, $request->user());
 
         return $this->sentToAi($review);
     }

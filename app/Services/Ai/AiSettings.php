@@ -6,6 +6,7 @@ use App\Enums\AiEngine;
 use App\Helpers\Providers;
 use App\Models\ArtistClaim;
 use App\Models\Release;
+use App\Models\Track;
 use App\Services\Ai\Music\ElevenLabsMusic;
 use App\Services\Ai\Music\MiniMaxMusic25;
 use App\Services\Ai\Music\MusicModel;
@@ -67,6 +68,7 @@ class AiSettings extends SettingsStore
         'ai_tags_auto' => ['Detect Tempo and Key', '1', 'Tag new tracks and studio mixes with their BPM and key. This runs on your own server and uses no credits.'],
         'ai_moderator_claims_auto' => ['Review Artist Claims Automatically', '0', 'Send every new artist claim to the AI moderator. Claims it isn\'t confident about are flagged for a person.'],
         'ai_moderator_releases_auto' => ['Review Releases Automatically', '0', 'Send every release waiting for approval to the AI moderator. Releases it isn\'t confident about are flagged for a person.'],
+        'ai_moderator_origins_auto' => ['Rank Direct Uploads Automatically', '0', 'Send every track uploaded straight to a release to the AI moderator, to judge whether it is recorded music or agentic. Tracks it isn\'t confident about are flagged for a person.'],
         'ai_moderator_engine' => ['AI Moderator Engine', 'replicate', 'Where the AI moderator\'s language model runs: Replicate, or Cloudflare Workers AI.'],
         'ai_moderator_confidence' => ['Confidence Needed', '80', 'How sure (0 to 100) the AI moderator must be to decide an automatic review on its own.'],
         'ai_assistant_engine' => ['Admin Assistant Engine', 'replicate', 'Where the admin assistant\'s language model runs: Replicate, or Cloudflare Workers AI.'],
@@ -291,9 +293,13 @@ class AiSettings extends SettingsStore
     /**
      * Whether new items of this kind go to the AI moderator on their own.
      */
-    public static function autoModerates(ArtistClaim|Release $subject): bool
+    public static function autoModerates(ArtistClaim|Release|Track $subject): bool
     {
-        $key = $subject instanceof ArtistClaim ? 'ai_moderator_claims_auto' : 'ai_moderator_releases_auto';
+        $key = match (true) {
+            $subject instanceof ArtistClaim => 'ai_moderator_claims_auto',
+            $subject instanceof Track => 'ai_moderator_origins_auto',
+            default => 'ai_moderator_releases_auto',
+        };
 
         return filter_var(self::get($key), FILTER_VALIDATE_BOOL);
     }

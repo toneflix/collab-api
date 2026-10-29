@@ -17,10 +17,12 @@ use App\Http\Controllers\Admin\StatsController;
 use App\Http\Controllers\Admin\UserController;
 use App\Models\Release;
 use App\Models\Scopes\RestrictBlockedUserScope;
+use App\Models\Track;
 use App\Models\User;
 use Illuminate\Support\Facades\Route;
 
 // Admins see every account, including ones that blocked them
+Route::bind('rankTrack', fn(string $value) => Track::query()->withoutGlobalScopes()->findOrFail($value));
 Route::bind('reviewRelease', fn(string $value) => Release::query()->withoutGlobalScopes()->findOrFail($value));
 Route::bind('managedUser', fn(string $value) => User::query()->withoutGlobalScope(RestrictBlockedUserScope::class)->findOrFail($value));
 
@@ -129,6 +131,7 @@ Route::middleware(['auth:sanctum'])
             Route::post('claims/{claim}/approve', [ModerationController::class, 'approveClaim'])->whereNumber('claim')->name('claims.approve');
             Route::post('claims/{claim}/reject', [ModerationController::class, 'rejectClaim'])->whereNumber('claim')->name('claims.reject');
             Route::post('claims/{claim}/ai-review', [ModerationController::class, 'aiReviewClaim'])->whereNumber('claim')->middleware('throttle:20,1')->name('claims.ai');
+            Route::post('tracks/{rankTrack}/ai-review', [ModerationController::class, 'aiReviewTrack'])->whereNumber('rankTrack')->middleware('throttle:20,1')->name('tracks.ai');
             Route::post('releases/{reviewRelease}/ai-review', [ModerationController::class, 'aiReviewRelease'])->whereNumber('reviewRelease')->middleware('throttle:20,1')->name('releases.ai');
             Route::get('claims/{claim}/document', [ModerationController::class, 'claimDocument'])->whereNumber('claim')->name('claims.document');
             Route::post('releases/{reviewRelease}/approve', [ModerationController::class, 'approveRelease'])->whereNumber('reviewRelease')->name('releases.approve');

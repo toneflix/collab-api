@@ -2,10 +2,13 @@
 
 namespace App\Services\Catalog\Content;
 
+use App\Enums\TrackOrigin;
 use App\Http\Controllers\SoundController;
 use App\Models\Release;
 use App\Models\Track;
 use App\Models\User;
+use App\Services\Moderation\Reportables;
+use App\Services\Releases\TrackOrigins;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\Rule;
@@ -15,6 +18,11 @@ use Illuminate\Validation\Rule;
  */
 class TrackType extends ContentType
 {
+    public function __construct(Reportables $reportables, protected TrackOrigins $origins)
+    {
+        parent::__construct($reportables);
+    }
+
     public function name(): string
     {
         return 'track';
@@ -27,7 +35,7 @@ class TrackType extends ContentType
 
     public function statuses(): array
     {
-        return ['public', 'private', 'no_audio', 'taken_down'];
+        return ['public', 'private', 'no_audio', 'taken_down', 'unranked', ...TrackOrigin::values()];
     }
 
     public function rules(?Model $item = null): array
@@ -42,6 +50,7 @@ class TrackType extends ContentType
             'stems_price' => ['nullable', 'numeric', 'min:0', 'max:9999999'],
             'image' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:8192'],
             'audio' => [$item ? 'nullable' : 'required', 'file', SoundController::audioRule()],
+            'origin' => ['nullable', Rule::in(TrackOrigin::values())],
         ];
     }
 
@@ -65,6 +74,8 @@ class TrackType extends ContentType
         $item->stems_price = $data['stems_price'] ?? $item->stems_price ?? 0;
         $item->save();
 
+        $this->rank($item, $data);
+
         $artistId = $data['artist_id'] ?? Release::query()
             ->withoutGlobalScopes()
             ->whereKey($item->release_id)
@@ -75,6 +86,25 @@ class TrackType extends ContentType
             ->sync($artistId ? [$artistId => ['type' => 'primary']] : []);
 
         return $item;
+    }
+
+    /**
+     * An admin's rank stands until they set it back to automatic (empty).
+     *
+     * @param  array<string, mixed>  $data
+     */
+    protected function rank(Track $track, array $data): void
+    {
+        if (! array_key_exists('origin', $data)) {
+            return;
+        }
+
+        $origin = TrackOrigin::tryFrom((string) $data['origin']);
+        $backToAutomatic = ! $origin && $track->origin_by === TrackOrigins::ADMIN;
+
+        if ($origin !== $track->origin || $backToAutomatic) {
+            $this->origins->setByAdmin($track, $origin);
+        }
     }
 
     public function bulkActions(): array
@@ -117,6 +147,9 @@ class TrackType extends ContentType
             'duration' => (float) $item->duration,
             'hasAudio' => (bool) ($item->audio || $item->project_track_id),
             'imageUrl' => $item->files['image'] ?? null,
+            'origin' => $item->origin?->value,
+            'originBy' => $item->origin_by,
+            'originPending' => ! $item->origin && ! $item->project_track_id,
         ];
     }
 
@@ -137,6 +170,8 @@ class TrackType extends ContentType
                 ->whereNull('audio')
                 ->whereNull('project_track_id'),
             'taken_down' => $query->whereNotNull('taken_down_at'),
+            'unranked' => $query->whereNull('origin'),
+            default => $query->where('origin', $status),
         };
     }
 }
