@@ -132,7 +132,7 @@ class AgentRunParts
                 'album' => ["project:{$key}", "cover:{$key}", "release:{$key}"],
                 'track' => ["song:{$key}", "track:{$key}", "music:{$key}", "mix:{$key}", "lyrics:{$key}"],
                 'release' => ["release:{$key}", "cover:{$key}"],
-                'update' => ["cover:{$key}"],
+                'update' => ["cover:{$key}", "describe:{$key}"],
                 default => ["song:{$key}"],
             };
 

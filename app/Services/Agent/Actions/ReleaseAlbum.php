@@ -50,7 +50,7 @@ class ReleaseAlbum implements AgentAction
         $release = $this->draft($owner, $project);
         $release->title = $input['title'];
         $release->version = ($input['version'] ?? null) ?: null;
-        $release->description = $input['description'] ?? '';
+        $release->description = ($input['description'] ?? '') ?: (string) $project->description;
         $release->genre_id = $input['genre_id'];
         $release->artist_id = $artist->id;
         $release->project_id = $project->id;

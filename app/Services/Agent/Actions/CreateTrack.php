@@ -24,6 +24,7 @@ class CreateTrack implements AgentAction
             ->tracks()
             ->create([
                 'title' => $input['title'],
+                'description' => ($input['description'] ?? '') ?: null,
                 'privacy' => 'private',
                 'genre_id' => $input['genre_id'],
                 'artist_id' => $step->from($input['artist'], 'artist_id'),

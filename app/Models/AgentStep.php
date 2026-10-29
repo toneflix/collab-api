@@ -12,6 +12,7 @@ use App\Services\Agent\Actions\MakeVoice;
 use App\Services\Agent\Actions\MixTrack;
 use App\Services\Agent\Actions\ReleaseAlbum;
 use App\Services\Agent\Actions\SyncLyrics;
+use App\Services\Agent\Actions\WriteDescriptions;
 use App\Services\Agent\Actions\WriteSong;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -47,6 +48,7 @@ class AgentStep extends Model
         'mix' => MixTrack::class,
         'artwork' => DrawArtwork::class,
         'lyrics' => SyncLyrics::class,
+        'describe' => WriteDescriptions::class,
         'release' => ReleaseAlbum::class,
     ];
 
