@@ -192,7 +192,7 @@ class AdminUsersTest extends TestCase
         $this->adminWith('manage-users', 'manage-plans');
         $user = User::factory()
             ->create();
-        $plan = Plan::create(['name' => 'Gift', 'slug' => 'gift-' . uniqid(), 'price' => 1000, 'interval' => 'month']);
+        $plan = Plan::create(['name' => 'Gift', 'slug' => 'gift-' . uniqid(), 'price' => 1000, 'interval' => 'month', 'hidden' => true]);
 
         $this->postJson("/api/admin/users/{$user->id}/plan", ['plan_id' => $plan->id, 'cycles' => 3])
             ->assertOk()
