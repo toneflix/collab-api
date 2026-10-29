@@ -35,6 +35,7 @@ class ReleaseResource extends JsonResource
             'retired' => $this->retired_at !== null,
             'retiredAt' => $this->retired_at,
             'reviewStatus' => $this->review_status,
+            'owned' => $this->isOwnedBy($user),
             'reviewNote' => $this->when((bool) $user && (int) $user->id === (int) $this->user_id, $this->review_note),
             'genre' => $this->when($with->contains('genre'), fn() => new GenreResource($this->genre)),
             'topics' => $this->when($with->contains('topics'), fn() => new TopicCollection($this->topics)),

@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * A signed-in listener's plays of one track on one day. Paid plays earn the
- * track's owner a share of that month's stream pool.
+ * track's owner a share of that month's stream pool, unless a stream check holds them.
  */
 class TrackPlay extends Model
 {
@@ -18,6 +18,7 @@ class TrackPlay extends Model
         'played_on',
         'seconds',
         'paid',
+        'held',
     ];
 
     protected function casts(): array
@@ -26,6 +27,7 @@ class TrackPlay extends Model
             'played_on' => 'date',
             'seconds' => 'integer',
             'paid' => 'boolean',
+            'held' => 'boolean',
         ];
     }
 

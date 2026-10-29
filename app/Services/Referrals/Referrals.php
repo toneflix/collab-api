@@ -7,6 +7,7 @@ use App\Models\RoyaltyInvite;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Notifications\SaleNotification;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -166,7 +167,7 @@ class Referrals
     /**
      * The user's code, terms, and how many people they invited and what that earned.
      *
-     * @return array{code: string, terms: array<string, mixed>, invited: int, earned: float, currency: string}
+     * @return array{code: string, terms: array<string, mixed>, invited: int, earned: float, currency: string, months: array<int, array{month: string, earned: float, payments: int}>}
      */
     public function summary(User $user): array
     {
@@ -180,7 +181,47 @@ class Referrals
             'invited' => $user->referrals()->count(),
             'earned' => round((float) $earned, 2),
             'currency' => (string) Providers::config('app_currency', 'NGN'),
+            'months' => $this->months($user),
         ];
+    }
+
+    /**
+     * What invites earned the user in each of the last twelve months, oldest first.
+     *
+     * @return array<int, array{month: string, earned: float, payments: int}>
+     */
+    public function months(User $user): array
+    {
+        $from = now()
+            ->startOfMonth()
+            ->subMonthsNoOverflow(11);
+        $months = [];
+
+        for ($month = $from->copy(); $month->lessThanOrEqualTo(now()); $month->addMonthNoOverflow()) {
+            $months[$month->format('Y-m')] = ['month' => $month->format('Y-m'), 'earned' => 0.0, 'payments' => 0];
+        }
+
+        $days = $user
+            ->earnings()
+            ->toBase()
+            ->where('purpose', self::PURPOSE)
+            ->where('paid_at', '>=', $from)
+            ->selectRaw('date(paid_at) as day')
+            ->selectRaw('sum(recipient_share) as earned')
+            ->selectRaw('count(*) as payments')
+            ->groupByRaw('date(paid_at)')
+            ->get();
+
+        foreach ($days as $day) {
+            $key = Carbon::parse($day->day)->format('Y-m');
+
+            if (isset($months[$key])) {
+                $months[$key]['earned'] = round($months[$key]['earned'] + (float) $day->earned, 2);
+                $months[$key]['payments'] += (int) $day->payments;
+            }
+        }
+
+        return array_values($months);
     }
 
     /**

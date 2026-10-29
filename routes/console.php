@@ -44,6 +44,11 @@ Schedule::command('agent:tick')
     ->everyMinute()
     ->withoutOverlapping();
 
+// Hold paid streams from listeners who mostly play one creator.
+Schedule::command('earnings:check-streams')
+    ->dailyAt('02:30')
+    ->withoutOverlapping();
+
 // Pay creators last month's stream earnings.
 Schedule::command('earnings:settle-streams')
     ->monthlyOn(1, '03:00')

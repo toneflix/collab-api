@@ -16,6 +16,7 @@ use App\Models\Transaction;
 use App\Models\User;
 use App\Services\Streams\StreamEarnings;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Notification;
@@ -116,6 +117,52 @@ class StreamEarningsTest extends TestCase
             ->count();
     }
 
+    /**
+     * A completed Premium payment and the period it bought.
+     */
+    protected function payment(float $amount, Carbon $starts, Carbon $ends): Transaction
+    {
+        $plan = Plan::query()
+            ->where('slug', 'premium')
+            ->firstOrFail();
+
+        $payment = Transaction::query()->forceCreate([
+            'reference' => 'prem_' . Str::random(10), 'purpose' => 'premium', 'status' => 'complete',
+            'amount' => $amount, 'user_id' => $this->listener->id, 'paid_at' => $starts,
+            'transactable_type' => $plan->getMorphClass(), 'transactable_id' => $plan->id,
+        ]);
+
+        $this->listener
+            ->subscriptions()
+            ->create([
+                'plan' => $plan->slug, 'plan_id' => $plan->id, 'amount' => $amount,
+                'starts_at' => $starts, 'ends_at' => $ends, 'transaction_id' => $payment->id,
+            ]);
+
+        return $payment;
+    }
+
+    public function test_payments_for_several_months_are_spread_over_them(): void
+    {
+        $month = now()
+            ->subMonthsNoOverflow(2)
+            ->startOfMonth();
+
+        $this->payment(36500, $month->copy(), $month->copy()->addDays(365));
+        $this->payment(500, $month->copy()->addMonthNoOverflow(), $month->copy()->addMonthsNoOverflow(2));
+
+        $earnings = app(StreamEarnings::class);
+        $first = $month->daysInMonth * 100;
+        $second = $month->copy()->addMonthNoOverflow()->daysInMonth * 100 + 500;
+
+        $this->assertEqualsWithDelta($first, $earnings->revenue($month->copy(), $month->copy()->endOfMonth()), 0.01);
+        $this->assertEqualsWithDelta(
+            $second,
+            $earnings->revenue($month->copy()->addMonthNoOverflow(), $month->copy()->addMonthNoOverflow()->endOfMonth()),
+            0.01,
+        );
+    }
+
     public function test_signed_in_plays_long_enough_are_paid_once_a_day(): void
     {
         $track = $this->track(TrackOrigin::RECORDED);
@@ -198,15 +245,7 @@ class StreamEarningsTest extends TestCase
 
         $this->travelTo(now()->subMonthNoOverflow()->startOfMonth()->addDays(3));
 
-        $plan = Plan::query()
-            ->where('slug', 'premium')
-            ->firstOrFail();
-
-        Transaction::query()->forceCreate([
-            'reference' => 'prem_' . Str::random(10), 'purpose' => 'premium', 'status' => 'complete',
-            'amount' => 3500, 'user_id' => $this->listener->id, 'paid_at' => now(),
-            'transactable_type' => $plan->getMorphClass(), 'transactable_id' => $plan->id,
-        ]);
+        $this->payment(3500, now()->startOfMonth(), now()->startOfMonth()->addMonthNoOverflow());
 
         foreach ([$collab, $agentic, $recorded, $unranked] as $track) {
             $this->play($track, $this->listener)->assertOk();
