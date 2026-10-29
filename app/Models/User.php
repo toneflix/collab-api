@@ -720,6 +720,26 @@ class User extends Authenticatable implements Commentator, Reportable
     }
 
     /**
+     * The user's royalty contracts, current and ended.
+     */
+    public function royaltyContracts(): HasMany
+    {
+        return $this->hasMany(RoyaltyContract::class);
+    }
+
+    /**
+     * The user's current royalty contract, if they are a royal.
+     */
+    public function currentRoyaltyContract(): ?RoyaltyContract
+    {
+        return $this
+            ->royaltyContracts()
+            ->active()
+            ->latest('starts_at')
+            ->first();
+    }
+
+    /**
      * The people this user invited.
      */
     public function referrals(): HasMany

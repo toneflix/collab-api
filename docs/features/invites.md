@@ -21,3 +21,17 @@ Each reward is a `transactions` row with purpose `referral`, `amount` 0, the inv
 - `App\Services\Referrals\Referrals`: codes, `attach()` at sign-up, `terms()`, `reward()` (called from `Checkout::settle()`) and `summary()`.
 - `App\Services\Referrals\ReferralTerms`: the rate and months an inviter earns on.
 - Routes: `GET/PUT account/referrals`, `GET account/referrals/invites`, and the public `GET referrals/{code}`.
+
+## Royalty program
+
+Royals are partners an admin invites on their own contract. A royal's invite link pays their contract rate instead of `loyalty_rate`.
+
+1. An admin with `manage-payouts` opens **Payouts > Royalties** and enters an email, a name, the rate, the months each invited person's payments count (0 for no end), an optional invite code and a note. Leaving the code empty keeps the royal's own code, or makes one from their username.
+2. The invite (`royalty_invites`) is emailed with a link to `/royalty/<token>`, and is open for 14 days. Admins can send it again, which restarts the 14 days, or cancel it. An open invite's code is reserved, so nobody else can take it.
+3. Someone without an account signs up from the link with the invited email address; sign-up sends `royalty_token`. Someone with an account accepts while signed in (`POST royalty-invites/{token}/accept`). Either way it must be the email the invite was sent to.
+4. Accepting creates a `royalty_contracts` row and gives the royal the invite's code.
+5. Changing a rate or months ends the current contract and starts a new one, so each reward shows the terms that paid it (`meta.contract_id`). Ending a contract sends the royal back to loyalty terms.
+
+Rewards are the same `referral` transactions, with `method` and `meta.program` set to `royalty`. Each invite, acceptance, change and ending is written to `admin_actions` for the royal's account.
+
+`App\Services\Referrals\Royalties` makes every change. Routes: `admin/royalties/invites` (list, create, resend, cancel), `admin/royalties/contracts` (list with invited count and earnings, update, end), and the public `GET royalty-invites/{token}`.

@@ -22,6 +22,7 @@ use App\Http\Controllers\PlaylistController;
 use App\Http\Controllers\ProjectCollaboratorController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ReleaseController;
+use App\Http\Controllers\RoyaltyInviteController;
 use App\Http\Controllers\SocialInteractionController;
 use App\Http\Controllers\SunoCallbackController;
 use App\Http\Controllers\TopicController;
@@ -81,6 +82,12 @@ Route::get('topics', [TopicController::class, 'index'])
 Route::get('referrals/{code}', [ReferralController::class, 'lookup'])
     ->middleware('throttle:30,1')
     ->name('referrals.lookup');
+Route::get('royalty-invites/{token}', [RoyaltyInviteController::class, 'show'])
+    ->middleware('throttle:30,1')
+    ->name('royalty-invites.show');
+Route::post('royalty-invites/{token}/accept', [RoyaltyInviteController::class, 'accept'])
+    ->middleware(['auth:sanctum', 'throttle:10,1'])
+    ->name('royalty-invites.accept');
 Route::post('topics', [TopicController::class, 'store'])
     ->middleware(['auth:sanctum', 'throttle:10,1'])
     ->name('topics.store');

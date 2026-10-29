@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Services\Account\Interests;
 use App\Services\Auth\CodeClock;
 use App\Services\Referrals\Referrals;
+use App\Services\Referrals\Royalties;
 use Closure;
 use DeviceDetector\DeviceDetector;
 use Illuminate\Auth\Events\Registered;
@@ -22,8 +23,10 @@ use Illuminate\Validation\ValidationException;
 
 class RegisteredUserController extends Controller
 {
-    public function __construct(protected Referrals $referrals)
-    {
+    public function __construct(
+        protected Referrals $referrals,
+        protected Royalties $royalties,
+    ) {
         parent::__construct();
     }
 
@@ -54,6 +57,20 @@ class RegisteredUserController extends Controller
                     }
                 },
             ],
+            'royalty_token' => [
+                'nullable',
+                'string',
+                'max:64',
+                function (string $attribute, mixed $value, Closure $fail) use ($request) {
+                    $invite = $this->royalties->findOpenInvite($value);
+
+                    if (! $invite) {
+                        $fail('This royalty invite is no longer open.');
+                    } elseif ($invite->email !== str($request->input('email'))->trim()->lower()->toString()) {
+                        $fail('Sign up with the email address the invite was sent to.');
+                    }
+                },
+            ],
             ...Interests::identityRules($request->input('account_type'), true),
         ], [
             'account_type.required' => 'Choose how you\'ll use Toneflix Music.',
@@ -68,8 +85,14 @@ class RegisteredUserController extends Controller
         $user = $this->createUser($request);
         $referrer = $this->referrals->findReferrer($request->input('referral_code'));
 
+        $invite = $this->royalties->findOpenInvite($request->input('royalty_token'));
+
         if ($referrer) {
             $this->referrals->attach($user, $referrer);
+        }
+
+        if ($invite) {
+            $this->royalties->accept($invite, $user);
         }
 
         return $this->setUserData($request, $user);
