@@ -446,6 +446,14 @@ class User extends Authenticatable implements Commentator, Reportable
         return $this->hasMany(Song::class);
     }
 
+    /**
+     * The user's own lists of tracks.
+     */
+    public function playlists(): HasMany
+    {
+        return $this->hasMany(Playlist::class);
+    }
+
     public function projects(): HasMany
     {
         return $this->hasMany(Project::class);
