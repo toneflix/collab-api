@@ -45,7 +45,7 @@ Other rules:
 
 - Admins can't suspend themselves or change their own roles.
 - Only super admins act on super admins, or give and take the `super-admin` role.
-- Roles and permissions changed with `php artisan app:user-access` go through the same service. They have no admin, so the history shows them as made from the console. See [Permissions](../reference/permissions#giving-someone-access).
+- Changes made with `php artisan app:users` (the account menu) or `app:user-access` go through the same service. They have no admin, so the history shows them as made from the console. The console can also reset two-factor sign-in for an owner who lost their authenticator app and recovery codes. See [Permissions](../reference/permissions#giving-someone-access).
 
 ### Suspensions
 

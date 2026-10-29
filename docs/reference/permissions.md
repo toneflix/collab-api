@@ -41,7 +41,7 @@ Permissions granted this way belong to the user directly, on top of the ones the
 
 `app:sync-roles <user ids> --roles=<role>` still works, but it replaces all of a user's roles and permissions at once and is not recorded in their history.
 
-To find people, `app:users` lists users a page at a time:
+To find and manage people, run `app:users` (or `list:users`). It lists users a page at a time; move with the arrow keys, pick **Previous page**, **Next page** or **Search**, and press Enter on a user to open their account. The account menu edits profile details, suspends or bans, lifts a suspension, gives the verified badge, confirms the email address, changes roles and permissions, gives or removes a plan, adjusts AI credits and the balance, sets the content agent, resets two-factor sign-in and signs the user out everywhere. Each change goes through `UserManager` and shows in the user's history as made from the console.
 
 ```bash
 php artisan app:users                                # newest first, 20 a page
@@ -51,4 +51,4 @@ php artisan app:users --permission=manage-users      # directly or through a rol
 php artisan app:users --status=suspended --sort=oldest --page=3
 ```
 
-`--status` takes `active`, `suspended`, `premium`, `verified` or `staff`, and `--sort` takes `latest`, `oldest` or `name`. When more pages follow, it asks whether to show the next one; pass `--no-interaction` to print one page only.
+`--status` takes `active`, `suspended`, `premium`, `verified` or `staff`, and `--sort` takes `latest`, `oldest` or `name`. Pass `--no-interaction` to print one page as a table instead.

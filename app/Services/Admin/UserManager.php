@@ -8,6 +8,7 @@ use App\Models\AiCreditEntry;
 use App\Models\Plan;
 use App\Models\User;
 use App\Services\Ai\Credits;
+use App\Services\Auth\TwoFactor;
 use App\Services\Payment\Payouts;
 use App\Services\Payment\Subscriptions;
 use Illuminate\Support\Carbon;
@@ -18,6 +19,7 @@ use Illuminate\Validation\ValidationException;
 /**
  * What admins can do to user accounts, and the audit trail of each change.
  * It is also the one place that decides which admin may do what to whom.
+ * A null admin means the change came from the console.
  */
 class UserManager
 {
@@ -36,7 +38,11 @@ class UserManager
     /** Where changes come from when not the admin pages, like "assistant" */
     protected ?string $via = null;
 
-    public function __construct(protected Subscriptions $subscriptions, protected Payouts $payouts) {}
+    public function __construct(
+        protected Subscriptions $subscriptions,
+        protected Payouts $payouts,
+        protected TwoFactor $twoFactor,
+    ) {}
 
     /**
      * A manager whose audit entries say the change came through another
@@ -132,7 +138,7 @@ class UserManager
      *
      * @param  array<string, mixed>  $data
      */
-    public function update(User $admin, User $user, array $data): User
+    public function update(?User $admin, User $user, array $data): User
     {
         return DB::transaction(function () use ($admin, $user, $data) {
             $user->fill($data);
@@ -154,7 +160,7 @@ class UserManager
     /**
      * Suspend until a date, or ban when no date is given. The user is signed out everywhere.
      */
-    public function suspend(User $admin, User $user, ?Carbon $until, string $reason): User
+    public function suspend(?User $admin, User $user, ?Carbon $until, string $reason): User
     {
         return DB::transaction(function () use ($admin, $user, $until, $reason) {
             $user->forceFill([
@@ -175,7 +181,7 @@ class UserManager
         });
     }
 
-    public function unsuspend(User $admin, User $user, ?string $reason = null): User
+    public function unsuspend(?User $admin, User $user, ?string $reason = null): User
     {
         if (! $user->isSuspended()) {
             throw ValidationException::withMessages(['user' => 'This account isn\'t suspended.']);
@@ -194,7 +200,7 @@ class UserManager
     /**
      * Give or take away the verified badge, and confirm the email address when giving it.
      */
-    public function verify(User $admin, User $user, bool $verified, bool $email = false): User
+    public function verify(?User $admin, User $user, bool $verified, bool $email = false): User
     {
         return DB::transaction(function () use ($admin, $user, $verified, $email) {
             $user->verified = $verified;
@@ -224,7 +230,7 @@ class UserManager
     }
 
     /**
-     * Replace the user's roles. A null admin means the change came from the console.
+     * Replace the user's roles.
      *
      * @param  array<int, string>  $roles
      */
@@ -260,7 +266,6 @@ class UserManager
 
     /**
      * Replace the permissions given to the user directly, apart from their roles.
-     * A null admin means the change came from the console.
      *
      * @param  array<int, string>  $permissions
      */
@@ -290,7 +295,7 @@ class UserManager
         });
     }
 
-    public function assignPlan(User $admin, User $user, Plan $plan, int $cycles, ?string $reason = null): User
+    public function assignPlan(?User $admin, User $user, Plan $plan, int $cycles, ?string $reason = null): User
     {
         if ($plan->is_default) {
             throw ValidationException::withMessages(['plan_id' => 'Everyone is on the default plan already. Remove their plan instead.']);
@@ -311,7 +316,7 @@ class UserManager
         });
     }
 
-    public function endPlan(User $admin, User $user, ?string $reason = null): User
+    public function endPlan(?User $admin, User $user, ?string $reason = null): User
     {
         return DB::transaction(function () use ($admin, $user, $reason) {
             $plan = $this->subscriptions->current($user)?->planModel?->name;
@@ -329,7 +334,7 @@ class UserManager
     /**
      * Add to or take from the creator's withdrawable balance.
      */
-    public function adjustFunds(User $admin, User $user, float $amount, string $reason): User
+    public function adjustFunds(?User $admin, User $user, float $amount, string $reason): User
     {
         return DB::transaction(function () use ($admin, $user, $amount, $reason) {
             $transaction = $this->payouts->adjust($user, $amount, $reason, $admin);
@@ -347,7 +352,7 @@ class UserManager
     /**
      * Make the account one the content agent builds for, or stop it being one.
      */
-    public function setContentAgent(User $admin, User $user, bool $enabled): User
+    public function setContentAgent(?User $admin, User $user, bool $enabled): User
     {
         if ($user->content_agent === $enabled) {
             return $user;
@@ -367,7 +372,7 @@ class UserManager
     /**
      * Grant AI credits, or take back bought and granted ones.
      */
-    public function adjustCredits(User $admin, User $user, int $credits, string $reason): User
+    public function adjustCredits(?User $admin, User $user, int $credits, string $reason): User
     {
         if ($credits === 0) {
             throw ValidationException::withMessages(['credits' => 'Enter a number of credits other than zero.']);
@@ -381,6 +386,40 @@ class UserManager
                 : $wallet->deduct(-$credits, $reason);
 
             $this->record($admin, $user, $credits > 0 ? 'credits.added' : 'credits.removed', $reason, ['credits' => abs($credits)]);
+
+            return $user;
+        });
+    }
+
+    /**
+     * Turn two-factor sign-in off for an owner who lost their authenticator
+     * app and recovery codes. They sign in with their password and set it up again.
+     */
+    public function resetTwoFactor(?User $admin, User $user, ?string $reason = null): User
+    {
+        if (! $this->twoFactor->enabled($user)) {
+            throw ValidationException::withMessages(['user' => 'Two-factor sign-in is off for this account.']);
+        }
+
+        return DB::transaction(function () use ($admin, $user, $reason) {
+            $this->twoFactor->reset($user);
+            $this->record($admin, $user, 'two_factor.reset', $reason);
+
+            return $user;
+        });
+    }
+
+    /**
+     * Sign the user out on every device.
+     */
+    public function signOut(?User $admin, User $user, ?string $reason = null): User
+    {
+        return DB::transaction(function () use ($admin, $user, $reason) {
+            $sessions = $user
+                ->tokens()
+                ->delete();
+
+            $this->record($admin, $user, 'sessions.ended', $reason, ['sessions' => $sessions]);
 
             return $user;
         });

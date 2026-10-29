@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Console\Users\UserBrowser;
 use App\Models\User;
 use App\Services\Admin\UserDirectory;
 use Illuminate\Console\Command;
@@ -19,9 +20,12 @@ class ListUsers extends Command
             {--per-page=20 : Users per page (max 100)}
     ';
 
-    protected $description = 'List users a page at a time, with their roles and account status';
+    protected $description = 'Browse and manage users, or print a page of them with --no-interaction';
 
-    public function handle(UserDirectory $directory): int
+    /** @var list<string> */
+    protected $aliases = ['list:users'];
+
+    public function handle(UserDirectory $directory, UserBrowser $browser): int
     {
         $filters = [
             'search' => $this->option('search'),
@@ -46,20 +50,28 @@ class ListUsers extends Command
         $perPage = max(1, min(100, (int) $this->option('per-page')));
         $page = max(1, (int) $this->option('page'));
 
-        do {
-            $users = $directory->query($filters)
-                ->with('roles')
-                ->paginate($perPage, ['*'], 'page', $page);
+        if ($this->input->isInteractive()) {
+            $browser->browse($filters, $perPage, $page);
 
-            if ($users->isEmpty()) {
-                $this->info($page > 1 ? 'There are no users on this page.' : 'No users match.');
+            return self::SUCCESS;
+        }
 
-                return self::SUCCESS;
-            }
+        $users = $directory
+            ->query($filters)
+            ->with('roles')
+            ->paginate($perPage, ['*'], 'page', $page);
 
-            $this->table(
-                ['ID', 'Username', 'Name', 'Email', 'Roles', 'Verified', 'Status', 'Joined'],
-                $users->getCollection()->map(fn(User $user) => [
+        if ($users->isEmpty()) {
+            $this->info($page > 1 ? 'There are no users on this page.' : 'No users match.');
+
+            return self::SUCCESS;
+        }
+
+        $this->table(
+            ['ID', 'Username', 'Name', 'Email', 'Roles', 'Verified', 'Status', 'Joined'],
+            $users
+                ->getCollection()
+                ->map(fn(User $user) => [
                     $user->id,
                     $user->username,
                     $user->fullname,
@@ -68,12 +80,10 @@ class ListUsers extends Command
                     $user->verified ? 'yes' : 'no',
                     $this->status($user),
                     $user->created_at?->toDateString(),
-                ])
-            );
+                ]),
+        );
 
-            $this->line("Page {$users->currentPage()} of {$users->lastPage()}, {$users->total()} users.");
-            $page++;
-        } while ($users->hasMorePages() && $this->input->isInteractive() && $this->confirm('Show the next page?', true));
+        $this->line("Page {$users->currentPage()} of {$users->lastPage()}, {$users->total()} users.");
 
         return self::SUCCESS;
     }

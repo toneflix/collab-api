@@ -2,9 +2,14 @@
 
 namespace Tests\Feature;
 
+use App\Console\Users\UserMenu;
 use App\Models\AdminAction;
 use App\Models\User;
+use App\Services\Admin\UserManager;
+use App\Services\Auth\Totp;
+use App\Services\Auth\TwoFactor;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Validation\ValidationException;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -48,7 +53,7 @@ class UserCommandsTest extends TestCase
             ->assertSuccessful();
     }
 
-    public function test_the_next_page_is_offered_when_interactive(): void
+    public function test_the_list_pages_with_previous_and_next_and_searches(): void
     {
         $tag = 'cmdnext' . uniqid();
         User::factory()
@@ -56,10 +61,90 @@ class UserCommandsTest extends TestCase
             ->sequence(fn($s) => ['username' => "{$tag}{$s->index}"])
             ->create();
 
-        $this->artisan('app:users', ['--search' => $tag, '--per-page' => 1])
-            ->expectsConfirmation('Show the next page?', 'yes')
-            ->expectsOutputToContain('Page 2 of 2, 2 users.')
+        $newest = User::query()
+            ->where('username', "{$tag}1")
+            ->first();
+
+        $this->artisan('list:users', ['--search' => $tag, '--per-page' => 1])
+            ->expectsChoice("Users matching \"{$tag}\", page 1 of 2 (2 in all)", 'next', [
+                "#{$newest->id}" => UserMenu::line($newest),
+                'next' => 'Next page →',
+                'search' => 'Change the search',
+                'quit' => 'Quit',
+            ])
+            ->expectsQuestion("Users matching \"{$tag}\", page 2 of 2 (2 in all)", 'previous')
+            ->expectsQuestion("Users matching \"{$tag}\", page 1 of 2 (2 in all)", 'search')
+            ->expectsQuestion('Search by id, username, email or name', "{$tag}0")
+            ->expectsQuestion("Users matching \"{$tag}0\", page 1 of 1 (1 in all)", 'quit')
             ->assertSuccessful();
+    }
+
+    public function test_two_factor_sign_in_is_reset_from_the_user_menu(): void
+    {
+        $tag = 'cmd2fa' . uniqid();
+        $user = User::factory()
+            ->create(['username' => $tag]);
+        $user
+            ->forceFill(['two_factor_secret' => Totp::secret(), 'two_factor_confirmed_at' => now(), 'two_factor_recovery_codes' => ['x']])
+            ->save();
+
+        $this->artisan('app:users', ['--search' => $tag])
+            ->expectsQuestion("Users matching \"{$tag}\", page 1 of 1 (1 in all)", "#{$user->id}")
+            ->expectsQuestion("What do you want to do with @{$tag}?", 'ResetTwoFactor')
+            ->expectsQuestion('Reason', 'Lost their phone')
+            ->expectsConfirmation("Turn two-factor sign-in off for @{$tag}?", 'yes')
+            ->expectsOutputToContain('Two-factor sign-in is off for this account.')
+            ->expectsQuestion("What do you want to do with @{$tag}?", 'back')
+            ->expectsQuestion("Users matching \"{$tag}\", page 1 of 1 (1 in all)", 'quit')
+            ->assertSuccessful();
+
+        $this->assertFalse(app(TwoFactor::class)->enabled($user->fresh()));
+
+        $action = AdminAction::query()
+            ->where('user_id', $user->id)
+            ->sole();
+        $this->assertSame('two_factor.reset', $action->action);
+        $this->assertSame('Lost their phone', $action->reason);
+        $this->assertNull($action->admin_id);
+        $this->assertSame('console', $action->details['via']);
+    }
+
+    public function test_an_account_is_suspended_and_restored_from_the_user_menu(): void
+    {
+        $tag = 'cmdsus' . uniqid();
+        $user = User::factory()
+            ->create(['username' => $tag]);
+
+        $this->artisan('app:users', ['--search' => $tag])
+            ->expectsQuestion("Users matching \"{$tag}\", page 1 of 1 (1 in all)", "#{$user->id}")
+            ->expectsQuestion("What do you want to do with @{$tag}?", 'SuspendAccount')
+            ->expectsQuestion('Suspend for how many days?', '3')
+            ->expectsQuestion('Reason', 'Spam')
+            ->expectsConfirmation('Suspend @' . $tag . ' until ' . now()->addDays(3)->toDayDateTimeString() . '?', 'yes')
+            ->expectsQuestion("What do you want to do with @{$tag}?", 'RestoreAccount')
+            ->expectsQuestion('Reason (optional)', '')
+            ->expectsOutputToContain("@{$tag} can sign in again.")
+            ->expectsQuestion("What do you want to do with @{$tag}?", 'back')
+            ->expectsQuestion("Users matching \"{$tag}\", page 1 of 1 (1 in all)", 'quit')
+            ->assertSuccessful();
+
+        $this->assertFalse($user->fresh()->isSuspended());
+
+        $actions = AdminAction::query()
+            ->where('user_id', $user->id)
+            ->orderBy('id')
+            ->pluck('action');
+        $this->assertSame(['account.suspended', 'account.restored'], $actions->all());
+    }
+
+    public function test_two_factor_cannot_be_reset_when_it_is_off(): void
+    {
+        $user = User::factory()
+            ->create();
+
+        $this->expectException(ValidationException::class);
+
+        app(UserManager::class)->resetTwoFactor(null, $user);
     }
 
     public function test_users_are_filtered_by_role_and_permission(): void
