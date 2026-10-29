@@ -33,7 +33,7 @@ class AgentPlanner
     /**
      * Plan tokens set aside for each track.
      */
-    public const TRACK_TOKENS = 300;
+    public const TRACK_TOKENS = 360;
 
     /** Most existing projects one run can release */
     public const MAX_RELEASES = 10;
@@ -144,6 +144,9 @@ class AgentPlanner
                     fn(Builder $lyric) => $lyric->whereNull('lines->0->start'),
                 ),
             ])
+            ->withExists(['tracks as undescribed' => fn(Builder $query) => $query->where(fn(Builder $q) => $q
+                ->whereNull('description')
+                ->orWhere('description', ''))])
             ->latest('id');
     }
 
@@ -219,6 +222,7 @@ class AgentPlanner
 
                 $steps[] = $this->step($source, $kind, [$artist, ...$featuring, $project], [
                     'title' => $track['title'],
+                    'description' => $track['description'] ?? '',
                     'theme' => $track['theme'],
                     'style' => $track['style'],
                     'mood' => $track['mood'],
@@ -289,6 +293,15 @@ class AgentPlanner
                 if ($projectId) {
                     $covers[$projectId] = $upkeep[$projectId][] = "cover:{$key}";
                 }
+            }
+
+            if ($update['describe'] ?? false) {
+                $steps[] = $this->step("describe:{$key}", 'describe', [], [
+                    'title' => $update['title'],
+                    'project_id' => $projectId,
+                    'release_id' => $update['release_id'],
+                ]);
+                $upkeep[$projectId][] = "describe:{$key}";
             }
 
             foreach ($update['lyrics'] as $track) {
@@ -372,6 +385,9 @@ class AgentPlanner
             ->where('artwork', true)
             ->pluck('project_id');
         $timings = $updates->sum(fn(array $update) => count($update['lyrics']));
+        $describes = $updates
+            ->where('describe', true)
+            ->count();
         $releaseCovers = collect($plan['releases'] ?? [])
             ->reject(fn(array $release) => $fills->contains($release['project_id']))
             ->count();
@@ -381,7 +397,7 @@ class AgentPlanner
             ->credits(ArtistVoices::SAMPLE_SECONDS);
 
         return count($this->voiced($plan)) * $sampleCredits
-            + ($vocals + count($plan['songs'])) * AgentWriter::credits()
+            + ($vocals + count($plan['songs']) + $describes) * AgentWriter::credits()
             + ($vocals + $timings) * AiSettings::lyricsCredits()
             + $vocals * $vocalCredits
             + ($tracks->count() - $vocals) * $instrumentalCredits
@@ -505,20 +521,21 @@ class AgentPlanner
             '"songs" are lyric sheets only, with no music. Use them only when the instructions ask for written lyrics, lyric sheets or compositions without music; tracks, singles, EPs and albums are never "songs".',
             'Each track has a "style": one or two sentences for a music generator describing genre, tempo, instruments, vocals and mood. Never name real artists in it.',
             'Each track with vocals has a "theme": what its lyrics are about, in one sentence.',
+            'Each album has a "description" of two or three sentences and each track one of one or two sentences, shown to listeners on their pages. ' . AgentDescriptions::STYLE,
             'A track can feature other artists, a collaboration like "Dave featuring Daniel": list the keys of the featured artists from "artists" in the track\'s "featuring", never the album\'s own artist. Add features only when the instructions ask for features, collaborations or duets, and say in the track\'s "style" how the voices share it, like "duet, male and female vocals".',
             'Albums are new studio projects. A "project" the instructions ask for (rather than an album, EP or single) is a studio project that isn\'t released: list it in "albums" with "release" set to false. Also set "release" to false when the instructions say not to release.',
             '"releases" release the account\'s existing projects, named by "#id" or their exact title, only when the instructions ask for it. "version" labels a new version, like "Deluxe" or "Remastered", when the project was released before; set "retire" to true when the new version should replace the earlier ones.',
-            '"updates" touch up the account\'s existing work, only when the instructions ask for it. Name each by a project\'s "#id", or by the exact title of a project, album or track the instructions mention, even when it isn\'t listed below: "artwork" draws a picture for a project and whatever of it has none, "lyrics" times its untimed lyrics to the audio. "cover" describes the picture. A project both updated and released gets the update first.',
-            'When the instructions ask to find and fix everything missing artwork (all projects, albums or tracks), set "sweep" "artwork" to true; for all untimed lyrics, set "sweep" "lyrics" to true. The sweep finds them itself, so don\'t list them in "updates" too.',
+            '"updates" touch up the account\'s existing work, only when the instructions ask for it. Name each by a project\'s "#id", or by the exact title of a project, album or track the instructions mention, even when it isn\'t listed below: "artwork" draws a picture for a project and whatever of it has none, "lyrics" times its untimed lyrics to the audio, "descriptions" writes the descriptions it and its tracks are missing. "cover" describes the picture. A project both updated and released gets the update first.',
+            'When the instructions ask to find and fix everything missing artwork (all projects, albums or tracks), set "sweep" "artwork" to true; for all untimed lyrics, set "sweep" "lyrics" to true; for all missing descriptions, set "sweep" "descriptions" to true. The sweep finds them itself, so don\'t list them in "updates" too.',
             'Each album has a "cover": one sentence describing its cover image, and each artist a "look": one sentence describing their profile picture. Describe scenes, colours and style, never text or real people.',
             'Each artist has a "voice": one short phrase describing how they sing (gender, range, tone, delivery), never naming a real singer. Every track with vocals by an artist is sung in that voice, so a track\'s "style" describes no other voice.',
             'Keep every name and title short and plain, with no quotes or emoji.',
             'Answer with JSON only, no other text, in this shape:',
             '{"artists": [{"key": "a1", "name": "", "about": "two or three sentence bio", "look": "", "voice": ""}],'
-                . ' "albums": [{"key": "al1", "title": "", "artist": "a1", "genre": "", "description": "", "cover": "", "release": true, "tracks": [{"title": "", "style": "", "theme": "", "mood": "", "instrumental": false, "featuring": []}]}],'
+                . ' "albums": [{"key": "al1", "title": "", "artist": "a1", "genre": "", "description": "", "cover": "", "release": true, "tracks": [{"title": "", "description": "", "style": "", "theme": "", "mood": "", "instrumental": false, "featuring": []}]}],'
                 . ' "releases": [{"project": "#id or existing project title", "title": "", "version": "", "artist": "a1", "genre": "", "description": "", "cover": "", "retire": false}],'
-                . ' "updates": [{"project": "#id or existing project title", "artwork": true, "lyrics": true, "cover": ""}],'
-                . ' "sweep": {"artwork": false, "lyrics": false},'
+                . ' "updates": [{"project": "#id or existing project title", "artwork": true, "lyrics": true, "descriptions": true, "cover": ""}],'
+                . ' "sweep": {"artwork": false, "lyrics": false, "descriptions": false},'
                 . ' "songs": [{"title": "", "theme": "", "style": "", "mood": ""}]}',
         ]);
     }
@@ -574,6 +591,7 @@ class AgentPlanner
             },
             ! $project->image || ($release && ! $release->image) ? 'missing artwork' : null,
             $project->untimed_count ? $project->untimed_count . ' ' . Str::plural('track', $project->untimed_count) . ' with untimed lyrics' : null,
+            trim((string) $project->description) === '' || $project->undescribed ? 'missing descriptions' : null,
         ])
             ->filter()
             ->join(', ');
@@ -643,6 +661,7 @@ class AgentPlanner
                 $tracks[] = [
                     'key' => 't' . (++$trackNumber),
                     'title' => $title,
+                    'description' => $this->text($track['description'] ?? null, 1000),
                     'style' => $this->text($track['style'] ?? null, 400) ?: $title,
                     'theme' => $this->text($track['theme'] ?? null, 400),
                     'mood' => $this->text($track['mood'] ?? null, 40) ?: null,
@@ -694,7 +713,7 @@ class AgentPlanner
                 ->join(', ', ' and ');
 
             throw new RuntimeException($named !== ''
-                ? "Nothing to do: {$named} weren't found on the account, or already have their artwork and synced lyrics."
+                ? "Nothing to do: {$named} weren't found on the account, or already have their artwork, synced lyrics and descriptions."
                 : 'The plan had no albums, releases, updates, tracks or songs.');
         }
 
@@ -807,8 +826,16 @@ class AgentPlanner
             }
 
             if ($target instanceof Release) {
-                if ($draws && ! empty($update['artwork']) && ! $target->image && ! in_array($target->id, array_column($updates, 'release_id'))) {
-                    $updates[] = $this->releaseTouchUp($target, 'u' . (count($updates) + 1), $this->text($update['cover'] ?? null, 400));
+                $touchUp = in_array($target->id, array_column($updates, 'release_id')) ? null : $this->releaseTouchUp(
+                    $target,
+                    $draws && ! empty($update['artwork']),
+                    ! empty($update['descriptions']),
+                    $this->text($update['cover'] ?? null, 400),
+                    'u' . (count($updates) + 1),
+                );
+
+                if ($touchUp) {
+                    $updates[] = $touchUp;
                 }
 
                 continue;
@@ -824,6 +851,7 @@ class AgentPlanner
                 $project,
                 $draws && ! empty($update['artwork']),
                 ! empty($update['lyrics']),
+                ! empty($update['descriptions']),
                 $this->text($update['cover'] ?? null, 400),
                 'u' . (count($updates) + 1),
             );
@@ -850,9 +878,10 @@ class AgentPlanner
         $sweep = is_array($answer['sweep'] ?? null) ? $answer['sweep'] : [];
         $artwork = ! empty($sweep['artwork']) && self::drawsArtwork();
         $lyrics = ! empty($sweep['lyrics']);
+        $describe = ! empty($sweep['descriptions']);
         $left = self::MAX_UPDATES - count($updates);
 
-        if ((! $artwork && ! $lyrics) || $left <= 0) {
+        if ((! $artwork && ! $lyrics && ! $describe) || $left <= 0) {
             return $updates;
         }
 
@@ -865,13 +894,14 @@ class AgentPlanner
                 ->when($lyrics, fn(Builder $untimed) => $untimed->orWhereHas('tracks', fn(Builder $track) => $track->whereHas(
                     'lyric',
                     fn(Builder $lyric) => $lyric->whereNull('lines->0->start'),
-                ))))
+                )))
+                ->when($describe, fn(Builder $missing) => $missing->orWhere(fn(Builder $q) => AgentDescriptions::whereMissing($q))))
             ->oldest('id')
             ->limit($left)
             ->get();
 
         foreach ($projects as $project) {
-            $touchUp = $this->touchUp($project, $artwork, $lyrics, '', 'u' . (count($updates) + 1));
+            $touchUp = $this->touchUp($project, $artwork, $lyrics, $describe, '', 'u' . (count($updates) + 1));
 
             if ($touchUp) {
                 $updates[] = $touchUp;
@@ -880,7 +910,7 @@ class AgentPlanner
 
         $left = self::MAX_UPDATES - count($updates);
 
-        if (! $artwork || $left <= 0) {
+        if ((! $artwork && ! $describe) || $left <= 0) {
             return $updates;
         }
 
@@ -889,13 +919,20 @@ class AgentPlanner
             ->withoutGlobalScopes()
             ->with('artist')
             ->whereNull('project_id')
-            ->whereNull('image')
+            ->whereNotIn('id', array_filter(array_column($updates, 'release_id')))
+            ->where(fn(Builder $query) => $query
+                ->when($artwork, fn(Builder $missing) => $missing->orWhereNull('image'))
+                ->when($describe, fn(Builder $missing) => $missing->orWhere(fn(Builder $q) => AgentDescriptions::whereReleaseMissing($q))))
             ->oldest('id')
             ->limit($left)
             ->get();
 
         foreach ($releases as $release) {
-            $updates[] = $this->releaseTouchUp($release, 'u' . (count($updates) + 1), '');
+            $touchUp = $this->releaseTouchUp($release, $artwork, $describe, '', 'u' . (count($updates) + 1));
+
+            if ($touchUp) {
+                $updates[] = $touchUp;
+            }
         }
 
         return $updates;
@@ -903,14 +940,16 @@ class AgentPlanner
 
     /**
      * What one project needs: a picture when anything of it has none and
-     * artwork is asked for, and timings for its untimed lyrics when lyrics
-     * are. Null when it needs nothing.
+     * artwork is asked for, timings for its untimed lyrics when lyrics are,
+     * and descriptions when they are asked for and missing. Null when it
+     * needs nothing.
      *
      * @return array<string, mixed>|null
      */
-    protected function touchUp(Project $project, bool $artwork, bool $lyrics, string $cover, string $key): ?array
+    protected function touchUp(Project $project, bool $artwork, bool $lyrics, bool $describe, string $cover, string $key): ?array
     {
         $artwork = $artwork && AgentArtwork::missing($project);
+        $describe = $describe && AgentDescriptions::missing($project);
 
         $tracks = ! $lyrics ? [] : $project
             ->tracks()
@@ -921,7 +960,7 @@ class AgentPlanner
             ->map(fn($track) => ['id' => $track->id, 'title' => (string) $track->title])
             ->all();
 
-        if (! $artwork && $tracks === []) {
+        if (! $artwork && ! $describe && $tracks === []) {
             return null;
         }
 
@@ -935,17 +974,26 @@ class AgentPlanner
             'description' => (string) $project->description,
             'cover' => $cover,
             'artwork' => $artwork,
+            'describe' => $describe,
             'lyrics' => $tracks,
         ];
     }
 
     /**
-     * A cover for a release with no project.
+     * A cover and descriptions for a release with no project, of what it is
+     * missing. Null when it needs nothing.
      *
-     * @return array<string, mixed>
+     * @return array<string, mixed>|null
      */
-    protected function releaseTouchUp(Release $release, string $key, string $cover): array
+    protected function releaseTouchUp(Release $release, bool $artwork, bool $describe, string $cover, string $key): ?array
     {
+        $artwork = $artwork && ! $release->image;
+        $describe = $describe && AgentDescriptions::releaseMissing($release);
+
+        if (! $artwork && ! $describe) {
+            return null;
+        }
+
         return [
             'key' => $key,
             'project_id' => null,
@@ -955,7 +1003,8 @@ class AgentPlanner
             'artist' => $release->artist?->name,
             'description' => (string) $release->description,
             'cover' => $cover,
-            'artwork' => true,
+            'artwork' => $artwork,
+            'describe' => $describe,
             'lyrics' => [],
         ];
     }

@@ -172,8 +172,8 @@ class ContentAgentTest extends TestCase
                 'genre' => $this->genre->title,
                 'description' => 'Warm late night grooves.',
                 'tracks' => [
-                    ['title' => 'Lagos Lights', 'style' => 'Afrobeats, 104 BPM, log drums, warm female vocals', 'theme' => 'Dancing in the city', 'mood' => 'joyful', 'instrumental' => false],
-                    ['title' => 'Harbour Breeze', 'style' => 'Mellow instrumental afrobeats with guitar', 'theme' => '', 'instrumental' => true],
+                    ['title' => 'Lagos Lights', 'description' => 'A joyful night out in the city.', 'style' => 'Afrobeats, 104 BPM, log drums, warm female vocals', 'theme' => 'Dancing in the city', 'mood' => 'joyful', 'instrumental' => false],
+                    ['title' => 'Harbour Breeze', 'description' => 'Guitar on a slow harbour evening.', 'style' => 'Mellow instrumental afrobeats with guitar', 'theme' => '', 'instrumental' => true],
                 ],
             ]],
             'songs' => [['title' => 'Paper Boats', 'theme' => 'Childhood by the sea', 'style' => 'acoustic', 'mood' => 'tender']],
@@ -284,6 +284,10 @@ class ContentAgentTest extends TestCase
 
         $instrumental = ProjectTrack::query()->findOrFail($this->step($run, 'track:t2')->output['project_track_id']);
         $this->assertSame($song->track->project_id, $instrumental->project_id);
+        $this->assertSame('A joyful night out in the city.', $song->track->description);
+        $this->assertSame('Guitar on a slow harbour evening.', $instrumental->description);
+        $this->assertSame('Warm late night grooves.', $instrumental->project->description);
+        $this->assertStringContainsString('Never mention prices, plans', $this->asked[0]['system']);
 
         $vocalJob = AiJob::query()->findOrFail($this->step($run, 'music:t1')->output['ai_job_id']);
         $this->assertSame('minimax/music-2.5', $vocalJob->input['model']);
@@ -342,6 +346,11 @@ class ContentAgentTest extends TestCase
         $this->assertSame(
             [$song->track->id, $instrumental->id],
             $release->tracks()->orderBy('id')->pluck('project_track_id')->map(fn($id) => (int) $id)->all(),
+        );
+        $this->assertSame('Warm late night grooves.', $release->description);
+        $this->assertSame(
+            ['A joyful night out in the city.', 'Guitar on a slow harbour evening.'],
+            $release->tracks()->orderBy('id')->pluck('description')->all(),
         );
 
         $this->assertTrue($this->step($run, 'lyrics:t1')->output['synced']);
@@ -856,6 +865,64 @@ class ContentAgentTest extends TestCase
         $this->assertNotNull($album->refresh()->image);
         $this->assertSame('cover.jpg', $complete->refresh()->image);
         $this->assertSame(2 + 3 * 3, $run->credits);
+    }
+
+    public function test_a_sweep_writes_missing_descriptions(): void
+    {
+        $owner = $this->ownerWith(200);
+        $artist = Artist::factory()
+            ->create(['user_id' => $owner->id, 'name' => 'Ada Lumen']);
+        $project = Project::factory()
+            ->create(['user_id' => $owner->id, 'title' => 'Old Tapes', 'description' => null]);
+        $complete = Project::factory()
+            ->create(['user_id' => $owner->id, 'title' => 'Complete']);
+        ProjectTrack::factory()
+            ->create(['project_id' => $complete->id, 'genre_id' => $this->genre->id, 'artist_id' => $artist->id]);
+        $described = ProjectTrack::factory()
+            ->create(['project_id' => $project->id, 'genre_id' => $this->genre->id, 'artist_id' => $artist->id, 'description' => 'Already told.']);
+        $bare = ProjectTrack::factory()
+            ->create(['project_id' => $project->id, 'genre_id' => $this->genre->id, 'artist_id' => $artist->id, 'title' => 'Rewind', 'description' => '']);
+        $bare
+            ->lyric()
+            ->create(['lines' => [['start' => null, 'end' => null, 'text' => '[Verse 1]'], ['start' => null, 'end' => null, 'text' => 'Rewind the night']], 'text' => 'Rewind the night']);
+        $release = Release::factory()
+            ->create(['user_id' => $owner->id, 'project_id' => $project->id, 'artist_id' => $artist->id, 'genre_id' => $this->genre->id, 'description' => null]);
+        $released = Track::factory()
+            ->count(2)
+            ->sequence(['project_track_id' => $described->id], ['project_track_id' => $bare->id])
+            ->create(['release_id' => $release->id, 'description' => null]);
+        $single = Release::factory()
+            ->create(['user_id' => $owner->id, 'project_id' => null, 'artist_id' => $artist->id, 'genre_id' => $this->genre->id, 'description' => 'Told.']);
+        $singleTrack = Track::factory()
+            ->create(['release_id' => $single->id, 'project_track_id' => null, 'description' => null]);
+
+        $this->answers[] = json_encode(['artists' => [], 'albums' => [], 'songs' => [], 'sweep' => ['descriptions' => true]]);
+        $this->answers[] = json_encode(['album' => 'Tapes from a long summer.', 'tracks' => [['id' => $bare->id, 'description' => 'Rewinding one more night.']]]);
+        $this->answers[] = json_encode(['album' => 'Should stay as it is.', 'tracks' => [['id' => $singleTrack->id, 'description' => 'A single for the road.']]]);
+
+        $run = $this->advance($this->queueRun($owner));
+
+        $this->assertSame(
+            [[$project->id, null, true], [null, $single->id, true]],
+            array_map(fn(array $update) => [$update['project_id'], $update['release_id'], $update['describe']], $run->plan['updates']),
+        );
+        $this->assertFalse($run->plan['updates'][0]['artwork']);
+        $this->assertStringContainsString("#{$project->id} \"Old Tapes\", 2 tracks", $this->asked[0]['prompt']);
+        $this->assertStringContainsString('missing descriptions', $this->asked[0]['prompt']);
+        $this->assertSame(AgentRun::SUCCEEDED, $run->status);
+        $this->assertStringContainsString("id {$bare->id}: \"Rewind\"; lyrics: Rewind the night", $this->asked[1]['prompt']);
+        $this->assertStringNotContainsString("id {$described->id}:", $this->asked[1]['prompt']);
+        $this->assertStringContainsString('leave "album" empty', $this->asked[2]['prompt']);
+        $this->assertSame('Tapes from a long summer.', $project->refresh()->description);
+        $this->assertSame('Already told.', $described->refresh()->description);
+        $this->assertSame('Rewinding one more night.', $bare->refresh()->description);
+        $this->assertSame('Tapes from a long summer.', $release->refresh()->description);
+        $this->assertSame(['Already told.', 'Rewinding one more night.'], [$released[0]->refresh()->description, $released[1]->refresh()->description]);
+        $this->assertSame('Told.', $single->refresh()->description);
+        $this->assertSame('A single for the road.', $singleTrack->refresh()->description);
+
+        // Plan 2 + two description asks at 2.
+        $this->assertSame(6, $run->credits);
     }
 
     public function test_the_planner_searches_accounts_with_more_than_it_lists(): void

@@ -56,6 +56,7 @@ class WriteSong implements AgentAction
 
         ['track' => $track] = $this->projects->create($song, $owner, [
             'title' => $input['title'],
+            'description' => ($input['description'] ?? '') ?: null,
             'genre_id' => $input['genre_id'],
             'artist_id' => $step->from($input['artist'], 'artist_id'),
         ], $project);

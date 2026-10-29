@@ -83,6 +83,7 @@ class SongProjects
                 ->tracks()
                 ->create([
                     'title' => $title,
+                    'description' => $data['description'] ?? null,
                     'privacy' => 'private',
                     'genre_id' => $data['genre_id'],
                     'artist_id' => $data['artist_id'],
