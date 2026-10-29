@@ -16,8 +16,13 @@ use App\Models\User;
 use App\Services\Ai\AiSettings;
 use App\Services\Assistant\Ai\AssistantModel;
 use App\Services\Auth\Totp;
+use App\Services\Catalog\Genres;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Http\Client\Request;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -519,5 +524,113 @@ class AdminAssistantTest extends TestCase
         $this
             ->postJson("/api/admin/assistant/chats/{$chat->id}/messages", ['message' => 'Hello?'])
             ->assertUnprocessable();
+    }
+
+    /**
+     * Replicate drawing a plain square image for every artwork request.
+     */
+    protected function fakeArtwork(): void
+    {
+        Storage::fake(config('filesystems.default'));
+        config([
+            'ai.providers.replicate.key' => 'r8_test',
+            'ai.providers.replicate.url' => 'https://replicate.test/v1',
+        ]);
+        AiSettings::update(['ai_artwork_engine' => 'replicate']);
+
+        $image = imagecreatetruecolor(64, 64);
+
+        ob_start();
+        imagepng($image);
+        $png = (string) ob_get_clean();
+
+        Http::fake([
+            'https://replicate.test/v1/models/black-forest-labs/flux-schnell/predictions' => Http::response([
+                'id' => 'p1',
+                'status' => 'succeeded',
+                'output' => ['https://replicate.delivery/art/1.png'],
+            ], 201),
+            'https://replicate.delivery/art/*' => Http::response($png, 200, ['Content-Type' => 'image/png']),
+        ]);
+    }
+
+    protected function genreWithCover(string $title): Genre
+    {
+        $genre = Genre::query()
+            ->create(['title' => $title]);
+        $image = UploadedFile::fake()
+            ->image('cover.jpg', 64, 64);
+
+        return app(Genres::class)
+            ->cover($genre, $image);
+    }
+
+    public function test_the_assistant_draws_covers_for_genres_without_one(): void
+    {
+        $this->fakeArtwork();
+        $this->adminWith('manage-content');
+
+        $covered = $this->genreWithCover('Cover Test Covered');
+        $cover = $covered->image;
+
+        Genre::query()
+            ->update(['image' => $cover]);
+
+        $bare = Genre::query()
+            ->create(['title' => 'Cover Test Bare', 'description' => 'Sunlit horns and talking drums']);
+        $broken = Genre::query()
+            ->create(['title' => 'Cover Test Broken']);
+        $broken
+            ->forceFill(['image' => 'gone.jpg'])
+            ->saveQuietly();
+
+        $this->answers = [$this->turn('Drawing them.', [['draw_genre_covers', ['missing' => true]]])];
+
+        $chat = $this->ask('Give every genre without a cover one');
+
+        $this->assertSame(0, $chat
+            ->actions()
+            ->count());
+        $this->assertNotNull($bare->fresh()->coverUrl());
+        $this->assertNotNull($broken->fresh()->coverUrl());
+        $this->assertSame($cover, $covered->fresh()->image);
+
+        Http::assertSent(fn(Request $request) => str_starts_with(
+            (string) ($request['input']['prompt'] ?? ''),
+            'Cover art for a music genre for Cover Test Bare music. Sunlit horns and talking drums.',
+        ));
+    }
+
+    public function test_replacing_a_genre_cover_waits_for_the_admin_to_confirm(): void
+    {
+        $this->fakeArtwork();
+        $this->adminWith('manage-content');
+        $genre = $this->genreWithCover('Cover Test Replace');
+        $cover = $genre->image;
+
+        $this->answers = [$this->turn('', [['draw_genre_covers', ['genre' => 'cover test replace', 'prompt' => 'Neon waves']]])];
+
+        $chat = $this->ask('Draw a new cover for Cover Test Replace');
+        $action = $this->pendingAction($chat);
+
+        $this->assertSame($cover, $genre->fresh()->image);
+        $this->assertStringContainsString('Replace the cover of Cover Test Replace', $action->summary);
+
+        $this
+            ->postJson("/api/admin/assistant/actions/{$action->id}/confirm")
+            ->assertAccepted()
+            ->assertJsonPath('data.status', AssistantAction::DONE);
+
+        $this->assertNotSame($cover, $genre->fresh()->image);
+        $this->assertNotNull($genre->fresh()->coverUrl());
+    }
+
+    public function test_only_genre_managers_get_the_genre_cover_tool(): void
+    {
+        $this->adminWith('manage-users');
+
+        $this->ask('Draw genre covers');
+
+        $this->assertStringNotContainsString('draw_genre_covers', $this->asked[0]['system']);
     }
 }
