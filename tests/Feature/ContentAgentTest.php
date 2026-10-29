@@ -341,6 +341,77 @@ class ContentAgentTest extends TestCase
         $this->assertSame(68, $run->credits);
     }
 
+    public function test_a_run_makes_tracks_that_feature_other_artists(): void
+    {
+        $owner = $this->ownerWith(200);
+        $this->answers[] = $this->plan([
+            'songs' => [],
+            'artists' => [
+                ['key' => 'a1', 'name' => 'Ada Lumen', 'about' => 'A singer from Lagos.'],
+                ['key' => 'a2', 'name' => 'Daniel Okoro', 'about' => 'A rapper from Abuja.'],
+            ],
+            'albums' => [[
+                'key' => 'al1',
+                'title' => 'Two Cities',
+                'artist' => 'a1',
+                'genre' => $this->genre->title,
+                'tracks' => [
+                    ['title' => 'Bridges', 'style' => 'Afrobeats duet, female and male vocals', 'theme' => 'Two cities', 'featuring' => ['a2', 'a1', 'Daniel Okoro', 'nobody']],
+                    ['title' => 'Interlude', 'style' => 'Soft keys', 'instrumental' => true, 'featuring' => ['a2']],
+                ],
+            ]],
+        ]);
+
+        $run = $this->advance($this->queueRun($owner));
+
+        $this->assertStringContainsString('"featuring"', $this->asked[0]['system']);
+        $this->assertSame(['a2'], $run->plan['albums'][0]['tracks'][0]['featuring']);
+        $this->assertCount(2, $run->plan['artists']);
+        $this->assertContains('artist:a2', $this->step($run, 'song:t1')->depends_on);
+        $this->assertStringContainsString('Sung by: Ada Lumen featuring Daniel Okoro', $this->asked[1]['prompt']);
+
+        $daniel = (int) $this->step($run, 'artist:a2')->output['artist_id'];
+        $song = Song::query()->findOrFail($this->step($run, 'song:t1')->output['song_id']);
+        $instrumental = ProjectTrack::query()->findOrFail($this->step($run, 'track:t2')->output['project_track_id']);
+
+        $this->assertSame([$daniel], $song->track->featuredIds());
+        $this->assertSame([$daniel], $instrumental->featuredIds());
+
+        $stem = ProjectTrackStem::factory()
+            ->create(['track_id' => $song->track->id, 'user_id' => $owner->id, 'title' => 'Bridges', 'src' => 'song.mp3']);
+
+        foreach (['music:t1' => $stem->id, 'music:t2' => 1] as $key => $stemId) {
+            AiJob::query()
+                ->findOrFail($this->step($run, $key)->output['ai_job_id'])
+                ->forceFill(['status' => AiJob::SUCCEEDED, 'output' => ['stems' => [$stemId]]])
+                ->save();
+        }
+
+        $run = $this->advance($run);
+
+        AiJob::query()
+            ->findOrFail($this->step($run, 'lyrics:t1')->output['ai_job_id'])
+            ->forceFill(['status' => AiJob::SUCCEEDED, 'output' => ['lines' => 4]])
+            ->save();
+
+        foreach ([$song->track, $instrumental] as $track) {
+            $track->refresh();
+            $track->meta = [...collect($track->meta)->all(), 'mix' => ['status' => 'ready', 'id' => 'x']];
+            $track->saveQuietly();
+        }
+
+        $run = $this->advance($run);
+
+        $this->assertSame(AgentRun::SUCCEEDED, $run->status);
+
+        $released = Track::query()
+            ->where('project_track_id', $song->track->id)
+            ->firstOrFail();
+
+        $this->assertSame((int) $this->step($run, 'artist:a1')->output['artist_id'], (int) $released->artist->id);
+        $this->assertSame([$daniel], $released->featured()->pluck('artists.id')->map(fn($id) => (int) $id)->all());
+    }
+
     public function test_a_run_draws_album_covers_and_artist_pictures(): void
     {
         Storage::fake(config('filesystems.default'));
