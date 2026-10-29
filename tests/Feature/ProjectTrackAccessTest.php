@@ -15,6 +15,8 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\TestWith;
 use Tests\TestCase;
 
 class ProjectTrackAccessTest extends TestCase
@@ -154,6 +156,88 @@ class ProjectTrackAccessTest extends TestCase
 
         $this->assertSame('Night Drive', $this->track->fresh()->title);
         $this->assertEquals(1, $this->stem->fresh()->meta['gain']);
+    }
+
+    public static function openPrivacies(): array
+    {
+        return [
+            'public' => ['public', true],
+            'public preview' => ['public_preview', false],
+        ];
+    }
+
+    #[DataProvider('openPrivacies')]
+    public function test_only_the_projects_people_can_edit_tracks_of_open_projects(string $privacy, bool $opens): void
+    {
+        $this->project->update(['privacy' => $privacy, 'tracks_public' => true]);
+        $this->track->refresh();
+
+        foreach ([$this->stranger, $this->pending] as $viewer) {
+            $gate = Gate::forUser($viewer);
+
+            $this->assertTrue($gate->allows('view', $this->track));
+            $this->assertSame($opens, $gate->allows('open', $this->track));
+            $this->assertTrue($gate->denies('update', $this->track));
+            $this->assertTrue($gate->denies('delete', $this->track));
+            $this->assertTrue($gate->denies('viewHistory', $this->track));
+            $this->assertTrue($gate->denies('update', $this->project));
+        }
+
+        foreach ([$this->owner, $this->collaborator] as $member) {
+            $this->assertTrue(Gate::forUser($member)->allows('update', $this->track));
+        }
+    }
+
+    #[TestWith(['public'])]
+    #[TestWith(['public_preview'])]
+    public function test_visitors_of_open_projects_cannot_save_track_info(string $privacy): void
+    {
+        $this->project->update(['privacy' => $privacy, 'tracks_public' => true]);
+
+        $genre = Genre::query()
+            ->firstOrCreate(['title' => 'Test genre'], ['slug' => 'test-genre']);
+        $artist = Artist::factory()
+            ->create(['user_id' => $this->stranger->id]);
+        $form = [
+            'title' => 'Taken',
+            'privacy' => 'public',
+            'genre_id' => (string) $genre->id,
+            'artist_id' => (string) $artist->id,
+        ];
+
+        Sanctum::actingAs($this->stranger);
+
+        $this
+            ->getJson($this->url())
+            ->assertOk();
+        $this
+            ->putJson($this->url(), $form)
+            ->assertForbidden();
+        $this
+            ->putJson($this->url('/tags'), ['bpm' => 90])
+            ->assertForbidden();
+        $this
+            ->putJson($this->url('/lyrics'), ['lines' => [['text' => 'Taken']]])
+            ->assertForbidden();
+        $this
+            ->postJson("/api/realtime/projects/{$this->project->id}/tracks/{$this->track->id}/live", [
+                'stems' => [$this->stem->id => ['meta' => ['gain' => 0]]],
+            ])
+            ->assertForbidden();
+        $this
+            ->deleteJson($this->url())
+            ->assertForbidden();
+        $this
+            ->putJson("/api/creator/projects/{$this->project->id}", ['title' => 'Taken', 'privacy' => 'private'])
+            ->assertNotFound();
+
+        $track = $this->track->fresh();
+        $project = $this->project->fresh();
+
+        $this->assertSame('Night Drive', $track->title);
+        $this->assertSame('private', $track->privacy);
+        $this->assertSame('Access test', $project->title);
+        $this->assertSame($privacy, $project->privacy);
     }
 
     public function test_stems_and_tracks_must_belong_to_the_url(): void
