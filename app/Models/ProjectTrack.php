@@ -3,8 +3,10 @@
 namespace App\Models;
 
 use App\Jobs\TagAudio;
+use App\Jobs\TagStyle;
 use App\Services\Artists\FeaturedArtists;
 use App\Traits\HasAudioTags;
+use App\Traits\HasStyleTags;
 use App\Traits\ModelCanExtend;
 use BeyondCode\Comments\Traits\HasComments;
 use Illuminate\Database\Eloquent\Builder;
@@ -27,6 +29,7 @@ class ProjectTrack extends Model
     use HasAudioTags;
     use HasComments;
     use HasFactory;
+    use HasStyleTags;
     use ModelCanExtend;
 
     /**
@@ -118,6 +121,8 @@ class ProjectTrack extends Model
         static::saved(function (self $model) {
             if ($model->preview && ($model->wasRecentlyCreated || $model->wasChanged('preview'))) {
                 TagAudio::dispatch($model)
+                    ->afterCommit();
+                TagStyle::dispatch($model)
                     ->afterCommit();
             }
         });

@@ -155,6 +155,23 @@ New tracks and studio mixes are tagged with their BPM and musical key. This runs
 - **API.** Tracks and project tracks carry `tags`: `bpm`, `key`, `keyShort` ("Am"), `camelot` ("8A") and `source` (`detected` or `manual`). `GET /api/tracks` filters with `bpm_min`, `bpm_max` and `key` (a full name, short name or Camelot code, comma separated), and `compatible=1` adds the keys that mix with it on the Camelot wheel.
 - **Older tracks.** Run `php artisan tags:detect` once to queue every track and mix without tags. `--all` detects again on everything not set by hand.
 
+## Genre and mood
+
+New tracks and studio mixes are tagged with up to three moods, and get a suggested genre: the genre their audio sounds like. The creator's own genre is never changed; the app offers the suggestion when it differs. Listeners see tempo, key and moods only in a song's credits dialog, not on track pages or in lists; the studio shows them to creators.
+
+- **The model.** CLAP (`laion/larger_clap_music_and_speech`, Apache-2.0) scores audio against text, so it can match any label without training. The music-only checkpoint on Hugging Face has a broken text tower (every text embeds the same), so it isn't used. Nobody hosts it on Replicate, so ours lives in `models/style-tagger` (Cog). Push it with the **Push style tagger** GitHub workflow (Actions → Push style tagger → Run), which needs the `REPLICATE_API_TOKEN` secret and creates the model on its first run. It is created public, so Replicate bills only the seconds it runs: a song takes about a second on CPU, well under a tenth of a cent.
+- **Turning it on.** At `/admin/ai`, set "Genre and Mood Model" to the pushed model (like `toneflix/style-tagger`). "Detect Genre and Mood" is on by default but does nothing until the model is set and `REPLICATE_API_TOKEN` is in `.env`. The app pays for these calls, not creators.
+- **When it runs.** The same moments as tempo and key: new audio on a track, or a new preview mix on a project track, queues `TagStyle`. Tracks released from the studio take their project track's tags, and a project track's tags pass to its draft releases.
+- **How it works.** FFmpeg cuts up to 120 seconds from the middle of the song. The model embeds it in 10 second windows, averages them, and scores the average against every genre and every mood, each group adding up to 1. The top genre is suggested when it scores at least 0.5. Moods scoring at least 0.15 are kept, strongest first.
+- **Accuracy.** On 40 labelled GTZAN clips, the top genre out of our 54 was right 12 times; at 0.5 and above it was suggested for 13 clips and right for 8. Misses are mostly neighbours (rock as blues, metal as punk, reggae as reggaeton, jazz as classical), and old recordings lean toward Gospel and Soul. That is why the genre is only offered as "sounds like", never set. Moods read well on clear cases (metal as aggressive, ballads as romantic) but have no labelled set to measure against.
+- **Genre prompts.** Genres are scored by "This is a {title} song." CLAP knows little about many African and regional genres by name, so these carry a short description instead (Genres page, "What the tagger listens for"; defaults in `database/data/genre-prompts.php`).
+- **Lyrics.** With "Read Lyrics for Mood" on, the Composer writing model reads a track's lyrics and names up to three moods. Those count for 30% against the audio's 70%. New lyrics are read again without listening to the audio again.
+- **Moods.** happy, sad, energetic, calm, romantic, dark, uplifting, aggressive, dreamy, melancholic, playful, epic, tense, nostalgic, groovy, sensual (`App\Enums\Mood`).
+- **Corrections.** `PUT /api/creator/tracks/{track}/moods` or `PUT /api/creator/projects/{project}/tracks/{track}/moods` with `moods` (up to three). Moods set by hand are never replaced. Sending none goes back to the detected ones.
+- **API.** Tracks and project tracks carry `styles`: `moods`, `source` (`detected` or `manual`) and `suggestedGenreId`. `GET /api/tracks?mood=happy,calm` returns tracks with any of those moods.
+- **Older tracks.** Run `php artisan tags:styles` once after setting the model. `--all` listens again to everything.
+- **Licensing.** The model code and weights are Apache-2.0 (the LAION-CLAP checkpoints are CC0). Essentia's genre and mood models were left out because they are CC BY-NC-SA, which rules out commercial use without a paid licence.
+
 ## In code
 
 - `App\Services\Ai\AiStudio` starts, runs and fails jobs (`ai_jobs` table).
@@ -165,4 +182,5 @@ New tracks and studio mixes are tagged with their BPM and musical key. This runs
 - Section edits go through `App\Services\Ai\Tasks\EditSection`, which plans the window with `EditWindow`, runs a `SectionEditor` and splices with `StemAudio::fit()` and `splice()`.
 - `App\Services\Lyrics\Lyrics` saves lyrics and applies the explicit and review checks (`LyricsCheck`). `Transcriber` calls Whisper.
 - `App\Services\Audio\AudioTagger` saves tempo and key tags. `Analysis\AudioAnalyzer` decodes audio for `TempoDetector` and `KeyDetector`.
+- `App\Services\Audio\StyleTagger` saves moods and the suggested genre. `App\Services\Ai\Styles\StyleModel` cuts the excerpt and calls the model.
 - `laravel/ai` has no Replicate driver, so a custom `replicate` driver is registered in `AppServiceProvider`, and Demucs is called through `ReplicateClient`.

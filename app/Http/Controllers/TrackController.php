@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\HttpStatus;
+use App\Enums\Mood;
 use App\Enums\MusicalKey;
 use App\Http\Resources\ActionResource;
 use App\Http\Resources\StemDownloadCollection;
@@ -43,6 +44,7 @@ class TrackController extends Controller
                     $request->filled('bpm_max') ? (float) $request->bpm_max : null,
                 )
             )
+            ->when($request->filled('mood'), fn(Builder $q) => $q->withMood(Mood::parse((string) $request->mood)))
             ->when($request->filled('key'), fn(Builder $q) => $q->inKey(
                 str($request->key)->explode(',')->map(fn($key) => MusicalKey::parse($key))->filter()->values()->all(),
                 $request->boolean('compatible'),
