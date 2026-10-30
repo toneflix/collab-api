@@ -1,6 +1,6 @@
-# Content agent
+# AI Studio (content agent)
 
-The content agent turns written instructions into catalogue content: artists, albums of tracks with AI music, and Composer songs. It uses the same tools creators use, so everything it makes is ordinary content on an account.
+AI Studio, called the content agent in the code, turns written instructions into catalogue content: artists, albums of tracks with AI music, and Composer songs. It uses the same tools creators use, so everything it makes is ordinary content on an account.
 
 ## Who can use it
 

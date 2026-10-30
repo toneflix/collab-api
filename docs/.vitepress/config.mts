@@ -51,7 +51,7 @@ export default defineConfig({
           { text: 'Studio (DAW)', link: '/features/studio' },
           { text: 'Sounds and Freesound', link: '/features/sounds' },
           { text: 'Composer', link: '/features/composer' },
-          { text: 'Content agent', link: '/features/content-agent' },
+          { text: 'AI Studio', link: '/features/content-agent' },
           { text: 'Admin assistant', link: '/features/admin-assistant' },
           { text: 'Realtime', link: '/features/realtime' },
           { text: 'Conversations', link: '/features/conversations' },

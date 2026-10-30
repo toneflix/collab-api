@@ -35,7 +35,7 @@ class ContentAgentController extends Controller
             abort_unless(
                 AgentRunPolicy::manages($request->user()),
                 HttpStatus::FORBIDDEN->value,
-                'You do not have permission to run the content agent.'
+                'You do not have permission to run AI Studio.'
             );
 
             return $next($request);

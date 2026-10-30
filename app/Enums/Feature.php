@@ -44,7 +44,7 @@ enum Feature: string
             self::HISTORY_DAYS => 'Version history',
             self::AI_TOOLS => 'AI studio tools',
             self::AI_CREDITS => 'AI credits',
-            self::CONTENT_AGENT => 'Content agent',
+            self::CONTENT_AGENT => 'AI Studio',
             self::EARN_STREAMS => 'Earn from streams',
         };
     }
