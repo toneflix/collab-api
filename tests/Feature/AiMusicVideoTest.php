@@ -172,6 +172,9 @@ class AiMusicVideoTest extends TestCase
             ->assertJsonPath('data.billing', MusicVideo::MINUTES);
 
         $this->assertSame(980, Credits::for($owner)->total());
+        $this->getJson("/api/creator/videos/{$id}")
+            ->assertOk()
+            ->assertJsonPath('minutesLeft', 1);
         $this->getJson('/api/creator/videos')
             ->assertOk()
             ->assertJsonPath('minutesLeft', 1)

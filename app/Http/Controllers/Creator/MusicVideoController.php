@@ -86,14 +86,19 @@ class MusicVideoController extends Controller
             ->setStatusCode(HttpStatus::CREATED->value);
     }
 
-    public function show(MusicVideo $video)
+    /**
+     * A music video with its storyboard and the video minutes left to render it.
+     */
+    public function show(Request $request, MusicVideos $musicVideos, MusicVideo $video)
     {
         $this->authorize('view', $video);
 
         $video->load(['track', 'shots']);
+        $minutesLeft = $musicVideos->minutesLeft($request->user());
 
         return (new MusicVideoResource($video))
             ->additional([
+                'minutesLeft' => $minutesLeft,
                 'message' => HttpStatus::message(HttpStatus::OK),
                 'status' => 'success',
                 'status_code' => HttpStatus::OK,
