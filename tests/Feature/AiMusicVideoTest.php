@@ -243,6 +243,21 @@ class AiMusicVideoTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_creators_pick_from_their_own_tracks(): void
+    {
+        $this->track($this->subscriber([]));
+
+        Sanctum::actingAs($this->owner);
+
+        $this->getJson('/api/creator/tracks')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $this->track->id);
+        $this->getJson('/api/creator/tracks?search=nothing-like-this')
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
+    }
+
     public function test_shot_lists_keep_shots_between_the_shortest_and_longest_length(): void
     {
         $shots = (new ShotList(30, 100, 8))->build([

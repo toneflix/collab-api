@@ -69,7 +69,7 @@ class TrackResource extends JsonResource
             'genreId' => $this->genre_id,
             'duration' => $this->duration,
             'imageUrl' => $this->artworkUrl(),
-            'artistId' => $this->artist?->id,
+            'artistId' => data_get($this->artist, 'id'),
             'price' => (float) ($this->release?->price ?? 0),
             'locked' => $locked,
             'downloadable' => Downloads::available($this->resource, $user),

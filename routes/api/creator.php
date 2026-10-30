@@ -25,6 +25,7 @@ Route::middleware(['auth:sanctum'])
     ->group(function () {
         Route::put('releases/{release}/retirement', [ReleaseController::class, 'retirement'])->name('releases.retirement');
         Route::apiResource('releases', ReleaseController::class);
+        Route::get('tracks', [TrackController::class, 'owned'])->name('tracks.owned');
         Route::apiResource('releases/{release}/tracks', TrackController::class)->names('releases.tracks');
         Route::post('releases/generic/tracks/save', [TrackController::class, 'save'])->name('releases.save.track');
         Route::apiResource('artists', ArtistController::class)->only(['store', 'update']);
