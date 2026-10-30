@@ -133,6 +133,7 @@ class GenreController extends Controller
             'title' => ['required', 'string', 'max:60', Rule::unique('genres', 'title')->ignore($genre?->id)],
             'slug' => ['nullable', 'string', 'max:60', 'alpha_dash', Rule::unique('genres', 'slug')->ignore($genre?->id)],
             'description' => ['nullable', 'string', 'max:500'],
+            'prompt' => ['nullable', 'string', 'max:300'],
             'image' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:5120'],
             'remove_image' => ['nullable', 'boolean'],
         ];

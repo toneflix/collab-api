@@ -165,5 +165,11 @@ class GenreSeeder extends Seeder
             ->all();
 
         Genre::insertOrIgnore($more);
+
+        foreach (require database_path('data/genre-prompts.php') as $slug => $prompt) {
+            Genre::query()
+                ->where('slug', $slug)
+                ->update(['prompt' => $prompt]);
+        }
     }
 }

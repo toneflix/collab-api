@@ -51,6 +51,7 @@ class ProjectTrackResource extends JsonResource
             'bpm' => (float) ($this->meta['bpm'] ?? 120),
             'timeSignature' => (string) ($this->meta['timeSignature'] ?? '4/4'),
             'tags' => $this->audioTags(),
+            'styles' => $this->styleTags(),
             // The studio's master volume, 0 to 1, and where the server is with the preview mix.
             'mixVolume' => MixRenderer::masterVolume($this->resource),
             // The master bus effect chain, as JSON text like a stem's `meta.effects`.

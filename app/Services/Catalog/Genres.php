@@ -55,6 +55,7 @@ class Genres
     {
         $genre->title = $data['title'];
         $genre->description = $data['description'] ?? null;
+        $genre->prompt = $data['prompt'] ?? null;
 
         if (! empty($data['slug'])) {
             $genre->slug = $data['slug'];

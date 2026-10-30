@@ -4,10 +4,12 @@ namespace App\Services\Lyrics;
 
 use App\Broadcasting\Channels;
 use App\Http\Resources\LyricResource;
+use App\Jobs\TagStyle;
 use App\Models\Lyric;
 use App\Models\ProjectTrack;
 use App\Models\Track;
 use App\Models\User;
+use App\Services\Ai\AiSettings;
 use App\Services\Moderation\Moderation;
 use App\Services\Realtime\Realtime;
 use Illuminate\Support\Facades\DB;
@@ -76,6 +78,8 @@ class Lyrics
             return $lyric;
         });
 
+        $this->restyle($owner);
+
         if ($owner instanceof Track) {
             $this->applyToTrack($owner, $lyric);
         } else {
@@ -88,6 +92,25 @@ class Lyrics
         }
 
         return $lyric;
+    }
+
+    /**
+     * Read the moods of new lyrics into audio already tagged. Tracks from
+     * the studio follow their project track instead.
+     */
+    protected function restyle(Track|ProjectTrack $owner): void
+    {
+        if (
+            ! $owner->style_scores
+            || $owner->moods_source === Track::TAGS_MANUAL
+            || ($owner instanceof Track && $owner->project_track_id)
+            || ! AiSettings::stylesFromLyrics()
+        ) {
+            return;
+        }
+
+        TagStyle::dispatch($owner, lyrics: true)
+            ->afterCommit();
     }
 
     /**
