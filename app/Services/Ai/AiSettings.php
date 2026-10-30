@@ -66,6 +66,9 @@ class AiSettings extends SettingsStore
         'ai_lyrics_explicit_words' => ['More Explicit Words', null, 'Comma separated words that mark a track explicit, on top of the built-in list.'],
         'ai_lyrics_review_words' => ['More Words to Review', null, 'Comma separated words or phrases that send a track to the moderation queue, on top of the built-in list.'],
         'ai_tags_auto' => ['Detect Tempo and Key', '1', 'Tag new tracks and studio mixes with their BPM and key. This runs on your own server and uses no credits.'],
+        'ai_styles_auto' => ['Detect Genre and Mood', '1', 'Tag new tracks and studio mixes with the moods their audio carries and suggest the genre it sounds like. Runs our own model on Replicate, paid by the app; it stays off until the model below is set.'],
+        'ai_styles_model' => ['Genre and Mood Model', null, 'The Replicate model pushed from models/style-tagger by the "Push style tagger" workflow, like toneflix/style-tagger.'],
+        'ai_styles_lyrics' => ['Read Lyrics for Mood', '1', 'Let the Composer writing model read a track\'s lyrics and count the moods they carry alongside the audio.'],
         'ai_moderator_claims_auto' => ['Review Artist Claims Automatically', '0', 'Send every new artist claim to the AI moderator. Claims it isn\'t confident about are flagged for a person.'],
         'ai_moderator_releases_auto' => ['Review Releases Automatically', '0', 'Send every release waiting for approval to the AI moderator. Releases it isn\'t confident about are flagged for a person.'],
         'ai_moderator_origins_auto' => ['Rank Direct Uploads Automatically', '0', 'Send every track uploaded straight to a release to the AI moderator, to judge whether it is recorded music or agentic. Tracks it isn\'t confident about are flagged for a person.'],
@@ -274,6 +277,33 @@ class AiSettings extends SettingsStore
     public static function autoTags(): bool
     {
         return filter_var(self::get('ai_tags_auto'), FILTER_VALIDATE_BOOL);
+    }
+
+    /**
+     * Whether new audio gets its moods and genre detected: the setting is on,
+     * the model is set and Replicate has its key.
+     */
+    public static function autoStyles(): bool
+    {
+        return filter_var(self::get('ai_styles_auto'), FILTER_VALIDATE_BOOL)
+            && self::styleModel() !== null
+            && AiEngine::REPLICATE->available();
+    }
+
+    /**
+     * The Replicate model that hears genre and mood, or null until set.
+     */
+    public static function styleModel(): ?string
+    {
+        return self::get('ai_styles_model') ?: null;
+    }
+
+    /**
+     * Whether the lyrics count towards a track's moods.
+     */
+    public static function stylesFromLyrics(): bool
+    {
+        return filter_var(self::get('ai_styles_lyrics'), FILTER_VALIDATE_BOOL);
     }
 
     /**

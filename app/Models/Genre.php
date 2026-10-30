@@ -23,6 +23,7 @@ class Genre extends Model
         'slug',
         'title',
         'description',
+        'prompt',
     ];
 
     public function registerFileable()
@@ -30,6 +31,16 @@ class Genre extends Model
         $this->fileableLoader([
             'image' => 'artwork',
         ], 'default', true);
+    }
+
+    /**
+     * What the style tagger listens for in this genre.
+     */
+    public function stylePrompt(): string
+    {
+        $article = preg_match('/^[aeiou]/i', $this->title) ? 'an' : 'a';
+
+        return $this->prompt ?: "This is {$article} {$this->title} song.";
     }
 
     public function tracks(): HasMany

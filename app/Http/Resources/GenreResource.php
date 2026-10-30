@@ -23,6 +23,7 @@ class GenreResource extends JsonResource
             'slug' => $this->slug,
             'title' => $this->title,
             'description' => $this->description,
+            'prompt' => $this->when($request->routeIs('admin.*'), $this->prompt),
             'imageUrl' => $this->coverUrl(),
             'tracksCount' => $this->whenCounted('tracks'),
             'releasesCount' => $this->whenCounted('releases'),

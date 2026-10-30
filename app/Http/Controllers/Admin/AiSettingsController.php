@@ -68,6 +68,9 @@ class AiSettingsController extends Controller
             'ai_lyrics_explicit_words' => ['nullable', 'string', 'max:2000'],
             'ai_lyrics_review_words' => ['nullable', 'string', 'max:2000'],
             'ai_tags_auto' => ['nullable', 'boolean'],
+            'ai_styles_auto' => ['nullable', 'boolean'],
+            'ai_styles_model' => ['nullable', 'string', 'max:150', 'regex:/^[\w.-]+\/[\w.-]+(:[\w]+)?$/'],
+            'ai_styles_lyrics' => ['nullable', 'boolean'],
             'ai_moderator_claims_auto' => ['nullable', 'boolean'],
             'ai_moderator_releases_auto' => ['nullable', 'boolean'],
             'ai_moderator_origins_auto' => ['nullable', 'boolean'],
@@ -86,6 +89,7 @@ class AiSettingsController extends Controller
             ],
         ], [
             'ai_composer_model.regex' => 'Use a Replicate model name like anthropic/claude-4.5-haiku.',
+            'ai_styles_model.regex' => 'Use a Replicate model name like toneflix/style-tagger.',
             'ai_composer_cloudflare_model.regex' => 'Use a Workers AI model name like anthropic/claude-haiku-4.5 or @cf/openai/gpt-oss-120b.',
             'ai_composer_music_model.in' => 'Pick a music model that sings lyrics.',
             'ai_credit_packs.regex' => 'List pack sizes like "100, 500:10, 2000:20".',

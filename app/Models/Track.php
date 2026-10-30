@@ -8,6 +8,7 @@ use App\Jobs\FingerprintTrack;
 use App\Jobs\MeasureDuration;
 use App\Jobs\ProcessAudio;
 use App\Jobs\TagAudio;
+use App\Jobs\TagStyle;
 use App\Jobs\TranscribeTrack;
 use App\Models\Scopes\HideDeactivatedAccounts;
 use App\Services\Artists\FeaturedArtists;
@@ -15,6 +16,7 @@ use App\Services\Releases\TrackOrigins;
 use App\Traits\HasAiReviews;
 use App\Traits\HasAudioTags;
 use App\Traits\HasLikedScope;
+use App\Traits\HasStyleTags;
 use App\Traits\Metricable;
 use App\Traits\ModelCanExtend;
 use App\Traits\Purchasable;
@@ -44,6 +46,7 @@ class Track extends Model implements CanBeTakenDown
     use HasFactory;
     use HasLikedScope;
     use HasSocialInteractions;
+    use HasStyleTags;
     use Metricable;
     use ModelCanExtend;
     use Purchasable;
@@ -225,6 +228,8 @@ class Track extends Model implements CanBeTakenDown
         TranscribeTrack::dispatch($this)
             ->afterCommit();
         TagAudio::dispatch($this, inherit: ! $ownAudio)
+            ->afterCommit();
+        TagStyle::dispatch($this, inherit: ! $ownAudio)
             ->afterCommit();
     }
 

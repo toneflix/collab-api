@@ -14,6 +14,7 @@ use App\Http\Controllers\Creator\ProjectTrackController;
 use App\Http\Controllers\Creator\ProjectTrackStemController;
 use App\Http\Controllers\Creator\ProjectTrackVersionController;
 use App\Http\Controllers\Creator\ReleaseController;
+use App\Http\Controllers\Creator\StyleTagController;
 use App\Http\Controllers\Creator\TrackController;
 use Illuminate\Support\Facades\Route;
 
@@ -64,6 +65,7 @@ Route::middleware(['auth:sanctum'])
             Route::post('projects/{project}/tracks/{track}/stems/{stem}/lyrics', [LyricsController::class, 'transcribe'])->middleware('throttle:10,1')->name('projects.tracks.stems.lyrics');
 
             Route::put('projects/{project}/tracks/{track}/tags', [AudioTagController::class, 'update'])->name('projects.tracks.tags.update');
+            Route::put('projects/{project}/tracks/{track}/moods', [StyleTagController::class, 'update'])->name('projects.tracks.moods.update');
 
             Route::get('projects/{project}/tracks/{track}/versions', [ProjectTrackVersionController::class, 'index'])
                 ->name('projects.tracks.versions.index');
@@ -77,5 +79,6 @@ Route::middleware(['auth:sanctum'])
         Route::post('ai/jobs/{job}/versions/{version}', [AiController::class, 'choose'])->whereNumber('version')->name('ai.jobs.versions.choose');
         Route::put('tracks/{track}/lyrics', [LyricsController::class, 'updateTrack'])->name('tracks.lyrics.update');
         Route::put('tracks/{track}/tags', [AudioTagController::class, 'updateTrack'])->name('tracks.tags.update');
+        Route::put('tracks/{track}/moods', [StyleTagController::class, 'updateTrack'])->name('tracks.moods.update');
         Route::apiResource('projects/{project}/collaborators', ProjectCollaboratorController::class);
     });

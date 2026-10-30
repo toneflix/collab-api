@@ -1,0 +1,15 @@
+# Replicate model that scores audio against text labels with CLAP
+# (laion/larger_clap_music_and_speech, Apache-2.0). Push it with the
+# "Push style tagger" GitHub workflow.
+build:
+  gpu: false
+  python_version: "3.12"
+  python_packages:
+    - "torch==2.5.1"
+    - "transformers==4.46.3"
+    - "librosa==0.10.2.post1"
+    - "soundfile==0.12.1"
+    - "numpy<2.1"
+  run:
+    - python -c "from transformers import ClapModel, ClapProcessor; ClapModel.from_pretrained('laion/larger_clap_music_and_speech', cache_dir='/weights'); ClapProcessor.from_pretrained('laion/larger_clap_music_and_speech', cache_dir='/weights')"
+predict: "predict.py:Predictor"
