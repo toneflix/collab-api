@@ -22,7 +22,13 @@ class UserSeeder extends Seeder
         User::factory()
             ->has(
                 Release::factory()
-                    ->has(Track::factory()->count(rand(3, 5)), 'tracks')
+                    ->streamed()
+                    ->has(
+                        Track::factory()
+                            ->streamed()
+                            ->count(rand(3, 5)),
+                        'tracks'
+                    )
                     ->count(rand(1, 3)),
                 'releases'
             )

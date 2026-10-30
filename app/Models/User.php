@@ -541,6 +541,32 @@ class User extends Authenticatable implements Commentator, Reportable
         return $this->hasMany(Release::class);
     }
 
+    /**
+     * Match accounts whose name, username (or, for admins, email) holds every word of the search,
+     * so a full name finds the account in either order.
+     */
+    public function scopeSearch(Builder $query, string $search, bool $private = false): void
+    {
+        $words = str($search)
+            ->squish()
+            ->explode(' ')
+            ->map(fn(string $word) => ltrim($word, '@'))
+            ->filter()
+            ->take(5);
+
+        $query->where(function (Builder $q) use ($words, $private) {
+            foreach ($words as $word) {
+                $q->where(
+                    fn(Builder $q) => $q
+                        ->whereLike('users.firstname', "%{$word}%")
+                        ->orWhereLike('users.lastname', "%{$word}%")
+                        ->orWhereLike('users.username', "%{$word}%")
+                        ->when($private, fn(Builder $q) => $q->orWhereLike('users.email', "%{$word}%"))
+                );
+            }
+        });
+    }
+
     public function scopeCreator(Builder $query): void
     {
         $query->where(

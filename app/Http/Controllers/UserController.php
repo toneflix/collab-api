@@ -31,10 +31,8 @@ class UserController extends Controller
                 );
             } else {
                 $query->where(function (Builder $query) use ($request) {
-                    // whereLike ignores case on every database (ILIKE on PostgreSQL)
-                    $query->whereLike(DB::raw("concat(firstname, ' ', lastname)"), "%{$request->search}%")
-                        ->orWhereLike('firstname', "%{$request->search}%")
-                        ->orWhereLike('lastname', "%{$request->search}%")
+                    $query
+                        ->search((string) $request->search)
                         ->orWhere('country', $request->search)
                         ->orWhere('state', $request->search)
                         ->orWhere('city', $request->search);

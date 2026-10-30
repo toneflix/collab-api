@@ -49,7 +49,18 @@ class TrackFactory extends Factory
                     ->artists()
                     ->attach(Artist::inRandomOrder()->first()->id);
             }
-            User::inRandomOrder()->limit(rand(1, 10))
+        });
+    }
+
+    /**
+     * Have 1 to 10 random users stream the track, for sample data.
+     */
+    public function streamed(): static
+    {
+        return $this->afterCreating(function (Track $model) {
+            User::query()
+                ->inRandomOrder()
+                ->limit(rand(1, 10))
                 ->get()
                 ->each(fn(User $user) => $model->stream(rand(10, 320), $user));
         });
