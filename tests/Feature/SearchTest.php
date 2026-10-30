@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Services\Admin\UserDirectory;
 use App\Services\Moderation\Reportables;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 /**
@@ -62,7 +63,7 @@ class SearchTest extends TestCase
             ->create(['firstname' => 'Josephine', 'lastname' => 'Emmanuella']);
         $staff = User::factory()
             ->create(['firstname' => 'Josephine', 'lastname' => 'Emmanuella']);
-        $staff->syncRoles(['admin']);
+        $staff->syncRoles([Role::findOrCreate('admin', 'web')]);
 
         $ids = app(UserDirectory::class)
             ->query(['search' => 'Josephine Emmanuella', 'role' => 'user'])
