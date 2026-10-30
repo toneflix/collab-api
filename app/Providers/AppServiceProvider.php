@@ -50,6 +50,7 @@ class AppServiceProvider extends ServiceProvider
 
         $this->app->bind(PaymentGateways::class, fn($app) => new PaymentGateways([
             $app->make(PaymentGateway::class),
+            $app->make(FlutterwaveGateway::class),
         ]));
 
         $this->app->bind(ModeratorModel::class, fn($app) => $app->make(

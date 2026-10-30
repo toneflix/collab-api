@@ -57,6 +57,7 @@ Route::get('/initialize', function () {
         'data' => [
             'configuration' => Providers::config()->merge([
                 'paystack_public_key' => config('services.paystack.public_key'),
+                'flutterwave_public_key' => config('services.flutterwave.public_key'),
             ]),
             'realtime' => Realtime::clientConfig(),
             'sounds' => SoundSettings::clientConfig(),
@@ -118,9 +119,13 @@ Route::get('plans', [PlanController::class, 'index'])
 Route::post('payments/paystack/webhook', [PaymentController::class, 'webhook'])
     ->name('payments.webhook');
 
-// Flutterwave and Stripe tell us about payout transfers here.
-Route::post('payouts/flutterwave/webhook', [PayoutWebhookController::class, 'flutterwave'])
+// Flutterwave sends charges and payout transfers to one URL; both of these take them.
+Route::post('payments/flutterwave/webhook', [PaymentController::class, 'flutterwaveWebhook'])
+    ->name('payments.webhook.flutterwave');
+Route::post('payouts/flutterwave/webhook', [PaymentController::class, 'flutterwaveWebhook'])
     ->name('payouts.webhook.flutterwave');
+
+// Stripe tells us about payout transfers here.
 Route::post('payouts/stripe/webhook', [PayoutWebhookController::class, 'stripe'])
     ->name('payouts.webhook.stripe');
 

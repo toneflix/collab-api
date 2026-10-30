@@ -51,6 +51,7 @@ return [
     ],
 
     'flutterwave' => [
+        'public_key' => env('FLUTTERWAVE_PUBLIC_KEY'),
         'secret_key' => env('FLUTTERWAVE_SECRET_KEY'),
         'webhook_hash' => env('FLUTTERWAVE_WEBHOOK_HASH'),
     ],

@@ -13,6 +13,7 @@ class PayoutSettings extends SettingsStore
 
     public const FIELDS = [
         'paystack_payments_enabled' => ['Paystack Payments', '1', 'Take payments with Paystack.'],
+        'flutterwave_payments_enabled' => ['Flutterwave Payments', '0', 'Take payments with Flutterwave.'],
 
         'paystack_payouts_enabled' => ['Paystack Payouts', '1', 'Pay creators in the country of your Paystack account.'],
 
@@ -31,6 +32,7 @@ class PayoutSettings extends SettingsStore
         ],
         'flutterwave' => [
             'FLUTTERWAVE_SECRET_KEY' => ['Flutterwave Secret Key', 'services.flutterwave.secret_key'],
+            'FLUTTERWAVE_PUBLIC_KEY' => ['Flutterwave Public Key', 'services.flutterwave.public_key'],
             'FLUTTERWAVE_WEBHOOK_HASH' => ['Flutterwave Webhook Secret Hash', 'services.flutterwave.webhook_hash'],
         ],
         'stripe' => [

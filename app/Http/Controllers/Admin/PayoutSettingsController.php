@@ -39,6 +39,7 @@ class PayoutSettingsController extends Controller
     {
         $valid = $request->validate([
             'paystack_payments_enabled' => ['nullable', 'boolean'],
+            'flutterwave_payments_enabled' => ['nullable', 'boolean'],
             'paystack_payouts_enabled' => ['nullable', 'boolean'],
             'flutterwave_payouts_enabled' => ['nullable', 'boolean'],
             'stripe_payouts_enabled' => ['nullable', 'boolean'],
@@ -76,7 +77,7 @@ class PayoutSettingsController extends Controller
             'currency' => $payouts->currency(),
             'webhooks' => [
                 'paystack' => route('payments.webhook'),
-                'flutterwave' => route('payouts.webhook.flutterwave'),
+                'flutterwave' => route('payments.webhook.flutterwave'),
                 'stripe' => route('payouts.webhook.stripe'),
             ],
             'countries' => $countries,

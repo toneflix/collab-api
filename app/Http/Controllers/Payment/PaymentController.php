@@ -10,6 +10,7 @@ use App\Http\Resources\TransactionResource;
 use App\Models\Payout;
 use App\Models\Transaction;
 use App\Services\Payment\Checkout;
+use App\Services\Payment\FlutterwaveGateway;
 use App\Services\Payment\PaymentGateways;
 use App\Services\Payment\PaymentRegions;
 use App\Services\Payment\Payouts;
@@ -134,4 +135,43 @@ class PaymentController extends Controller
             ->json(['status' => 'ok']);
     }
 
+    /**
+     * Flutterwave sends every event to one URL: charges, and payout transfers
+     * settling or being reversed. Each is checked with Flutterwave, not the body.
+     */
+    public function flutterwaveWebhook(Request $request, Checkout $checkout, FlutterwaveGateway $gateway, Payouts $payouts)
+    {
+        abort_unless(
+            $gateway->validWebhook($request->getContent(), $request->header('verif-hash')),
+            HttpStatus::UNAUTHORIZED->value,
+            'Invalid signature.'
+        );
+
+        $event = strtolower((string) ($request->input('event') ?: $request->input('event.type')));
+
+        if (str_starts_with($event, 'charge') && $request->filled('data.tx_ref')) {
+            $transaction = Transaction::query()
+                ->where('reference', (string) $request->input('data.tx_ref'))
+                ->where('method', $gateway->key())
+                ->first();
+
+            if ($transaction) {
+                $checkout->verify($transaction);
+            }
+        }
+
+        if (str_starts_with($event, 'transfer') && $request->filled('data.reference')) {
+            $payout = Payout::query()
+                ->where('reference', (string) $request->input('data.reference'))
+                ->where('provider', $gateway->key())
+                ->first();
+
+            if ($payout) {
+                $payouts->sync($payout);
+            }
+        }
+
+        return response()
+            ->json(['status' => 'ok']);
+    }
 }
