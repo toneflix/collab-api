@@ -174,7 +174,8 @@ class AiMusicVideoTest extends TestCase
         $this->assertSame(980, Credits::for($owner)->total());
         $this->getJson('/api/creator/videos')
             ->assertOk()
-            ->assertJsonPath('minutesLeft', 1);
+            ->assertJsonPath('minutesLeft', 1)
+            ->assertJsonPath('ownPhotos', false);
     }
 
     public function test_a_failed_render_goes_back_to_the_storyboard_and_refunds(): void

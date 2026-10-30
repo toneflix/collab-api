@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Creator;
 
+use App\Enums\Feature;
 use App\Enums\HttpStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\MusicVideoCollection;
@@ -22,7 +23,8 @@ use Illuminate\Validation\Rule;
 class MusicVideoController extends Controller
 {
     /**
-     * The person's music videos, newest first, for one track when asked.
+     * The person's music videos, newest first, for one track when asked,
+     * with the video minutes left and whether their plan takes own photos.
      */
     public function index(Request $request, MusicVideos $musicVideos)
     {
@@ -39,10 +41,12 @@ class MusicVideoController extends Controller
             ->latest('id')
             ->paginate($request->perPage(20));
         $minutesLeft = $musicVideos->minutesLeft($request->user());
+        $ownPhotos = (bool) $request->user()->feature(Feature::VIDEO_OWN_PHOTOS);
 
         return (new MusicVideoCollection($videos))
             ->additional([
                 'minutesLeft' => $minutesLeft,
+                'ownPhotos' => $ownPhotos,
                 'message' => HttpStatus::message(HttpStatus::OK),
                 'status' => 'success',
                 'status_code' => HttpStatus::OK,
