@@ -101,11 +101,8 @@
     "prefer-stable": true,
     "repositories": [
         {
-            "type": "path",
-            "url": "packages/money",
-            "options": {
-                "symlink": true
-            }
+            "type": "vcs",
+            "url": "https://github.com/toneflix/money-php"
         }
     ]
 }
