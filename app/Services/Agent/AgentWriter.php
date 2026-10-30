@@ -43,12 +43,12 @@ class AgentWriter
 
         $credits = Credits::for($run->owner);
         $cost = self::credits();
-        $spend = $credits->spend($cost, "Content agent: {$what}", $run);
+        $spend = $credits->spend($cost, "AI Studio: {$what}", $run);
 
         try {
             $data = $this->decode($this->model->ask($system, $prompt, $maxTokens));
         } catch (Throwable $e) {
-            $credits->refund($spend, "Refund: content agent {$what}");
+            $credits->refund($spend, "Refund: AI Studio {$what}");
 
             throw $e;
         }

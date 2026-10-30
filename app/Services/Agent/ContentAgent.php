@@ -56,7 +56,7 @@ class ContentAgent
     public function queue(User $by, User $owner, string $prompt, array $options): AgentRun
     {
         if (! $owner->usesContentAgent()) {
-            throw ValidationException::withMessages(['owner_id' => 'This account can\'t use the content agent.']);
+            throw ValidationException::withMessages(['owner_id' => 'This account can\'t use AI Studio.']);
         }
 
         Credits::for($owner)->ensureAccess('owner_id');
