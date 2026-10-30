@@ -157,7 +157,7 @@ New tracks and studio mixes are tagged with their BPM and musical key. This runs
 
 ## Genre and mood
 
-New tracks and studio mixes are tagged with up to three moods, and get a suggested genre: the genre their audio sounds like. The creator's own genre is never changed; the app offers the suggestion when it differs.
+New tracks and studio mixes are tagged with up to three moods, and get a suggested genre: the genre their audio sounds like. The creator's own genre is never changed; the app offers the suggestion when it differs. Listeners see tempo, key and moods only in a song's credits dialog, not on track pages or in lists; the studio shows them to creators.
 
 - **The model.** CLAP (`laion/larger_clap_music_and_speech`, Apache-2.0) scores audio against text, so it can match any label without training. The music-only checkpoint on Hugging Face has a broken text tower (every text embeds the same), so it isn't used. Nobody hosts it on Replicate, so ours lives in `models/style-tagger` (Cog). Push it with the **Push style tagger** GitHub workflow (Actions → Push style tagger → Run), which needs the `REPLICATE_API_TOKEN` secret and creates the model on its first run. It is created public, so Replicate bills only the seconds it runs: a song takes about a second on CPU, well under a tenth of a cent.
 - **Turning it on.** At `/admin/ai`, set "Genre and Mood Model" to the pushed model (like `toneflix/style-tagger`). "Detect Genre and Mood" is on by default but does nothing until the model is set and `REPLICATE_API_TOKEN` is in `.env`. The app pays for these calls, not creators.
