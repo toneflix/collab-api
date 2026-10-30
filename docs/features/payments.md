@@ -1,6 +1,8 @@
 # Payments
 
-People pay through Paystack's inline checkout, which opens over the app. The API starts the checkout, and the payment is confirmed by asking Paystack directly, either when the app returns or when the `charge.success` webhook arrives.
+People pay with Paystack's popup, or with Flutterwave: its checkout page (Standard) on the web and its popup (Inline) in the Android and iOS apps. When more than one provider is open to them, they pick one and see the charge in their currency first. The API starts the checkout, and the payment is confirmed by asking the provider directly: on the payment return page (`/payments/<reference>`), when the popup finishes, or when the provider's webhook arrives.
+
+Admins choose which providers take payments, and can send groups of countries to their own providers and currency with payment regions; see [Payment providers](../guide/payments#payment-regions).
 
 ## What can be bought
 
@@ -25,11 +27,14 @@ Each sale and tip records the creator's part in `recipient_share`. It is `creato
 - `/premium`: plans and billing options
 - `/library/purchases`: what someone has bought
 - `/studio/earnings`: sales, tips and balance
+- `/payments/<reference>`: where providers send payers back; it confirms the payment and returns them to the page they paid from
 
 ## In code
 
 - `App\Services\Payment\Checkout` starts, verifies and settles every purchase. Each one is a `Transaction`.
-- `App\Services\Payment\PaystackGateway` talks to Paystack through `toneflix/paystack-php`.
-- The app uses `@toneflix/paystack-inline`.
+- `App\Services\Payment\PaymentGateways` holds the providers (`PaystackGateway`, `FlutterwaveGateway`) and which are on.
+- `App\Services\Payment\PaymentRegions` decides each payer's currency, rate and providers (`PaymentOptions`). `GET /api/payments/options` returns them to the app.
+- `App\Services\Payment\Rates\CurrencyConverter` gets live rates through `toneflix/money`.
+- The app uses `@toneflix/paystack-inline`, Flutterwave's `v3.js` in the app, and `PendingPayments` to confirm payments that left the app.
 
 Setup and webhooks are in [Payment providers](../guide/payments).

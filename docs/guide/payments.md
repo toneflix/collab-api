@@ -1,8 +1,8 @@
 # Payment providers
 
-Money comes **in** through Paystack (paid releases, stems, tips, plans and AI credit packs). Money goes **out** to creators through Paystack, Flutterwave or Stripe Connect, depending on the creator's country. How the features work is in [Payments](../features/payments) and [Payouts](../features/payouts). This page is what to set up with each provider.
+Money comes **in** through Paystack or Flutterwave (paid releases, stems, tips, plans and AI credit packs). Money goes **out** to creators through Paystack, Flutterwave or Stripe Connect, depending on the creator's country. How the features work is in [Payments](../features/payments) and [Payouts](../features/payouts). This page is what to set up with each provider.
 
-All keys go in the API's `.env`. The admin pages under **Payouts > Providers** only switch providers on and off and show which keys are missing.
+All keys go in the API's `.env`. The admin pages under **Payouts > Providers** only switch providers on and off, for payments and payouts separately, and show which keys are missing.
 
 ## App currency
 
@@ -18,6 +18,26 @@ Paystack only pays out in the country of your Paystack business, and the API wor
 | ZAR | South Africa |
 
 With any other app currency, Paystack payouts are off and creators need Flutterwave or Stripe. Paystack must also be able to charge in the app currency.
+
+## Payment regions
+
+Under **Payouts > Payment regions**, admins group countries into regions. A payer in a region pays through that region's providers (first one is the default) and is charged in its currency. Everyone else pays in the app currency through every provider that is switched on. A region whose providers are all off falls back to that too.
+
+The payer's country is their payout account's country, then the country on their profile, then the `CF-IPCountry` header when the API sits behind Cloudflare.
+
+Prices stay in the app currency. At checkout the price is converted at the region's **fixed rate** (units of the region currency per unit of the app currency) or, when that is empty, at the live rate plus the region's **markup**. The charge is rounded up to the cent, and the transaction keeps the app-currency amount, the charge, its currency and the rate. A payment is only accepted when the provider reports at least the charge, in that currency.
+
+Live rates come from [toneflix/money](https://github.com/toneflix/money-php), the PHP port of `@toneflix/money`, and are cached for 6 hours:
+
+```dotenv
+# exchangerate-api (needs a key, covers NGN, GHS, KES and the rest) or frankfurter (no key, ECB currencies only)
+EXCHANGE_RATE_PROVIDER=exchangerate-api
+EXCHANGERATE_API_KEY=
+```
+
+## Payment return page
+
+Paystack's `callback_url` and Flutterwave's `redirect_url` are `FRONTEND_URL/payments/<reference>`. That page confirms the payment and sends the payer back to the page they paid from. In the Android and iOS apps the same link opens the app (App Links and Universal Links, see [Android](./android#app-links)), so a payment finished in a browser or a bank app still lands back in the app, even if the system closed it.
 
 ## Paystack
 
@@ -49,20 +69,21 @@ By default Paystack asks for an OTP before each transfer, which stops automatic 
 
 ## Flutterwave
 
-Pays banks and mobile money in Nigeria, Ghana, Kenya, Uganda, Tanzania, Rwanda, Zambia, South Africa, Cameroon, Côte d'Ivoire and Senegal.
+Takes payments with Flutterwave Standard (its hosted checkout page) on the web and Flutterwave Inline (its popup) in the app. Pays banks and mobile money in Nigeria, Ghana, Kenya, Uganda, Tanzania, Rwanda, Zambia, South Africa, Cameroon, Côte d'Ivoire and Senegal.
 
 ```dotenv
+FLUTTERWAVE_PUBLIC_KEY=FLWPUBK-...
 FLUTTERWAVE_SECRET_KEY=FLWSECK-...
 FLUTTERWAVE_WEBHOOK_HASH=a-long-random-string
 ```
 
 In the Flutterwave dashboard, under **Settings > Webhooks**:
 
-- URL: `https://<api>/api/payouts/flutterwave/webhook`
+- URL: `https://<api>/api/payments/flutterwave/webhook` (the older `/api/payouts/flutterwave/webhook` takes the same events)
 - Secret hash: the same value as `FLUTTERWAVE_WEBHOOK_HASH`. The API compares it with the `verif-hash` header.
-- Turn on transfer webhooks.
+- Turn on charge and transfer webhooks.
 
-Then switch on **Flutterwave Payouts** under Payouts > Providers.
+`charge.completed` completes a checkout and transfer events settle payouts; each is looked up with Flutterwave first. Then switch on **Payments** and **Flutterwave Payouts** under Payouts > Providers.
 
 ## Stripe Connect
 

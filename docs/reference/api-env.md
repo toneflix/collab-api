@@ -120,8 +120,11 @@ See [Payment providers](../guide/payments) for webhooks and dashboard settings.
 | --- | --- |
 | `PAYSTACK_PUBLIC_KEY` | `pk_...`. Sent to the app for checkout. |
 | `PAYSTACK_SECRET_KEY` | `sk_...`. Charges, transfers and webhook signatures. |
-| `FLUTTERWAVE_SECRET_KEY` | Flutterwave payouts. |
+| `FLUTTERWAVE_PUBLIC_KEY` | `FLWPUBK-...`. Sent to the app for Flutterwave Inline. |
+| `FLUTTERWAVE_SECRET_KEY` | Flutterwave payments and payouts. |
 | `FLUTTERWAVE_WEBHOOK_HASH` | The secret hash set on Flutterwave's webhook page. |
+| `EXCHANGE_RATE_PROVIDER` | `exchangerate-api` (default) or `frankfurter`, for charging payment regions in their currency. |
+| `EXCHANGERATE_API_KEY` | ExchangeRate-API key. Not needed for Frankfurter or for regions with a fixed rate. |
 | `STRIPE_SECRET_KEY` | Stripe Connect payouts. |
 | `STRIPE_CONNECT_SECRET_KEY` | Optional separate key for Connect. `STRIPE_SECRET_KEY` is used when empty. |
 | `STRIPE_WEBHOOK_SECRET` | `whsec_...`, the endpoint's signing secret. |

@@ -36,6 +36,12 @@ Push reaches the app through Firebase Cloud Messaging and shows in the system tr
 
 Each notification category has its own Android channel, so people can mute one kind in system settings. The app asks for notification permission the first time someone signs in, and `/account/notifications` turns push on or off for the phone.
 
+## App links
+
+Links to `music.toneflix.net` open in the app (Android App Links), so a payment provider sending the payer back reopens the app on the payment return page. Payments still pending when the app was closed are confirmed on the next launch. Another host can be set with `APP_LINK_HOST` at build time.
+
+Android only opens the links in the app once the site proves it owns the app. The web app serves `/.well-known/assetlinks.json` when the Worker build has the `VITE_ANDROID_CERT_FINGERPRINTS` repository variable: the SHA-256 fingerprints of the Play app signing key and the upload key, comma-separated. Both are under **Play Console > Test and release > App integrity > App signing**. After the next web deploy, check it at `https://music.toneflix.net/.well-known/assetlinks.json`, then reinstall the app (Android verifies the links on install).
+
 ## Publishing to Google Play
 
 `.github/workflows/android.yml` builds a signed app bundle (AAB) and uploads it to Google Play on every push to the `playstore` branch. Pull requests that touch the app only check that it builds.

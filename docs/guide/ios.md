@@ -44,6 +44,10 @@ Without the plist the app builds and runs, and push stays off: the app checks fo
 
 iOS gives an app about 30 more seconds after it leaves the screen, and the app uses them to finish uploads in progress. An upload that takes longer stops when iOS suspends the app. Ask people to keep the app open while big files upload.
 
+## Universal links
+
+`App.entitlements` lists `applinks:music.toneflix.net`, so the site's links open in the app. The App ID needs the **Associated Domains** capability in the Apple developer portal. The web app serves `/.well-known/apple-app-site-association` when the Worker build has the `VITE_IOS_TEAM_ID` repository variable (the 10-character Apple team id).
+
 ## Publishing to the App Store
 
 1. **Create the app** in App Store Connect with bundle id `com.toneflix.music.app`.
