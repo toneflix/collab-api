@@ -25,7 +25,7 @@ class FindUsers extends UserTool
         return [
             'search' => ['nullable|string|max:100', 'Text to look for'],
             'status' => [['nullable', Rule::in(UserDirectory::STATUSES)], 'One of ' . implode(', ', UserDirectory::STATUSES)],
-            'role' => ['nullable|string|max:50', 'A role name, like admin'],
+            'role' => ['nullable|string|max:50', 'A staff role name, like admin. Leave it out to search every account'],
             'sort' => [['nullable', Rule::in(UserDirectory::SORTS)], 'One of ' . implode(', ', UserDirectory::SORTS)],
             'page' => ['nullable|integer|min:1', 'Page of results, from 1'],
         ];

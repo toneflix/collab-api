@@ -61,11 +61,7 @@ class Reportables
                 $ids = $class::query()
                     ->withoutGlobalScopes()
                     ->select($model->qualifyColumn($model->getKeyName()))
-                    ->where(function (Builder $q) use ($name, $model, $search) {
-                        foreach (self::SEARCH_COLUMNS[$name] as $column) {
-                            $q->orWhereLike($model->qualifyColumn($column), "%{$search}%");
-                        }
-                    });
+                    ->where(fn(Builder $q) => $this->orWhereText($q, $name, $search));
 
                 $query->orWhere(fn(Builder $q) => $q
                     ->where('model_type', $model->getMorphClass())
@@ -101,14 +97,31 @@ class Reportables
         $model = $query->getModel();
 
         return $query->where(function (Builder $q) use ($type, $model, $search) {
-            foreach (self::SEARCH_COLUMNS[$type] as $column) {
-                $q->orWhereLike($model->qualifyColumn($column), "%{$search}%");
-            }
+            $this->orWhereText($q, $type, $search);
 
             if (ctype_digit($search)) {
                 $q->orWhere($model->getQualifiedKeyName(), (int) $search);
             }
         });
+    }
+
+    /**
+     * Match the search against a kind's text columns. Accounts use the
+     * account search, so full names match.
+     */
+    protected function orWhereText(Builder $query, string $type, string $search): void
+    {
+        if ($type === 'user') {
+            $query->orWhere(fn(Builder $q) => $q->search($search, true));
+
+            return;
+        }
+
+        $model = $query->getModel();
+
+        foreach (self::SEARCH_COLUMNS[$type] as $column) {
+            $query->orWhereLike($model->qualifyColumn($column), "%{$search}%");
+        }
     }
 
     /**

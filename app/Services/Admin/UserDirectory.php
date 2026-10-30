@@ -32,7 +32,9 @@ class UserDirectory
                 'verified' => $q->where('verified', true),
                 'staff' => $q->whereHas('roles', fn($q) => $q->where('name', '!=', 'user')),
             })
-            ->when($filters['role'] ?? null, fn(Builder $q, string $role) => $q->whereHas('roles', fn($q) => $q->where('name', $role)))
+            ->when($filters['role'] ?? null, fn(Builder $q, string $role) => $role === 'user'
+                ? $q->whereDoesntHave('roles', fn($q) => $q->where('name', '!=', 'user'))
+                : $q->whereHas('roles', fn($q) => $q->where('name', $role)))
             ->when($filters['permission'] ?? null, fn(Builder $q, string $permission) => $q->where(fn(Builder $q) => $q
                 ->whereHas('permissions', fn($q) => $q->where('name', $permission))
                 ->orWhereHas('roles.permissions', fn($q) => $q->where('name', $permission))))

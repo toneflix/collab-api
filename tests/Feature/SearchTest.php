@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Artist;
 use App\Models\User;
 use App\Services\Admin\UserDirectory;
+use App\Services\Moderation\Reportables;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 
@@ -53,6 +54,34 @@ class SearchTest extends TestCase
 
             $this->assertContains($user->id, $ids->all(), "Searching for \"$term\"");
         }
+    }
+
+    public function test_admin_directory_role_user_means_accounts_without_a_staff_role(): void
+    {
+        $user = User::factory()
+            ->create(['firstname' => 'Josephine', 'lastname' => 'Emmanuella']);
+        $staff = User::factory()
+            ->create(['firstname' => 'Josephine', 'lastname' => 'Emmanuella']);
+        $staff->syncRoles(['admin']);
+
+        $ids = app(UserDirectory::class)
+            ->query(['search' => 'Josephine Emmanuella', 'role' => 'user'])
+            ->pluck('id');
+
+        $this->assertContains($user->id, $ids->all());
+        $this->assertNotContains($staff->id, $ids->all());
+    }
+
+    public function test_content_search_finds_accounts_by_full_name(): void
+    {
+        $user = User::factory()
+            ->create(['firstname' => 'Josephine', 'lastname' => 'Emmanuella']);
+
+        $ids = app(Reportables::class)
+            ->search('user', 'Josephine Emmanuella')
+            ->pluck('id');
+
+        $this->assertContains($user->id, $ids->all());
     }
 
     public function test_artist_search_ignores_case(): void
