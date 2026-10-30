@@ -1,0 +1,48 @@
+<?php
+
+namespace App\Http\Resources;
+
+use App\Models\MusicVideo;
+use App\Models\MusicVideoShot;
+use App\Services\Ai\Video\VideoStorage;
+use Illuminate\Http\Request;
+use Toneflix\ResourceModifier\Services\Json\JsonResource;
+
+/**
+ * A music video with its status, cost basis and, when loaded, its shots.
+ *
+ * @mixin MusicVideo
+ */
+class MusicVideoResource extends JsonResource
+{
+    /**
+     * @return array<string, mixed>
+     */
+    public function toArray(Request $request): array
+    {
+        return [
+            'id' => $this->id,
+            'trackId' => $this->track_id,
+            'track' => $this->whenLoaded('track', fn() => [
+                'id' => $this->track->id,
+                'slug' => $this->track->slug,
+                'title' => $this->track->title,
+            ]),
+            'status' => $this->status,
+            'ratio' => $this->ratio,
+            'brief' => $this->brief,
+            'hasPortrait' => (bool) $this->portrait,
+            'duration' => $this->duration,
+            'minutes' => $this->startedMinutes(),
+            'billing' => $this->billing,
+            'videoUrl' => app(VideoStorage::class)->videoUrl($this->resource),
+            'error' => $this->error,
+            'shots' => $this->whenLoaded('shots', fn() => $this->shots
+                ->map(fn(MusicVideoShot $shot) => (new MusicVideoShotResource($shot))->resolve($request))
+                ->values()
+                ->all()),
+            'createdAt' => $this->created_at,
+            'finishedAt' => $this->finished_at,
+        ];
+    }
+}

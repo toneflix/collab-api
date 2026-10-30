@@ -34,6 +34,19 @@ enum VideoCandidate: string
     }
 
     /**
+     * The b-roll models admins can pick, with their model names.
+     *
+     * @return array<string, string>
+     */
+    public static function brollOptions(): array
+    {
+        return collect(self::cases())
+            ->reject(fn(self $candidate) => $candidate->sings())
+            ->mapWithKeys(fn(self $candidate) => [$candidate->value => $candidate->model()])
+            ->all();
+    }
+
+    /**
      * Whether the model lip-syncs a portrait to the vocal.
      */
     public function sings(): bool

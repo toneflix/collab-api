@@ -13,6 +13,7 @@ use App\Models\ProjectTrackVersion;
 use App\Models\User;
 use App\Services\Ai\Music\MusicVersions;
 use App\Services\Ai\Tasks\GenerateMusic;
+use App\Services\Ai\Tasks\HandlesFailure;
 use App\Services\Realtime\Realtime;
 use App\Services\Studio\TrackHistory;
 use Illuminate\Http\Client\RequestException;
@@ -62,7 +63,9 @@ class AiStudio
             $job->credits = $task->credits($input);
             $job->save();
 
-            $credits->spend($job->credits, $task->describe($input), $job);
+            if ($job->credits > 0) {
+                $credits->spend($job->credits, $task->describe($input), $job);
+            }
 
             return $job;
         });
@@ -251,6 +254,12 @@ class AiStudio
 
         if ($spend) {
             Credits::for($job->user)->refund($spend, 'Refund: ' . $job->task()->describe($job->input ?? []));
+        }
+
+        $task = $job->task();
+
+        if ($task instanceof HandlesFailure) {
+            $task->failed($job);
         }
 
         $this->announce($job);

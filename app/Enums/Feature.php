@@ -27,6 +27,8 @@ enum Feature: string
     case AI_CREDITS = 'ai_credits';
     case CONTENT_AGENT = 'content_agent';
     case EARN_STREAMS = 'earn_streams';
+    case VIDEO_MINUTES = 'video_minutes';
+    case VIDEO_OWN_PHOTOS = 'video_own_photos';
 
     public function title(): string
     {
@@ -46,6 +48,8 @@ enum Feature: string
             self::AI_CREDITS => 'AI credits',
             self::CONTENT_AGENT => 'AI Studio',
             self::EARN_STREAMS => 'Earn from streams',
+            self::VIDEO_MINUTES => 'Music video minutes',
+            self::VIDEO_OWN_PHOTOS => 'Music videos from your own photos',
         };
     }
 
@@ -67,6 +71,8 @@ enum Feature: string
             self::AI_CREDITS => 'Credits for AI tools each month. Bought credits come on top and never expire.',
             self::CONTENT_AGENT => 'Describe albums, tracks and touch-ups in plain words and let AI build them in your studio, paid with your AI credits.',
             self::EARN_STREAMS => 'Get a share of each month\'s stream pool for signed-in plays of your released tracks.',
+            self::VIDEO_MINUTES => 'Minutes of AI music video each month, used before your AI credits.',
+            self::VIDEO_OWN_PHOTOS => 'Upload a photo of yourself for the singing shots of your AI music videos.',
         };
     }
 
@@ -78,7 +84,7 @@ enum Feature: string
     {
         return match ($this) {
             self::MAX_PROJECTS, self::MAX_SONGS, self::MAX_COLLABORATORS, self::MAX_STEM_SIZE, self::MAX_STORAGE, self::HISTORY_DAYS => 'limit',
-            self::AI_CREDITS => 'credits',
+            self::AI_CREDITS, self::VIDEO_MINUTES => 'credits',
             default => 'toggle',
         };
     }
@@ -89,6 +95,7 @@ enum Feature: string
             self::MAX_STEM_SIZE, self::MAX_STORAGE => 'MB',
             self::HISTORY_DAYS => 'days',
             self::AI_CREDITS => 'credits',
+            self::VIDEO_MINUTES => 'minutes',
             default => null,
         };
     }
@@ -99,7 +106,7 @@ enum Feature: string
     public function fallback(): bool|int
     {
         return match ($this) {
-            self::DOWNLOADS, self::BADGE, self::AI_TOOLS, self::CONTENT_AGENT, self::EARN_STREAMS => false,
+            self::DOWNLOADS, self::BADGE, self::AI_TOOLS, self::CONTENT_AGENT, self::EARN_STREAMS, self::VIDEO_OWN_PHOTOS => false,
             self::SELL_RELEASES, self::SELL_STEMS, self::RECEIVE_TIPS => true,
             self::MAX_PROJECTS => 10,
             self::MAX_SONGS => 10,
@@ -107,7 +114,7 @@ enum Feature: string
             self::MAX_STEM_SIZE => 50,
             self::MAX_STORAGE => 200,
             self::HISTORY_DAYS => 30,
-            self::AI_CREDITS => 0,
+            self::AI_CREDITS, self::VIDEO_MINUTES => 0,
         };
     }
 
