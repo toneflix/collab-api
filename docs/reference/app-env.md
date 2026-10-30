@@ -13,6 +13,8 @@ The committed `.env` holds the defaults. Put your own values in `.env.local`, or
 | `VITE_PROD_API_BASE_URL` | | API root for `production`. |
 | `VITE_API_BASE_URL` | | Used when the matching base URL above is empty. |
 | `VITE_FRONT_URL` | the page's origin | The app's public address, for share links. |
+| `VITE_ANDROID_CERT_FINGERPRINTS` | | SHA-256 fingerprints of the Android signing keys, comma-separated. Serves `/.well-known/assetlinks.json` for App Links. |
+| `VITE_IOS_TEAM_ID` | | Apple team id. Serves `/.well-known/apple-app-site-association` for Universal Links. |
 | `VITE_DOCS_URL` | `https://toneflix-collab-docs.pages.dev/` | Setup docs linked from the admin menu. Empty hides the link. |
 | `VITE_DEBUG` | `true` | Log extra detail in the browser console. Use `false` in production. |
 | `VITE_LOG_LEVEL` | `error` | Lowest level that is logged. |

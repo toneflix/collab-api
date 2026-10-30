@@ -5,13 +5,16 @@ namespace App\Services\Payment;
 use App\Services\Settings\SettingsStore;
 
 /**
- * Which payout providers are on. Their keys come from `.env`.
+ * Which providers take payments and pay creators. Their keys come from `.env`.
  */
 class PayoutSettings extends SettingsStore
 {
     protected const CACHE_KEY = 'payouts::settings';
 
     public const FIELDS = [
+        'paystack_payments_enabled' => ['Paystack Payments', '1', 'Take payments with Paystack.'],
+        'flutterwave_payments_enabled' => ['Flutterwave Payments', '0', 'Take payments with Flutterwave.'],
+
         'paystack_payouts_enabled' => ['Paystack Payouts', '1', 'Pay creators in the country of your Paystack account.'],
 
         'flutterwave_payouts_enabled' => ['Flutterwave Payouts', '0', 'Pay creators in other African countries through Flutterwave.'],
@@ -25,9 +28,11 @@ class PayoutSettings extends SettingsStore
     public const KEYS = [
         'paystack' => [
             'PAYSTACK_SECRET_KEY' => ['Paystack Secret Key', 'services.paystack.secret_key'],
+            'PAYSTACK_PUBLIC_KEY' => ['Paystack Public Key', 'services.paystack.public_key'],
         ],
         'flutterwave' => [
             'FLUTTERWAVE_SECRET_KEY' => ['Flutterwave Secret Key', 'services.flutterwave.secret_key'],
+            'FLUTTERWAVE_PUBLIC_KEY' => ['Flutterwave Public Key', 'services.flutterwave.public_key'],
             'FLUTTERWAVE_WEBHOOK_HASH' => ['Flutterwave Webhook Secret Hash', 'services.flutterwave.webhook_hash'],
         ],
         'stripe' => [
@@ -40,6 +45,11 @@ class PayoutSettings extends SettingsStore
     public static function enabled(string $provider): bool
     {
         return filter_var(static::get("{$provider}_payouts_enabled"), FILTER_VALIDATE_BOOL);
+    }
+
+    public static function paymentsEnabled(string $provider): bool
+    {
+        return filter_var(static::get("{$provider}_payments_enabled"), FILTER_VALIDATE_BOOL);
     }
 
     public static function stripeSecret(): ?string

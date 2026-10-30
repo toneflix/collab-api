@@ -9,11 +9,12 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Pays creators across Africa through Flutterwave transfers, to banks and
- * mobile money. Transfers are paid from the app currency's balance and
- * converted by Flutterwave.
+ * Takes payments through Flutterwave: its hosted checkout (Standard) on the web
+ * and its Inline popup in the app. Also pays creators across Africa through
+ * Flutterwave transfers, to banks and mobile money; transfers are paid from the
+ * app currency's balance and converted by Flutterwave.
  */
-class FlutterwaveGateway implements CollectsBankDetails, PayoutGateway
+class FlutterwaveGateway implements CollectsBankDetails, PaymentGateway, PayoutGateway
 {
     protected const API = 'https://api.flutterwave.com/v3';
 
@@ -48,6 +49,73 @@ class FlutterwaveGateway implements CollectsBankDetails, PayoutGateway
     public function key(): string
     {
         return 'flutterwave';
+    }
+
+    public function acceptsPayments(): bool
+    {
+        return filled(config('services.flutterwave.secret_key')) && filled(config('services.flutterwave.public_key'));
+    }
+
+    /**
+     * Inline payments start in the app's popup with the public key, so only
+     * Standard payments are created here.
+     */
+    public function initialize(PaymentRequest $request): array
+    {
+        if ($request->inline) {
+            return ['reference' => $request->reference, 'access_code' => null, 'authorization_url' => null];
+        }
+
+        $response = $this->send('payment', fn(PendingRequest $http) => $http->post('/payments', [
+            'tx_ref' => $request->reference,
+            'amount' => $request->amount,
+            'currency' => $request->currency,
+            'redirect_url' => $request->returnUrl,
+            'customer' => array_filter([
+                'email' => $request->email,
+                'name' => $request->name,
+            ]),
+            'customizations' => [
+                'title' => (string) config('app.name'),
+            ],
+            'meta' => $request->metadata,
+        ]));
+
+        return [
+            'reference' => $request->reference,
+            'access_code' => null,
+            'authorization_url' => $response->json('data.link'),
+        ];
+    }
+
+    public function verify(string $reference): array
+    {
+        $pending = fn(array $raw) => ['paid' => false, 'final' => false, 'amount' => 0, 'currency' => null, 'raw' => $raw];
+
+        try {
+            $response = $this
+                ->http()
+                ->get('/transactions/verify_by_reference', ['tx_ref' => $reference]);
+        } catch (ConnectionException|ValidationException $e) {
+            // Leave the payment pending so a later check or the webhook can settle it.
+            return $pending(['message' => $e->getMessage()]);
+        }
+
+        // Nothing paid yet under this reference, e.g. the popup was closed.
+        if ($response->failed()) {
+            return $pending(['message' => $this->message($response)]);
+        }
+
+        $data = (array) $response->json('data', []);
+        $status = strtolower((string) ($data['status'] ?? ''));
+
+        return [
+            'paid' => $status === 'successful' && ($data['tx_ref'] ?? $reference) === $reference,
+            'final' => in_array($status, ['successful', 'failed'], true),
+            'amount' => (float) ($data['amount'] ?? 0),
+            'currency' => isset($data['currency']) ? strtoupper((string) $data['currency']) : null,
+            'raw' => $data,
+        ];
     }
 
     public function countries(): array
@@ -204,9 +272,10 @@ class FlutterwaveGateway implements CollectsBankDetails, PayoutGateway
     }
 
     /**
-     * Whether a webhook came from Flutterwave: it sends back the secret hash set in its dashboard.
+     * Whether a webhook came from Flutterwave: it sends the secret hash set in
+     * its dashboard as the signature.
      */
-    public function validWebhook(?string $hash): bool
+    public function validWebhook(string $payload, ?string $hash): bool
     {
         $secret = (string) config('services.flutterwave.webhook_hash');
 

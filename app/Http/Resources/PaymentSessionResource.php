@@ -17,9 +17,13 @@ class PaymentSessionResource extends JsonResource
     {
         return [
             'reference' => $this->resource['transaction']->reference,
+            'provider' => $this->resource['transaction']->method,
             'amount' => $this->resource['transaction']->due,
+            'currency' => $this->resource['transaction']->currency,
+            'chargeAmount' => $this->resource['transaction']->charge_amount,
             'accessCode' => $this->resource['access_code'],
             'authorizationUrl' => $this->resource['authorization_url'],
+            'returnUrl' => $this->resource['return_url'],
         ];
     }
 }

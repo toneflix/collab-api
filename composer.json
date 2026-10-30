@@ -37,6 +37,7 @@
         "toneflix/kudisms-notification": "^2.0",
         "toneflix/laravel-fileable": "^3.1.1",
         "toneflix/laravel-resource-modifier": "^2.0",
+        "toneflix/money": "^1.0",
         "toneflix/paystack-php": "^1.0",
         "toneflix/social-interactions": "^2.0",
         "valorin/random": "^1.0"
@@ -97,5 +98,14 @@
         }
     },
     "minimum-stability": "stable",
-    "prefer-stable": true
+    "prefer-stable": true,
+    "repositories": [
+        {
+            "type": "path",
+            "url": "packages/money",
+            "options": {
+                "symlink": true
+            }
+        }
+    ]
 }

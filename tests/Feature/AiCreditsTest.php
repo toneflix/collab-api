@@ -12,6 +12,7 @@ use App\Services\Ai\AiSettings;
 use App\Services\Ai\Credits;
 use App\Services\Payment\Checkout;
 use App\Services\Payment\PaymentGateway;
+use App\Services\Payment\PaymentRequest;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\Sanctum;
@@ -31,16 +32,27 @@ class AiCreditsTest extends TestCase
         {
             public array $initialized = [];
 
-            public function initialize(string $email, float $amount, string $reference, array $metadata = []): array
+            public function key(): string
             {
-                $this->initialized[$reference] = $amount;
+                return 'paystack';
+            }
+
+            public function acceptsPayments(): bool
+            {
+                return true;
+            }
+
+            public function initialize(PaymentRequest $request): array
+            {
+                $reference = $request->reference;
+                $this->initialized[$reference] = $request->amount;
 
                 return ['reference' => $reference, 'access_code' => 'code', 'authorization_url' => 'https://checkout.test'];
             }
 
             public function verify(string $reference): array
             {
-                return ['final' => true, 'paid' => true, 'amount' => $this->initialized[$reference] ?? 0, 'currency' => 'USD', 'raw' => []];
+                return ['final' => true, 'paid' => true, 'amount' => $this->initialized[$reference] ?? 0, 'currency' => null, 'raw' => []];
             }
 
             public function validWebhook(string $payload, ?string $signature): bool

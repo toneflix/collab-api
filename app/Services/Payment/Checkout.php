@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Toneflix\Money\Money;
 use Valorin\Random\Random;
 
 /**
@@ -30,17 +31,19 @@ class Checkout
     public const PURPOSES = ['premium', 'release', 'stems', 'tip', 'credits'];
 
     public function __construct(
-        protected PaymentGateway $gateway,
+        protected PaymentGateways $gateways,
+        protected PaymentRegions $regions,
         protected Referrals $referrals = new Referrals,
     ) {}
 
     /**
-     * Create a pending transaction and start the payment with the gateway.
+     * Create a pending transaction and start the payment with the provider the
+     * payer chose, in their region's currency.
      *
-     * @param  array{id?: string|int|null, plan?: ?string, cycles?: int|string|null, amount?: float|int|string|null, message?: ?string, credits?: int|string|null}  $input
-     * @return array{transaction: Transaction, access_code: ?string, authorization_url: ?string}
+     * @param  array{id?: string|int|null, plan?: ?string, cycles?: int|string|null, amount?: float|int|string|null, message?: ?string, credits?: int|string|null, provider?: ?string, inline?: ?bool, return_path?: ?string}  $input
+     * @return array{transaction: Transaction, access_code: ?string, authorization_url: ?string, return_url: string}
      */
-    public function start(User $payer, string $purpose, array $input): array
+    public function start(User $payer, string $purpose, array $input, ?PaymentOptions $options = null): array
     {
         [$amount, $item, $recipient, $meta] = match ($purpose) {
             'release' => $this->forRelease($payer, $input['id'] ?? null),
@@ -51,25 +54,45 @@ class Checkout
             default => throw ValidationException::withMessages(['purpose' => 'Unknown payment type.']),
         };
 
+        $options ??= $this->regions->forUser($payer);
+        $provider = $options->provider($input['provider'] ?? null);
+
+        if (! $provider) {
+            throw ValidationException::withMessages(['provider' => 'Payments are not available right now.']);
+        }
+
         $reference = Providers::config('reference_prefix', 'TRX-') . Random::string(20, false, true, true, false);
+        $charge = $options->charge($amount);
+        $returnUrl = $this->returnUrl($reference);
 
         // Start with the gateway first so a failed start leaves no pending transaction behind.
-        $session = $this->gateway->initialize($payer->email, $amount, $reference, [
-            'purpose' => $purpose,
-            'user_id' => $payer->id,
-        ]);
+        $session = $this->gateways
+            ->get($provider)
+            ->initialize(new PaymentRequest(
+                email: $payer->email,
+                name: (string) $payer->fullname,
+                amount: $charge,
+                currency: $options->currency,
+                reference: $reference,
+                returnUrl: $returnUrl,
+                inline: (bool) ($input['inline'] ?? false),
+                metadata: ['purpose' => $purpose, 'user_id' => $payer->id],
+            ));
 
         $transaction = new Transaction([
             'reference' => $reference,
             'purpose' => $purpose,
-            'method' => 'paystack',
+            'method' => $provider,
             'status' => 'pending',
             'amount' => $amount,
             'discount' => 0,
             'fees' => 0,
             'due' => $amount,
+            'currency' => $options->currency,
+            'charge_amount' => $charge,
+            'exchange_rate' => $options->rate,
             'recipient_id' => $recipient?->id,
-            'meta' => $meta,
+            'meta' => [...$meta, 'return_path' => $input['return_path'] ?? null],
         ]);
         $transaction->user_id = $payer->id;
         $transaction
@@ -81,7 +104,17 @@ class Checkout
             'transaction' => $transaction,
             'access_code' => $session['access_code'] ?? null,
             'authorization_url' => $session['authorization_url'] ?? null,
+            'return_url' => $returnUrl,
         ];
+    }
+
+    /**
+     * The app page that confirms a payment when the provider sends the payer back.
+     * The app opens it too, through its app links.
+     */
+    public function returnUrl(string $reference): string
+    {
+        return rtrim((string) config('app.frontend_url'), '/') . '/payments/' . rawurlencode($reference);
     }
 
     /**
@@ -93,13 +126,15 @@ class Checkout
             return $transaction;
         }
 
-        $result = $this->gateway->verify($transaction->reference);
+        $result = $this->gateways
+            ->get($transaction->method ?: 'paystack')
+            ->verify($transaction->reference);
 
         if (! $result['paid'] && ! ($result['final'] ?? true)) {
             return $transaction;
         }
 
-        return $this->settle($transaction, $result['paid'], $result['amount'], $result['raw']);
+        return $this->settle($transaction, $result['paid'], $result['amount'], $result['raw'], $result['currency'] ?? null);
     }
 
     /**
@@ -107,9 +142,9 @@ class Checkout
      *
      * @param  array<string, mixed>  $raw
      */
-    public function settle(Transaction $transaction, bool $paid, float $amountPaid, array $raw = []): Transaction
+    public function settle(Transaction $transaction, bool $paid, float $amountPaid, array $raw = [], ?string $currency = null): Transaction
     {
-        return DB::transaction(function () use ($transaction, $paid, $amountPaid, $raw) {
+        return DB::transaction(function () use ($transaction, $paid, $amountPaid, $raw, $currency) {
             /** @var Transaction $locked */
             $locked = Transaction::whereKey($transaction->id)
                 ->lockForUpdate()
@@ -121,8 +156,11 @@ class Checkout
 
             $locked->webhook = $raw;
 
-            // Paying less than was due (e.g. a tampered amount) doesn't count.
-            if (! $paid || $amountPaid + 0.001 < $locked->due) {
+            $expected = $locked->charge_amount ?? $locked->due;
+            $wrongCurrency = $currency && $locked->currency && strtoupper($currency) !== strtoupper($locked->currency);
+
+            // Paying less than was charged, or in another currency (e.g. a tampered popup), doesn't count.
+            if (! $paid || $wrongCurrency || $amountPaid + 0.001 < $expected) {
                 $locked->status = 'rejected';
                 $locked->save();
 
@@ -240,7 +278,7 @@ class Checkout
         $min = (float) Providers::config('min_tip_amount', 100);
 
         if (! is_numeric($amount) || (float) $amount < $min) {
-            throw ValidationException::withMessages(['amount' => "The smallest tip is {$min}."]);
+            throw ValidationException::withMessages(['amount' => 'The smallest tip is ' . Money::formatAmount($min, (string) Providers::config('app_currency', 'NGN')) . '.']);
         }
 
         return [round((float) $amount, 2), $creator, $creator, ['message' => $message ? str($message)->limit(280)->toString() : null]];

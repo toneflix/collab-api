@@ -16,6 +16,7 @@ use App\Models\Transaction;
 use App\Models\User;
 use App\Services\Payment\Checkout;
 use App\Services\Payment\PaymentGateway;
+use App\Services\Payment\PaymentRequest;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
 use Laravel\Sanctum\Sanctum;
@@ -28,9 +29,24 @@ class FakeGateway implements PaymentGateway
 
     public array $initialized = [];
 
-    public function initialize(string $email, float $amount, string $reference, array $metadata = []): array
+
+    public array $currencies = [];
+
+    public function key(): string
     {
-        $this->initialized[$reference] = $amount;
+        return 'paystack';
+    }
+
+    public function acceptsPayments(): bool
+    {
+        return true;
+    }
+
+    public function initialize(PaymentRequest $request): array
+    {
+        $reference = $request->reference;
+        $this->initialized[$reference] = $request->amount;
+        $this->currencies[$reference] = $request->currency;
 
         return [
             'reference' => $reference,
@@ -43,7 +59,7 @@ class FakeGateway implements PaymentGateway
     {
         $result = $this->results[$reference] ?? ['paid' => true, 'amount' => $this->initialized[$reference] ?? 0];
 
-        return ['final' => true, ...$result, 'currency' => 'NGN', 'raw' => ['reference' => $reference]];
+        return ['final' => true, ...$result, 'currency' => $this->currencies[$reference] ?? null, 'raw' => ['reference' => $reference]];
     }
 
     public function validWebhook(string $payload, ?string $signature): bool
@@ -235,7 +251,8 @@ class CheckoutTest extends TestCase
 
         $this
             ->postJson("/api/payments/{$reference}/verify")
-            ->assertStatus(400);
+            ->assertAccepted()
+            ->assertJsonPath('data.status', 'pending');
 
         $this->assertSame('pending', Transaction::where('reference', $reference)->value('status'));
     }

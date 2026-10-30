@@ -51,8 +51,15 @@ return [
     ],
 
     'flutterwave' => [
+        'public_key' => env('FLUTTERWAVE_PUBLIC_KEY'),
         'secret_key' => env('FLUTTERWAVE_SECRET_KEY'),
         'webhook_hash' => env('FLUTTERWAVE_WEBHOOK_HASH'),
+    ],
+
+    // Live rates for charging in a payment region's currency: exchangerate-api or frankfurter
+    'exchange_rates' => [
+        'provider' => env('EXCHANGE_RATE_PROVIDER', 'exchangerate-api'),
+        'key' => env('EXCHANGERATE_API_KEY'),
     ],
 
     'stripe' => [

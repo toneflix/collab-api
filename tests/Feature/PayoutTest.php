@@ -788,6 +788,9 @@ class PayoutTest extends TestCase
     {
         $gateway = $this->createStub(PaymentGateway::class);
         $gateway
+            ->method('key')
+            ->willReturn('paystack');
+        $gateway
             ->method('validWebhook')
             ->willReturn(true);
 

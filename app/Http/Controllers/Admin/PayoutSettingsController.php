@@ -11,7 +11,7 @@ use Closure;
 use Illuminate\Http\Request;
 
 /**
- * Lets admins choose which providers pay creators. Their keys come from `.env`.
+ * Lets admins choose which providers take payments and pay creators. Their keys come from `.env`.
  */
 class PayoutSettingsController extends Controller
 {
@@ -38,6 +38,8 @@ class PayoutSettingsController extends Controller
     public function update(Request $request, Payouts $payouts)
     {
         $valid = $request->validate([
+            'paystack_payments_enabled' => ['nullable', 'boolean'],
+            'flutterwave_payments_enabled' => ['nullable', 'boolean'],
             'paystack_payouts_enabled' => ['nullable', 'boolean'],
             'flutterwave_payouts_enabled' => ['nullable', 'boolean'],
             'stripe_payouts_enabled' => ['nullable', 'boolean'],
@@ -54,7 +56,7 @@ class PayoutSettingsController extends Controller
 
         PayoutSettings::update($valid);
 
-        return $this->settings($payouts, 'Payout settings saved.', HttpStatus::ACCEPTED);
+        return $this->settings($payouts, 'Payment settings saved.', HttpStatus::ACCEPTED);
     }
 
     protected function settings(Payouts $payouts, string $message = 'OK', HttpStatus $status = HttpStatus::OK)
@@ -75,7 +77,7 @@ class PayoutSettingsController extends Controller
             'currency' => $payouts->currency(),
             'webhooks' => [
                 'paystack' => route('payments.webhook'),
-                'flutterwave' => route('payouts.webhook.flutterwave'),
+                'flutterwave' => route('payments.webhook.flutterwave'),
                 'stripe' => route('payouts.webhook.stripe'),
             ],
             'countries' => $countries,

@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\ContentAgentController;
 use App\Http\Controllers\Admin\ContentController;
 use App\Http\Controllers\Admin\GenreController;
 use App\Http\Controllers\Admin\ModerationController;
+use App\Http\Controllers\Admin\PaymentRegionController;
 use App\Http\Controllers\Admin\PayoutController;
 use App\Http\Controllers\Admin\PayoutSettingsController;
 use App\Http\Controllers\Admin\PlanController;
@@ -117,6 +118,10 @@ Route::middleware(['auth:sanctum'])
         Route::post('payouts/streams/settle', [StreamController::class, 'settle'])->middleware('throttle:10,1')->name('payouts.streams.settle');
         Route::get('payouts/stream-checks', [StreamCheckController::class, 'index'])->name('payouts.stream-checks.index');
         Route::put('payouts/stream-checks/{check}', [StreamCheckController::class, 'update'])->whereNumber('check')->name('payouts.stream-checks.update');
+        Route::apiResource('payments/regions', PaymentRegionController::class)
+            ->except(['show'])
+            ->parameters(['regions' => 'region'])
+            ->names('payments.regions');
         Route::get('payouts/settings', [PayoutSettingsController::class, 'show'])->name('payouts.settings.show');
         Route::put('payouts/settings', [PayoutSettingsController::class, 'update'])->name('payouts.settings.update');
         Route::post('payouts/{payout}/approve', [PayoutController::class, 'approve'])->name('payouts.approve');

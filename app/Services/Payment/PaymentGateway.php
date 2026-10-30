@@ -3,19 +3,28 @@
 namespace App\Services\Payment;
 
 /**
- * The small slice of a payment provider that checkout needs.
+ * The slice of a payment provider that checkout needs.
  * Amounts are in the main currency unit (e.g. naira), not kobo.
  */
 interface PaymentGateway
 {
     /**
+     * The provider's key, as stored in `transactions.method`.
+     */
+    public function key(): string;
+
+    /**
+     * Whether the keys this provider needs to take payments are set.
+     */
+    public function acceptsPayments(): bool;
+
+    /**
      * Start a payment and return what the client needs to complete it.
      * Throws a ValidationException when the payment can't be started.
      *
-     * @param  array<string, mixed>  $metadata
      * @return array{reference: string, access_code: ?string, authorization_url: ?string}
      */
-    public function initialize(string $email, float $amount, string $reference, array $metadata = []): array;
+    public function initialize(PaymentRequest $request): array;
 
     /**
      * Ask the provider what happened to a payment. `final` is false while the
