@@ -16,14 +16,12 @@ use App\Notifications\SaleNotification;
 use App\Services\Conversations\Conversations;
 use App\Services\Notifications\NotificationPreferences;
 use App\Services\Payment\Checkout;
-use App\Services\Payment\PaymentGateway;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\URL;
 use Laravel\Sanctum\Sanctum;
-use Mockery;
 use Tests\TestCase;
 
 class NotificationsTest extends TestCase
@@ -182,7 +180,7 @@ class NotificationsTest extends TestCase
             ->associate($this->owner);
         $transaction->save();
 
-        (new Checkout(Mockery::mock(PaymentGateway::class)))->settle($transaction, true, 1000);
+        app(Checkout::class)->settle($transaction, true, 1000);
 
         Notification::assertSentTo($this->owner, SaleNotification::class, function (SaleNotification $n) {
             $content = $n->content($this->owner);
@@ -213,7 +211,7 @@ class NotificationsTest extends TestCase
             ->associate($this->owner);
         $transaction->save();
 
-        (new Checkout(Mockery::mock(PaymentGateway::class)))->settle($transaction, false, 0);
+        app(Checkout::class)->settle($transaction, false, 0);
 
         Notification::assertNothingSent();
     }

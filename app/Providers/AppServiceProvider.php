@@ -21,6 +21,7 @@ use App\Services\Notifications\Fcm;
 use App\Services\Notifications\WebPush;
 use App\Services\Payment\FlutterwaveGateway;
 use App\Services\Payment\PaymentGateway;
+use App\Services\Payment\PaymentGateways;
 use App\Services\Payment\PayoutProviders;
 use App\Services\Payment\PaystackGateway;
 use App\Services\Payment\StripeConnectGateway;
@@ -46,6 +47,10 @@ class AppServiceProvider extends ServiceProvider
             PaymentGateway::class,
             PaystackGateway::class
         );
+
+        $this->app->bind(PaymentGateways::class, fn($app) => new PaymentGateways([
+            $app->make(PaymentGateway::class),
+        ]));
 
         $this->app->bind(ModeratorModel::class, fn($app) => $app->make(
             AiSettings::engine('ai_moderator_engine') === AiEngine::CLOUDFLARE ? CloudflareModeratorModel::class : ReplicateModeratorModel::class

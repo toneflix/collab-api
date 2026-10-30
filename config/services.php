@@ -55,6 +55,12 @@ return [
         'webhook_hash' => env('FLUTTERWAVE_WEBHOOK_HASH'),
     ],
 
+    // Live rates for charging in a payment region's currency: exchangerate-api or frankfurter
+    'exchange_rates' => [
+        'provider' => env('EXCHANGE_RATE_PROVIDER', 'exchangerate-api'),
+        'key' => env('EXCHANGERATE_API_KEY'),
+    ],
+
     'stripe' => [
         'secret_key' => env('STRIPE_SECRET_KEY'),
         // Used for Connect payouts instead of the secret key when set.

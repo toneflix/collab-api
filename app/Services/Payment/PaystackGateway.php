@@ -24,17 +24,28 @@ class PaystackGateway implements CollectsBankDetails, PaymentGateway, PayoutGate
         }
     }
 
-    public function initialize(string $email, float $amount, string $reference, array $metadata = []): array
+    public function key(): string
+    {
+        return 'paystack';
+    }
+
+    public function acceptsPayments(): bool
+    {
+        return str_starts_with($this->secret(), 'sk_') && filled(config('services.paystack.public_key'));
+    }
+
+    public function initialize(PaymentRequest $request): array
     {
         try {
             $response = $this
                 ->client()->transaction
                 ->initialize([
-                    'email' => $email,
-                    'amount' => (int) round($amount * 100), // kobo
-                    'reference' => $reference,
-                    'currency' => Providers::config('app_currency', 'NGN'),
-                    'metadata' => $metadata,
+                    'email' => $request->email,
+                    'amount' => (int) round($request->amount * 100), // kobo
+                    'reference' => $request->reference,
+                    'currency' => $request->currency,
+                    'callback_url' => $request->returnUrl,
+                    'metadata' => $request->metadata,
                 ]);
         } catch (ApiException $e) {
             throw ValidationException::withMessages(['payment' => $e->getMessage()]);
@@ -46,7 +57,7 @@ class PaystackGateway implements CollectsBankDetails, PaymentGateway, PayoutGate
         }
 
         return [
-            'reference' => $response->data->reference ?? $reference,
+            'reference' => $response->data->reference ?? $request->reference,
             'access_code' => $response->data->access_code ?? null,
             'authorization_url' => $response->data->authorization_url ?? null,
         ];
@@ -111,11 +122,6 @@ class PaystackGateway implements CollectsBankDetails, PaymentGateway, PayoutGate
      * Paystack only pays accounts in the country of the business, in its currency.
      */
     protected const COUNTRIES = ['NGN' => 'NG', 'GHS' => 'GH', 'KES' => 'KE', 'ZAR' => 'ZA'];
-
-    public function key(): string
-    {
-        return 'paystack';
-    }
 
     public function countries(): array
     {

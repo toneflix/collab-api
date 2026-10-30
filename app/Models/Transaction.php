@@ -31,6 +31,9 @@ class Transaction extends Model
         'amount',
         'fees',
         'due',
+        'currency',
+        'charge_amount',
+        'exchange_rate',
     ];
 
     /**
@@ -59,6 +62,8 @@ class Transaction extends Model
             'paid_at' => 'datetime',
             'recipient_share' => 'float',
             'discount' => 'float',
+            'charge_amount' => 'float',
+            'exchange_rate' => 'float',
         ];
     }
 

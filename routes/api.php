@@ -156,6 +156,8 @@ Route::get('files/download', FileDownloadController::class)
 Route::middleware(['auth:sanctum'])
     ->group(function () {
         // Payments for Premium, paid releases, stems and tips
+        Route::get('payments/options', [PaymentController::class, 'options'])
+            ->name('payments.options');
         Route::post('payments', [PaymentController::class, 'store'])->name('payments.store');
         Route::post('payments/{reference}/verify', [PaymentController::class, 'verify'])->name('payments.verify');
 

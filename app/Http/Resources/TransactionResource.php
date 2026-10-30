@@ -29,6 +29,10 @@ class TransactionResource extends JsonResource
             'purpose' => $this->purpose,
             'status' => $this->status,
             'amount' => $this->amount,
+            'currency' => $this->currency,
+            'chargeAmount' => $this->charge_amount,
+            'provider' => $this->method,
+            'returnPath' => $this->when((int) $viewer?->id === (int) $this->user_id, $this->meta['return_path'] ?? null),
             // Only the creator and admins see what the creator earned from it
             'earned' => $this->when($seesEarnings, $this->recipient_share),
             'message' => $this->meta['message'] ?? null,

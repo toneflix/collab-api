@@ -8,6 +8,7 @@ use App\Models\Transaction;
 use App\Models\User;
 use App\Services\Payment\Checkout;
 use App\Services\Payment\PaymentGateway;
+use App\Services\Payment\PaymentRequest;
 use App\Services\Payment\Payouts;
 use App\Services\Referrals\Referrals;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -30,16 +31,30 @@ class ReferralTest extends TestCase
         {
             public array $initialized = [];
 
-            public function initialize(string $email, float $amount, string $reference, array $metadata = []): array
+            public array $currencies = [];
+
+            public function key(): string
             {
-                $this->initialized[$reference] = $amount;
+                return 'paystack';
+            }
+
+            public function acceptsPayments(): bool
+            {
+                return true;
+            }
+
+            public function initialize(PaymentRequest $request): array
+            {
+                $reference = $request->reference;
+                $this->initialized[$reference] = $request->amount;
+                $this->currencies[$reference] = $request->currency;
 
                 return ['reference' => $reference, 'access_code' => 'code_' . $reference, 'authorization_url' => 'https://checkout.test/' . $reference];
             }
 
             public function verify(string $reference): array
             {
-                return ['final' => true, 'paid' => true, 'amount' => $this->initialized[$reference] ?? 0, 'currency' => 'NGN', 'raw' => []];
+                return ['final' => true, 'paid' => true, 'amount' => $this->initialized[$reference] ?? 0, 'currency' => $this->currencies[$reference] ?? null, 'raw' => []];
             }
 
             public function validWebhook(string $payload, ?string $signature): bool
