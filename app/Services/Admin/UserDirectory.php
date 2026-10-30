@@ -23,11 +23,8 @@ class UserDirectory
         return User::query()
             ->withoutGlobalScopes()
             ->when($filters['search'] ?? null, fn(Builder $q, string $search) => $q->where(fn(Builder $q) => $q
-                ->whereLike('username', "%{$search}%")
-                ->orWhereLike('email', "%{$search}%")
-                ->orWhereLike('firstname', "%{$search}%")
-                ->orWhereLike('lastname', "%{$search}%")
-                ->when(is_numeric($search), fn($q) => $q->orWhere('id', $search))))
+                ->search($search, true)
+                ->when(ctype_digit($search), fn($q) => $q->orWhere('id', (int) $search))))
             ->when($filters['status'] ?? null, fn(Builder $q, string $status) => match ($status) {
                 'active' => $q->suspended(false),
                 'suspended' => $q->suspended(),
