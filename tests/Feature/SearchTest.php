@@ -7,6 +7,8 @@ use App\Models\User;
 use App\Services\Admin\UserDirectory;
 use App\Services\Moderation\Reportables;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
 /**
@@ -62,6 +64,10 @@ class SearchTest extends TestCase
             ->create(['firstname' => 'Josephine', 'lastname' => 'Emmanuella']);
         $staff = User::factory()
             ->create(['firstname' => 'Josephine', 'lastname' => 'Emmanuella']);
+
+        app(PermissionRegistrar::class)
+            ->forgetCachedPermissions();
+        Role::findOrCreate('admin', 'web');
         $staff->syncRoles(['admin']);
 
         $ids = app(UserDirectory::class)
