@@ -54,12 +54,14 @@ class ReleaseFactory extends Factory
     }
 
     /**
-     * Configure the model factory.
+     * Have 1 to 10 random users stream the release, for sample data.
      */
-    public function configure(): static
+    public function streamed(): static
     {
         return $this->afterCreating(function (Release $model) {
-            User::inRandomOrder()->limit(rand(1, 10))
+            User::query()
+                ->inRandomOrder()
+                ->limit(rand(1, 10))
                 ->get()
                 ->each(fn(User $user) => $model->stream(rand(10, 320), $user));
         });
