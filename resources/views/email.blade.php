@@ -102,10 +102,10 @@
                                                     style="border-collapse:collapse;border-spacing:0px;">
                                                     <tbody>
                                                         <tr>
-                                                            <td style="width:100px;"> <img alt="Logo" height="auto"
-                                                                    src="{{ asset('logo.png') }}?v=2"
+                                                            <td style="width:180px;"> <img alt="{{ Providers::config('app_name') }}" height="auto"
+                                                                    src="{{ asset('email/logo.png') }}"
                                                                     style="border:0;display:block;outline:none;text-decoration:none;height:auto;width:100%;font-size:13px;"
-                                                                    width="100" /> </td>
+                                                                    width="180" /> </td>
                                                         </tr>
                                                     </tbody>
                                                 </table>
@@ -124,12 +124,12 @@
                                                     <tbody>
                                                         <tr>
                                                             <td style="width:600px;">
-                                                                <a href="https://app.5minutes.ng" target="_blank"
+                                                                <a href="{{ config('app.frontend_url') }}" target="_blank"
                                                                     style="color: #2e58ff; text-decoration: none;"> <img
-                                                                        alt="image description" height="200"
-                                                                        src="{{ $banner ?? asset('hero.jpg') }}?v=2"
-                                                                        style="border:0;display:block;outline:none;text-decoration:none;height:200px;width:100%;font-size:13px;object-fit:cover;"
-                                                                        width="auto" /> </a>
+                                                                        alt="{{ Providers::config('app_name') }}" height="auto"
+                                                                        src="{{ $banner ?? asset('email/banner.jpg') }}"
+                                                                        style="border:0;display:block;outline:none;text-decoration:none;height:auto;width:100%;font-size:13px;"
+                                                                        width="600" /> </a>
                                                             </td>
                                                         </tr>
                                                     </tbody>
@@ -258,12 +258,12 @@
                                                                                                             <tr>
                                                                                                                 <td
                                                                                                                     style="font-size:0;height:32px;vertical-align:middle;width:32px;">
-                                                                                                                    <a href="https://twitter.com/greyhobb"
+                                                                                                                    <a href="{{ config('app.socials.x') }}"
                                                                                                                         target="_blank"
                                                                                                                         style="color: #2e58ff; text-decoration: none;">
-                                                                                                                        <img alt="twitter-logo"
+                                                                                                                        <img alt="X"
                                                                                                                             height="32"
-                                                                                                                            src="https://codedmails.com/images/social/color/twitter-logo-transparent.png"
+                                                                                                                            src="{{ asset('email/x.png') }}"
                                                                                                                             style="border-radius:3px;display:block;"
                                                                                                                             width="32" />
                                                                                                                     </a>
@@ -294,12 +294,12 @@
                                                                                                             <tr>
                                                                                                                 <td
                                                                                                                     style="font-size:0;height:32px;vertical-align:middle;width:32px;">
-                                                                                                                    <a href="https://web.facebook.com/greysoftng"
+                                                                                                                    <a href="{{ config('app.socials.facebook') }}"
                                                                                                                         target="_blank"
                                                                                                                         style="color: #2e58ff; text-decoration: none;">
-                                                                                                                        <img alt="facebook-logo"
+                                                                                                                        <img alt="Facebook"
                                                                                                                             height="32"
-                                                                                                                            src="https://codedmails.com/images/social/color/facebook-logo-transparent.png"
+                                                                                                                            src="{{ asset('email/facebook.png') }}"
                                                                                                                             style="border-radius:3px;display:block;"
                                                                                                                             width="32" />
                                                                                                                     </a>
@@ -330,12 +330,12 @@
                                                                                                             <tr>
                                                                                                                 <td
                                                                                                                     style="font-size:0;height:32px;vertical-align:middle;width:32px;">
-                                                                                                                    <a href="https://www.instagram.com/greyhobb/"
+                                                                                                                    <a href="{{ config('app.socials.instagram') }}"
                                                                                                                         target="_blank"
                                                                                                                         style="color: #2e58ff; text-decoration: none;">
-                                                                                                                        <img alt="instagram-logo"
+                                                                                                                        <img alt="Instagram"
                                                                                                                             height="32"
-                                                                                                                            src="https://codedmails.com/images/social/color/insta-logo-transparent.png"
+                                                                                                                            src="{{ asset('email/instagram.png') }}"
                                                                                                                             style="border-radius:3px;display:block;"
                                                                                                                             width="32" />
                                                                                                                     </a>
@@ -366,12 +366,12 @@
                                                                                                             <tr>
                                                                                                                 <td
                                                                                                                     style="font-size:0;height:32px;vertical-align:middle;width:32px;">
-                                                                                                                    <a href="https://youtube.com/@greysoftTechnologies"
+                                                                                                                    <a href="{{ config('app.socials.youtube') }}"
                                                                                                                         target="_blank"
                                                                                                                         style="color: #2e58ff; text-decoration: none;">
-                                                                                                                        <img alt="youtube-logo"
+                                                                                                                        <img alt="YouTube"
                                                                                                                             height="32"
-                                                                                                                            src="https://codedmails.com/images/social/color/youtube-logo-transparent.png"
+                                                                                                                            src="{{ asset('email/youtube.png') }}"
                                                                                                                             style="border-radius:3px;display:block;"
                                                                                                                             width="32" />
                                                                                                                     </a>
@@ -390,7 +390,7 @@
                                                                                     style="font-size:0px;padding:10px 25px;word-break:break-word;">
                                                                                     <div
                                                                                         style="font-family:Lato,'Helvetica Neue ',Helvetica,Arial,sans-serif;font-size:18px;font-weight:400;line-height:24px;text-align:center;color:#434245;">
-                                                                                        You are recieving this message
+                                                                                        You are receiving this message
                                                                                         because you are registered on
                                                                                         {{ Providers::config('app_name') }}.
                                                                                     </div>
@@ -402,9 +402,7 @@
                                                                                     <div
                                                                                         style="font-family:Lato,'Helvetica Neue ',Helvetica,Arial,sans-serif;font-size:15px;font-weight:400;line-height:20px;text-align:center;color:#bfbfbf;">
                                                                                         ©{{ now()->format('Y') }}
-                                                                                        Greysoft Technologies
-                                                                                        Limited., All Rights
-                                                                                        Reserved.</div>
+                                                                                        {{ Providers::config('app_name') }}. All rights reserved.</div>
                                                                                 </td>
                                                                             </tr>
                                                                             <tr>
