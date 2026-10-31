@@ -48,14 +48,14 @@ Android only opens the links in the app once the site proves it owns the app. Th
 
 The release tag sets the version name people see and the Play track. A leading `v` is dropped.
 
-| Tag | Track |
+| Tag | Tracks |
 | --- | --- |
-| `1.1.1-alpha` (or `1.1.1-alpha.2`) | alpha |
-| `1.1.1-beta` (or `1.1.1-beta.2`) | beta |
-| `1.1.1` | production |
+| `1.1.1-alpha` (or `1.1.1-alpha.2`) | alpha, beta, qa |
+| `1.1.1-beta` (or `1.1.1-beta.2`) | beta, qa |
+| `1.1.1` | production, alpha, beta, qa |
 | `1.1.1` marked *Set as a pre-release*, or any other suffix like `1.1.1-rc1` | internal |
 
-The alpha and beta suffixes pick their track even when the release is marked as a pre-release. A tag that is not a version fails the run before anything is built. After the upload, the workflow commits the version and build number to the branch the release was cut from (the default branch when it was cut from a commit).
+The alpha and beta suffixes pick their tracks even when the release is marked as a pre-release. `qa` is a closed testing track, so create it in the Play Console (*Test and release > Testing > Closed testing*) before the first release. A tag that is not a version fails the run before anything is built. After the upload, the workflow commits the version and build number to the branch the release was cut from (the default branch when it was cut from a commit).
 
 To build without publishing, start the workflow by hand from the Actions tab (*Android > Run workflow*) and leave **deploy** unticked. The run keeps the signed bundle and APK as an artifact for 30 days; the APK installs directly on a phone. Tick **deploy** to also upload the bundle to Google Play.
 
