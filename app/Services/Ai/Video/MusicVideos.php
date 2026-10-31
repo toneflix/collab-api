@@ -6,6 +6,7 @@ use App\Enums\Feature;
 use App\Models\AiJob;
 use App\Models\Artist;
 use App\Models\MusicVideo;
+use App\Models\MusicVideoCharacter;
 use App\Models\MusicVideoShot;
 use App\Models\Track;
 use App\Models\User;
@@ -14,6 +15,7 @@ use App\Services\Ai\AiStudio;
 use App\Services\Audio\TrackAudio;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Throwable;
 use Toneflix\LaravelFileable\Media;
@@ -35,12 +37,22 @@ class MusicVideos
      * Start a video for the track and draw its storyboard. A photo is only
      * taken from plans that allow the owner's own photos.
      *
+     * Character sheets the creator gives are used as they are and none are
+     * drawn for the video.
+     *
      * @param  array{ratio?: string, brief?: ?string}  $options
+     * @param  list<array{name: string, description?: ?string, singer?: bool, sheet: UploadedFile}>  $characters
      */
-    public function create(User $user, Track $track, array $options, ?UploadedFile $photo = null): MusicVideo
+    public function create(User $user, Track $track, array $options, ?UploadedFile $photo = null, array $characters = []): MusicVideo
     {
-        if ($photo && ! $user->feature(Feature::VIDEO_OWN_PHOTOS)) {
-            throw ValidationException::withMessages(['photo' => 'Your plan doesn\'t include music videos from your own photos.']);
+        if (($photo || $characters) && ! $user->feature(Feature::VIDEO_OWN_PHOTOS)) {
+            throw ValidationException::withMessages([
+                $photo ? 'photo' : 'characters' => 'Your plan doesn\'t include music videos from your own images.',
+            ]);
+        }
+
+        if ($characters && count(array_filter($characters, fn(array $character) => ! empty($character['singer']))) !== 1) {
+            throw ValidationException::withMessages(['characters' => 'Mark which character sheet is the singer.']);
         }
 
         $duration = (float) ($track->duration ?: $this->audio->measure($track));
@@ -63,7 +75,11 @@ class MusicVideos
             ]);
 
         try {
-            $this->keepPortrait($video, $user, $track, $photo);
+            if ($characters) {
+                $this->keepCharacters($video, $characters);
+            } else {
+                $this->keepPortrait($video, $user, $track, $photo);
+            }
 
             $this->studio->start($user, null, 'video_storyboard', [
                 'music_video_id' => $video->id,
@@ -78,6 +94,44 @@ class MusicVideos
         }
 
         return $video;
+    }
+
+    /**
+     * Store the creator's own character sheets, the singer keyed as such.
+     *
+     * @param  list<array{name: string, description?: ?string, singer?: bool, sheet: UploadedFile}>  $characters
+     */
+    protected function keepCharacters(MusicVideo $video, array $characters): void
+    {
+        $keys = [];
+
+        foreach ($characters as $character) {
+            $singer = ! empty($character['singer']);
+            $base = $singer
+                ? MusicVideoCharacter::SINGER
+                : (Str::slug($character['name'], '_') ?: 'character');
+            $base = Str::limit($base, 36, '');
+            $key = $base;
+
+            for ($i = 2; in_array($key, $keys, true) || (! $singer && $key === MusicVideoCharacter::SINGER); $i++) {
+                $key = "{$base}_{$i}";
+            }
+
+            $keys[] = $key;
+            $sheet = $character['sheet'];
+            $file = $this->storage->put($video, (string) $sheet->getRealPath(), "character-{$key}", $sheet->extension() ?: 'jpg');
+
+            $video
+                ->characters()
+                ->create([
+                    'key' => $key,
+                    'name' => $character['name'],
+                    'description' => $character['description'] ?? '',
+                    'singer' => $singer,
+                    'sheet' => $file,
+                    'provided' => true,
+                ]);
+        }
     }
 
     /**

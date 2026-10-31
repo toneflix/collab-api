@@ -233,6 +233,62 @@ class AiMusicVideoTest extends TestCase
             ->assertJsonPath('data.shots.2.characters', []);
     }
 
+    public function test_creators_can_bring_their_own_character_sheets(): void
+    {
+        Sanctum::actingAs($this->owner);
+
+        $sheets = fn() => [
+            ['name' => 'Ada', 'singer' => true, 'sheet' => UploadedFile::fake()->image('ada.jpg', 1280, 720)],
+            ['name' => 'The driver', 'description' => 'Grey beard, flat cap', 'sheet' => UploadedFile::fake()->image('driver.jpg', 1280, 720)],
+        ];
+
+        $this->post("/api/creator/tracks/{$this->track->slug}/videos", ['characters' => $sheets(), 'consent' => '1'], ['Accept' => 'application/json'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('characters');
+
+        $artist = $this->subscriber([
+            Feature::AI_TOOLS->value => true,
+            Feature::AI_CREDITS->value => 1000,
+            Feature::VIDEO_OWN_PHOTOS->value => true,
+        ]);
+        $track = $this->track($artist);
+
+        Sanctum::actingAs($artist);
+
+        $this->post("/api/creator/tracks/{$track->slug}/videos", ['characters' => $sheets()], ['Accept' => 'application/json'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('consent');
+
+        $this->post("/api/creator/tracks/{$track->slug}/videos", [
+            'characters' => [['name' => 'Ada', 'sheet' => UploadedFile::fake()->image('ada.jpg', 1280, 720)]],
+            'consent' => '1',
+        ], ['Accept' => 'application/json'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('characters');
+
+        $id = $this->post("/api/creator/tracks/{$track->slug}/videos", ['characters' => $sheets(), 'consent' => '1'], ['Accept' => 'application/json'])
+            ->assertCreated()
+            ->assertJsonPath('data.status', MusicVideo::STORYBOARD)
+            ->assertJsonPath('data.characters.0.key', 'singer')
+            ->assertJsonPath('data.characters.0.name', 'Ada')
+            ->assertJsonPath('data.characters.0.provided', true)
+            ->assertJsonPath('data.characters.1.key', 'the_driver')
+            ->assertJsonCount(2, 'data.characters')
+            ->json('data.id');
+
+        $this->assertSame(['singer', 'the_driver'], MusicVideoCharacter::query()
+            ->where('music_video_id', $id)
+            ->orderByDesc('singer')
+            ->pluck('key')
+            ->all());
+
+        Http::assertNotSent(fn(Request $request) => str_ends_with($request->url(), '/seedream-4/predictions')
+            && str_contains($request['input']['prompt'], 'Character reference sheet'));
+        Http::assertSent(fn(Request $request) => str_ends_with($request->url(), '/seedream-4/predictions')
+            && str_contains($request['input']['prompt'], 'The singer on a rooftop')
+            && str_contains($request['input']['prompt'], 'Ada is the person on reference sheet 1'));
+    }
+
     public function test_rendering_lip_syncs_singing_shots_and_cuts_the_video_over_the_song(): void
     {
         Sanctum::actingAs($this->owner);

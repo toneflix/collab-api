@@ -66,14 +66,24 @@ class MusicVideoController extends Controller
         $valid = $request->validate([
             'ratio' => ['nullable', 'string', Rule::in(MusicVideo::RATIOS)],
             'brief' => ['nullable', 'string', 'max:1000'],
-            'photo' => ['nullable', 'image', 'max:10240', 'dimensions:min_width=512,min_height=512'],
-            'consent' => ['exclude_without:photo', 'required', 'accepted'],
+            'photo' => ['nullable', 'prohibits:characters', 'image', 'max:10240', 'dimensions:min_width=512,min_height=512'],
+            'characters' => ['nullable', 'array', 'max:' . MusicVideoCharacter::MAX],
+            'characters.*.name' => ['required', 'string', 'max:80'],
+            'characters.*.description' => ['nullable', 'string', 'max:600'],
+            'characters.*.singer' => ['nullable', 'boolean'],
+            'characters.*.sheet' => ['required', 'image', 'max:10240', 'dimensions:min_width=512,min_height=512'],
+            'consent' => [Rule::excludeIf(! $request->hasFile('photo') && ! $request->filled('characters')), 'required', 'accepted'],
         ], [
-            'consent.required' => 'Confirm the photo is of you, or that you have the right to use it.',
-            'consent.accepted' => 'Confirm the photo is of you, or that you have the right to use it.',
+            'consent.required' => 'Confirm the images are of you, or that you have the right to use them.',
+            'consent.accepted' => 'Confirm the images are of you, or that you have the right to use them.',
         ]);
 
-        $video = $videos->create($request->user(), $track, $valid, $request->file('photo'));
+        $photo = $request->file('photo');
+        $characters = collect($valid['characters'] ?? [])
+            ->map(fn(array $character, int $i) => [...$character, 'sheet' => $request->file("characters.{$i}.sheet")])
+            ->values()
+            ->all();
+        $video = $videos->create($request->user(), $track, $valid, $photo, $characters);
 
         $video
             ->refresh()

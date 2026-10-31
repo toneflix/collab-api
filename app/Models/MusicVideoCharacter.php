@@ -24,12 +24,14 @@ class MusicVideoCharacter extends Model
         'description',
         'singer',
         'sheet',
+        'provided',
     ];
 
     protected function casts(): array
     {
         return [
             'singer' => 'boolean',
+            'provided' => 'boolean',
         ];
     }
 
