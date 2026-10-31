@@ -21,7 +21,7 @@ return [
     | The message body is made up of lines, each line
     | represents a new line in the message sent, inline html is also supported
     | If a line is required to be a button it should be an array in the
-    | following format: ['link' => 'https://tech4all.greysoft.ng/login', 'title' => 'Get Started', 'color' => '#fff']
+    | following format: ['link' => 'https://example.com/login', 'title' => 'Get Started', 'color' => '#fff']
     | the color property is optional.
     |
     */

@@ -66,6 +66,14 @@ return [
 
     'frontend_url' => env('FRONTEND_URL', 'https://collab.toneflix.ng'),
 
+    // Social profiles linked in email footers.
+    'socials' => [
+        'x' => 'https://x.com/toneflixx',
+        'instagram' => 'https://www.instagram.com/toneflix',
+        'youtube' => 'https://www.youtube.com/@toneflixhq',
+        'facebook' => 'https://www.facebook.com/toneflixmusic',
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Application Timezone
