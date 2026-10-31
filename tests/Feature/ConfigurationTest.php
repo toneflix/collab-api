@@ -3,12 +3,15 @@
 namespace Tests\Feature;
 
 use App\Helpers\Providers;
+use App\Mail\TestMail;
 use App\Models\Configuration;
 use App\Models\User;
 use App\Services\Account\Deactivation;
+use Illuminate\Support\Facades\Mail;
 use Laravel\Sanctum\Sanctum;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\PermissionRegistrar;
+use Symfony\Component\Mailer\Exception\TransportException;
 use Tests\TestCase;
 
 class ConfigurationTest extends TestCase
@@ -139,5 +142,52 @@ class ConfigurationTest extends TestCase
         $this->putJson('/api/admin/configuration', ['account_deletion_days' => 0])
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['account_deletion_days']);
+    }
+
+    public function test_admins_send_a_test_email(): void
+    {
+        Mail::fake();
+
+        $this->actingAsFresh(User::factory()->create());
+        $this
+            ->postJson('/api/admin/configuration/test-mail', ['email' => 'ops@example.com'])
+            ->assertForbidden();
+
+        $this->actingAsFresh($this->admin());
+        $this
+            ->postJson('/api/admin/configuration/test-mail', ['email' => 'not-an-email'])
+            ->assertUnprocessable();
+
+        $this
+            ->postJson('/api/admin/configuration/test-mail', ['email' => 'ops@example.com'])
+            ->assertOk()
+            ->assertJsonPath('data.email', 'ops@example.com')
+            ->assertJsonPath('message', 'Test email sent to ops@example.com.');
+
+        Mail::assertSent(TestMail::class, fn(TestMail $mail) => $mail->hasTo('ops@example.com'));
+    }
+
+    public function test_a_failed_test_email_shows_the_mailer_error(): void
+    {
+        Mail::shouldReceive('to->send')
+            ->andThrow(new TransportException('Sender is not verified'));
+
+        $this->actingAsFresh($this->admin());
+        $this
+            ->postJson('/api/admin/configuration/test-mail', ['email' => 'ops@example.com'])
+            ->assertStatus(502)
+            ->assertJsonPath('message', 'The test email could not be sent: Sender is not verified');
+    }
+
+    public function test_the_configuration_shows_the_mailer(): void
+    {
+        config(['mail.default' => 'sendpulse', 'mail.from.address' => 'hello@toneflix.net']);
+
+        $this->actingAsFresh($this->admin());
+        $this
+            ->getJson('/api/admin/configuration')
+            ->assertOk()
+            ->assertJsonPath('data.mail.mailer', 'sendpulse')
+            ->assertJsonPath('data.mail.from', 'hello@toneflix.net');
     }
 }

@@ -55,6 +55,7 @@ Route::middleware(['auth:sanctum'])
         // General app settings
         Route::get('configuration', [ConfigurationController::class, 'show'])->name('configuration.show');
         Route::put('configuration', [ConfigurationController::class, 'update'])->name('configuration.update');
+        Route::post('configuration/test-mail', [ConfigurationController::class, 'testMail'])->middleware('throttle:6,1')->name('configuration.test-mail');
 
         // Layout, banner and text of the auth pages
         Route::get('auth-pages', [AuthPagesController::class, 'show'])
