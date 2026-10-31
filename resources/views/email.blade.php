@@ -112,7 +112,7 @@
                                             </td>
                                         </tr>
                                         <tr>
-                                            <td style="font-size:0px;padding:10px 25px 0;word-break:break-word;">
+                                            <td style="font-size:0px;padding:10px 0 0;word-break:break-word;">
                                                 <div style="border-top:1px solid #ececec;height:0;line-height:0;font-size:0;">&nbsp;</div>
                                             </td>
                                         </tr>
