@@ -82,7 +82,16 @@ node .github/scripts/release-notes.mjs whatsnew --skip-prereleases
    ```bash
    keytool -genkeypair -v -keystore upload.keystore -alias upload \
      -keyalg RSA -keysize 2048 -validity 10000
-   base64 -w0 upload.keystore   # the value for ANDROID_KEYSTORE_BASE64
+   ```
+
+   `ANDROID_KEYSTORE_BASE64` holds the keystore (`.keystore` or `.jks`) as one line of base64. Replace `upload.keystore` with the path to your keystore:
+
+   ```bash
+   # macOS: copies the value to the clipboard
+   base64 -i upload.keystore | pbcopy
+
+   # Linux
+   base64 -w0 upload.keystore
    ```
 
 2. **Create the app in the Play Console** with package name `com.toneflix.music.app`, turn on Play App Signing, and upload the first bundle by hand (Google Play doesn't accept API uploads for an app that has never had a release). A manual run without deploy gives you that first bundle.
