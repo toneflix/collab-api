@@ -9,6 +9,8 @@ use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
+use League\Flysystem\Local\LocalFilesystemAdapter;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
@@ -120,13 +122,22 @@ class VideoStorage
         );
     }
 
-    public function stream(?string $file, string $type, ?string $download = null): StreamedResponse
+    /**
+     * Send a stored file. Files on a local disk go out with byte range
+     * support, so players can seek in them.
+     */
+    public function stream(?string $file, string $type, ?string $download = null): StreamedResponse|BinaryFileResponse
     {
-        abort_unless($file && $this->disk()->exists($file), HttpStatus::NOT_FOUND->value, 'That file is gone.');
+        $disk = $this->disk();
+        $headers = ['Content-Type' => $type, 'Cache-Control' => 'private, max-age=3600'];
 
-        return $this
-            ->disk()
-            ->response($file, $download, ['Content-Type' => $type, 'Cache-Control' => 'private, max-age=3600']);
+        abort_unless($file && $disk->exists($file), HttpStatus::NOT_FOUND->value, 'That file is gone.');
+
+        if (! $download && $disk->getAdapter() instanceof LocalFilesystemAdapter) {
+            return response()->file($disk->path($file), $headers);
+        }
+
+        return $disk->response($file, $download, $headers);
     }
 
     protected function disk(): FilesystemAdapter

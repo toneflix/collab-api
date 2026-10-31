@@ -194,14 +194,14 @@ class MusicVideos
                     $stale[] = $shot->clip;
                 }
 
-                $shot
-                    ->forceFill([
+                MusicVideoShot::query()
+                    ->whereKey($shot->id)
+                    ->update([
                         'position' => $i + 1,
                         'start' => $start,
                         'end' => $end,
                         'clip' => $moved ? null : $shot->clip,
-                    ])
-                    ->save();
+                    ]);
             }
         });
 

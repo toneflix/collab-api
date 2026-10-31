@@ -238,6 +238,15 @@ class AiMusicVideoTest extends TestCase
             ->assertJsonPath('data.shots.2.id', $ids[2])
             ->assertJsonPath('data.shots.2.rendered', true);
 
+        $this->assertSame(
+            [1, 2, 3, 4],
+            MusicVideoShot::query()
+                ->whereKey($order)
+                ->orderBy('position')
+                ->pluck('position')
+                ->all(),
+        );
+
         $this->putJson("/api/creator/videos/{$video['id']}/shots/order", ['shots' => [$ids[0], $ids[1]]])
             ->assertUnprocessable()
             ->assertJsonValidationErrors('shots');
