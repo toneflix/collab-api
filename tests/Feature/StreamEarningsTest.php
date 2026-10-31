@@ -303,4 +303,18 @@ class StreamEarningsTest extends TestCase
         $this->artisan('earnings:settle-streams')->assertSuccessful();
         $this->assertSame(1, StreamPeriod::query()->count());
     }
+
+    public function test_the_month_before_is_settled_on_the_last_day_of_a_long_month(): void
+    {
+        $this->travelTo(Carbon::create(2026, 10, 31, 12));
+
+        $admin = User::factory()
+            ->create();
+        $admin->givePermissionTo(Permission::findOrCreate('manage-payouts'));
+        Sanctum::actingAs($admin);
+
+        $this->postJson('/api/admin/payouts/streams/settle', ['month' => '2026-09'])
+            ->assertAccepted()
+            ->assertJsonPath('data.month', '2026-09');
+    }
 }
