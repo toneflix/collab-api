@@ -14,6 +14,7 @@ use App\Services\Assistant\Ai\ReplicateAssistantModel;
 use App\Services\Composer\Ai\CloudflareLyricModel;
 use App\Services\Composer\Ai\LyricModel;
 use App\Services\Composer\Ai\ReplicateLyricModel;
+use App\Services\Mail\SendPulseTransport;
 use App\Services\Moderation\Ai\CloudflareModeratorModel;
 use App\Services\Moderation\Ai\ModeratorModel;
 use App\Services\Moderation\Ai\ReplicateModeratorModel;
@@ -26,7 +27,9 @@ use App\Services\Payment\PayoutProviders;
 use App\Services\Payment\PaystackGateway;
 use App\Services\Payment\StripeConnectGateway;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Client\Factory as HttpFactory;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
@@ -108,5 +111,14 @@ class AppServiceProvider extends ServiceProvider
         Providers::rateLimitCodeRequests();
 
         Ai::extend('replicate', fn($app, array $config) => new ReplicateProvider($config, $app['events']));
+
+        Mail::extend('sendpulse', fn(array $config) => new SendPulseTransport(
+            $this->app->make(HttpFactory::class),
+            $this->app->make('cache.store'),
+            (string) config('services.sendpulse.id'),
+            (string) config('services.sendpulse.secret'),
+            config('services.sendpulse.url'),
+            (int) ($config['timeout'] ?? 30),
+        ));
     }
 }

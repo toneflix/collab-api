@@ -18,6 +18,12 @@ return [
         'token' => env('POSTMARK_TOKEN'),
     ],
 
+    'sendpulse' => [
+        'id' => env('SENDPULSE_API_ID'),
+        'secret' => env('SENDPULSE_API_SECRET'),
+        'url' => env('SENDPULSE_API_URL', 'https://api.sendpulse.com'),
+    ],
+
     'ses' => [
         'key' => env('AWS_ACCESS_KEY_ID'),
         'secret' => env('AWS_SECRET_ACCESS_KEY'),
