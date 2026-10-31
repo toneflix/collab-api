@@ -15,7 +15,7 @@ class CheckStreams extends Command
     public function handle(StreamChecks $checks): int
     {
         $month = $this->option('month')
-            ? Carbon::createFromFormat('Y-m', (string) $this->option('month'))
+            ? Carbon::createFromFormat('!Y-m', (string) $this->option('month'))
             : now();
 
         $opened = $checks->scan($month->startOfMonth());
