@@ -18,6 +18,7 @@ use Illuminate\Http\Client\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Sleep;
 use Laravel\Sanctum\Sanctum;
 use Symfony\Component\Process\Process;
 use Tests\TestCase;
@@ -39,6 +40,12 @@ class AiMusicVideoTest extends TestCase
     protected array $temp = [];
 
     protected bool $clipsFail = false;
+
+    /** Stills whose prompt has this text get a 502 from Replicate */
+    protected ?string $stillsDown = null;
+
+    /** Replicate answers 502 to this many still requests first */
+    protected int $stillOutages = 0;
 
     protected function setUp(): void
     {
@@ -118,6 +125,58 @@ class AiMusicVideoTest extends TestCase
             && $request['input']['aspect_ratio'] === '16:9'
             && isset($request['input']['image_input'])
             && str_contains($request['input']['prompt'], 'reference image'));
+    }
+
+    public function test_a_brief_replicate_outage_is_waited_out(): void
+    {
+        Sleep::fake();
+        Sanctum::actingAs($this->owner);
+        $this->stillOutages = 2;
+
+        $this->postJson("/api/creator/tracks/{$this->track->slug}/videos")
+            ->assertCreated()
+            ->assertJsonPath('data.status', MusicVideo::STORYBOARD);
+    }
+
+    public function test_a_failed_storyboard_keeps_its_stills_and_retries_only_the_missing_ones(): void
+    {
+        Sleep::fake();
+        Sanctum::actingAs($this->owner);
+        $this->stillsDown = 'Cars streaking';
+
+        $id = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos")
+            ->assertJsonPath('data.status', MusicVideo::FAILED)
+            ->json('data.id');
+
+        $shots = MusicVideoShot::query()
+            ->where('music_video_id', $id)
+            ->orderBy('position')
+            ->get();
+        $kept = $shots
+            ->whereNotNull('keyframe')
+            ->pluck('keyframe', 'id');
+
+        $this->assertSame([1, 2, 4], $shots->whereNotNull('keyframe')->pluck('position')->values()->all());
+        $this->assertSame(1000, Credits::for($this->owner)->total());
+
+        $this->stillsDown = null;
+
+        $this->postJson("/api/creator/videos/{$id}/storyboard")
+            ->assertAccepted()
+            ->assertJsonPath('data.status', MusicVideo::STORYBOARD)
+            ->assertJsonCount(4, 'data.shots');
+
+        $shots = MusicVideoShot::query()
+            ->where('music_video_id', $id)
+            ->get()
+            ->keyBy('id');
+
+        $this->assertTrue($shots->every(fn(MusicVideoShot $shot) => (bool) $shot->keyframe));
+        $this->assertEquals($kept->all(), $shots->only($kept->keys()->all())->pluck('keyframe', 'id')->all());
+        $this->assertSame(995, Credits::for($this->owner)->total());
+
+        $this->postJson("/api/creator/videos/{$id}/storyboard")
+            ->assertUnprocessable();
     }
 
     public function test_rendering_lip_syncs_singing_shots_and_cuts_the_video_over_the_song(): void
@@ -403,6 +462,8 @@ class AiMusicVideoTest extends TestCase
 
             return match (true) {
                 $url === self::REPLICATE . '/files' => Http::response(['urls' => ['get' => self::REPLICATE . '/files/f1']], 201),
+                str_ends_with($url, '/seedream-4/predictions') && $this->stillOutages-- > 0 => Http::response('error code: 502', 502),
+                str_ends_with($url, '/seedream-4/predictions') && $this->stillsDown && str_contains($request['input']['prompt'], $this->stillsDown) => Http::response('error code: 502', 502),
                 str_ends_with($url, '/seedream-4/predictions') => Http::response(['id' => 's1', 'status' => 'succeeded', 'output' => [self::CDN . '/still.png']], 201),
                 $url === self::REPLICATE . '/predictions' => Http::response(['id' => 'd1', 'status' => 'succeeded', 'output' => ['vocals' => self::CDN . '/vocals.wav']], 201),
                 str_contains($url, '/prunaai/') && $this->clipsFail => Http::response(['id' => 'c1', 'status' => 'failed', 'error' => 'boom'], 201),

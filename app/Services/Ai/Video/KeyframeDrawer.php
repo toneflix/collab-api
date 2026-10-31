@@ -32,28 +32,33 @@ class KeyframeDrawer
     ) {}
 
     /**
-     * Draw and store a still for every shot. A portrait URL makes the singer
-     * look like the person in it.
+     * Draw and store a still for every shot that has none yet. A portrait URL
+     * makes the singer look like the person in it. Stills that come back are
+     * kept even when others fail, so a retry only draws the missing ones.
      *
      * @param  iterable<MusicVideoShot>  $shots
      */
     public function draw(MusicVideo $video, iterable $shots, ?string $portrait): void
     {
         $shots = collect($shots)->keyBy('id');
+        $missing = $shots->filter(fn(MusicVideoShot $shot) => blank($shot->keyframe));
         $reference = $portrait;
 
         if (! $reference) {
-            $first = $shots->firstWhere('kind', MusicVideoShot::PERFORMANCE);
+            $drawn = $shots->first(fn(MusicVideoShot $shot) => $shot->kind === MusicVideoShot::PERFORMANCE && filled($shot->keyframe));
+            $first = $drawn ?? $missing->firstWhere('kind', MusicVideoShot::PERFORMANCE);
+
+            if ($first && ! $drawn) {
+                $this->drawAll($video, collect([$first->id => $first]), null);
+                $missing->forget($first->id);
+            }
 
             if ($first) {
-                $this->drawAll($video, collect([$first->id => $first]), null);
-                $shots->forget($first->id);
-
                 $reference = $this->upload($first->refresh()->keyframe);
             }
         }
 
-        $this->drawAll($video, $shots, $reference);
+        $this->drawAll($video, $missing, $reference);
     }
 
     /**
@@ -61,19 +66,32 @@ class KeyframeDrawer
      */
     protected function drawAll(MusicVideo $video, $shots, ?string $reference): void
     {
+        if ($shots->isEmpty()) {
+            return;
+        }
+
         $runs = $shots
             ->map(fn(MusicVideoShot $shot) => [self::MODEL, $this->input($video, $shot, $reference)])
             ->all();
 
         $results = ReplicateBatch::make()
             ->run($runs, self::PARALLEL, self::TIMEOUT);
+        $error = null;
 
         foreach ($results as $id => $result) {
-            if ($result instanceof Throwable) {
-                throw $result;
-            }
+            try {
+                if ($result instanceof Throwable) {
+                    throw $result;
+                }
 
-            $this->keep($video, $shots[$id], $result['output']);
+                $this->keep($video, $shots[$id], $result['output']);
+            } catch (Throwable $e) {
+                $error ??= $e;
+            }
+        }
+
+        if ($error) {
+            throw $error;
         }
     }
 
