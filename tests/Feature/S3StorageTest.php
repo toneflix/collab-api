@@ -64,6 +64,8 @@ class S3StorageTest extends TestCase
 
         Storage::forgetDisk('s3');
 
+        Http::allowStrayRequests([rtrim($endpoint, '/') . '/*']);
+
         (new S3Client([
             'version' => 'latest',
             'region' => config('filesystems.disks.s3.region'),
