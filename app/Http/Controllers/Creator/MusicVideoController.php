@@ -8,10 +8,12 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\MusicVideoCollection;
 use App\Http\Resources\MusicVideoResource;
 use App\Http\Resources\MusicVideoShotResource;
+use App\Http\Resources\TrackVideoResource;
 use App\Models\MusicVideo;
 use App\Models\MusicVideoShot;
 use App\Models\Track;
 use App\Services\Ai\Video\MusicVideos;
+use App\Services\Ai\Video\ShotList;
 use App\Services\Ai\Video\VideoStorage;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -127,6 +129,54 @@ class MusicVideoController extends Controller
             ])
             ->response()
             ->setStatusCode(HttpStatus::ACCEPTED->value);
+    }
+
+    /**
+     * Put the storyboard's shots in a new order.
+     */
+    public function reorderShots(Request $request, MusicVideos $videos, MusicVideo $video)
+    {
+        $this->authorize('update', $video);
+
+        $valid = $request->validate([
+            'shots' => ['required', 'array', 'max:' . ShotList::MAX_SHOTS],
+            'shots.*' => ['integer', 'distinct'],
+        ]);
+
+        $video = $videos->reorderShots($video, $valid['shots']);
+
+        $video
+            ->refresh()
+            ->load(['track', 'shots']);
+
+        return (new MusicVideoResource($video))
+            ->additional([
+                'message' => 'Shots reordered.',
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
+    }
+
+    /**
+     * The track's finished music video for the player, or an empty object
+     * when it has none.
+     */
+    public function track(MusicVideos $videos, Track $track)
+    {
+        $video = $videos->forTrack($track);
+
+        $video?->load(['shots' => fn($query) => $query
+            ->orderBy('position')
+            ->limit(1)]);
+
+        return (new TrackVideoResource($video))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
     }
 
     /**

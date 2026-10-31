@@ -142,6 +142,95 @@ class MusicVideos
     }
 
     /**
+     * Put the shots in a new order. The time slots stay where they are, so
+     * each shot takes the slot of its new place, and a shot that moves to a
+     * different slot is rendered again.
+     *
+     * @param  list<int>  $order  every shot id of the video, in the new order
+     */
+    public function reorderShots(MusicVideo $video, array $order): MusicVideo
+    {
+        $this->ensureStatus($video, [MusicVideo::STORYBOARD]);
+
+        $shots = $video
+            ->shots()
+            ->orderBy('position')
+            ->get();
+        $ids = $shots
+            ->pluck('id')
+            ->sort()
+            ->values()
+            ->all();
+        $sent = collect($order)
+            ->map(fn($id) => (int) $id)
+            ->sort()
+            ->values()
+            ->all();
+
+        if ($ids !== $sent) {
+            throw ValidationException::withMessages(['shots' => 'Send every shot of this video once.']);
+        }
+
+        $slots = $shots
+            ->map(fn(MusicVideoShot $shot) => [$shot->start, $shot->end])
+            ->values()
+            ->all();
+        $byId = $shots->keyBy('id');
+        $stale = [];
+
+        DB::transaction(function () use ($video, $order, $slots, $byId, &$stale) {
+            // Positions are unique per video, so move them all out of the way first.
+            $video
+                ->shots()
+                ->increment('position', 1000);
+
+            foreach (array_values($order) as $i => $id) {
+                /** @var MusicVideoShot $shot */
+                $shot = $byId[(int) $id];
+                [$start, $end] = $slots[$i];
+                $moved = (float) $shot->start !== (float) $start || (float) $shot->end !== (float) $end;
+
+                if ($moved && $shot->clip) {
+                    $stale[] = $shot->clip;
+                }
+
+                $shot
+                    ->forceFill([
+                        'position' => $i + 1,
+                        'start' => $start,
+                        'end' => $end,
+                        'clip' => $moved ? null : $shot->clip,
+                    ])
+                    ->save();
+            }
+        });
+
+        array_map(fn(string $file) => $this->storage->delete($file), $stale);
+
+        return $video;
+    }
+
+    /**
+     * The newest finished video the track's owner made for it, if any.
+     */
+    public function forTrack(Track $track): ?MusicVideo
+    {
+        $owner = $track->release?->user_id;
+
+        if (! $owner) {
+            return null;
+        }
+
+        return MusicVideo::query()
+            ->where('track_id', $track->id)
+            ->where('user_id', $owner)
+            ->where('status', MusicVideo::READY)
+            ->whereNotNull('file')
+            ->latest('id')
+            ->first();
+    }
+
+    /**
      * Start rendering the storyboard into the finished video.
      */
     public function render(MusicVideo $video): MusicVideo

@@ -83,6 +83,7 @@ Route::middleware(['auth:sanctum'])
         Route::post('tracks/{track}/videos', [MusicVideoController::class, 'store'])->middleware('throttle:10,1')->name('tracks.videos.store');
         Route::get('videos/{video}', [MusicVideoController::class, 'show'])->name('videos.show');
         Route::delete('videos/{video}', [MusicVideoController::class, 'destroy'])->name('videos.destroy');
+        Route::put('videos/{video}/shots/order', [MusicVideoController::class, 'reorderShots'])->name('videos.shots.order');
         Route::put('videos/{video}/shots/{shot}', [MusicVideoController::class, 'updateShot'])->name('videos.shots.update');
         Route::post('videos/{video}/render', [MusicVideoController::class, 'render'])->middleware('throttle:10,1')->name('videos.render');
         Route::put('tracks/{track}/lyrics', [LyricsController::class, 'updateTrack'])->name('tracks.lyrics.update');

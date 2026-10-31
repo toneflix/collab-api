@@ -77,6 +77,8 @@ Route::get('tracks/{track}/lyrics', [LyricsController::class, 'show'])
     ->name('tracks.lyrics');
 Route::get('tracks/{track}/credits', [TrackCreditsController::class, 'show'])
     ->name('tracks.credits');
+Route::get('tracks/{track}/video', [MusicVideoController::class, 'track'])
+    ->name('tracks.video');
 Route::post('tracks/{track}/plays', [TrackController::class, 'play'])
     ->middleware(['auth:sanctum', 'throttle:120,1'])
     ->name('tracks.plays');

@@ -214,6 +214,53 @@ class AiMusicVideoTest extends TestCase
             ->assertJsonPath('data.prompt', 'A quiet harbour at dawn');
     }
 
+    public function test_shots_can_be_reordered_into_the_same_time_slots(): void
+    {
+        Sanctum::actingAs($this->owner);
+
+        $video = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos")
+            ->json('data');
+        $ids = array_column($video['shots'], 'id');
+
+        MusicVideoShot::query()
+            ->whereKey($ids)
+            ->update(['clip' => 'ai/videos/old.mp4']);
+
+        $order = [$ids[1], $ids[0], $ids[2], $ids[3]];
+
+        $this->putJson("/api/creator/videos/{$video['id']}/shots/order", ['shots' => $order])
+            ->assertAccepted()
+            ->assertJsonPath('data.shots.0.id', $ids[1])
+            ->assertJsonPath('data.shots.0.start', 0)
+            ->assertJsonPath('data.shots.0.rendered', false)
+            ->assertJsonPath('data.shots.1.id', $ids[0])
+            ->assertJsonPath('data.shots.1.start', 3)
+            ->assertJsonPath('data.shots.2.id', $ids[2])
+            ->assertJsonPath('data.shots.2.rendered', true);
+
+        $this->putJson("/api/creator/videos/{$video['id']}/shots/order", ['shots' => [$ids[0], $ids[1]]])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('shots');
+    }
+
+    public function test_listeners_get_the_owners_finished_video_for_a_track(): void
+    {
+        $this->getJson("/api/tracks/{$this->track->slug}/video")
+            ->assertOk()
+            ->assertExactJson(['data' => [], 'message' => 'Data Fetched.', 'status' => 'success', 'status_code' => 200]);
+
+        $video = MusicVideo::query()->forceCreate([
+            'user_id' => $this->owner->id, 'track_id' => $this->track->id, 'status' => MusicVideo::READY,
+            'ratio' => '9:16', 'duration' => 12, 'file' => 'ai/videos/1/video.mp4',
+        ]);
+
+        $this->getJson("/api/tracks/{$this->track->slug}/video")
+            ->assertOk()
+            ->assertJsonPath('data.id', $video->id)
+            ->assertJsonPath('data.ratio', '9:16')
+            ->assertJsonPath('data.videoUrl', fn($url) => is_string($url) && $url !== '');
+    }
+
     public function test_own_photos_need_the_plan_feature_and_consent(): void
     {
         Sanctum::actingAs($this->owner);
