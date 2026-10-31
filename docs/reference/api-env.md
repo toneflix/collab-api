@@ -74,6 +74,14 @@ See [FFmpeg and Chromaprint](../guide/ffmpeg).
 
 Standard Laravel mail settings: `MAIL_MAILER` (`log` locally, `smtp` or another mailer in production), `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_ENCRYPTION`, `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME`.
 
+`MAIL_MAILER=sendpulse` sends mail over the SendPulse API (HTTPS) instead of SMTP, for hosts that block outbound SMTP such as Railway. `MAIL_FROM_ADDRESS` must be a sender verified in SendPulse.
+
+| Key | Default | What it does |
+| --- | --- | --- |
+| `SENDPULSE_API_ID` | | API ID from SendPulse, under Account settings, API. |
+| `SENDPULSE_API_SECRET` | | API secret from the same page. |
+| `SENDPULSE_API_URL` | `https://api.sendpulse.com` | API address. |
+
 ## Realtime
 
 The driver is chosen on the admin Realtime page, which starts from `REALTIME_DRIVER`. Only the chosen driver's keys are needed. See [Realtime](../features/realtime).
