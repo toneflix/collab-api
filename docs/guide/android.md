@@ -44,15 +44,26 @@ Android only opens the links in the app once the site proves it owns the app. Th
 
 ## Publishing to Google Play
 
-`.github/workflows/android.yml` builds a signed app bundle (AAB) and uploads it to Google Play on every push to the `playstore` branch. Pull requests that touch the app only check that it builds.
+`.github/workflows/android.yml` builds a signed app bundle (AAB) and uploads it to Google Play whenever a GitHub release is published. Pull requests that touch the app only check that it builds.
+
+The release tag sets the version name people see and the Play track. A leading `v` is dropped.
+
+| Tag | Track |
+| --- | --- |
+| `1.1.1-alpha` (or `1.1.1-alpha.2`) | alpha |
+| `1.1.1-beta` (or `1.1.1-beta.2`) | beta |
+| `1.1.1` | production |
+| `1.1.1` marked *Set as a pre-release*, or any other suffix like `1.1.1-rc1` | internal |
+
+The alpha and beta suffixes pick their track even when the release is marked as a pre-release. A tag that is not a version fails the run before anything is built. After the upload, the workflow commits the version and build number to the branch the release was cut from (the default branch when it was cut from a commit).
 
 To build without publishing, start the workflow by hand from the Actions tab (*Android > Run workflow*) and leave **deploy** unticked. The run keeps the signed bundle and APK as an artifact for 30 days; the APK installs directly on a phone. Tick **deploy** to also upload the bundle to Google Play.
 
-The **build** choice picks *production* (the default) or *test*. A test build talks to the staging API (`VITE_STAGING_API_BASE_URL`, or `VITE_API_BASE_URL` when that variable is not set), has debug logging on, gets `-test` after its version name, and only ever goes to the internal track when deployed. It keeps the same package name, so it replaces the store app on a phone instead of installing beside it.
+The **build** choice picks *production* (the default) or *test*. A test build talks to the staging API (`VITE_STAGING_API_BASE_URL`, or `VITE_API_BASE_URL` when that variable is not set), has debug logging on, gets `-test` after its version name, and only ever goes to the internal track when deployed. A manual production build goes to the `PLAY_TRACK` track. It keeps the same package name, so it replaces the store app on a phone instead of installing beside it.
 
 ### Release notes
 
-Every upload fills Play's *What's new* text from the pull requests and direct commits made since the last release commit (`chore: Android release …`, which the workflow commits after each deploy). A production build counts from the last production release, so changes shipped in test builds show up again.
+Every upload fills Play's *What's new* text from the pull requests and direct commits made since the last release commit (`chore: Android release …`, which the workflow commits after each deploy). A production release counts from the last production release, so changes shipped in alpha, beta, internal and test builds show up again.
 
 The notes come from Conventional Commit titles: `feat` goes under *What's new*, `perf` under *Improved* and `fix` under *Fixed*. Other types (`chore`, `ci`, `docs`, `refactor`, `test`) are left out, so write `feat` and `fix` titles the way people using the app should read them. The text stops before Play's 500 character limit and ends with "And more fixes and improvements" when changes were left out. With nothing to list it says "Bug fixes and performance improvements."
 
@@ -61,7 +72,7 @@ To change the wording, add a `Release note:` line to the commit message, such as
 The run summary shows the text that was sent. To preview it locally:
 
 ```bash
-node .github/scripts/release-notes.mjs whatsnew --skip-test-releases
+node .github/scripts/release-notes.mjs whatsnew --skip-prereleases
 ```
 
 ### One-time setup
@@ -71,7 +82,16 @@ node .github/scripts/release-notes.mjs whatsnew --skip-test-releases
    ```bash
    keytool -genkeypair -v -keystore upload.keystore -alias upload \
      -keyalg RSA -keysize 2048 -validity 10000
-   base64 -w0 upload.keystore   # the value for ANDROID_KEYSTORE_BASE64
+   ```
+
+   `ANDROID_KEYSTORE_BASE64` holds the keystore (`.keystore` or `.jks`) as one line of base64. Replace `upload.keystore` with the path to your keystore:
+
+   ```bash
+   # macOS: copies the value to the clipboard
+   base64 -i upload.keystore | pbcopy
+
+   # Linux
+   base64 -w0 upload.keystore
    ```
 
 2. **Create the app in the Play Console** with package name `com.toneflix.music.app`, turn on Play App Signing, and upload the first bundle by hand (Google Play doesn't accept API uploads for an app that has never had a release). A manual run without deploy gives you that first bundle.
@@ -92,9 +112,8 @@ Add these under the collab repository's *Settings > Secrets and variables > Acti
 
 | Variable | Default | What it does |
 | --- | --- | --- |
-| `PLAY_TRACK` | `internal` | The Play track to upload to: `internal`, `alpha`, `beta` or `production` |
+| `PLAY_TRACK` | `internal` | The Play track for manual production runs: `internal`, `alpha`, `beta` or `production`. Releases take the track from their tag |
 | `PLAY_RELEASE_STATUS` | `completed` | `draft` while the app is still a draft in the Play Console, then `completed` |
-| `ANDROID_VERSION_NAME` | `package.json` version | The version people see |
 | `ANDROID_VERSION_CODE_OFFSET` | `0` | Added to the run number to give the version code. Raise it if Play already has a higher code. |
 | `VITE_*` | `.env` | Override the app's build settings, as for the web deploy |
 
