@@ -17,6 +17,28 @@ use Illuminate\Http\Request;
 class TrackController extends Controller
 {
     /**
+     * The creator's own tracks across all their releases, newest first.
+     */
+    public function owned(Request $request)
+    {
+        $search = trim((string) $request->input('search'));
+
+        $tracks = Track::query()
+            ->whereHas('release', fn($query) => $query->where('user_id', $this->user->id))
+            ->when($search !== '', fn($query) => $query->search($search))
+            ->with('release')
+            ->latest('id')
+            ->paginate($request->perPage(15));
+
+        return (new TrackCollection($tracks))
+            ->additional([
+                'message' => HttpStatus::message(HttpStatus::OK),
+                'status' => 'success',
+                'status_code' => HttpStatus::OK,
+            ]);
+    }
+
+    /**
      * Display a listing of the resource.
      */
     public function index(Request $request, string $release_id)

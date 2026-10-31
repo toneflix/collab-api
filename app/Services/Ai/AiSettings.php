@@ -3,6 +3,7 @@
 namespace App\Services\Ai;
 
 use App\Enums\AiEngine;
+use App\Enums\VideoCandidate;
 use App\Helpers\Providers;
 use App\Models\ArtistClaim;
 use App\Models\Release;
@@ -59,6 +60,10 @@ class AiSettings extends SettingsStore
         'ai_artwork_engine' => ['Artwork Engine', 'replicate', 'Where artwork is drawn: FLUX.1 [schnell] on Replicate, or on Cloudflare Workers AI.'],
         'ai_artwork_credits' => ['Artwork Credits', '3', 'Credits one artwork request uses. FLUX.1 [schnell] costs about $0.003 an image on Replicate.'],
         'ai_artwork_images' => ['Artwork Images per Request', '4', 'How many images (1 to 4) people pick from for each request.'],
+        'ai_video_storyboard_credits' => ['Music Video Storyboard Credits per Minute', '20', 'Credits the scene plan and stills of a music video use for every started minute of the song. Each still costs about $0.03 on Replicate, about 12 a minute.'],
+        'ai_video_credits' => ['Music Video Credits per Minute', '190', 'Credits rendering a music video uses for every started minute of the song. About $2.50 a minute on Replicate with lip-synced singing shots.'],
+        'ai_video_broll_model' => ['Music Video B-roll Model', 'p-video', 'The model that animates the shots between the singing: p-video ($0.02/s at 720p), Seedance 1 Pro Fast ($0.025/s) or Wan 2.2 i2v fast (about $0.022/s, 5 s clips).'],
+        'ai_video_max_seconds' => ['Longest Music Video (seconds)', '360', 'Songs longer than this can\'t get a music video.'],
         'ai_music_max_seconds' => ['Longest Generated Track (seconds)', '300', 'The longest track people can generate at once.'],
         'ai_lyrics_engine' => ['Lyrics Engine', 'replicate', 'Where Whisper writes out lyrics: Replicate, or Cloudflare Workers AI.'],
         'ai_lyrics_credits' => ['Lyrics Credits', '2', 'Credits one lyrics transcription in the studio uses.'],
@@ -415,6 +420,37 @@ class AiSettings extends SettingsStore
         return min(4, max(1, (int) self::get('ai_artwork_images')));
     }
 
+    /**
+     * Credits the storyboard of a music video uses per started minute.
+     */
+    public static function videoStoryboardCredits(): int
+    {
+        return max(1, (int) self::get('ai_video_storyboard_credits'));
+    }
+
+    /**
+     * Credits rendering a music video uses per started minute.
+     */
+    public static function videoCredits(): int
+    {
+        return max(1, (int) self::get('ai_video_credits'));
+    }
+
+    /**
+     * The model that animates b-roll shots.
+     */
+    public static function videoBrollModel(): VideoCandidate
+    {
+        $candidate = VideoCandidate::tryFrom((string) self::get('ai_video_broll_model'));
+
+        return $candidate && ! $candidate->sings() ? $candidate : VideoCandidate::P_VIDEO;
+    }
+
+    public static function videoMaxSeconds(): int
+    {
+        return min(600, max(30, (int) self::get('ai_video_max_seconds')));
+    }
+
     public static function musicMaxSeconds(): int
     {
         return min(300, max(10, (int) self::get('ai_music_max_seconds')));
@@ -438,6 +474,8 @@ class AiSettings extends SettingsStore
                 'lyrics' => self::lyricsCredits(),
                 'edit' => self::editCredits(),
                 'artwork' => self::artworkCredits(),
+                'videoStoryboard' => self::videoStoryboardCredits(),
+                'video' => self::videoCredits(),
                 'composer' => collect(['line', 'block', 'verse', 'rewrite'])
                     ->mapWithKeys(fn(string $kind) => [$kind => self::composerCredits($kind)])
                     ->all(),

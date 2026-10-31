@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Enums\AiEngine;
 use App\Enums\HttpStatus;
+use App\Enums\VideoCandidate;
 use App\Helpers\Providers;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\SettingsResource;
@@ -63,6 +64,10 @@ class AiSettingsController extends Controller
             'ai_artwork_credits' => ['nullable', 'integer', 'between:1,1000'],
             'ai_artwork_images' => ['nullable', 'integer', 'between:1,4'],
             'ai_music_max_seconds' => ['nullable', 'integer', 'between:10,300'],
+            'ai_video_storyboard_credits' => ['nullable', 'integer', 'between:1,1000'],
+            'ai_video_credits' => ['nullable', 'integer', 'between:1,5000'],
+            'ai_video_broll_model' => ['nullable', 'string', Rule::in(array_keys(VideoCandidate::brollOptions()))],
+            'ai_video_max_seconds' => ['nullable', 'integer', 'between:30,600'],
             'ai_lyrics_credits' => ['nullable', 'integer', 'between:1,1000'],
             'ai_lyrics_auto' => ['nullable', 'boolean'],
             'ai_lyrics_explicit_words' => ['nullable', 'string', 'max:2000'],
@@ -125,6 +130,7 @@ class AiSettingsController extends Controller
             'options' => [
                 'sunoVersions' => SunoMusic::VERSIONS,
                 'sunoStemTypes' => AiSettings::SUNO_STEM_TYPES,
+                'videoBrollModels' => VideoCandidate::brollOptions(),
                 'wordSources' => ['datamuse' => 'Datamuse', 'local' => 'Built-in dictionary'],
                 'composerMusicModels' => array_map(fn(MusicModel $model) => $model::ID, AiSettings::lyricMusicModels()),
                 'engines' => collect(AiEngine::cases())

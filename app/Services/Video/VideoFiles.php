@@ -13,26 +13,88 @@ class VideoFiles
 {
     public function __construct(protected StemAudio $audio) {}
 
+    /** Frame rate of stitched videos */
+    public const FPS = 24;
+
     /**
      * The clip with this audio as its only sound, cut to the shorter of the
      * two, as an H.264/AAC MP4 that can start playing before it downloads.
      */
     public function withAudio(string $video, string $audio): string
     {
-        $base = tempnam(sys_get_temp_dir(), 'video-');
-        @unlink($base);
-        $out = "{$base}.mp4";
+        $out = $this->temp();
 
-        $process = new Process([
-            $this->audio->ffmpeg(), '-hide_banner', '-loglevel', 'error', '-y',
+        $this->run([
             '-i', $video, '-i', $audio,
             '-map', '0:v:0', '-map', '1:a:0',
-            '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '18', '-pix_fmt', 'yuv420p',
-            '-c:a', 'aac', '-b:a', '256k',
-            '-shortest', '-movflags', '+faststart',
+            ...$this->encoding(),
+            '-shortest',
             $out,
-        ]);
-        $process->setTimeout(600);
+        ], $out);
+
+        return $out;
+    }
+
+    /**
+     * Clips cut one after another, each cropped to the size and trimmed or held
+     * on its last frame to its length, with the song as the only sound.
+     *
+     * @param  list<array{0: string, 1: float}>  $clips  Path and length in seconds
+     * @param  array{0: int, 1: int}  $size
+     */
+    public function stitch(array $clips, string $audio, array $size): string
+    {
+        [$width, $height] = $size;
+        $out = $this->temp();
+        $inputs = [];
+        $chains = [];
+        $labels = '';
+        $total = 0.0;
+
+        foreach (array_values($clips) as $i => [$path, $length]) {
+            $seconds = number_format($length, 3, '.', '');
+            $inputs = [...$inputs, '-i', $path];
+            $chains[] = "[{$i}:v]fps=" . self::FPS . ",scale={$width}:{$height}:force_original_aspect_ratio=increase,crop={$width}:{$height},setsar=1,"
+                . "tpad=stop_mode=clone:stop_duration={$seconds},trim=duration={$seconds},setpts=PTS-STARTPTS[v{$i}]";
+            $labels .= "[v{$i}]";
+            $total += $length;
+        }
+
+        $count = count($clips);
+        $chains[] = "{$labels}concat=n={$count}:v=1:a=0[out]";
+
+        $this->run([
+            ...$inputs,
+            '-i', $audio,
+            '-filter_complex', implode(';', $chains),
+            '-map', '[out]', '-map', "{$count}:a:0",
+            ...$this->encoding(),
+            '-t', number_format($total, 3, '.', ''),
+            $out,
+        ], $out);
+
+        return $out;
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function encoding(): array
+    {
+        return [
+            '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-pix_fmt', 'yuv420p',
+            '-c:a', 'aac', '-b:a', '256k',
+            '-movflags', '+faststart',
+        ];
+    }
+
+    /**
+     * @param  list<string>  $args
+     */
+    protected function run(array $args, string $out): void
+    {
+        $process = new Process([$this->audio->ffmpeg(), '-hide_banner', '-loglevel', 'error', '-y', ...$args]);
+        $process->setTimeout(1800);
         $process->run();
 
         if (! $process->isSuccessful() || ! is_file($out) || filesize($out) === 0) {
@@ -40,7 +102,13 @@ class VideoFiles
 
             throw new RuntimeException('FFmpeg failed: ' . trim($process->getErrorOutput()));
         }
+    }
 
-        return $out;
+    protected function temp(): string
+    {
+        $base = tempnam(sys_get_temp_dir(), 'video-');
+        @unlink($base);
+
+        return "{$base}.mp4";
     }
 }

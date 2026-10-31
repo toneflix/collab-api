@@ -5,6 +5,7 @@ namespace App\Services\Agent;
 use App\Models\AgentRun;
 use App\Services\Ai\AiSettings;
 use App\Services\Ai\Credits;
+use App\Services\Composer\Ai\JsonAnswer;
 use App\Services\Composer\Ai\LyricModel;
 use App\Services\Composer\Ai\LyricWriter;
 use RuntimeException;
@@ -46,7 +47,8 @@ class AgentWriter
         $spend = $credits->spend($cost, "AI Studio: {$what}", $run);
 
         try {
-            $data = $this->decode($this->model->ask($system, $prompt, $maxTokens));
+            $answer = $this->model->ask($system, $prompt, $maxTokens);
+            $data = JsonAnswer::decode($answer);
         } catch (Throwable $e) {
             $credits->refund($spend, "Refund: AI Studio {$what}");
 
@@ -54,33 +56,6 @@ class AgentWriter
         }
 
         $run->increment('credits', $cost);
-
-        return $data;
-    }
-
-    /**
-     * The first JSON object in the model's answer.
-     *
-     * @return array<string, mixed>
-     */
-    protected function decode(string $answer): array
-    {
-        $json = str($answer)
-            ->after('```json')
-            ->before('```')
-            ->trim()
-            ->toString();
-        $start = strpos($json, '{');
-        $end = strrpos($json, '}');
-        $data = $start !== false && $end !== false ? json_decode(substr($json, $start, $end - $start + 1), true) : null;
-
-        if (! is_array($data) && $start !== false && substr_count($json, '{') > substr_count($json, '}')) {
-            throw new RuntimeException('The AI answer was cut off before it finished. Try again, or ask for less in one run.');
-        }
-
-        if (! is_array($data)) {
-            throw new RuntimeException('The AI answer wasn\'t valid JSON.');
-        }
 
         return $data;
     }

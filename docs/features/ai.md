@@ -73,6 +73,17 @@ Project, release, track and artist forms have a **Generate with AI** button besi
 - **Engines.** FLUX.1 [schnell] on Replicate draws all images in one run, about $0.003 each. On Workers AI it draws one square image per run. Models implement `App\Services\Ai\Artwork\ArtworkModel` and are listed in `GenerateArtwork::MODELS`. FLUX.1 [schnell] is Apache-2.0.
 - **Other forms.** The app's `AiArtworkButton` component works for any form with an image: it takes the kind and the form's title, artist and genre, and emits the picked image as a `File`.
 
+## Music videos
+
+Creators make a music video for a released track they own in two steps: a storyboard to check, then the render.
+
+- **Storyboard.** `POST /api/creator/tracks/{track}/videos` takes `ratio` (`16:9` by default, `9:16` or `1:1`), an optional `brief`, and an optional `photo` with `consent`. It starts a `video_storyboard` job for "Music video storyboard credits per minute" (20 by default) per started minute. The Composer writing model plans a look and a shot list from the timed lyrics (`ScenePlanner`); `ShotList` cuts it on the beat (from the track's BPM) into 2 to 8 second shots covering the whole song. Seedream 4 draws a still per shot (about $0.03 each). Singing shots draw the singer from the portrait: the uploaded photo, else the picture of the track's main artist when the creator manages that artist, else the first singing still.
+- **Changes.** `PUT /api/creator/videos/{video}/shots/{shot}` changes a shot's `prompt` while the video is a storyboard.
+- **Render.** `POST /api/creator/videos/{video}/render` starts a `video_render` job. Singing shots go through p-video-2-pro-avatar with the shot's part of the vocal (split with Demucs); b-roll goes through "Music video b-roll model" (p-video by default, Seedance 1 Pro Fast or Wan 2.2 i2v fast). Clips run five at a time and failed ones get one more try. `VideoFiles::stitch` crops each clip to 1280x720 (or the ratio's size), trims or holds it to its shot's length and lays the song under it. A failed render goes back to the storyboard with credits or minutes given back.
+- **Paying.** Plans can give `video_minutes` each month; a render uses them when enough are left, else "Music video credits per minute" (190 by default, about $2.50 a minute of cost) per started minute. `GET /api/creator/videos` returns `minutesLeft` and `ownPhotos` beside the list, and `GET /api/creator/videos/{video}` returns `minutesLeft`. `GET /api/creator/tracks?search=` lists the creator's own tracks to pick from. `PUT /api/creator/videos/{video}/shots/order` takes every shot id in a new order; time slots stay put, so a shot moved to a different slot loses its rendered clip. `GET /api/tracks/{track}/video` gives listeners the owner's newest finished video (`videoUrl`, `posterUrl`, `ratio`), or an empty object; the player shows it muted in place of the artwork, synced to the song. Uploading a photo needs the `video_own_photos` plan feature (off by default) and `consent`.
+- **Files.** Portraits, stills, clips and the video live under `ai/videos/{video}` on the uploads disk, with signed links that work for a day. "Longest music video" (360 seconds by default) caps the song length.
+- **Choosing models.** `php artisan ai:video-trial <track>` renders one window through each candidate to compare them.
+
 ## Cloudflare Workers AI
 
 [Workers AI](https://developers.cloudflare.com/ai/models/) is an optional third engine. Replicate stays the default; admins move each tool over on `/admin/ai`.
