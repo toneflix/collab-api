@@ -13,7 +13,9 @@ use App\Services\Payment\Payouts;
 use App\Services\Payment\Subscriptions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -404,6 +406,43 @@ class UserManager
         return DB::transaction(function () use ($admin, $user, $reason) {
             $this->twoFactor->reset($user);
             $this->record($admin, $user, 'two_factor.reset', $reason);
+
+            return $user;
+        });
+    }
+
+    /**
+     * The rules a new password must meet, the same as at sign-up.
+     *
+     * @return list<mixed>
+     */
+    public function passwordRules(): array
+    {
+        return ['required', 'string', Password::defaults()];
+    }
+
+    /**
+     * Set a new password, checked against the sign-up password rules,
+     * and optionally sign the user out on every device.
+     *
+     * @throws ValidationException
+     */
+    public function changePassword(?User $admin, User $user, string $password, bool $signOut = true, ?string $reason = null): User
+    {
+        Validator::make(['password' => $password], ['password' => $this->passwordRules()])
+            ->validate();
+
+        return DB::transaction(function () use ($admin, $user, $password, $signOut, $reason) {
+            $user->password = $password;
+            $user->save();
+
+            $sessions = $signOut
+                ? $user
+                    ->tokens()
+                    ->delete()
+                : null;
+
+            $this->record($admin, $user, 'password.changed', $reason, ['sessions' => $sessions]);
 
             return $user;
         });
