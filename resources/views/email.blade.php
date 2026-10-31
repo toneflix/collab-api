@@ -102,37 +102,16 @@
                                                     style="border-collapse:collapse;border-spacing:0px;">
                                                     <tbody>
                                                         <tr>
-                                                            <td style="width:180px;"> <img alt="{{ Providers::config('app_name') }}" height="auto"
+                                                            <td style="width:180px;"> <a href="{{ config('app.frontend_url') }}" target="_blank"><img alt="{{ Providers::config('app_name') }}" height="auto"
                                                                     src="{{ asset('email/logo.png') }}"
                                                                     style="border:0;display:block;outline:none;text-decoration:none;height:auto;width:100%;font-size:13px;"
-                                                                    width="180" /> </td>
+                                                                    width="180" /></a> </td>
                                                         </tr>
                                                     </tbody>
                                                 </table>
                                             </td>
                                         </tr>
-                                        <tr>
-                                            <td style="font-size:0px;word-break:break-word;">
-                                                <div style="height:20px;">   </div>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td align="center" style="font-size:0px;padding:0;word-break:break-word;">
-                                                <table border="0" cellpadding="0" cellspacing="0"
-                                                    role="presentation"
-                                                    style="border-collapse:collapse;border-spacing:0px;">
-                                                    <tbody>
-                                                        <tr>
-                                                            <td style="width:600px;">
-                                                                <a href="{{ config('app.frontend_url') }}" target="_blank"
-                                                                    style="color: #2e58ff; text-decoration: none;"> <img
-                                                                        alt="{{ Providers::config('app_name') }}" height="auto"
-                                                                        src="{{ $banner ?? asset('email/banner.jpg') }}"
-                                                                        style="border:0;display:block;outline:none;text-decoration:none;height:auto;width:100%;font-size:13px;"
-                                                                        width="600" /> </a>
-                                                            </td>
-                                                        </tr>
-                                                    </tbody>
+                                                                                            </tbody>
                                                 </table>
                                             </td>
                                         </tr>
