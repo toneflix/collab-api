@@ -85,6 +85,7 @@ Route::middleware(['auth:sanctum'])
         Route::delete('videos/{video}', [MusicVideoController::class, 'destroy'])->name('videos.destroy');
         Route::put('videos/{video}/shots/order', [MusicVideoController::class, 'reorderShots'])->name('videos.shots.order');
         Route::put('videos/{video}/shots/{shot}', [MusicVideoController::class, 'updateShot'])->name('videos.shots.update');
+        Route::post('videos/{video}/storyboard', [MusicVideoController::class, 'retryStoryboard'])->middleware('throttle:10,1')->name('videos.storyboard');
         Route::post('videos/{video}/render', [MusicVideoController::class, 'render'])->middleware('throttle:10,1')->name('videos.render');
         Route::put('tracks/{track}/lyrics', [LyricsController::class, 'updateTrack'])->name('tracks.lyrics.update');
         Route::put('tracks/{track}/tags', [AudioTagController::class, 'updateTrack'])->name('tracks.tags.update');

@@ -202,6 +202,29 @@ class MusicVideoController extends Controller
             ->setStatusCode(HttpStatus::ACCEPTED->value);
     }
 
+    /**
+     * Draw a failed storyboard again, keeping the stills already drawn.
+     */
+    public function retryStoryboard(MusicVideos $videos, MusicVideo $video)
+    {
+        $this->authorize('update', $video);
+
+        $video = $videos->retryStoryboard($video);
+
+        $video
+            ->refresh()
+            ->load(['track', 'shots']);
+
+        return (new MusicVideoResource($video))
+            ->additional([
+                'message' => 'Drawing the rest of your storyboard.',
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
+    }
+
     public function destroy(MusicVideos $videos, MusicVideo $video)
     {
         $this->authorize('delete', $video);

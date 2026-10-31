@@ -4,12 +4,15 @@ namespace App\Services\Ai\Replicate;
 
 use App\Services\Ai\AiJobStopped;
 use App\Services\Ai\AiJobStops;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Sleep;
 use Illuminate\Support\Str;
+use Throwable;
 
 /**
  * Runs models on Replicate: starts a prediction, waits for it and fetches
@@ -25,6 +28,11 @@ class ReplicateClient
      * Times a throttled prediction is tried again.
      */
     protected const THROTTLE_RETRIES = 3;
+
+    /**
+     * Times a request is tried again after Replicate answers 5xx.
+     */
+    protected const SERVER_RETRIES = 3;
 
     /**
      * @param  array{key?: ?string, url?: ?string, timeout?: int}  $config
@@ -103,14 +111,15 @@ class ReplicateClient
     }
 
     /**
-     * Post a new prediction, waiting out Replicate's rate limit a few times
-     * before giving up.
+     * Post a new prediction, waiting out Replicate's rate limit and brief
+     * outages (5xx) a few times before giving up.
      *
      * @param  array<string, mixed>  $body
      */
     protected function start(string $path, array $body): Response
     {
-        $tries = 0;
+        $throttled = 0;
+        $failed = 0;
 
         while (true) {
             $response = $this
@@ -119,13 +128,21 @@ class ReplicateClient
                 ->timeout(75)
                 ->post($path, $body);
 
-            if ($response->status() !== 429 || ++$tries > self::THROTTLE_RETRIES) {
-                return $response;
+            if ($response->status() === 429 && ++$throttled <= self::THROTTLE_RETRIES) {
+                $wait = (int) ($response->json('retry_after') ?? $response->header('Retry-After') ?: 10);
+
+                Sleep::for(min(60, max(1, $wait)))->seconds();
+
+                continue;
             }
 
-            $wait = (int) ($response->json('retry_after') ?? $response->header('Retry-After') ?: 10);
+            if ($response->serverError() && ++$failed <= self::SERVER_RETRIES) {
+                Sleep::for(5 * $failed)->seconds();
 
-            Sleep::for(min(60, max(1, $wait)))->seconds();
+                continue;
+            }
+
+            return $response;
         }
     }
 
@@ -135,7 +152,17 @@ class ReplicateClient
      */
     public function prediction(?string $id, ?array $body = null): array
     {
-        $body ??= $this->http()->get("predictions/{$id}")->throw()->json();
+        $body ??= $this
+            ->http()
+            ->retry(
+                self::SERVER_RETRIES,
+                fn(int $attempt) => 5000 * $attempt,
+                fn(Throwable $e) => $e instanceof ConnectionException
+                    || ($e instanceof RequestException && $e->response->serverError()),
+            )
+            ->get("predictions/{$id}")
+            ->throw()
+            ->json();
 
         return [
             'id' => (string) ($body['id'] ?? $id),

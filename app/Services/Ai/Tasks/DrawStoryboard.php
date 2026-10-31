@@ -24,9 +24,20 @@ class DrawStoryboard implements AiTask, HandlesFailure
         protected VideoStorage $storage,
     ) {}
 
+    /**
+     * The full price for a new storyboard; a retry pays only for the share of
+     * stills it still has to draw.
+     */
     public function credits(array $input): int
     {
-        return AiSettings::videoStoryboardCredits() * max(1, (int) ($input['minutes'] ?? 1));
+        $credits = AiSettings::videoStoryboardCredits() * max(1, (int) ($input['minutes'] ?? 1));
+        $total = (int) ($input['shots'] ?? 0);
+
+        if (! ($input['resume'] ?? false) || $total <= 0) {
+            return $credits;
+        }
+
+        return max(1, (int) ceil($credits * (int) ($input['missing'] ?? $total) / $total));
     }
 
     public function describe(array $input): string
@@ -41,13 +52,44 @@ class DrawStoryboard implements AiTask, HandlesFailure
 
     public function handle(AiJob $job): array
     {
-        if (! $this->planner->available()) {
-            throw new RuntimeException('AI writing isn\'t set up yet.');
-        }
-
         $video = MusicVideo::query()
             ->with('track')
             ->findOrFail($job->input['music_video_id']);
+
+        $planned = $video
+            ->shots()
+            ->exists();
+
+        if (($job->input['resume'] ?? false) && $planned) {
+            $video
+                ->forceFill(['status' => MusicVideo::PLANNING, 'error' => null])
+                ->save();
+        } else {
+            $this->plan($video);
+        }
+
+        $shots = $video
+            ->shots()
+            ->get();
+        $portrait = $this->keyframes->upload($video->portrait);
+
+        $this->keyframes->draw($video, $shots, $portrait);
+
+        $video
+            ->forceFill(['status' => MusicVideo::STORYBOARD])
+            ->save();
+
+        return ['music_video_id' => $video->id, 'shots' => $shots->count()];
+    }
+
+    /**
+     * Plan the shots afresh, replacing any earlier ones and their stills.
+     */
+    protected function plan(MusicVideo $video): void
+    {
+        if (! $this->planner->available()) {
+            throw new RuntimeException('AI writing isn\'t set up yet.');
+        }
 
         $plan = $this->planner->plan($video, RenderVideo::maxShotSeconds());
 
@@ -67,19 +109,6 @@ class DrawStoryboard implements AiTask, HandlesFailure
                 ->shots()
                 ->create([...$shot, 'position' => $position + 1]);
         }
-
-        $shots = $video
-            ->shots()
-            ->get();
-        $portrait = $this->keyframes->upload($video->portrait);
-
-        $this->keyframes->draw($video, $shots, $portrait);
-
-        $video
-            ->forceFill(['status' => MusicVideo::STORYBOARD])
-            ->save();
-
-        return ['music_video_id' => $video->id, 'shots' => $shots->count()];
     }
 
     public function failed(AiJob $job): void
@@ -88,7 +117,7 @@ class DrawStoryboard implements AiTask, HandlesFailure
             ->whereKey($job->input['music_video_id'] ?? null)
             ->update([
                 'status' => MusicVideo::FAILED,
-                'error' => 'The storyboard couldn\'t be drawn. Your credits were refunded.',
+                'error' => 'The storyboard couldn\'t be drawn. Your credits were refunded. Try again to draw the missing scenes.',
             ]);
     }
 }

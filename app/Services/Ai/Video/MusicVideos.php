@@ -264,6 +264,40 @@ class MusicVideos
     }
 
     /**
+     * Draw a failed storyboard again. A planned storyboard keeps its shots and
+     * stills and only draws the missing ones, for that share of the price.
+     */
+    public function retryStoryboard(MusicVideo $video): MusicVideo
+    {
+        $this->ensureStatus($video, [MusicVideo::FAILED]);
+
+        $total = $video
+            ->shots()
+            ->count();
+        $missing = $video
+            ->shots()
+            ->whereNull('keyframe')
+            ->count();
+
+        return DB::transaction(function () use ($video, $total, $missing) {
+            $video
+                ->forceFill(['status' => MusicVideo::PLANNING, 'error' => null])
+                ->save();
+
+            $this->studio->start($video->user, null, 'video_storyboard', [
+                'music_video_id' => $video->id,
+                'title' => $video->track?->title,
+                'minutes' => $video->startedMinutes(),
+                'resume' => $total > 0,
+                'shots' => $total,
+                'missing' => $missing,
+            ]);
+
+            return $video;
+        });
+    }
+
+    /**
      * Video minutes the user's plan has left this month.
      */
     public function minutesLeft(User $user): int
