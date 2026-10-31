@@ -9,6 +9,7 @@ use App\Services\Admin\UserManager;
 use App\Services\Auth\Totp;
 use App\Services\Auth\TwoFactor;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -135,6 +136,52 @@ class UserCommandsTest extends TestCase
             ->orderBy('id')
             ->pluck('action');
         $this->assertSame(['account.suspended', 'account.restored'], $actions->all());
+    }
+
+    public function test_the_password_is_changed_from_the_user_menu(): void
+    {
+        $tag = 'cmdpass' . uniqid();
+        $user = User::factory()
+            ->create(['username' => $tag]);
+        $user->createToken('phone');
+
+        $this->artisan('app:users', ['--search' => $tag])
+            ->expectsQuestion("Users matching \"{$tag}\", page 1 of 1 (1 in all)", "#{$user->id}")
+            ->expectsQuestion("What do you want to do with @{$tag}?", 'ChangePassword')
+            ->expectsQuestion('New password', 'new-secret-123')
+            ->expectsQuestion('Type it again', 'new-secret-123')
+            ->expectsConfirmation('Sign them out on every device too?', 'yes')
+            ->expectsQuestion('Reason (optional)', 'Owner asked by phone')
+            ->expectsConfirmation("Change the password of @{$tag}?", 'yes')
+            ->expectsOutputToContain("The password of @{$tag} was changed.")
+            ->expectsQuestion("What do you want to do with @{$tag}?", 'back')
+            ->expectsQuestion("Users matching \"{$tag}\", page 1 of 1 (1 in all)", 'quit')
+            ->assertSuccessful();
+
+        $user->refresh();
+        $this->assertTrue(Hash::check('new-secret-123', $user->password));
+        $this->assertSame(0, $user->tokens()->count());
+
+        $action = AdminAction::query()
+            ->where('user_id', $user->id)
+            ->sole();
+        $this->assertSame('password.changed', $action->action);
+        $this->assertSame('Owner asked by phone', $action->reason);
+        $this->assertSame(1, $action->details['sessions']);
+    }
+
+    public function test_a_password_that_breaks_the_rules_is_refused(): void
+    {
+        $user = User::factory()
+            ->create();
+        $hash = $user->password;
+
+        try {
+            app(UserManager::class)->changePassword(null, $user, 'short');
+            $this->fail('A short password was accepted.');
+        } catch (ValidationException) {
+            $this->assertSame($hash, $user->fresh()->password);
+        }
     }
 
     public function test_two_factor_cannot_be_reset_when_it_is_off(): void

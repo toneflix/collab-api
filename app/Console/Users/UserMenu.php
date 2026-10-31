@@ -6,6 +6,7 @@ use App\Console\Users\Actions\AdjustCredits;
 use App\Console\Users\Actions\AdjustFunds;
 use App\Console\Users\Actions\AssignPlan;
 use App\Console\Users\Actions\ChangeAccess;
+use App\Console\Users\Actions\ChangePassword;
 use App\Console\Users\Actions\ConfirmEmail;
 use App\Console\Users\Actions\EditProfile;
 use App\Console\Users\Actions\EndPlan;
@@ -44,6 +45,7 @@ class UserMenu
         AdjustCredits::class,
         AdjustFunds::class,
         ToggleContentAgent::class,
+        ChangePassword::class,
         ResetTwoFactor::class,
         SignOut::class,
     ];
