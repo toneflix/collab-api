@@ -294,8 +294,15 @@ class MusicVideos
         $user = $video->user;
         $minutes = $video->startedMinutes();
         $billing = $this->minutesLeft($user) >= $minutes ? MusicVideo::MINUTES : MusicVideo::CREDITS;
+        $total = $video
+            ->shots()
+            ->count();
+        $missing = $video
+            ->shots()
+            ->whereNull('clip')
+            ->count();
 
-        return DB::transaction(function () use ($video, $user, $minutes, $billing) {
+        return DB::transaction(function () use ($video, $user, $minutes, $billing, $total, $missing) {
             $video
                 ->forceFill([
                     'status' => MusicVideo::RENDERING,
@@ -311,6 +318,8 @@ class MusicVideos
                 'title' => $video->track?->title,
                 'minutes' => $minutes,
                 'billing' => $billing,
+                'shots' => $total,
+                'missing' => $missing,
             ]);
 
             return $video;

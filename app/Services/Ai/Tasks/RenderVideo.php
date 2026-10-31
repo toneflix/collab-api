@@ -56,13 +56,24 @@ class RenderVideo implements AiTask, HandlesFailure
         return min(8.0, AiSettings::videoBrollModel()->length(60));
     }
 
+    /**
+     * The full price per started minute; clips kept from an earlier render
+     * aren't paid for again, so a render pays only the share still to make.
+     */
     public function credits(array $input): int
     {
         if (($input['billing'] ?? null) === MusicVideo::MINUTES) {
             return 0;
         }
 
-        return AiSettings::videoCredits() * max(1, (int) ($input['minutes'] ?? 1));
+        $credits = AiSettings::videoCredits() * max(1, (int) ($input['minutes'] ?? 1));
+        $total = (int) ($input['shots'] ?? 0);
+
+        if ($total <= 0) {
+            return $credits;
+        }
+
+        return max(1, (int) ceil($credits * (int) ($input['missing'] ?? $total) / $total));
     }
 
     public function describe(array $input): string

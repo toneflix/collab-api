@@ -37,7 +37,9 @@ class VideoFiles
 
     /**
      * Clips cut one after another, each cropped to the size and trimmed or held
-     * on its last frame to its length, with the song as the only sound.
+     * on its last frame to its length, with the song as the only sound. Each
+     * clip is cut on its own first, so memory stays flat however many there
+     * are, then the cuts are joined without encoding again.
      *
      * @param  list<array{0: string, 1: float}>  $clips  Path and length in seconds
      * @param  array{0: int, 1: int}  $size
@@ -46,32 +48,49 @@ class VideoFiles
     {
         [$width, $height] = $size;
         $out = $this->temp();
-        $inputs = [];
-        $chains = [];
-        $labels = '';
+        $cuts = [];
         $total = 0.0;
 
-        foreach (array_values($clips) as $i => [$path, $length]) {
-            $seconds = number_format($length, 3, '.', '');
-            $inputs = [...$inputs, '-i', $path];
-            $chains[] = "[{$i}:v]fps=" . self::FPS . ",scale={$width}:{$height}:force_original_aspect_ratio=increase,crop={$width}:{$height},setsar=1,"
-                . "tpad=stop_mode=clone:stop_duration={$seconds},trim=duration={$seconds},setpts=PTS-STARTPTS[v{$i}]";
-            $labels .= "[v{$i}]";
-            $total += $length;
+        try {
+            foreach (array_values($clips) as [$path, $length]) {
+                $seconds = number_format($length, 3, '.', '');
+                $cut = $this->temp();
+
+                $this->run([
+                    '-i', $path,
+                    '-vf', 'fps=' . self::FPS . ",scale={$width}:{$height}:force_original_aspect_ratio=increase,crop={$width}:{$height},setsar=1,"
+                        . "tpad=stop_mode=clone:stop_duration={$seconds},trim=duration={$seconds},setpts=PTS-STARTPTS",
+                    '-an',
+                    ...$this->videoEncoding(),
+                    $cut,
+                ], $cut);
+
+                $cuts[] = $cut;
+                $total += $length;
+            }
+
+            $list = tempnam(sys_get_temp_dir(), 'concat-');
+            $lines = array_map(fn(string $cut) => "file '" . str_replace("'", "'\\''", $cut) . "'", $cuts);
+
+            file_put_contents($list, implode("\n", $lines) . "\n");
+
+            try {
+                $this->run([
+                    '-f', 'concat', '-safe', '0', '-i', $list,
+                    '-i', $audio,
+                    '-map', '0:v:0', '-map', '1:a:0',
+                    '-c:v', 'copy',
+                    '-c:a', 'aac', '-b:a', '256k',
+                    '-movflags', '+faststart',
+                    '-t', number_format($total, 3, '.', ''),
+                    $out,
+                ], $out);
+            } finally {
+                @unlink($list);
+            }
+        } finally {
+            array_map(fn(string $cut) => @unlink($cut), $cuts);
         }
-
-        $count = count($clips);
-        $chains[] = "{$labels}concat=n={$count}:v=1:a=0[out]";
-
-        $this->run([
-            ...$inputs,
-            '-i', $audio,
-            '-filter_complex', implode(';', $chains),
-            '-map', '[out]', '-map', "{$count}:a:0",
-            ...$this->encoding(),
-            '-t', number_format($total, 3, '.', ''),
-            $out,
-        ], $out);
 
         return $out;
     }
@@ -82,10 +101,21 @@ class VideoFiles
     protected function encoding(): array
     {
         return [
-            '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-pix_fmt', 'yuv420p',
+            ...$this->videoEncoding(),
             '-c:a', 'aac', '-b:a', '256k',
             '-movflags', '+faststart',
         ];
+    }
+
+    /**
+     * H.264 settings shared by every cut, so cuts join without encoding again.
+     * Two threads keep FFmpeg's memory small on the worker.
+     *
+     * @return list<string>
+     */
+    protected function videoEncoding(): array
+    {
+        return ['-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-pix_fmt', 'yuv420p', '-threads', '2'];
     }
 
     /**

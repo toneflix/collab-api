@@ -371,6 +371,32 @@ class AiMusicVideoTest extends TestCase
         $this->assertSame(980, Credits::for($this->owner)->total());
     }
 
+    public function test_a_render_pays_only_for_the_clips_it_still_has_to_make(): void
+    {
+        Sanctum::actingAs($this->owner);
+
+        $id = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos")
+            ->json('data.id');
+
+        $this->postJson("/api/creator/videos/{$id}/render")
+            ->assertJsonPath('data.status', MusicVideo::READY);
+
+        $this->assertSame(790, Credits::for($this->owner)->total());
+
+        MusicVideo::query()
+            ->whereKey($id)
+            ->update(['status' => MusicVideo::STORYBOARD, 'billing' => null, 'file' => null]);
+        MusicVideoShot::query()
+            ->where('music_video_id', $id)
+            ->where('position', 2)
+            ->update(['clip' => null]);
+
+        $this->postJson("/api/creator/videos/{$id}/render")
+            ->assertJsonPath('data.status', MusicVideo::READY);
+
+        $this->assertSame(790 - 48, Credits::for($this->owner)->total());
+    }
+
     public function test_shots_can_be_changed_before_rendering(): void
     {
         Sanctum::actingAs($this->owner);
