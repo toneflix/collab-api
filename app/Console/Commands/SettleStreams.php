@@ -15,7 +15,7 @@ class SettleStreams extends Command
     public function handle(StreamEarnings $earnings): int
     {
         $month = $this->option('month')
-            ? Carbon::createFromFormat('Y-m', (string) $this->option('month'))
+            ? Carbon::createFromFormat('!Y-m', (string) $this->option('month'))
             : now()->subMonthNoOverflow();
 
         $period = $earnings->settle($month->startOfMonth());

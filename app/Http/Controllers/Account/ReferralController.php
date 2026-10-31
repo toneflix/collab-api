@@ -66,7 +66,7 @@ class ReferralController extends Controller
 
         $userId = $this->user->id;
         $month = $request->filled('month')
-            ? Carbon::createFromFormat('Y-m', $request->string('month')->toString())->startOfMonth()
+            ? Carbon::createFromFormat('!Y-m', $request->string('month')->toString())->startOfMonth()
             : null;
         $terms = $referrals->terms($this->user);
         $rewards = fn(Builder $q) => $q
