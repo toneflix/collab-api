@@ -4,6 +4,7 @@ namespace App\Services\Ai\Video;
 
 use App\Enums\HttpStatus;
 use App\Models\MusicVideo;
+use App\Models\MusicVideoCharacter;
 use App\Models\MusicVideoShot;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Facades\Storage;
@@ -105,6 +106,15 @@ class VideoStorage
         }
 
         return $this->signed($shot->keyframe, 'ai.videos.keyframe', ['video' => $shot->music_video_id, 'shot' => $shot->id]);
+    }
+
+    public function sheetUrl(MusicVideoCharacter $character): ?string
+    {
+        if (! $character->sheet) {
+            return null;
+        }
+
+        return $this->signed($character->sheet, 'ai.videos.character', ['video' => $character->music_video_id, 'character' => $character->id]);
     }
 
     /**

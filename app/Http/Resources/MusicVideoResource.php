@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Models\MusicVideo;
+use App\Models\MusicVideoCharacter;
 use App\Models\MusicVideoShot;
 use App\Services\Ai\Video\VideoStorage;
 use Illuminate\Http\Request;
@@ -37,6 +38,17 @@ class MusicVideoResource extends JsonResource
             'billing' => $this->billing,
             'videoUrl' => app(VideoStorage::class)->videoUrl($this->resource),
             'error' => $this->error,
+            'characters' => $this->whenLoaded('characters', fn() => $this->characters
+                ->map(fn(MusicVideoCharacter $character) => [
+                    'id' => $character->id,
+                    'key' => $character->key,
+                    'name' => $character->name,
+                    'description' => $character->description,
+                    'singer' => $character->singer,
+                    'sheetUrl' => app(VideoStorage::class)->sheetUrl($character),
+                ])
+                ->values()
+                ->all()),
             'shots' => $this->whenLoaded('shots', fn() => $this->shots
                 ->map(fn(MusicVideoShot $shot) => (new MusicVideoShotResource($shot))->resolve($request))
                 ->values()

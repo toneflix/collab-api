@@ -163,6 +163,9 @@ Route::get('ai/videos/{video}/file', [MusicVideoController::class, 'file'])
 Route::get('ai/videos/{video}/shots/{shot}/keyframe', [MusicVideoController::class, 'keyframe'])
     ->middleware('signed')
     ->name('ai.videos.keyframe');
+Route::get('ai/videos/{video}/characters/{character}/sheet', [MusicVideoController::class, 'sheet'])
+    ->middleware('signed')
+    ->name('ai.videos.character');
 
 // A track or stem saved as a file, from a signed link the download endpoints hand out
 Route::get('files/download', FileDownloadController::class)

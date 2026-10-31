@@ -5,6 +5,7 @@ namespace App\Services\Ai\Tasks;
 use App\Enums\AiEngine;
 use App\Models\AiJob;
 use App\Models\MusicVideo;
+use App\Models\MusicVideoCharacter;
 use App\Models\MusicVideoShot;
 use App\Services\Ai\AiSettings;
 use App\Services\Ai\Video\KeyframeDrawer;
@@ -13,8 +14,9 @@ use App\Services\Ai\Video\VideoStorage;
 use RuntimeException;
 
 /**
- * Plans a music video's shots and draws the still each one starts from, for
- * the owner to check before paying for the render.
+ * Plans a music video's characters and shots, draws a character sheet for
+ * each character and the still each shot starts from, for the owner to check
+ * before paying for the render.
  */
 class DrawStoryboard implements AiTask, HandlesFailure
 {
@@ -64,16 +66,21 @@ class DrawStoryboard implements AiTask, HandlesFailure
             $video
                 ->forceFill(['status' => MusicVideo::PLANNING, 'error' => null])
                 ->save();
+
+            $this->castSinger($video);
         } else {
             $this->plan($video);
         }
 
+        $characters = $video
+            ->characters()
+            ->get();
         $shots = $video
             ->shots()
             ->get();
         $portrait = $this->keyframes->upload($video->portrait);
 
-        $this->keyframes->draw($video, $shots, $portrait);
+        $this->keyframes->draw($video, $characters, $shots, $portrait);
 
         $video
             ->forceFill(['status' => MusicVideo::STORYBOARD])
@@ -103,12 +110,54 @@ class DrawStoryboard implements AiTask, HandlesFailure
         $video
             ->shots()
             ->delete();
+        $video
+            ->characters()
+            ->each(fn(MusicVideoCharacter $character) => $this->storage->delete($character->sheet));
+        $video
+            ->characters()
+            ->delete();
+
+        foreach ($plan['characters'] as $character) {
+            $video
+                ->characters()
+                ->create($character);
+        }
 
         foreach ($plan['shots'] as $position => $shot) {
             $video
                 ->shots()
                 ->create([...$shot, 'position' => $position + 1]);
         }
+    }
+
+    /**
+     * Give a storyboard planned before character sheets its singer, so the
+     * stills still to draw match each other.
+     */
+    protected function castSinger(MusicVideo $video): void
+    {
+        $cast = $video
+            ->characters()
+            ->exists();
+
+        if ($cast) {
+            return;
+        }
+
+        $video
+            ->characters()
+            ->create([
+                'key' => MusicVideoCharacter::SINGER,
+                'name' => 'The singer',
+                'description' => $video->style['character'] ?? 'The artist',
+                'singer' => true,
+            ]);
+
+        $video
+            ->shots()
+            ->where('kind', MusicVideoShot::PERFORMANCE)
+            ->whereNull('characters')
+            ->update(['characters' => json_encode([MusicVideoCharacter::SINGER])]);
     }
 
     public function failed(AiJob $job): void

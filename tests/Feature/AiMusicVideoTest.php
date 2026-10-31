@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\Feature;
 use App\Models\MusicVideo;
+use App\Models\MusicVideoCharacter;
 use App\Models\MusicVideoShot;
 use App\Models\Plan;
 use App\Models\Release;
@@ -68,10 +69,14 @@ class AiMusicVideoTest extends TestCase
             {
                 return json_encode([
                     'style' => ['look' => 'Neon night', 'character' => 'A young woman with short braids'],
+                    'characters' => [
+                        ['key' => 'driver', 'name' => 'The driver', 'description' => 'An older man in a grey cab driver jacket'],
+                        ['key' => 'singer', 'name' => 'The singer', 'description' => 'A young woman with short braids in a red jacket'],
+                    ],
                     'shots' => [
-                        ['start' => 0, 'kind' => 'broll', 'prompt' => 'A city skyline at dusk'],
+                        ['start' => 0, 'kind' => 'broll', 'prompt' => 'A city skyline at dusk', 'characters' => []],
                         ['start' => 3.1, 'kind' => 'performance', 'prompt' => 'The singer on a rooftop'],
-                        ['start' => 6.2, 'kind' => 'broll', 'prompt' => 'Cars streaking past'],
+                        ['start' => 6.2, 'kind' => 'broll', 'prompt' => 'Cars streaking past, the driver at the wheel', 'characters' => ['driver', 'nobody']],
                         ['start' => 8.9, 'kind' => 'performance', 'prompt' => 'The singer under a street light'],
                     ],
                 ]);
@@ -121,10 +126,33 @@ class AiMusicVideoTest extends TestCase
         $this->assertTrue($shots->every(fn(MusicVideoShot $shot) => (bool) $shot->keyframe));
         $this->assertSame(980, Credits::for($this->owner)->total());
 
+        $this->assertSame([[], ['singer'], ['driver'], ['singer']], $shots->pluck('characters')->all());
+
+        $characters = MusicVideoCharacter::query()
+            ->where('music_video_id', $id)
+            ->orderByDesc('singer')
+            ->orderBy('id')
+            ->get();
+
+        $this->assertSame(['singer', 'driver'], $characters->pluck('key')->all());
+        $this->assertTrue($characters->every(fn(MusicVideoCharacter $character) => (bool) $character->sheet));
+
+        $this->getJson("/api/creator/videos/{$id}")
+            ->assertJsonPath('data.characters.0.key', 'singer')
+            ->assertJsonPath('data.characters.1.name', 'The driver')
+            ->assertJsonPath('data.shots.2.characters', ['driver']);
+
+        Http::assertSent(fn(Request $request) => str_ends_with($request->url(), '/seedream-4/predictions')
+            && str_contains($request['input']['prompt'], 'Character reference sheet')
+            && str_contains($request['input']['prompt'], 'grey cab driver jacket'));
         Http::assertSent(fn(Request $request) => str_ends_with($request->url(), '/seedream-4/predictions')
             && $request['input']['aspect_ratio'] === '16:9'
-            && isset($request['input']['image_input'])
-            && str_contains($request['input']['prompt'], 'reference image'));
+            && str_contains($request['input']['prompt'], 'Cars streaking')
+            && count($request['input']['image_input'] ?? []) === 1
+            && str_contains($request['input']['prompt'], 'The driver is the person on reference sheet 1'));
+        Http::assertNotSent(fn(Request $request) => str_ends_with($request->url(), '/seedream-4/predictions')
+            && str_contains($request['input']['prompt'], 'city skyline')
+            && isset($request['input']['image_input']));
     }
 
     public function test_a_brief_replicate_outage_is_waited_out(): void
@@ -177,6 +205,32 @@ class AiMusicVideoTest extends TestCase
 
         $this->postJson("/api/creator/videos/{$id}/storyboard")
             ->assertUnprocessable();
+    }
+
+    public function test_retrying_a_storyboard_planned_without_characters_draws_the_singer_sheet(): void
+    {
+        Sleep::fake();
+        Sanctum::actingAs($this->owner);
+        $this->stillsDown = 'Cars streaking';
+
+        $id = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos")
+            ->json('data.id');
+
+        MusicVideoCharacter::query()
+            ->where('music_video_id', $id)
+            ->delete();
+        MusicVideoShot::query()
+            ->where('music_video_id', $id)
+            ->update(['characters' => null]);
+
+        $this->stillsDown = null;
+
+        $this->postJson("/api/creator/videos/{$id}/storyboard")
+            ->assertJsonPath('data.status', MusicVideo::STORYBOARD)
+            ->assertJsonPath('data.characters.0.key', 'singer')
+            ->assertJsonPath('data.characters.0.description', 'A young woman with short braids')
+            ->assertJsonPath('data.shots.1.characters', ['singer'])
+            ->assertJsonPath('data.shots.2.characters', []);
     }
 
     public function test_rendering_lip_syncs_singing_shots_and_cuts_the_video_over_the_song(): void

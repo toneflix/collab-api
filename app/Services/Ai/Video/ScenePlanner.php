@@ -3,6 +3,8 @@
 namespace App\Services\Ai\Video;
 
 use App\Models\MusicVideo;
+use App\Models\MusicVideoCharacter;
+use App\Models\MusicVideoShot;
 use App\Models\Track;
 use App\Services\Composer\Ai\JsonAnswer;
 use App\Services\Composer\Ai\LyricModel;
@@ -14,7 +16,8 @@ use RuntimeException;
  * video and a shot list timed to the song's lyrics, which ShotList then cuts
  * on the beat.
  *
- * @phpstan-type Plan array{style: array<string, string>, shots: list<array{start: float, end: float, kind: string, prompt: string}>}
+ * @phpstan-type Character array{key: string, name: string, description: string, singer: bool}
+ * @phpstan-type Plan array{style: array<string, string>, characters: list<Character>, shots: list<array{start: float, end: float, kind: string, prompt: string, characters: list<string>}>}
  */
 class ScenePlanner
 {
@@ -22,14 +25,15 @@ class ScenePlanner
     protected const MAX_LINES = 150;
 
     /** Tokens each planned shot may take in the answer */
-    protected const SHOT_TOKENS = 90;
+    protected const SHOT_TOKENS = 100;
 
     protected const SYSTEM = <<<'TXT'
         You direct music videos. You plan one video for a song as JSON only, with no other text.
 
         Answer with this shape:
         {"style": {"look": "...", "setting": "...", "palette": "...", "wardrobe": "...", "character": "..."},
-         "shots": [{"start": 0, "kind": "broll", "prompt": "..."}]}
+         "characters": [{"key": "singer", "name": "The singer", "description": "..."}],
+         "shots": [{"start": 0, "kind": "broll", "prompt": "...", "characters": ["singer"]}]}
 
         Rules:
         - "start" is the second the shot begins. Shots run until the next one starts and the last runs to the end of the song.
@@ -37,6 +41,8 @@ class ScenePlanner
         - "kind" is "performance" when the artist sings to the camera, else "broll". Use performance only where lyric lines are sung, for about 40 percent of the sung time. Instrumental parts are always broll.
         - "prompt" describes one still frame for an image model: subject, action, setting, camera angle and light, in one or two sentences. Never put text, logos, brand names or real people's names in it.
         - Performance prompts show the singer from the chest up, facing the camera, mouth visible, in the video's setting.
+        - "characters" lists everyone who appears in more than one shot, at most 4. The first is always key "singer", the artist. "key" is a short lowercase handle; "description" fixes how they look for a character sheet: age, build, face, hair, skin tone and the exact outfit they wear in every shot.
+        - Each shot's "characters" lists the keys of the characters seen in it, or [] when there are none. Performance shots always include "singer". Refer to characters in prompts by their name, not by a new description.
         - Keep one look for the whole video: the same singer (described in "character"), wardrobe, palette and world, so the shots cut together.
         - Follow the creator's brief when there is one.
         TXT;
@@ -76,7 +82,67 @@ class ScenePlanner
             ->filter()
             ->all();
 
-        return ['style' => $style, 'shots' => $shots];
+        $characters = $this->characters((array) ($data['characters'] ?? []), $style);
+        $keys = array_column($characters, 'key');
+
+        foreach ($shots as $i => $shot) {
+            $seen = array_values(array_intersect($shot['characters'], $keys));
+
+            if ($shot['kind'] === MusicVideoShot::PERFORMANCE && ! in_array(MusicVideoCharacter::SINGER, $seen, true)) {
+                $seen[] = MusicVideoCharacter::SINGER;
+            }
+
+            $shots[$i]['characters'] = $seen;
+        }
+
+        return ['style' => $style, 'characters' => $characters, 'shots' => $shots];
+    }
+
+    /**
+     * The planned characters, with the singer always first.
+     *
+     * @param  array<int, mixed>  $planned
+     * @param  array<string, string>  $style
+     * @return list<Character>
+     */
+    protected function characters(array $planned, array $style): array
+    {
+        $clean = fn(mixed $value, int $limit) => str((string) $value)
+            ->squish()
+            ->limit($limit)
+            ->toString();
+
+        $characters = collect($planned)
+            ->filter(fn($character) => is_array($character) && filled($character['key'] ?? null) && filled($character['description'] ?? null))
+            ->map(fn(array $character) => [
+                'key' => str((string) $character['key'])
+                    ->lower()
+                    ->slug('_')
+                    ->limit(40, '')
+                    ->toString(),
+                'name' => $clean($character['name'] ?? $character['key'], 80),
+                'description' => $clean($character['description'], 600),
+            ])
+            ->filter(fn(array $character) => $character['key'] !== '')
+            ->unique('key')
+            ->keyBy('key');
+
+        if (! $characters->has(MusicVideoCharacter::SINGER)) {
+            $characters->prepend([
+                'key' => MusicVideoCharacter::SINGER,
+                'name' => 'The singer',
+                'description' => $style['character'] ?? 'The artist',
+            ], MusicVideoCharacter::SINGER);
+        }
+
+        $singer = $characters->pull(MusicVideoCharacter::SINGER);
+
+        return collect([$singer])
+            ->merge($characters->values())
+            ->take(MusicVideoCharacter::MAX)
+            ->map(fn(array $character) => [...$character, 'singer' => $character['key'] === MusicVideoCharacter::SINGER])
+            ->values()
+            ->all();
     }
 
     protected function prompt(MusicVideo $video, Track $track): string
@@ -107,6 +173,6 @@ class ScenePlanner
     {
         $shots = (int) ceil($video->duration / 4);
 
-        return min(12000, 800 + $shots * self::SHOT_TOKENS);
+        return min(12000, 1400 + $shots * self::SHOT_TOKENS);
     }
 }
