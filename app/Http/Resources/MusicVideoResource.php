@@ -45,6 +45,7 @@ class MusicVideoResource extends JsonResource
                     'name' => $character->name,
                     'description' => $character->description,
                     'singer' => $character->singer,
+                    'provided' => $character->provided,
                     'sheetUrl' => app(VideoStorage::class)->sheetUrl($character),
                 ])
                 ->values()

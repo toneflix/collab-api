@@ -90,7 +90,8 @@ class DrawStoryboard implements AiTask, HandlesFailure
     }
 
     /**
-     * Plan the shots afresh, replacing any earlier ones and their stills.
+     * Plan the shots afresh, replacing any earlier ones and their stills. The
+     * creator's own character sheets stay.
      */
     protected function plan(MusicVideo $video): void
     {
@@ -112,15 +113,17 @@ class DrawStoryboard implements AiTask, HandlesFailure
             ->delete();
         $video
             ->characters()
+            ->where('provided', false)
             ->each(fn(MusicVideoCharacter $character) => $this->storage->delete($character->sheet));
         $video
             ->characters()
+            ->where('provided', false)
             ->delete();
 
         foreach ($plan['characters'] as $character) {
             $video
                 ->characters()
-                ->create($character);
+                ->firstOrCreate(['key' => $character['key']], $character);
         }
 
         foreach ($plan['shots'] as $position => $shot) {

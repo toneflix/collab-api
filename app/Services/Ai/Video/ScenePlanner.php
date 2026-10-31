@@ -9,6 +9,7 @@ use App\Models\Track;
 use App\Services\Composer\Ai\JsonAnswer;
 use App\Services\Composer\Ai\LyricModel;
 use App\Services\Lyrics\Lyrics;
+use Illuminate\Support\Collection;
 use RuntimeException;
 
 /**
@@ -63,7 +64,11 @@ class ScenePlanner
     public function plan(MusicVideo $video, float $maxShotSeconds): array
     {
         $track = $video->track;
-        $answer = $this->model->ask(self::SYSTEM, $this->prompt($video, $track), $this->budget($video));
+        $cast = $video
+            ->characters()
+            ->where('provided', true)
+            ->get();
+        $answer = $this->model->ask(self::SYSTEM, $this->prompt($video, $track, $cast), $this->budget($video));
         $data = JsonAnswer::decode($answer);
 
         $shots = (new ShotList($video->duration, $track->bpm ? (float) $track->bpm : null, $maxShotSeconds))
@@ -82,7 +87,12 @@ class ScenePlanner
             ->filter()
             ->all();
 
-        $characters = $this->characters((array) ($data['characters'] ?? []), $style);
+        $characters = $cast->isNotEmpty()
+            ? $cast
+                ->map(fn(MusicVideoCharacter $character) => $character->only(['key', 'name', 'description', 'singer']))
+                ->values()
+                ->all()
+            : $this->characters((array) ($data['characters'] ?? []), $style);
         $keys = array_column($characters, 'key');
 
         foreach ($shots as $i => $shot) {
@@ -145,7 +155,10 @@ class ScenePlanner
             ->all();
     }
 
-    protected function prompt(MusicVideo $video, Track $track): string
+    /**
+     * @param  Collection<int, MusicVideoCharacter>  $cast  Characters the creator gave, the only ones to use
+     */
+    protected function prompt(MusicVideo $video, Track $track, Collection $cast): string
     {
         $lines = collect($this->lyrics->for($track)?->lines ?? [])
             ->filter(fn(array $line) => isset($line['start']) && filled($line['text'] ?? null))
@@ -165,6 +178,15 @@ class ScenePlanner
             ->filter(fn($value) => filled($value))
             ->map(fn($value, string $label) => "{$label}: {$value}")
             ->implode("\n");
+
+        if ($cast->isNotEmpty()) {
+            $facts .= "\n\nThe creator gave the cast. Use only these characters, with these keys, and copy them into \"characters\" as given:\n"
+                . $cast
+                    ->map(fn(MusicVideoCharacter $character) => "- {$character->key}: {$character->name}"
+                        . ($character->singer ? ' (the singer)' : '')
+                        . ($character->description ? " ({$character->description})" : ''))
+                    ->implode("\n");
+        }
 
         return $facts . "\n\nTimed lyrics:\n" . ($lines ?: '(none, treat the song as instrumental)');
     }
