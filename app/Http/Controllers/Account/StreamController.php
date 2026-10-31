@@ -57,7 +57,7 @@ class StreamController extends Controller
 
         $ownerId = $this->user->id;
         $month = $request->filled('month')
-            ? Carbon::createFromFormat('Y-m', $request->string('month')->toString())->startOfMonth()
+            ? Carbon::createFromFormat('!Y-m', $request->string('month')->toString())->startOfMonth()
             : now()->startOfMonth();
         $releaseId = $request->integer('release_id') ?: null;
         $projectId = $request->integer('project_id') ?: null;

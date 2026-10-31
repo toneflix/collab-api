@@ -63,7 +63,7 @@ class StreamController extends Controller
             'month' => ['required', 'date_format:Y-m', 'before:' . now()->format('Y-m')],
         ]);
 
-        $month = Carbon::createFromFormat('Y-m', $request->string('month')->toString())->startOfMonth();
+        $month = Carbon::createFromFormat('!Y-m', $request->string('month')->toString())->startOfMonth();
 
         $period = $earnings->settle($month);
 
