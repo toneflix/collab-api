@@ -10,6 +10,7 @@ use App\Http\Resources\MusicVideoResource;
 use App\Http\Resources\MusicVideoShotResource;
 use App\Http\Resources\TrackVideoResource;
 use App\Models\MusicVideo;
+use App\Models\MusicVideoCharacter;
 use App\Models\MusicVideoShot;
 use App\Models\Track;
 use App\Services\Ai\Video\MusicVideos;
@@ -76,7 +77,7 @@ class MusicVideoController extends Controller
 
         $video
             ->refresh()
-            ->load(['track', 'shots']);
+            ->load(['track', 'characters', 'shots']);
 
         return (new MusicVideoResource($video))
             ->additional([
@@ -95,7 +96,7 @@ class MusicVideoController extends Controller
     {
         $this->authorize('view', $video);
 
-        $video->load(['track', 'shots']);
+        $video->load(['track', 'characters', 'shots']);
         $minutesLeft = $musicVideos->minutesLeft($request->user());
 
         return (new MusicVideoResource($video))
@@ -147,7 +148,7 @@ class MusicVideoController extends Controller
 
         $video
             ->refresh()
-            ->load(['track', 'shots']);
+            ->load(['track', 'characters', 'shots']);
 
         return (new MusicVideoResource($video))
             ->additional([
@@ -190,7 +191,7 @@ class MusicVideoController extends Controller
 
         $video
             ->refresh()
-            ->load(['track', 'shots']);
+            ->load(['track', 'characters', 'shots']);
 
         return (new MusicVideoResource($video))
             ->additional([
@@ -213,7 +214,7 @@ class MusicVideoController extends Controller
 
         $video
             ->refresh()
-            ->load(['track', 'shots']);
+            ->load(['track', 'characters', 'shots']);
 
         return (new MusicVideoResource($video))
             ->additional([
@@ -257,5 +258,15 @@ class MusicVideoController extends Controller
         abort_unless((int) $shot->music_video_id === (int) $video->id, HttpStatus::NOT_FOUND->value);
 
         return $storage->stream($shot->keyframe, 'image/jpeg');
+    }
+
+    /**
+     * Show a character sheet from a signed link.
+     */
+    public function sheet(VideoStorage $storage, MusicVideo $video, MusicVideoCharacter $character)
+    {
+        abort_unless((int) $character->music_video_id === (int) $video->id, HttpStatus::NOT_FOUND->value);
+
+        return $storage->stream($character->sheet, 'image/jpeg');
     }
 }

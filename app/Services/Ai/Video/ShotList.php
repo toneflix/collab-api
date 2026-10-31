@@ -28,7 +28,7 @@ class ShotList
 
     /**
      * @param  list<array<string, mixed>>  $planned  Shots with start, kind and prompt
-     * @return list<array{start: float, end: float, kind: string, prompt: string}>
+     * @return list<array{start: float, end: float, kind: string, prompt: string, characters: list<string>}>
      */
     public function build(array $planned): array
     {
@@ -41,6 +41,11 @@ class ShotList
                     ->squish()
                     ->limit(600)
                     ->toString(),
+                'characters' => collect((array) ($shot['characters'] ?? []))
+                    ->filter(fn($key) => is_string($key) && $key !== '')
+                    ->unique()
+                    ->values()
+                    ->all(),
             ])
             ->sortBy('start')
             ->values();
@@ -63,7 +68,7 @@ class ShotList
                 ->filter(fn(array $shot) => $shot['start'] <= $start + $tolerance)
                 ->last() ?? $planned->first();
 
-            $shots[] = ['start' => $start, 'end' => $end, 'kind' => $source['kind'], 'prompt' => $source['prompt']];
+            $shots[] = ['start' => $start, 'end' => $end, 'kind' => $source['kind'], 'prompt' => $source['prompt'], 'characters' => $source['characters']];
         }
 
         return $shots;

@@ -25,6 +25,7 @@ class MusicVideoShot extends Model
         'prompt',
         'keyframe',
         'clip',
+        'characters',
     ];
 
     protected function casts(): array
@@ -33,6 +34,7 @@ class MusicVideoShot extends Model
             'position' => 'integer',
             'start' => 'float',
             'end' => 'float',
+            'characters' => 'array',
         ];
     }
 

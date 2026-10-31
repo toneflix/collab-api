@@ -3,6 +3,7 @@
 namespace App\Services\Ai\Video;
 
 use App\Models\MusicVideo;
+use App\Models\MusicVideoCharacter;
 use App\Models\MusicVideoShot;
 use App\Services\Ai\Artwork\ArtworkImages;
 use App\Services\Ai\Replicate\ReplicateBatch;
@@ -12,9 +13,10 @@ use Illuminate\Support\Collection;
 use Throwable;
 
 /**
- * Draws the still each shot of a music video starts from. Singing shots
- * draw the singer from a reference: the video's portrait, else the first
- * singing still, so the same face carries through the video.
+ * Draws a music video's character sheets, then the still each shot starts
+ * from. Every still of a character is drawn from that character's sheet, so
+ * people look the same from shot to shot. The singer's sheet follows the
+ * video's portrait when it has one.
  */
 class KeyframeDrawer
 {
@@ -32,47 +34,63 @@ class KeyframeDrawer
     ) {}
 
     /**
-     * Draw and store a still for every shot that has none yet. A portrait URL
-     * makes the singer look like the person in it. Stills that come back are
-     * kept even when others fail, so a retry only draws the missing ones.
+     * Draw what's missing: character sheets first, then a still for every
+     * shot that has none. Drawings that come back are kept even when others
+     * fail, so a retry only draws the rest.
      *
+     * @param  iterable<MusicVideoCharacter>  $characters
      * @param  iterable<MusicVideoShot>  $shots
      */
-    public function draw(MusicVideo $video, iterable $shots, ?string $portrait): void
+    public function draw(MusicVideo $video, iterable $characters, iterable $shots, ?string $portrait): void
     {
-        $shots = collect($shots)->keyBy('id');
-        $missing = $shots->filter(fn(MusicVideoShot $shot) => blank($shot->keyframe));
-        $reference = $portrait;
+        $characters = collect($characters)->keyBy('key');
 
-        if (! $reference) {
-            $drawn = $shots->first(fn(MusicVideoShot $shot) => $shot->kind === MusicVideoShot::PERFORMANCE && filled($shot->keyframe));
-            $first = $drawn ?? $missing->firstWhere('kind', MusicVideoShot::PERFORMANCE);
+        $this->drawSheets($video, $characters, $portrait);
 
-            if ($first && ! $drawn) {
-                $this->drawAll($video, collect([$first->id => $first]), null);
-                $missing->forget($first->id);
-            }
+        $sheets = $characters
+            ->filter(fn(MusicVideoCharacter $character) => filled($character->sheet))
+            ->map(fn(MusicVideoCharacter $character) => $this->upload($character->sheet))
+            ->filter();
 
-            if ($first) {
-                $reference = $this->upload($first->refresh()->keyframe);
-            }
-        }
+        $missing = collect($shots)
+            ->keyBy('id')
+            ->filter(fn(MusicVideoShot $shot) => blank($shot->keyframe));
 
-        $this->drawAll($video, $missing, $reference);
+        $runs = $missing
+            ->map(fn(MusicVideoShot $shot) => [self::MODEL, $this->input($video, $shot, $characters, $sheets)])
+            ->all();
+
+        $this->runAll($runs, fn(int $id, mixed $output) => $this->keep($video, $missing[$id], $output));
     }
 
     /**
-     * @param  Collection<int, MusicVideoShot>  $shots
+     * @param  Collection<string, MusicVideoCharacter>  $characters
      */
-    protected function drawAll(MusicVideo $video, $shots, ?string $reference): void
+    protected function drawSheets(MusicVideo $video, Collection $characters, ?string $portrait): void
     {
-        if ($shots->isEmpty()) {
+        $missing = $characters
+            ->filter(fn(MusicVideoCharacter $character) => blank($character->sheet))
+            ->keyBy('id');
+
+        $runs = $missing
+            ->map(fn(MusicVideoCharacter $character) => [self::MODEL, $this->sheetInput($video, $character, $portrait)])
+            ->all();
+
+        $this->runAll($runs, fn(int $id, mixed $output) => $this->keepSheet($video, $missing[$id], $output));
+    }
+
+    /**
+     * Run the predictions and hand each output to `$keep`. Every success is
+     * kept before the first failure is thrown.
+     *
+     * @param  array<int, array{0: string, 1: array<string, mixed>}>  $runs
+     * @param  callable(int, mixed): void  $keep
+     */
+    protected function runAll(array $runs, callable $keep): void
+    {
+        if (! $runs) {
             return;
         }
-
-        $runs = $shots
-            ->map(fn(MusicVideoShot $shot) => [self::MODEL, $this->input($video, $shot, $reference)])
-            ->all();
 
         $results = ReplicateBatch::make()
             ->run($runs, self::PARALLEL, self::TIMEOUT);
@@ -84,7 +102,7 @@ class KeyframeDrawer
                     throw $result;
                 }
 
-                $this->keep($video, $shots[$id], $result['output']);
+                $keep($id, $result['output']);
             } catch (Throwable $e) {
                 $error ??= $e;
             }
@@ -98,33 +116,85 @@ class KeyframeDrawer
     /**
      * @return array<string, mixed>
      */
-    protected function input(MusicVideo $video, MusicVideoShot $shot, ?string $reference): array
+    protected function sheetInput(MusicVideo $video, MusicVideoCharacter $character, ?string $portrait): array
     {
-        $style = collect($video->style ?? [])
-            ->only(['look', 'setting', 'palette', 'wardrobe'])
-            ->filter()
-            ->implode('. ');
-        $singer = $shot->kind === MusicVideoShot::PERFORMANCE
-            ? ($reference ? ' The singer is the person in the reference image.' : ' The singer: ' . ($video->style['character'] ?? 'the artist') . '.')
-            : '';
+        $style = $this->style($video, ['look', 'palette']);
+        $likeness = $character->singer && $portrait ? ' Their face and hair match the person in the reference photo.' : '';
 
         return array_filter([
-            'prompt' => "Music video still. {$shot->prompt}{$singer} {$style}. Cinematic, photographic, no text.",
-            'image_input' => $shot->kind === MusicVideoShot::PERFORMANCE && $reference ? [$reference] : null,
+            'prompt' => "Character reference sheet for a music video. {$character->name}: {$character->description}.{$likeness} "
+                . 'Full body front view, side view and back view, plus a close-up of the face, all the same person in the same outfit, '
+                . "standing on a plain light grey background, even studio light. {$style}. Photographic, no text, no labels.",
+            'image_input' => $character->singer && $portrait ? [$portrait] : null,
+            'aspect_ratio' => '16:9',
+            'size' => '2K',
+        ]);
+    }
+
+    /**
+     * @param  Collection<string, MusicVideoCharacter>  $characters
+     * @param  Collection<string, string>  $sheets  Sheet URLs by character key
+     * @return array<string, mixed>
+     */
+    protected function input(MusicVideo $video, MusicVideoShot $shot, Collection $characters, Collection $sheets): array
+    {
+        $style = $this->style($video, ['look', 'setting', 'palette']);
+        $cast = collect($shot->characters ?? [])
+            ->filter(fn(string $key) => $characters->has($key))
+            ->values();
+        $references = $cast
+            ->filter(fn(string $key) => $sheets->has($key))
+            ->values();
+        $people = $cast
+            ->map(function (string $key) use ($characters, $references) {
+                $character = $characters[$key];
+                $sheet = $references->search($key);
+
+                return $sheet === false
+                    ? "{$character->name} is {$character->description}."
+                    : "{$character->name} is the person on reference sheet " . ($sheet + 1) . ', same face, hair and outfit.';
+            })
+            ->implode(' ');
+
+        return array_filter([
+            'prompt' => trim("Music video still. {$shot->prompt} {$people} {$style}. Cinematic, photographic, one moment of the scene, not a sheet, no text."),
+            'image_input' => $references
+                ->map(fn(string $key) => $sheets[$key])
+                ->all() ?: null,
             'aspect_ratio' => $video->ratio,
             'size' => '2K',
         ]);
     }
 
+    /**
+     * @param  list<string>  $parts
+     */
+    protected function style(MusicVideo $video, array $parts): string
+    {
+        return collect($video->style ?? [])
+            ->only($parts)
+            ->filter()
+            ->implode('. ');
+    }
+
+    protected function keepSheet(MusicVideo $video, MusicVideoCharacter $character, mixed $output): void
+    {
+        $local = $this->download($output);
+
+        try {
+            $file = $this->storage->put($video, $local, "character-{$character->key}", 'jpg');
+
+            $character
+                ->forceFill(['sheet' => $file])
+                ->save();
+        } finally {
+            @unlink($local);
+        }
+    }
+
     protected function keep(MusicVideo $video, MusicVideoShot $shot, mixed $output): void
     {
-        $url = is_array($output) ? reset($output) : $output;
-
-        if (! ReplicateClient::isFile($url)) {
-            throw new ReplicateException('The image model returned no still.');
-        }
-
-        $local = ReplicateClient::make()->download($url);
+        $local = $this->download($output);
 
         try {
             $jpeg = $this->images
@@ -143,6 +213,20 @@ class KeyframeDrawer
         } finally {
             @unlink($local);
         }
+    }
+
+    /**
+     * Fetch the image a prediction made to a local file.
+     */
+    protected function download(mixed $output): string
+    {
+        $url = is_array($output) ? reset($output) : $output;
+
+        if (! ReplicateClient::isFile($url)) {
+            throw new ReplicateException('The image model returned no image.');
+        }
+
+        return ReplicateClient::make()->download($url);
     }
 
     /**

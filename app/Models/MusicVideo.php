@@ -82,6 +82,14 @@ class MusicVideo extends Model
             ->orderBy('position');
     }
 
+    public function characters(): HasMany
+    {
+        return $this
+            ->hasMany(MusicVideoCharacter::class)
+            ->orderByDesc('singer')
+            ->orderBy('id');
+    }
+
     /**
      * Width and height of the rendered video.
      *
