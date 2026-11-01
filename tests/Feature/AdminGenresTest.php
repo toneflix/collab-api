@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Artist;
 use App\Models\Genre;
 use App\Models\Release;
 use App\Models\User;
@@ -46,10 +47,17 @@ class AdminGenresTest extends TestCase
 
     public function test_admin_lists_genres_with_usage(): void
     {
+        $artist = Artist::factory()
+            ->create();
+
         $genre = Genre::query()
             ->create(['title' => 'Zouk Fusion Test']);
+
         Release::factory()
-            ->create(['genre_id' => $genre->id]);
+            ->create([
+                'genre_id' => $genre->id,
+                'artist_id' => $artist->id,
+            ]);
 
         Sanctum::actingAs($this->admin);
 
