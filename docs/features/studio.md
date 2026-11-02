@@ -9,6 +9,8 @@ Each project track opens in a multitrack editor at `/studio/projects/:project/tr
 - **Instruments**: synth, drums and sampler stems from `@toneflix/studio`. They are edited in its piano roll and step grid, played live on its keys, and the record button can record their notes. An instrument stem has no audio file: its `meta.instrument` holds the instrument, its patterns, its clips and links to any samples, and the studio plays and mixes the notes. Features that need a stem's audio (AI split and edit, transcription, stem downloads) don't apply to instrument stems.
 - **Recording** from the microphone into a new stem, uploaded as WAV.
 - **Beat grid** with BPM and meter, for snapping and for instruments.
+- **Automation**: volume and pan curves per stem, drawn in a lane under it. Saved in the stem's `meta.automation` as JSON text and heard in every mix.
+- **Markers and tempo changes**: named points like Verse or Chorus, and tempo or meter changes from a bar. Saved with the track as `arrangement` JSON text (`{ markers, tempo }`, kept in the track's `meta.arrangement`).
 - **Version history**: earlier versions of the track can be restored. How long they are kept is the plan's `history_days`, and `studio:prune-history` deletes older ones.
 - **Side panels**: AI tools, history and sounds. On desktop they dock beside the editor, one at a time; on smaller screens they open as a sheet.
 - **Region messages**: select part of the timeline and start a conversation about it. Opening the message highlights the region for whoever reads it.
