@@ -63,6 +63,18 @@ class SunoClient
     }
 
     /**
+     * Sing over uploaded instrumental audio at `uploadUrl`, and wait for the
+     * songs, which keep the instrumental with the vocals added.
+     *
+     * @param  array<string, mixed>  $body
+     * @return list<SunoSong>
+     */
+    public function addVocals(array $body): array
+    {
+        return $this->songs('api/v1/generate/add-vocals', $body);
+    }
+
+    /**
      * Start a task that makes songs and wait for them.
      *
      * @param  array<string, mixed>  $body

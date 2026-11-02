@@ -11,6 +11,7 @@ use App\Services\Agent\Actions\MakeMusic;
 use App\Services\Agent\Actions\MakeVoice;
 use App\Services\Agent\Actions\MixTrack;
 use App\Services\Agent\Actions\ReleaseAlbum;
+use App\Services\Agent\Actions\SingVocals;
 use App\Services\Agent\Actions\SyncLyrics;
 use App\Services\Agent\Actions\WriteDescriptions;
 use App\Services\Agent\Actions\WriteParts;
@@ -47,6 +48,7 @@ class AgentStep extends Model
         'track' => CreateTrack::class,
         'music' => MakeMusic::class,
         'parts' => WriteParts::class,
+        'vocals' => SingVocals::class,
         'mix' => MixTrack::class,
         'artwork' => DrawArtwork::class,
         'lyrics' => SyncLyrics::class,

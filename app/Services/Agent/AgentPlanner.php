@@ -2,6 +2,7 @@
 
 namespace App\Services\Agent;
 
+use App\Enums\AiEngine;
 use App\Enums\ArtworkKind;
 use App\Models\AgentRun;
 use App\Models\Genre;
@@ -162,11 +163,12 @@ class AgentPlanner
         $seconds = $this->seconds($run);
         $artwork = $this->artwork($run);
         $notes = $this->parts($run);
+        $sings = $notes && self::singsParts();
         $genres = Genre::query()
             ->whereKey([...array_column($plan['albums'], 'genre_id'), ...array_column($plan['releases'] ?? [], 'genre_id')])
             ->pluck('title', 'id');
         $names = array_column($plan['artists'], 'name', 'key');
-        $voiced = $this->voiced($plan);
+        $voiced = $sings ? [] : $this->voiced($plan);
 
         foreach ($plan['artists'] as $artist) {
             $steps[] = $this->step("artist:{$artist['key']}", 'artist', [], [
@@ -237,10 +239,12 @@ class AgentPlanner
                     'genre_id' => $album['genre_id'],
                 ]);
                 $voice = ! $track['instrumental'] && in_array($album['artist'], $voiced, true) ? "voice:{$album['artist']}" : null;
-                // Instrumentals are written as notes when the run asks for it.
-                $sound = $notes && $track['instrumental'] ? "parts:{$track['key']}" : "music:{$track['key']}";
+                // With notes on, beats are written as parts, and songs get AI vocals sung over theirs.
+                $written = $notes && ($track['instrumental'] || $sings);
+                $sound = $written ? "parts:{$track['key']}" : "music:{$track['key']}";
+                $sung = $written && ! $track['instrumental'] ? "vocals:{$track['key']}" : null;
 
-                $steps[] = $sound === "parts:{$track['key']}"
+                $steps[] = $written
                     ? $this->step($sound, 'parts', [$source], [
                         'title' => $track['title'],
                         'source' => $source,
@@ -257,16 +261,32 @@ class AgentPlanner
                         'seconds' => $seconds,
                         'artist' => $artist,
                     ]);
-                $steps[] = $mixes[] = $this->step("mix:{$track['key']}", 'mix', [$sound], [
+
+                if ($sung) {
+                    $steps[] = $this->step("beat:{$track['key']}", 'mix', [$sound], [
+                        'title' => $track['title'],
+                        'source' => $source,
+                    ]);
+                    $steps[] = $this->step($sung, 'vocals', ["beat:{$track['key']}"], [
+                        'title' => $track['title'],
+                        'source' => $source,
+                        'style' => $track['style'],
+                        'artist' => $artist,
+                    ]);
+                }
+
+                $steps[] = $mixes[] = $this->step("mix:{$track['key']}", 'mix', [$sung ?? $sound], [
                     'title' => $track['title'],
                     'source' => $source,
                 ]);
 
                 if (! $track['instrumental']) {
-                    $steps[] = $syncs[] = $this->step("lyrics:{$track['key']}", 'lyrics', ["music:{$track['key']}"], [
+                    $music = $sung ?? "music:{$track['key']}";
+
+                    $steps[] = $syncs[] = $this->step("lyrics:{$track['key']}", 'lyrics', [$music], [
                         'title' => $track['title'],
                         'source' => $source,
-                        'music' => "music:{$track['key']}",
+                        'music' => $music,
                     ]);
                 }
             }
@@ -408,13 +428,17 @@ class AgentPlanner
         $sampleCredits = AiSettings::composerMusicModel()
             ->credits(ArtistVoices::SAMPLE_SECONDS);
         $instrumentals = $tracks->count() - $vocals;
-        $written = $this->parts($run) ? $instrumentals : 0;
+        $notes = $this->parts($run);
+        $sung = $notes && self::singsParts() ? $vocals : 0;
+        $written = ($notes ? $instrumentals : 0) + $sung;
+        $voiced = $sung ? [] : $this->voiced($plan);
 
-        return count($this->voiced($plan)) * $sampleCredits
+        return count($voiced) * $sampleCredits
             + ($vocals + count($plan['songs']) + $describes + $written) * AgentWriter::credits()
             + ($vocals + $timings) * AiSettings::lyricsCredits()
-            + $vocals * $vocalCredits
-            + ($instrumentals - $written) * $instrumentalCredits
+            + ($vocals - $sung) * $vocalCredits
+            + $sung * AiSettings::vocalsCredits()
+            + ($instrumentals - ($written - $sung)) * $instrumentalCredits
             + $pictures * AiSettings::artworkCredits();
     }
 
@@ -444,7 +468,7 @@ class AgentPlanner
     /**
      * What the agent's form needs: whether it can run now and its limits.
      *
-     * @return array{available: bool, maxTracks: int, defaultSeconds: int, maxSeconds: int, vocals: bool, instrumentals: bool, artwork: bool}
+     * @return array{available: bool, maxTracks: int, defaultSeconds: int, maxSeconds: int, vocals: bool, instrumentals: bool, artwork: bool, singsParts: bool}
      */
     public function clientConfig(): array
     {
@@ -456,6 +480,7 @@ class AgentPlanner
             'vocals' => self::vocals(),
             'instrumentals' => self::instrumentals(),
             'artwork' => self::drawsArtwork(),
+            'singsParts' => self::singsParts(),
         ];
     }
 
@@ -468,7 +493,8 @@ class AgentPlanner
     }
 
     /**
-     * Whether instrumentals are written as notes the studio plays, instead of AI audio.
+     * Whether beats are written as notes the studio plays, instead of AI
+     * audio: instrumentals, and songs too when vocals can be sung over them.
      */
     public function parts(AgentRun $run): bool
     {
@@ -512,6 +538,14 @@ class AgentPlanner
         $model = AiSettings::musicModel();
 
         return $model->instrumentalOnly() || $model->instrumentalOption() || ! $model->takesLyrics();
+    }
+
+    /**
+     * Whether vocals can be sung over beats written as notes.
+     */
+    public static function singsParts(): bool
+    {
+        return AiEngine::SUNO->available();
     }
 
     /**

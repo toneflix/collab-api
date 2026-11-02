@@ -711,6 +711,84 @@ class ContentAgentTest extends TestCase
         $this->assertEquals(4, $bass['clips'][0]['start']);
     }
 
+    public function test_songs_written_as_parts_get_vocals_sung_over_their_beat(): void
+    {
+        config(['ai.providers.suno.key' => 'suno_test']);
+        AiSettings::update(['ai_vocals_credits' => 22, 'ai_suno_model' => 'V5_5']);
+
+        $owner = $this->ownerWith(200);
+        $this->answers[] = $this->plan(['songs' => [], 'albums' => [[
+            'key' => 'al1',
+            'title' => 'Sketches',
+            'artist' => 'a1',
+            'genre' => $this->genre->title,
+            'release' => false,
+            'tracks' => [['title' => 'Lagos Lights', 'style' => 'Afrobeats, warm female vocals', 'instrumental' => false]],
+        ]]]);
+        $this->answers[] = json_encode(['lines' => [
+            '[Verse 1]', 'Lagos lights are calling out my name', 'Every street a rhythm, every rhythm a flame',
+            '[Chorus]', 'Hold me close tonight', 'Dance until the morning light',
+        ]]);
+        $this->answers[] = json_encode([
+            'bpm' => 100,
+            'parts' => [['id' => 'drums', 'name' => 'Drums', 'instrument' => 'drums', 'bars' => 1, 'notes' => [['pitch' => 'kick', 'beat' => 0]]]],
+            'sections' => [['name' => 'Groove', 'bars' => 4, 'parts' => ['drums']]],
+        ]);
+
+        $run = $this->advance($this->queueRun($owner, ['parts' => true]));
+
+        $this->assertFalse($run->steps()->where('key', 'music:t1')->exists());
+        $this->assertFalse($run->steps()->where('kind', 'voice')->exists());
+        $this->assertSame(['parts:t1'], $this->step($run, 'beat:t1')->depends_on);
+        $this->assertSame(['beat:t1'], $this->step($run, 'vocals:t1')->depends_on);
+        $this->assertSame(['vocals:t1'], $this->step($run, 'mix:t1')->depends_on);
+        $this->assertSame('vocals:t1', $this->step($run, 'lyrics:t1')->input['music']);
+
+        // The beat is written as notes, then mixed before anyone sings on it.
+        $track = ProjectTrack::query()->findOrFail($this->step($run, 'song:t1')->output['project_track_id']);
+        $this->assertSame(['Drums'], $track->stems()->pluck('title')->all());
+        $this->assertSame(AgentStep::WAITING, $this->step($run, 'beat:t1')->status);
+        Queue::assertPushed(RenderMix::class, 1);
+
+        $track->meta = [...collect($track->meta)->all(), 'mix' => ['status' => 'ready', 'id' => 'x']];
+        $track->saveQuietly();
+
+        $run = $this->advance($run);
+
+        $job = AiJob::query()->findOrFail($this->step($run, 'vocals:t1')->output['ai_job_id']);
+        $this->assertSame('vocals', $job->kind);
+        $this->assertSame($track->id, (int) $job->project_track_id);
+        $this->assertSame(22, $job->credits);
+        $this->assertStringContainsString('Hold me close tonight', $job->input['lyrics']);
+        $this->assertSame('Afrobeats, warm female vocals', $job->input['prompt']);
+
+        // Sung: the vocals are mixed in and the lyrics are timed to them.
+        $stem = ProjectTrackStem::factory()
+            ->create(['track_id' => $track->id, 'user_id' => $owner->id, 'title' => 'Vocals', 'src' => 'vocals.mp3']);
+        $job
+            ->forceFill(['status' => AiJob::SUCCEEDED, 'output' => ['stems' => [$stem->id]]])
+            ->save();
+
+        $run = $this->advance($run);
+
+        $this->assertSame(AgentStep::DONE, $this->step($run, 'vocals:t1')->status);
+
+        $sync = AiJob::query()->findOrFail($this->step($run, 'lyrics:t1')->output['ai_job_id']);
+        $this->assertSame($stem->id, (int) $sync->input['stem_id']);
+    }
+
+    public function test_songs_are_sung_by_the_music_model_when_vocals_cannot_be_added_to_parts(): void
+    {
+        $owner = $this->ownerWith(200);
+        $this->answers[] = $this->plan();
+
+        $run = $this->advance($this->queueRun($owner, ['parts' => true]));
+
+        $this->assertTrue($run->steps()->where('key', 'music:t1')->exists());
+        $this->assertTrue($run->steps()->where('key', 'parts:t2')->exists());
+        $this->assertFalse($run->steps()->where('key', 'vocals:t1')->exists());
+    }
+
     public function test_a_run_releases_an_existing_project_as_a_new_version(): void
     {
         $owner = $this->ownerWith(200);
