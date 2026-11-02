@@ -7,7 +7,6 @@ use App\Jobs\RenderMix;
 use App\Models\ProjectTrack;
 use App\Services\Audio\StemAudio;
 use App\Services\Realtime\Realtime;
-use App\Services\Studio\Mix\MixRenderer;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -15,9 +14,10 @@ use Throwable;
 use Toneflix\LaravelFileable\Media;
 
 /**
- * A project track's preview mix: made by the studio in the browser and
- * uploaded, or rendered on the server from the saved arrangement. Each mix
- * gets an id, so only the newest one is kept.
+ * A project track's preview mix, made by the studio and uploaded: from the
+ * browser of whoever saved it, or from headless Chrome on the worker when
+ * nobody has the studio open. Each mix gets an id, so only the newest one
+ * is kept.
  */
 class MixPreview
 {
@@ -27,10 +27,23 @@ class MixPreview
 
     public const FAILED = 'failed';
 
+    /** Highest peak a mix may reach, in dBFS */
+    public const CEILING = -0.1;
+
     public function __construct(
-        protected MixRenderer $renderer,
+        protected BrowserMix $browser,
         protected StemAudio $audio,
     ) {}
+
+    /**
+     * The studio's master volume for the track, from 0 to 1.
+     */
+    public static function masterVolume(ProjectTrack $track): float
+    {
+        $volume = $track->meta['mixVolume'] ?? 1;
+
+        return is_numeric($volume) ? max(0, min(1, (float) $volume)) : 1.0;
+    }
 
     /**
      * Ask for a new preview mix of the track as it's saved now.
@@ -46,8 +59,8 @@ class MixPreview
     }
 
     /**
-     * Render the mix and keep it as the track's preview, unless a newer
-     * request came in meanwhile.
+     * Have the studio mix the track in headless Chrome. The render page
+     * uploads the mix, which is kept unless a newer request came in.
      */
     public function render(ProjectTrack $track, string $id): void
     {
@@ -55,34 +68,29 @@ class MixPreview
             return;
         }
 
-        $path = $this->renderer->render($track);
+        $result = $this->browser->render($track, $id);
 
-        if (! $path) {
+        if ($result === BrowserMix::EMPTY && $this->current($track->refresh(), $id)) {
             $this->status($track, ['status' => self::FAILED, 'id' => $id, 'error' => 'There is nothing to mix.']);
-
-            return;
-        }
-
-        try {
-            if ($this->current($track->refresh(), $id)) {
-                $this->keep($track, $path, $id);
-            }
-        } finally {
-            @unlink($path);
         }
     }
 
     /**
-     * Keep a mix the studio made in the browser as the track's preview. It
-     * replaces any render still running.
+     * Keep a mix the studio made as the track's preview. A mix for request
+     * `$id` is kept only while that request is the newest; one without an
+     * id, from someone's studio, replaces any render still running.
      */
-    public function upload(ProjectTrack $track, string $path): ProjectTrack
+    public function upload(ProjectTrack $track, string $path, ?string $id = null): ProjectTrack
     {
+        if ($id !== null && ! $this->current($track, $id)) {
+            return $track;
+        }
+
         $peak = $this->audio->peak($path);
-        $mp3 = $this->audio->mp3($path, $peak !== null && $peak > MixRenderer::CEILING ? MixRenderer::CEILING - $peak : 0.0);
+        $mp3 = $this->audio->mp3($path, $peak !== null && $peak > self::CEILING ? self::CEILING - $peak : 0.0);
 
         try {
-            $this->keep($track, $mp3, (string) Str::uuid());
+            $this->keep($track, $mp3, $id ?? (string) Str::uuid());
         } finally {
             @unlink($mp3);
         }

@@ -7,15 +7,12 @@ return [
     |--------------------------------------------------------------------------
     |
     | Studio effects written in Faust (resources/faust). The studio compiles
-    | them in the browser; the server builds each into a LADSPA plugin with
-    | faust2ladspa and runs it through FFmpeg's ladspa filter. Needs the
-    | faust, ladspa-sdk and g++ packages.
+    | them in the browser; the server reads each one's settings with the
+    | Faust compiler (the faust package).
     |
     */
     'faust' => [
         'binary' => env('FAUST_BINARY', 'faust'),
-        'ladspa' => env('FAUST2LADSPA_BINARY', 'faust2ladspa'),
-        'plugins' => env('FAUST_PLUGIN_PATH', storage_path('app/faust')),
     ],
 
     /*
@@ -29,4 +26,21 @@ return [
     |
     */
     'mix_max_mb' => (int) env('STUDIO_MIX_MAX_MB', 100),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Mixes without a browser
+    |--------------------------------------------------------------------------
+    |
+    | Mixes nobody has the studio open for, like content agent runs, are made
+    | by the studio itself in headless Chrome on the worker. Chrome opens the
+    | app's render page (`url`, the frontend's /studio/render unless set),
+    | which mixes the track and uploads it. `timeout` is in seconds.
+    |
+    */
+    'render' => [
+        'chrome' => env('STUDIO_CHROME_BINARY', 'chromium'),
+        'url' => env('STUDIO_RENDER_URL'),
+        'timeout' => (int) env('STUDIO_RENDER_TIMEOUT', 600),
+    ],
 ];

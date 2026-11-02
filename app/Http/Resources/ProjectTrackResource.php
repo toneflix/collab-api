@@ -2,7 +2,6 @@
 
 namespace App\Http\Resources;
 
-use App\Services\Studio\Mix\MixRenderer;
 use App\Services\Studio\MixPreview;
 use Illuminate\Http\Request;
 use Toneflix\ResourceModifier\Services\Json\JsonResource;
@@ -53,7 +52,7 @@ class ProjectTrackResource extends JsonResource
             'tags' => $this->audioTags(),
             'styles' => $this->styleTags(),
             // The studio's master volume, 0 to 1, and where the server is with the preview mix.
-            'mixVolume' => MixRenderer::masterVolume($this->resource),
+            'mixVolume' => MixPreview::masterVolume($this->resource),
             // The master bus effect chain, as JSON text like a stem's `meta.effects`.
             'masterEffects' => (string) ($this->meta['masterEffects'] ?? ''),
             'mix' => MixPreview::state($this->resource),

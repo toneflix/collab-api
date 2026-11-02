@@ -10,8 +10,8 @@ use Symfony\Component\Process\ExecutableFinder;
 use Symfony\Component\Process\Process;
 
 /**
- * The studio's Faust effects: their sources, their settings read from the
- * Faust compiler, and the LADSPA plugins FFmpeg runs them with.
+ * The studio's Faust effects: their sources and their settings, read from
+ * the Faust compiler. The studio compiles and runs them in the browser.
  */
 class FaustLibrary
 {
@@ -66,63 +66,6 @@ class FaustLibrary
         $path = $this->directory . '/' . $slug . '.dsp';
 
         return preg_match('/^[a-z0-9_]+$/', $slug) && is_file($path) ? $this->describe($path) : null;
-    }
-
-    /**
-     * The LADSPA plugin for an effect, built the first time it's needed.
-     *
-     * @return array{file: string, label: string}|null
-     */
-    public function plugin(string $type): ?array
-    {
-        $effect = $this->find($type);
-
-        if (! $effect) {
-            return null;
-        }
-
-        $slug = Str::after($type, self::PREFIX);
-        $file = rtrim(config('studio.faust.plugins'), '/') . '/' . $slug . '-' . md5($effect['source']) . '.so';
-
-        if (is_file($file)) {
-            return ['file' => $file, 'label' => $slug];
-        }
-
-        return Cache::lock('faust::build:' . basename($file), 120)->block(120, function () use ($effect, $slug, $file) {
-            if (! is_file($file) && ! $this->build($effect['source'], $slug, $file)) {
-                return null;
-            }
-
-            return ['file' => $file, 'label' => $slug];
-        });
-    }
-
-    /**
-     * Compile a source into a LADSPA plugin at `$file`.
-     */
-    protected function build(string $source, string $slug, string $file): bool
-    {
-        $work = $this->workspace();
-
-        try {
-            File::put("{$work}/{$slug}.dsp", $source);
-
-            $process = new Process([config('studio.faust.ladspa'), "{$slug}.dsp"], $work, timeout: 120);
-            $process->run();
-
-            if (! is_file("{$work}/{$slug}.so")) {
-                Log::error('Faust effect build failed', ['effect' => $slug, 'output' => Str::limit($process->getErrorOutput() . $process->getOutput(), 2000)]);
-
-                return false;
-            }
-
-            File::ensureDirectoryExists(dirname($file));
-            File::move("{$work}/{$slug}.so", $file);
-
-            return true;
-        } finally {
-            File::deleteDirectory($work);
-        }
     }
 
     /**

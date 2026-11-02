@@ -25,6 +25,7 @@ use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ReleaseController;
 use App\Http\Controllers\RoyaltyInviteController;
 use App\Http\Controllers\SocialInteractionController;
+use App\Http\Controllers\Studio\MixRenderController;
 use App\Http\Controllers\SunoCallbackController;
 use App\Http\Controllers\TopicController;
 use App\Http\Controllers\TrackController;
@@ -138,6 +139,14 @@ Route::post('ai/suno/callback', SunoCallbackController::class)
 
 // Studio effects written in Faust
 Route::get('studio/faust-effects', [FaustEffectController::class, 'index'])->name('studio.faust-effects');
+
+// The studio's render page, in headless Chrome on the worker: a track to mix and where its mix goes
+Route::get('studio/render/tracks/{track}', [MixRenderController::class, 'show'])
+    ->middleware('signed')
+    ->name('studio.render.show');
+Route::post('studio/render/tracks/{track}/mix/{mix}', [MixRenderController::class, 'store'])
+    ->middleware('signed')
+    ->name('studio.render.store');
 
 // A version of a generated song, from the signed link on its AI job
 Route::get('ai/jobs/{job}/versions/{version}/audio', [AiController::class, 'version'])

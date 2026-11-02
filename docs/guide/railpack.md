@@ -9,6 +9,8 @@ Railpack builds on the FrankenPHP image for the PHP version in `composer.json` (
 | What | Why |
 | --- | --- |
 | `ffmpeg` (Debian, built with Chromaprint) | Encoding uploads and copied-audio fingerprints. See [FFmpeg and Chromaprint](./ffmpeg). |
+| `faust` | Reads the settings of the studio's Faust effects |
+| `chromium` | The worker mixes tracks nobody has the studio open for in headless Chrome. See [Preview mix](../features/studio#preview-mix). |
 | `pdo_pgsql`, `pgsql` | PostgreSQL |
 | `gd`, `exif` | Image uploads (avatars, artwork) |
 | `intl`, `bcmath`, `zip` | Laravel and package requirements |

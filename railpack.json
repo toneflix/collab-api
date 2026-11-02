@@ -14,8 +14,7 @@
     "aptPackages": [
       "ffmpeg",
       "faust",
-      "ladspa-sdk",
-      "g++"
+      "chromium"
     ],
     "variables": {
       "AUDIO_ENCODING_CODEC": "aac",
