@@ -13,7 +13,7 @@ use App\Services\Studio\StudioPlugins;
 class MixStem
 {
     /**
-     * @param  list<array{start: float, offset: float, duration: ?float, gain: float, fadeIn: float, fadeOut: float}>  $clips
+     * @param  list<array{start: float, offset: float, duration: ?float, gain: float, fadeIn: float, fadeOut: float, source: ?string}>  $clips
      * @param  list<array<string, mixed>>  $effects
      * @param  array{file: string, start: float}|null  $print
      */
@@ -86,7 +86,7 @@ class MixStem
      * their one clip is rebuilt from `start`, `cuein`, `cueout` and the fades.
      *
      * @param  array<string, mixed>  $meta
-     * @return list<array{start: float, offset: float, duration: ?float, gain: float, fadeIn: float, fadeOut: float}>
+     * @return list<array{start: float, offset: float, duration: ?float, gain: float, fadeIn: float, fadeOut: float, source: ?string}>
      */
     protected static function clips(array $meta): array
     {
@@ -98,6 +98,7 @@ class MixStem
                 'gain' => self::num($clip['gain'] ?? 1, 1),
                 'fadeIn' => max(0, self::num($clip['fadeIn'] ?? 0)),
                 'fadeOut' => max(0, self::num($clip['fadeOut'] ?? 0)),
+                'source' => self::source($clip['source'] ?? null),
             ], array_filter($meta['clips'], 'is_array')));
         }
 
@@ -111,7 +112,68 @@ class MixStem
             'gain' => 1.0,
             'fadeIn' => max(0, self::num($meta['fadeIn']['duration'] ?? 0)),
             'fadeOut' => max(0, self::num($meta['fadeOut']['duration'] ?? 0)),
+            'source' => null,
         ]];
+    }
+
+    /**
+     * The parts of each clip that are heard. Clips on a track stack in the order
+     * they start, and a later clip covers the ones under it while it plays, as in
+     * the studio. Clips that start together keep their saved order.
+     *
+     * @template T of array{start: float, duration: float}
+     *
+     * @param  list<T>  $clips
+     * @return list<array{clip: T, from: float, to: float}>
+     */
+    public static function audible(array $clips): array
+    {
+        $stack = array_keys($clips);
+
+        usort($stack, fn(int $a, int $b) => $clips[$a]['start'] <=> $clips[$b]['start'] ?: $a <=> $b);
+
+        $covered = [];
+        $parts = [];
+
+        foreach (array_reverse($stack) as $index) {
+            $clip = $clips[$index];
+            $end = $clip['start'] + $clip['duration'];
+            $heard = [[$clip['start'], $end]];
+
+            foreach ($covered as [$from, $to]) {
+                $left = [];
+
+                foreach ($heard as [$a, $b]) {
+                    if ($to <= $a || $from >= $b) {
+                        $left[] = [$a, $b];
+
+                        continue;
+                    }
+
+                    if ($from > $a) {
+                        $left[] = [$a, $from];
+                    }
+
+                    if ($to < $b) {
+                        $left[] = [$to, $b];
+                    }
+                }
+
+                $heard = $left;
+            }
+
+            foreach ($heard as [$from, $to]) {
+                if ($to - $from > 1e-6) {
+                    $parts[] = ['clip' => $clip, 'from' => $from, 'to' => $to];
+                }
+            }
+
+            $covered[] = [$clip['start'], $end];
+        }
+
+        usort($parts, fn(array $a, array $b) => $a['from'] <=> $b['from']);
+
+        return $parts;
     }
 
     /**
@@ -143,6 +205,14 @@ class MixStem
         }
 
         return ['file' => $print['file'], 'start' => max(0, self::num($print['start'] ?? 0))];
+    }
+
+    /**
+     * The stem a clip's audio comes from when it was moved off its own stem.
+     */
+    protected static function source(mixed $value): ?string
+    {
+        return is_string($value) && $value !== '' || is_int($value) ? (string) $value : null;
     }
 
     protected static function num(mixed $value, float $fallback = 0): float

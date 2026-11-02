@@ -10,8 +10,9 @@ use App\Services\Studio\StemFiles;
 
 /**
  * Mixes a project track's stems with FFmpeg, the way they sound in the
- * studio: clips, clip gain and fades, effects, volume, pan, mute, solo and
- * the master volume. A stem with a plugin FFmpeg can't run plays from the
+ * studio: clips (the later one on top where they overlap, and clips moved
+ * off their own stem), clip gain and fades, effects, volume, pan, mute, solo
+ * and the master volume. A stem with a plugin FFmpeg can't run plays from the
  * audio the studio printed through it. The mix is turned down to just under full scale when
  * it would clip, and encoded once as a 320 kbps MP3.
  */
@@ -40,19 +41,38 @@ class MixRenderer
         $graph = new MixGraph;
         $pads = [];
         $length = 0.0;
+        $byId = $stems->mapWithKeys(fn(array $item) => [(string) $item[0]->id => $item[0]]);
+        $paths = [];
+        // A stem's audio as a local file, copied once even when several tracks play from it
+        $pathOf = function (ProjectTrackStem $stem) use (&$paths, $graph): ?string {
+            $key = (string) $stem->id;
+
+            if (! array_key_exists($key, $paths)) {
+                $path = $this->files->local($stem);
+                $paths[$key] = $path ? $graph->own($path) : null;
+            }
+
+            return $paths[$key];
+        };
 
         try {
             foreach ($audible as [$stem, $mix]) {
                 $printed = $mix->print ? $this->files->localFile($mix->print['file']) : null;
-                $path = $printed ?? $this->files->local($stem);
-                $mix = $printed ? $mix->printed() : $mix;
 
-                if (! $path) {
-                    continue;
+                if ($printed) {
+                    $graph->own($printed);
+                    $sources = [(string) $stem->id => $printed];
+                    $mix = $mix->printed();
+                } else {
+                    $sources = collect($mix->clips)
+                        ->map(fn(array $clip) => $clip['source'] ?? (string) $stem->id)
+                        ->unique()
+                        ->mapWithKeys(fn(string $id) => [$id => $byId->has($id) ? $pathOf($byId->get($id)) : null])
+                        ->filter()
+                        ->all();
                 }
 
-                $graph->own($path);
-                $pad = $this->stem($graph, $path, $mix, $length);
+                $pad = $this->stem($graph, (string) $stem->id, $sources, $mix, $length);
 
                 if ($pad) {
                     $pads[] = $pad;
@@ -105,28 +125,51 @@ class MixRenderer
 
     /**
      * Add one stem to the graph and return its pad, or null when none of its
-     * clips play. Stretches the mix length to the stem's last clip.
+     * clips play. A clip plays from its own stem's audio, or from the stem it
+     * was moved off; where clips overlap only the later one is heard. Stretches
+     * the mix length to the stem's last clip.
+     *
+     * @param  array<string, string>  $sources  Local audio files by stem id
      */
-    protected function stem(MixGraph $graph, string $path, MixStem $mix, float &$length): ?string
+    protected function stem(MixGraph $graph, string $id, array $sources, MixStem $mix, float &$length): ?string
     {
-        $info = $this->audio->probe($path);
-        $channels = $info['channels'];
-        $clips = $this->playable($mix->clips, $info['duration']);
+        $info = array_map(fn(string $path) => $this->audio->probe($path), $sources);
+        $clips = [];
 
-        if (! $clips) {
+        foreach ($mix->clips as $clip) {
+            $source = $clip['source'] ?? $id;
+
+            if (! isset($info[$source])) {
+                continue;
+            }
+
+            foreach ($this->playable([$clip], $info[$source]['duration']) as $playable) {
+                $clips[] = [...$playable, 'source' => $source];
+            }
+        }
+
+        $parts = MixStem::audible($clips);
+
+        if (! $parts) {
             return null;
         }
 
-        $source = $graph->chain(
-            $graph->input($path),
-            'aresample=' . MixGraph::RATE . ',aformat=sample_fmts=fltp:channel_layouts=' . ($channels === 1 ? 'mono' : 'stereo'),
-            'src',
-        );
-
+        $used = array_intersect_key($info, array_flip(array_column($clips, 'source')));
+        $channels = max(array_column($used, 'channels'));
+        $layout = $channels === 1 ? 'mono' : 'stereo';
         $pads = [];
-        foreach (array_map(null, $graph->split($source, count($clips)), $clips) as [$pad, $clip]) {
-            $pads[] = $graph->chain($pad, $this->clip($clip), 'clip');
-            $length = max($length, $clip['start'] + $clip['duration']);
+
+        foreach (collect($parts)->groupBy(fn(array $part) => $part['clip']['source']) as $source => $group) {
+            $input = $graph->chain(
+                $graph->input($sources[$source]),
+                'aresample=' . MixGraph::RATE . ',aformat=sample_fmts=fltp:channel_layouts=' . $layout,
+                'src',
+            );
+
+            foreach (array_map(null, $graph->split($input, $group->count()), $group->all()) as [$pad, $part]) {
+                $pads[] = $graph->chain($pad, $this->part($part['clip'], $part['from'], $part['to']), 'clip');
+                $length = max($length, $part['to']);
+            }
         }
 
         $pad = count($pads) > 1
@@ -181,12 +224,13 @@ class MixRenderer
     }
 
     /**
-     * Filters that cut a clip from the stem, apply its gain and linear fades,
-     * and move it to its place on the timeline.
+     * Filters that cut a clip from its audio, apply its gain and linear fades,
+     * keep the part heard between `from` and `to` on the timeline and move it
+     * there. The fades follow the whole clip, so a covered end stays cut.
      *
      * @param  array{start: float, offset: float, duration: float, gain: float, fadeIn: float, fadeOut: float}  $clip
      */
-    protected function clip(array $clip): string
+    protected function part(array $clip, float $from, float $to): string
     {
         $filters = [
             sprintf('atrim=start=%s:duration=%s', round($clip['offset'], 6), round($clip['duration'], 6)),
@@ -202,7 +246,12 @@ class MixRenderer
             $filters[] = sprintf('afade=t=out:st=%s:d=%s:curve=tri', round($clip['duration'] - $clip['fadeOut'], 6), round($clip['fadeOut'], 6));
         }
 
-        $filters[] = 'adelay=delays=' . (int) round($clip['start'] * MixGraph::RATE) . 'S:all=1';
+        if ($from > $clip['start'] || $to < $clip['start'] + $clip['duration']) {
+            $filters[] = sprintf('atrim=start=%s:end=%s', round($from - $clip['start'], 6), round($to - $clip['start'], 6));
+            $filters[] = 'asetpts=PTS-STARTPTS';
+        }
+
+        $filters[] = 'adelay=delays=' . (int) round($from * MixGraph::RATE) . 'S:all=1';
 
         return implode(',', $filters);
     }
