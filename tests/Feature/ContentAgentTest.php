@@ -653,6 +653,64 @@ class ContentAgentTest extends TestCase
         $this->assertFalse(Release::query()->withoutGlobalScopes()->where('user_id', $owner->id)->exists());
     }
 
+    public function test_instrumentals_can_be_written_as_instrument_parts(): void
+    {
+        $owner = $this->ownerWith(200);
+        $this->answers[] = $this->plan(['songs' => [], 'albums' => [[
+            'key' => 'al1',
+            'title' => 'Sketches',
+            'artist' => 'a1',
+            'genre' => $this->genre->title,
+            'release' => false,
+            'tracks' => [['title' => 'Idea One', 'style' => 'Lo-fi house', 'instrumental' => true]],
+        ]]]);
+        $this->answers[] = json_encode([
+            'bpm' => 120,
+            'parts' => [
+                ['id' => 'drums', 'name' => 'Drums', 'instrument' => 'drums', 'bars' => 1, 'notes' => [
+                    ['pitch' => 'kick', 'beat' => 0, 'velocity' => 1],
+                    ['pitch' => 'hat', 'beat' => 0.5, 'velocity' => 0.6],
+                    ['pitch' => 'cowbell', 'beat' => 1],
+                ]],
+                ['id' => 'bass', 'name' => 'Bass', 'instrument' => 'synth', 'sound' => 'bass', 'bars' => 2, 'notes' => [
+                    ['pitch' => 36, 'beat' => 0, 'length' => 1, 'velocity' => 0.9],
+                    ['pitch' => 43, 'beat' => 4, 'length' => 2],
+                ]],
+                ['id' => 'empty', 'name' => 'Nothing', 'instrument' => 'synth', 'notes' => []],
+            ],
+            'sections' => [
+                ['name' => 'Intro', 'bars' => 2, 'parts' => ['drums']],
+                ['name' => 'Groove', 'bars' => 4, 'parts' => ['drums', 'bass']],
+            ],
+        ]);
+
+        $run = $this->advance($this->queueRun($owner, ['parts' => true]));
+
+        $this->assertFalse($run->steps()->where('key', 'music:t1')->exists());
+        $this->assertSame(['parts:t1'], $this->step($run, 'mix:t1')->depends_on);
+
+        $track = ProjectTrack::query()->findOrFail($this->step($run, 'track:t1')->output['project_track_id']);
+        $stems = $track
+            ->stems()
+            ->orderBy('id')
+            ->get();
+
+        $this->assertSame(AgentStep::DONE, $this->step($run, 'parts:t1')->status);
+        $this->assertEquals(120, $track->meta['bpm']);
+        $this->assertSame(['Drums', 'Bass'], $stems->pluck('title')->all());
+        $this->assertNull($stems[0]->src);
+
+        $drums = json_decode($stems[0]->meta['instrument'], true);
+        $bass = json_decode($stems[1]->meta['instrument'], true);
+
+        $this->assertSame('drums', $drums['instrument']['id']);
+        $this->assertCount(2, $drums['patterns']['p1']['notes']);
+        // At 120 BPM the one bar drum loop repeats every 2 seconds through the whole minute; the bass joins after the intro.
+        $this->assertCount(30, $drums['clips']);
+        $this->assertCount(14, $bass['clips']);
+        $this->assertEquals(4, $bass['clips'][0]['start']);
+    }
+
     public function test_a_run_releases_an_existing_project_as_a_new_version(): void
     {
         $owner = $this->ownerWith(200);

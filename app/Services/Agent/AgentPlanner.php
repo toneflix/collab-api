@@ -161,6 +161,7 @@ class AgentPlanner
         $steps = [];
         $seconds = $this->seconds($run);
         $artwork = $this->artwork($run);
+        $notes = $this->parts($run);
         $genres = Genre::query()
             ->whereKey([...array_column($plan['albums'], 'genre_id'), ...array_column($plan['releases'] ?? [], 'genre_id')])
             ->pluck('title', 'id');
@@ -236,16 +237,27 @@ class AgentPlanner
                     'genre_id' => $album['genre_id'],
                 ]);
                 $voice = ! $track['instrumental'] && in_array($album['artist'], $voiced, true) ? "voice:{$album['artist']}" : null;
+                // Instrumentals are written as notes when the run asks for it.
+                $sound = $notes && $track['instrumental'] ? "parts:{$track['key']}" : "music:{$track['key']}";
 
-                $steps[] = $this->step("music:{$track['key']}", 'music', array_values(array_filter([$source, $voice])), [
-                    'title' => $track['title'],
-                    'source' => $source,
-                    'style' => $track['style'],
-                    'instrumental' => $track['instrumental'],
-                    'seconds' => $seconds,
-                    'artist' => $artist,
-                ]);
-                $steps[] = $mixes[] = $this->step("mix:{$track['key']}", 'mix', ["music:{$track['key']}"], [
+                $steps[] = $sound === "parts:{$track['key']}"
+                    ? $this->step($sound, 'parts', [$source], [
+                        'title' => $track['title'],
+                        'source' => $source,
+                        'style' => $track['style'],
+                        'mood' => $track['mood'],
+                        'theme' => $track['theme'],
+                        'seconds' => $seconds,
+                    ])
+                    : $this->step($sound, 'music', array_values(array_filter([$source, $voice])), [
+                        'title' => $track['title'],
+                        'source' => $source,
+                        'style' => $track['style'],
+                        'instrumental' => $track['instrumental'],
+                        'seconds' => $seconds,
+                        'artist' => $artist,
+                    ]);
+                $steps[] = $mixes[] = $this->step("mix:{$track['key']}", 'mix', [$sound], [
                     'title' => $track['title'],
                     'source' => $source,
                 ]);
@@ -395,12 +407,14 @@ class AgentPlanner
 
         $sampleCredits = AiSettings::composerMusicModel()
             ->credits(ArtistVoices::SAMPLE_SECONDS);
+        $instrumentals = $tracks->count() - $vocals;
+        $written = $this->parts($run) ? $instrumentals : 0;
 
         return count($this->voiced($plan)) * $sampleCredits
-            + ($vocals + count($plan['songs']) + $describes) * AgentWriter::credits()
+            + ($vocals + count($plan['songs']) + $describes + $written) * AgentWriter::credits()
             + ($vocals + $timings) * AiSettings::lyricsCredits()
             + $vocals * $vocalCredits
-            + ($tracks->count() - $vocals) * $instrumentalCredits
+            + ($instrumentals - $written) * $instrumentalCredits
             + $pictures * AiSettings::artworkCredits();
     }
 
@@ -451,6 +465,14 @@ class AgentPlanner
     public function artwork(AgentRun $run): bool
     {
         return (bool) $run->option('artwork', false) && self::drawsArtwork();
+    }
+
+    /**
+     * Whether instrumentals are written as notes the studio plays, instead of AI audio.
+     */
+    public function parts(AgentRun $run): bool
+    {
+        return (bool) $run->option('parts', false);
     }
 
     public function maxTracks(AgentRun $run): int
