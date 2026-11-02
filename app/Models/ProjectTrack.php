@@ -308,7 +308,7 @@ class ProjectTrack extends Model
 
     public function scopeReady(Builder $query): void
     {
-        $query->whereHas('stems', fn(Builder $q) => $q->whereNotNull('src'));
+        $query->whereHas('stems', fn(Builder $q) => $q->playable());
     }
 
     /**

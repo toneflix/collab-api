@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Casts\StemMeta;
 use App\Contracts\StoresFileMeta;
 use App\Traits\RemembersFileMeta;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -97,6 +98,18 @@ class ProjectTrackStem extends Model implements StoresFileMeta
             $stemTrack['meta']['name'] = $stemTrack->id;
             $stemTrack->saveQuietly();
         });
+    }
+
+    /**
+     * Stems that make sound: an audio file, or an instrument's notes.
+     */
+    public function scopePlayable(Builder $query): void
+    {
+        $query->where(
+            fn(Builder $q) => $q
+                ->whereNotNull('src')
+                ->orWhereNotNull('meta->instrument'),
+        );
     }
 
     /**

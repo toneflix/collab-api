@@ -109,7 +109,7 @@ class EditSection implements AiTask
             $mp3 = $temp[] = $this->audio->mp3($spliced);
 
             $meta = collect($stem->meta)
-                ->except(['src', 'print', 'ai', 'muted', 'soloed', 'duration'])
+                ->except(['src', 'print', 'ai', 'muted', 'soloed', 'duration', 'instrument', 'bounce'])
                 ->all();
 
             $copy = $this->files->addStem($job->track, $job->user, $mp3, $this->title($stem), [

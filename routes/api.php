@@ -26,6 +26,7 @@ use App\Http\Controllers\ReleaseController;
 use App\Http\Controllers\RoyaltyInviteController;
 use App\Http\Controllers\SocialInteractionController;
 use App\Http\Controllers\Studio\MixRenderController;
+use App\Http\Controllers\Studio\StemRenderController;
 use App\Http\Controllers\SunoCallbackController;
 use App\Http\Controllers\TopicController;
 use App\Http\Controllers\TrackController;
@@ -147,6 +148,13 @@ Route::get('studio/render/tracks/{track}', [MixRenderController::class, 'show'])
 Route::post('studio/render/tracks/{track}/mix/{mix}', [MixRenderController::class, 'store'])
     ->middleware('signed')
     ->name('studio.render.store');
+// The same page rendering one instrument stem, for its audio
+Route::get('studio/render/stems/{stem}', [StemRenderController::class, 'show'])
+    ->middleware('signed')
+    ->name('studio.render.stem.show');
+Route::post('studio/render/stems/{stem}/audio/{hash}', [StemRenderController::class, 'store'])
+    ->middleware('signed')
+    ->name('studio.render.stem.store');
 
 // A version of a generated song, from the signed link on its AI job
 Route::get('ai/jobs/{job}/versions/{version}/audio', [AiController::class, 'version'])

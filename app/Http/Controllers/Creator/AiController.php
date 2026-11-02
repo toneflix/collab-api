@@ -17,6 +17,7 @@ use App\Services\Ai\Music\MusicVersions;
 use App\Services\Ai\Music\ReferenceAudio;
 use App\Services\Ai\Tasks\EditSection;
 use App\Services\Artists\ArtistVoices;
+use App\Services\Studio\InstrumentAudio;
 use Illuminate\Http\Request;
 use Throwable;
 
@@ -104,7 +105,7 @@ class AiController extends Controller
         $editor = EditSection::editor();
         $duration = (float) ($stem->meta['duration'] ?? 0);
 
-        abort_unless((bool) $stem->src, HttpStatus::UNPROCESSABLE_ENTITY->value, 'That stem has no audio to edit.');
+        abort_unless($stem->src || InstrumentAudio::isInstrument($stem), HttpStatus::UNPROCESSABLE_ENTITY->value, 'That stem has no audio to edit.');
 
         if ($duration > 0) {
             EditWindow::plan((float) $valid['start'], (float) $valid['end'], $duration, $editor);

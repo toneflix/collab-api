@@ -9,6 +9,7 @@ use App\Http\Resources\ActionResource;
 use App\Http\Resources\StemDownloadCollection;
 use App\Http\Resources\TrackCollection;
 use App\Http\Resources\TrackResource;
+use App\Jobs\PrepareStemAudio;
 use App\Models\ProjectTrackStem;
 use App\Models\Release;
 use App\Models\Track;
@@ -16,6 +17,7 @@ use App\Models\User;
 use App\Services\Releases\Downloads;
 use App\Services\Storage\DownloadLink;
 use App\Services\Streams\StreamPlays;
+use App\Services\Studio\InstrumentAudio;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 
@@ -145,12 +147,24 @@ class TrackController extends Controller
         $query = $track->projectTrack?->stems() ?? ProjectTrackStem::query()->whereKey([]);
 
         $stems = $query
-            ->whereNotNull('src')
+            ->playable()
             ->oldest('id')
             ->paginate($request->perPage(50));
 
+        // Instrument stems are rendered on the worker first, and listed once they are.
+        $audio = app(InstrumentAudio::class);
+        $waiting = $stems
+            ->getCollection()
+            ->filter(
+                fn(ProjectTrackStem $stem) => InstrumentAudio::isInstrument($stem) && ! $audio->current($stem),
+            );
+
+        $waiting->each(fn(ProjectTrackStem $stem) => PrepareStemAudio::dispatch($stem));
+        $stems->setCollection($stems->getCollection()->diff($waiting)->values());
+
         return (new StemDownloadCollection($stems))
             ->additional([
+                'preparing' => $waiting->count(),
                 'message' => HttpStatus::message(HttpStatus::OK),
                 'status' => 'success',
                 'status_code' => HttpStatus::OK,

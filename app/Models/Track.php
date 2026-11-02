@@ -391,7 +391,10 @@ class Track extends Model implements CanBeTakenDown
      */
     public function hasStems(): bool
     {
-        return (bool) $this->projectTrack?->stems()->whereNotNull('src')->exists();
+        return (bool) $this->projectTrack
+            ?->stems()
+            ->playable()
+            ->exists();
     }
 
     /**
