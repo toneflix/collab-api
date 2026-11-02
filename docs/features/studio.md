@@ -17,9 +17,15 @@ Each project track opens in a multitrack editor at `/studio/projects/:project/tr
 
 The studio mixes the preview in the browser, through the same engine and effects it plays with, plugins included. Saving with a preview (or every save, when previews render on save) first saves the arrangement, then renders the whole track offline, turns it down to -0.1 dBFS if it would clip, and uploads it as 16-bit FLAC to `POST creator/projects/{project}/tracks/{track}/mix`. The API encodes it once as a 320 kbps MP3 and keeps it as the track's preview. `STUDIO_MIX_MAX_MB` caps the upload (100 by default, about 20 minutes), and PHP's `upload_max_filesize` and `post_max_size` must allow it too.
 
-Content agent runs have no browser, so their mixes still go through `RenderMix` on the server: one FFmpeg filter graph with the same clips, fades, volume, pan, mute, solo and built-in effects, mixed at 44.1 kHz and encoded the same way. It can't run Web Audio Module plugins.
+Content agent runs, and saves that ask the server for a mix, have no studio open, so `RenderMix` on the queue worker opens the studio in headless Chrome instead. Chrome loads the app's render page (`/studio/render`) with two signed links: one to read the track (`GET studio/render/tracks/{track}`) and one to upload its mix (`POST studio/render/tracks/{track}/mix/{mix}`). The page mixes the track with the same engine, effects and plugins as the studio and uploads it the same way, then sets `window.tfMix` to `done`, `empty` or `failed`, which the job waits for. A mix uploaded for an older request is dropped.
 
-The track's `mix` field says where the newest mix is (`rendering`, `ready` or `failed`), and a `track.mix` realtime event goes out on each change, so the studio fetches the track again for the new preview link. Only the newest mix is kept. Code: `App\Services\Studio\MixPreview`, `Mix\MixRenderer`, `Mix\MixStem` and `Mix\Effects\*`; in the app, `src/utils/studio/mix.ts`.
+| Variable | Default | |
+| --- | --- | --- |
+| `STUDIO_CHROME_BINARY` | `chromium` | Chrome or Chromium on the worker |
+| `STUDIO_RENDER_URL` | `FRONTEND_URL` + `/studio/render` | The render page |
+| `STUDIO_RENDER_TIMEOUT` | `600` | Seconds a render may take |
+
+The track's `mix` field says where the newest mix is (`rendering`, `ready` or `failed`), and a `track.mix` realtime event goes out on each change, so the studio fetches the track again for the new preview link. Only the newest mix is kept. Code: `App\Services\Studio\MixPreview` and `BrowserMix`; in the app, `src/utils/studio/mix.ts` and `src/pages/Studio/RenderMixPage.vue`.
 
 ## Project privacy
 
@@ -46,7 +52,7 @@ A project's privacy decides who outside it can see what. The owner and accepted 
 ## In code
 
 - `src/components/Studio/StemEditor.vue` wraps [`@dawcore/components`](https://www.npmjs.com/package/@dawcore/components) (pinned to 0.0.37). The editor is created in `onMounted`, so it is SSR safe.
-- Clip fades are set on the engine by StemEditor, because dawcore does not load them. The mix itself is rendered by the API (see [Preview mix](#preview-mix)).
+- The mix is rendered by the studio, in the browser or in headless Chrome on the worker (see [Preview mix](#preview-mix)).
 - Effects and instruments are defined in `src/utils/studio/effects.ts` and `src/utils/studio/instruments.ts`.
 - Side panels wrap their content in `src/components/Studio/StudioSheet.vue`.
 - On the API, stems are `ProjectTrackStem` rows. Their `meta` JSON holds the editor state, such as clips. Versions are in `project_track_versions`.

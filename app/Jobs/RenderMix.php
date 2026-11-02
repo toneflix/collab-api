@@ -12,7 +12,7 @@ use Illuminate\Queue\SerializesModels;
 use Throwable;
 
 /**
- * Renders a project track's preview mix with FFmpeg.
+ * Has the studio mix a project track in headless Chrome, as its preview.
  */
 class RenderMix implements ShouldQueue
 {

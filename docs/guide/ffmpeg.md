@@ -67,26 +67,12 @@ php artisan queue:restart
 
 ## Faust effects
 
-Studio effects written in [Faust](https://faust.grame.fr) live in `resources/faust/*.dsp`. The studio compiles each one in the browser. To render the same effect in the preview mix, the API builds the source into a LADSPA plugin with `faust2ladspa` and runs it through FFmpeg's `ladspa` filter. That needs:
-
-- the `faust` compiler, plus `ladspa-sdk` and `g++` for `faust2ladspa`
-- an FFmpeg with the `ladspa` filter (Ubuntu's and Debian's builds have it)
+Studio effects written in [Faust](https://faust.grame.fr) live in `resources/faust/*.dsp`. The studio compiles and runs each one in the browser, mixes included. The API only reads each effect's settings with the `faust` compiler:
 
 ```bash
-sudo apt-get install faust ladspa-sdk g++
-ffmpeg -hide_banner -filters | grep ladspa
+sudo apt-get install faust
 ```
 
-Plugins are built the first time a mix uses them and kept in `storage/app/faust`. These variables change the defaults:
+`FAUST_BINARY` points at another compiler (`faust` by default). Without it, the studio offers no Faust effects. Each new `.dsp` file needs the `tf_label`, `tf_group` and `tf_description` declarations. Its sliders become the effect's settings.
 
-```dotenv
-FAUST_BINARY=faust
-FAUST2LADSPA_BINARY=faust2ladspa
-FAUST_PLUGIN_PATH=/var/lib/toneflix/faust
-```
-
-Without the compiler, the studio offers no Faust effects, and a mix leaves out any it finds. Each new `.dsp` file needs the `tf_label`, `tf_group` and `tf_description` declarations. Its sliders become the effect's settings.
-
-## Plugins the server can't run
-
-When an admin turns on **Studio Plugins** in the configuration (off by default), creators can also add any Web Audio Module (WAM) plugin to a stem by its URL. FFmpeg can't run those. The studio mixes previews in the browser, so they are heard there; only server mixes for content agent runs leave them out. See [Preview mix](../features/studio#preview-mix).
+FFmpeg no longer mixes tracks: every preview mix, content agent runs included, is made by the studio. See [Preview mix](../features/studio#preview-mix).
