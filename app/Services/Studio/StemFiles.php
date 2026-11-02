@@ -33,10 +33,14 @@ class StemFiles
 
     /**
      * Copy a stem's audio to a local temporary file, as it may be on a cloud disk.
+     * An instrument stem's is rendered by the studio when it has none yet.
      */
     public function local(ProjectTrackStem $stem): ?string
     {
-        return $this->localFile($stem->src);
+        $name = app(InstrumentAudio::class)
+            ->file($stem);
+
+        return $this->localFile($name);
     }
 
     /**

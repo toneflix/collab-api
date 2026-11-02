@@ -3,6 +3,7 @@
 namespace App\Services\Studio;
 
 use App\Models\ProjectTrack;
+use App\Models\ProjectTrackStem;
 use HeadlessChromium\BrowserFactory;
 use HeadlessChromium\Page;
 use Illuminate\Support\Facades\URL;
@@ -27,6 +28,26 @@ class BrowserMix
      */
     public function render(ProjectTrack $track, string $id): string
     {
+        return $this->open(fn(int $timeout) => $this->pageUrl($track, $id, $timeout));
+    }
+
+    /**
+     * Render an instrument stem alone, for audio that depends on `$hash`.
+     * Returns DONE or EMPTY, and throws when the page fails or runs out of time.
+     */
+    public function renderStem(ProjectTrackStem $stem, string $hash): string
+    {
+        return $this->open(fn(int $timeout) => $this->stemPageUrl($stem, $hash, $timeout));
+    }
+
+    /**
+     * Open the render page at the link `$url` makes for the time allowed, and
+     * wait for it to finish.
+     *
+     * @param  callable(int): string  $url
+     */
+    protected function open(callable $url): string
+    {
         $timeout = max(30, (int) config('studio.render.timeout'));
         $browser = (new BrowserFactory(config('studio.render.chrome')))
             ->createBrowser([
@@ -47,7 +68,7 @@ class BrowserMix
         try {
             $page = $browser->createPage();
 
-            $page->navigate($this->pageUrl($track, $id, $timeout))
+            $page->navigate($url($timeout))
                 ->waitForNavigation(Page::LOAD, 60000);
 
             return $this->wait($page, $timeout);
@@ -65,6 +86,24 @@ class BrowserMix
         $until = now()->addSeconds($timeout + 60);
         $data = URL::temporarySignedRoute('studio.render.show', $until, ['track' => $track->id]);
         $upload = URL::temporarySignedRoute('studio.render.store', $until, ['track' => $track->id, 'mix' => $id]);
+
+        return $this->page($data, $upload);
+    }
+
+    /**
+     * The render page, with signed links to one stem alone and to upload its audio.
+     */
+    public function stemPageUrl(ProjectTrackStem $stem, string $hash, int $timeout): string
+    {
+        $until = now()->addSeconds($timeout + 60);
+        $data = URL::temporarySignedRoute('studio.render.stem.show', $until, ['stem' => $stem->id]);
+        $upload = URL::temporarySignedRoute('studio.render.stem.store', $until, ['stem' => $stem->id, 'hash' => $hash]);
+
+        return $this->page($data, $upload);
+    }
+
+    protected function page(string $data, string $upload): string
+    {
         $base = config('studio.render.url') ?: rtrim((string) config('app.frontend_url'), '/') . '/studio/render';
 
         return $base . '?' . http_build_query(['data' => $data, 'upload' => $upload]);
