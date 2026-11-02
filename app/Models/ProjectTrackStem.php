@@ -4,7 +4,6 @@ namespace App\Models;
 
 use App\Casts\StemMeta;
 use App\Contracts\StoresFileMeta;
-use App\Services\Studio\StemFiles;
 use App\Traits\RemembersFileMeta;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -98,10 +97,6 @@ class ProjectTrackStem extends Model implements StoresFileMeta
             $stemTrack['meta']['name'] = $stemTrack->id;
             $stemTrack->saveQuietly();
         });
-
-        static::forceDeleted(function (self $stem) {
-            app(StemFiles::class)->delete($stem->meta['print']['file'] ?? null);
-        });
     }
 
     /**
@@ -126,20 +121,6 @@ class ProjectTrackStem extends Model implements StoresFileMeta
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
-    }
-
-    /**
-     * Settings sent by the studio, with the stem's printed audio kept as the
-     * server saved it.
-     *
-     * @param  array<string, mixed>  $meta
-     * @return array<string, mixed>
-     */
-    public function withPrint(array $meta): array
-    {
-        unset($meta['print']);
-
-        return isset($this->meta['print']) ? [...$meta, 'print' => $this->meta['print']] : $meta;
     }
 
     /**

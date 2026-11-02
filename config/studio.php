@@ -20,13 +20,13 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Printed stems
+    | Studio mixes
     |--------------------------------------------------------------------------
     |
-    | Largest file, in MB, the studio may upload for a stem recorded through
-    | plugins FFmpeg can't run. The studio sends 16-bit FLAC, about 5 MB per
-    | minute. PHP's upload_max_filesize and post_max_size must allow it too.
+    | Largest file, in MB, the studio may upload for a track's mix. The studio
+    | sends 16-bit FLAC, about 5 MB per minute. PHP's upload_max_filesize and
+    | post_max_size must allow it too.
     |
     */
-    'print_max_mb' => (int) env('STUDIO_PRINT_MAX_MB', 100),
+    'mix_max_mb' => (int) env('STUDIO_MIX_MAX_MB', 100),
 ];

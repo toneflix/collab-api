@@ -12,9 +12,8 @@ use App\Services\Studio\StemFiles;
  * Mixes a project track's stems with FFmpeg, the way they sound in the
  * studio: clips (the later one on top where they overlap, and clips moved
  * off their own stem), clip gain and fades, effects, volume, pan, mute, solo
- * and the master volume. A stem with a plugin FFmpeg can't run plays from the
- * audio the studio printed through it. The mix is turned down to just under full scale when
- * it would clip, and encoded once as a 320 kbps MP3.
+ * and the master volume. The mix is turned down to just under full scale
+ * when it would clip, and encoded once as a 320 kbps MP3.
  */
 class MixRenderer
 {
@@ -57,20 +56,12 @@ class MixRenderer
 
         try {
             foreach ($audible as [$stem, $mix]) {
-                $printed = $mix->print ? $this->files->localFile($mix->print['file']) : null;
-
-                if ($printed) {
-                    $graph->own($printed);
-                    $sources = [(string) $stem->id => $printed];
-                    $mix = $mix->printed();
-                } else {
-                    $sources = collect($mix->clips)
-                        ->map(fn(array $clip) => $clip['source'] ?? (string) $stem->id)
-                        ->unique()
-                        ->mapWithKeys(fn(string $id) => [$id => $byId->has($id) ? $pathOf($byId->get($id)) : null])
-                        ->filter()
-                        ->all();
-                }
+                $sources = collect($mix->clips)
+                    ->map(fn(array $clip) => $clip['source'] ?? (string) $stem->id)
+                    ->unique()
+                    ->mapWithKeys(fn(string $id) => [$id => $byId->has($id) ? $pathOf($byId->get($id)) : null])
+                    ->filter()
+                    ->all();
 
                 $pad = $this->stem($graph, (string) $stem->id, $sources, $mix, $length);
 

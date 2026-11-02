@@ -12,6 +12,7 @@ use App\Http\Controllers\Creator\ProjectCollaboratorController;
 use App\Http\Controllers\Creator\ProjectController;
 use App\Http\Controllers\Creator\ProjectTrackAssetController;
 use App\Http\Controllers\Creator\ProjectTrackController;
+use App\Http\Controllers\Creator\ProjectTrackMixController;
 use App\Http\Controllers\Creator\ProjectTrackStemController;
 use App\Http\Controllers\Creator\ProjectTrackVersionController;
 use App\Http\Controllers\Creator\ReleaseController;
@@ -53,7 +54,7 @@ Route::middleware(['auth:sanctum'])
             Route::apiResource('projects/{project}/tracks', ProjectTrackController::class)->names('projects.tracks');
             Route::apiResource('projects/{project}/tracks/{track}/stems', ProjectTrackStemController::class);
             Route::post('projects/{project}/tracks/{track}/stems/{stem}/duplicate', [ProjectTrackStemController::class, 'duplicate'])->name('projects.tracks.stems.duplicate');
-            Route::post('projects/{project}/tracks/{track}/stems/{stem}/print', [ProjectTrackStemController::class, 'print'])->name('projects.tracks.stems.print');
+            Route::post('projects/{project}/tracks/{track}/mix', [ProjectTrackMixController::class, 'store'])->middleware('throttle:30,1')->name('projects.tracks.mix');
 
             // AI tools
             Route::get('projects/{project}/tracks/{track}/ai/jobs', [AiController::class, 'jobs'])->name('projects.tracks.ai.jobs');
