@@ -268,6 +268,18 @@ class ProjectTrackAccessTest extends TestCase
         $this->assertNotNull($theirTrack->fresh());
     }
 
+    public function test_the_owner_can_delete_a_track(): void
+    {
+        Sanctum::actingAs($this->owner);
+
+        $this
+            ->deleteJson("/api/creator/projects/{$this->project->id}/tracks/{$this->track->id}")
+            ->assertAccepted();
+
+        $this->assertNull($this->track->fresh());
+        $this->assertNull($this->stem->fresh());
+    }
+
     public function test_only_people_on_the_project_get_full_stem_audio(): void
     {
         $elsewhere = Project::query()
