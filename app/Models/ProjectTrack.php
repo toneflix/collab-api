@@ -109,9 +109,15 @@ class ProjectTrack extends Model
             $model
                 ->lyric()
                 ->delete();
+            // Without the stream counts Track adds, which a subquery can't carry.
+            $released = $model
+                ->releasedTracks()
+                ->withoutGlobalScopes()
+                ->select('id');
+
             Lyric::query()
                 ->where('lyricable_type', (new Track)->getMorphClass())
-                ->whereIn('lyricable_id', $model->releasedTracks()->select('id'))
+                ->whereIn('lyricable_id', $released)
                 ->delete();
             $model
                 ->releasedTracks()
