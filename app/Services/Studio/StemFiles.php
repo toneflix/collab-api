@@ -77,29 +77,6 @@ class StemFiles
     }
 
     /**
-     * Save a stem's printed audio: the stem as heard through its plugins,
-     * which FFmpeg can't run. The mix uses it in place of the stem.
-     */
-    public function print(ProjectTrackStem $stem, string $path, string $ext, float $start, string $key): ProjectTrackStem
-    {
-        $old = $stem->meta['print']['file'] ?? null;
-        $name = $this->put($path, $ext);
-        $meta = collect($stem->meta)
-            ->except('src')
-            ->all();
-
-        $stem->meta = [
-            ...$meta,
-            'print' => ['file' => $name, 'start' => $start, 'key' => $key],
-        ];
-        $stem->saveQuietly();
-
-        $this->delete(is_string($old) ? $old : null);
-
-        return $stem;
-    }
-
-    /**
      * Add a new stem to a track from a local audio file.
      *
      * @param  array<string, mixed>  $meta
@@ -139,7 +116,7 @@ class StemFiles
         $copy->user_id = $user->id;
         $copy->title = str(($stem->title ?: 'Stem') . ' copy')->limit(180, '')->toString();
         $copy->src = $name;
-        $copy->meta = [...collect($stem->meta)->except(['src', 'print'])->all(), ...$meta];
+        $copy->meta = [...collect($stem->meta)->except('src')->all(), ...$meta];
         $copy->saveQuietly();
 
         return $copy->refresh();

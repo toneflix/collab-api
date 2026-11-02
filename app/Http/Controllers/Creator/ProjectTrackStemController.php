@@ -16,7 +16,6 @@ use App\Services\Limits;
 use App\Services\Realtime\Realtime;
 use App\Services\Reputation;
 use App\Services\Studio\StemFiles;
-use App\Services\Studio\StudioPlugins;
 use App\Services\Studio\TrackHistory;
 use Illuminate\Http\Request;
 
@@ -123,37 +122,6 @@ class ProjectTrackStemController extends Controller
     }
 
     /**
-     * Save the stem as heard through its plugins, for the mix to use in their place.
-     */
-    public function print(Request $request, Project $project, ProjectTrack $track, ProjectTrackStem $stem, StemFiles $files)
-    {
-        $this->authorize('update', $track);
-
-        abort_unless(StudioPlugins::enabled(), HttpStatus::FORBIDDEN->value, 'Studio plugins are turned off.');
-
-        $valid = $this->validate($request, [
-            'audio' => ['required', 'file', 'mimes:flac,wav', 'max:' . (config('studio.print_max_mb') * 1024)],
-            'start' => ['required', 'numeric', 'min:0'],
-            'key' => ['required', 'string', 'max:64'],
-        ]);
-
-        $audio = $request->file('audio');
-
-        $ext = $audio->guessExtension() === 'flac' ? 'flac' : 'wav';
-
-        $files->print($stem, $audio->getRealPath(), $ext, (float) $valid['start'], $valid['key']);
-
-        return (new ProjectTrackStemResource($stem))
-            ->additional([
-                'message' => 'Stem printed.',
-                'status' => 'success',
-                'status_code' => HttpStatus::ACCEPTED,
-            ])
-            ->response()
-            ->setStatusCode(HttpStatus::ACCEPTED->value);
-    }
-
-    /**
      * Display the specified resource.
      */
     public function show(Project $project, ProjectTrack $track, ProjectTrackStem $stem)
@@ -185,7 +153,6 @@ class ProjectTrackStemController extends Controller
         ]);
 
         $valid['user_id'] = $request->user()->id;
-        $valid['meta'] = $stem->withPrint($valid['meta']);
 
         $history = TrackHistory::for($track);
         $history->baseline();

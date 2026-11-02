@@ -5,6 +5,7 @@ namespace App\Services\Studio;
 use App\Broadcasting\Channels;
 use App\Jobs\RenderMix;
 use App\Models\ProjectTrack;
+use App\Services\Audio\StemAudio;
 use App\Services\Realtime\Realtime;
 use App\Services\Studio\Mix\MixRenderer;
 use Illuminate\Http\UploadedFile;
@@ -14,8 +15,9 @@ use Throwable;
 use Toneflix\LaravelFileable\Media;
 
 /**
- * A project track's preview mix, rendered on the server from the saved
- * arrangement. Each request gets an id, so only the newest one is kept.
+ * A project track's preview mix: made by the studio in the browser and
+ * uploaded, or rendered on the server from the saved arrangement. Each mix
+ * gets an id, so only the newest one is kept.
  */
 class MixPreview
 {
@@ -25,7 +27,10 @@ class MixPreview
 
     public const FAILED = 'failed';
 
-    public function __construct(protected MixRenderer $renderer) {}
+    public function __construct(
+        protected MixRenderer $renderer,
+        protected StemAudio $audio,
+    ) {}
 
     /**
      * Ask for a new preview mix of the track as it's saved now.
@@ -59,16 +64,40 @@ class MixPreview
         }
 
         try {
-            if (! $this->current($track->refresh(), $id)) {
-                return;
+            if ($this->current($track->refresh(), $id)) {
+                $this->keep($track, $path, $id);
             }
-
-            $track->preview = (new Media)->save('music_tracks', new UploadedFile($path, 'preview.mp3', 'audio/mpeg', null, true), $track->preview);
-            $track->meta = [...collect($track->meta)->all(), 'mix' => ['status' => self::READY, 'id' => $id, 'at' => now()->toIso8601String()]];
-            $track->save();
         } finally {
             @unlink($path);
         }
+    }
+
+    /**
+     * Keep a mix the studio made in the browser as the track's preview. It
+     * replaces any render still running.
+     */
+    public function upload(ProjectTrack $track, string $path): ProjectTrack
+    {
+        $peak = $this->audio->peak($path);
+        $mp3 = $this->audio->mp3($path, $peak !== null && $peak > MixRenderer::CEILING ? MixRenderer::CEILING - $peak : 0.0);
+
+        try {
+            $this->keep($track, $mp3, (string) Str::uuid());
+        } finally {
+            @unlink($mp3);
+        }
+
+        return $track;
+    }
+
+    /**
+     * Save an MP3 as the track's preview and tell everyone it's ready.
+     */
+    protected function keep(ProjectTrack $track, string $mp3, string $id): void
+    {
+        $track->preview = (new Media)->save('music_tracks', new UploadedFile($mp3, 'preview.mp3', 'audio/mpeg', null, true), $track->preview);
+        $track->meta = [...collect($track->meta)->all(), 'mix' => ['status' => self::READY, 'id' => $id, 'at' => now()->toIso8601String()]];
+        $track->save();
 
         $this->announce($track);
     }

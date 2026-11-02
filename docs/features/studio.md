@@ -4,7 +4,7 @@ Each project track opens in a multitrack editor at `/studio/projects/:project/tr
 
 ## What it does
 
-- **Stems**: upload audio files as stems, move and trim clips, set fades, volume, pan, mute and solo. The preview mix is rendered on the server with FFmpeg (see [Preview mix](#preview-mix)).
+- **Stems**: upload audio files as stems, move and trim clips, set fades, volume, pan, mute and solo. The studio mixes the preview in the browser (see [Preview mix](#preview-mix)).
 - **Effects** per stem: EQ, reverb, delay, compressor and low-pass filter. They are saved with the stem.
 - **Instruments**: a drum machine (kick, snare, clap, hats, tom, rim, shaker) and a piano roll with keys, pluck, pad, bass and lead sounds. Both are synthesized in the browser and uploaded as WAV stems. The pattern is kept, so it can be edited later.
 - **Recording** from the microphone into a new stem, uploaded as WAV.
@@ -15,13 +15,11 @@ Each project track opens in a multitrack editor at `/studio/projects/:project/tr
 
 ## Preview mix
 
-The browser never encodes the mix. Saving with a preview (or every save, when previews render on save) sends `render: true` and the master volume as `mix_volume` (0 to 1) with the arrangement. The API queues `RenderMix`, which:
+The studio mixes the preview in the browser, through the same engine and effects it plays with, plugins included. Saving with a preview (or every save, when previews render on save) first saves the arrangement, then renders the whole track offline, turns it down to -0.1 dBFS if it would clip, and uploads it as 16-bit FLAC to `POST creator/projects/{project}/tracks/{track}/mix`. The API encodes it once as a 320 kbps MP3 and keeps it as the track's preview. `STUDIO_MIX_MAX_MB` caps the upload (100 by default, about 20 minutes), and PHP's `upload_max_filesize` and `post_max_size` must allow it too.
 
-1. Reads each stem's saved `meta`: clips (start, offset, length, gain, linear fades), volume, pan, mute, solo and effects.
-2. Builds one FFmpeg filter graph at 44.1 kHz. Effects use the filters closest to their Web Audio versions: shelves and a peak filter for the EQ, `afir` with the same noise-burst room for reverb, `aecho` taps for delay, `acompressor` with peak detection and Web Audio's makeup gain, and a two pole `lowpass`. Panning is equal power, like `StereoPannerNode`.
-3. Mixes to a 32 bit float WAV, turns it down to -0.1 dBFS if it would clip, and encodes it once as a 320 kbps MP3 preview.
+Content agent runs have no browser, so their mixes still go through `RenderMix` on the server: one FFmpeg filter graph with the same clips, fades, volume, pan, mute, solo and built-in effects, mixed at 44.1 kHz and encoded the same way. It can't run Web Audio Module plugins.
 
-The track's `mix` field says where the newest render is (`rendering`, `ready` or `failed`), and a `track.mix` realtime event goes out on each change, so the studio fetches the track again for the new preview link. Only the newest render request is kept. Code: `App\Services\Studio\MixPreview`, `Mix\MixRenderer`, `Mix\MixStem` and `Mix\Effects\*`.
+The track's `mix` field says where the newest mix is (`rendering`, `ready` or `failed`), and a `track.mix` realtime event goes out on each change, so the studio fetches the track again for the new preview link. Only the newest mix is kept. Code: `App\Services\Studio\MixPreview`, `Mix\MixRenderer`, `Mix\MixStem` and `Mix\Effects\*`; in the app, `src/utils/studio/mix.ts`.
 
 ## Project privacy
 

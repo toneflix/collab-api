@@ -3,19 +3,16 @@
 namespace App\Services\Studio\Mix;
 
 use App\Services\Studio\Mix\Effects\MixEffect;
-use App\Services\Studio\StudioPlugins;
 
 /**
  * A stem's place in the mix, read from the `meta` the studio saves: its
- * volume, pan, mute and solo, clips and effects, and its printed audio when
- * a plugin FFmpeg can't run is on.
+ * volume, pan, mute and solo, clips and effects.
  */
 class MixStem
 {
     /**
      * @param  list<array{start: float, offset: float, duration: ?float, gain: float, fadeIn: float, fadeOut: float, source: ?string}>  $clips
      * @param  list<array<string, mixed>>  $effects
-     * @param  array{file: string, start: float}|null  $print
      */
     public function __construct(
         public readonly float $volume,
@@ -24,7 +21,6 @@ class MixStem
         public readonly bool $soloed,
         public readonly array $clips,
         public readonly array $effects,
-        public readonly ?array $print = null,
     ) {}
 
     /**
@@ -32,39 +28,13 @@ class MixStem
      */
     public static function fromMeta(array $meta): self
     {
-        $effects = self::effects($meta['effects'] ?? null);
-
         return new self(
             volume: isset($meta['gain']) ? max(0, min(1, self::num($meta['gain'], 1))) : 1.0,
             pan: max(-1, min(1, self::num($meta['stereoPan'] ?? 0))),
             muted: self::bool($meta['muted'] ?? false),
             soloed: self::bool($meta['soloed'] ?? false),
             clips: self::clips($meta),
-            effects: $effects,
-            print: self::print($meta['print'] ?? null, $effects),
-        );
-    }
-
-    /**
-     * The same stem played from its printed audio: one clip where the print
-     * starts, and no effects, as they're in the audio already.
-     */
-    public function printed(): self
-    {
-        return new self(
-            volume: $this->volume,
-            pan: $this->pan,
-            muted: $this->muted,
-            soloed: $this->soloed,
-            clips: [[
-                'start' => $this->print['start'] ?? 0.0,
-                'offset' => 0.0,
-                'duration' => null,
-                'gain' => 1.0,
-                'fadeIn' => 0.0,
-                'fadeOut' => 0.0,
-            ]],
-            effects: [],
+            effects: self::effects($meta['effects'] ?? null),
         );
     }
 
@@ -186,25 +156,6 @@ class MixStem
         $list = is_string($value) ? json_decode($value, true) : $value;
 
         return is_array($list) ? array_values(array_filter(array_slice($list, 0, 8), 'is_array')) : [];
-    }
-
-    /**
-     * The printed audio, used only while a plugin is on in the chain.
-     *
-     * @param  list<array<string, mixed>>  $effects
-     * @return array{file: string, start: float}|null
-     */
-    protected static function print(mixed $print, array $effects): ?array
-    {
-        $plugin = collect($effects)->contains(
-            fn(array $e) => ($e['type'] ?? null) === 'wam' && ! self::bool($e['bypassed'] ?? false),
-        );
-
-        if (! $plugin || ! StudioPlugins::enabled() || ! is_array($print) || ! is_string($print['file'] ?? null) || $print['file'] === '') {
-            return null;
-        }
-
-        return ['file' => $print['file'], 'start' => max(0, self::num($print['start'] ?? 0))];
     }
 
     /**
