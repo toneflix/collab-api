@@ -6,7 +6,7 @@ Each project track opens in a multitrack editor at `/studio/projects/:project/tr
 
 - **Stems**: upload audio files as stems, move and trim clips, set fades, volume, pan, mute and solo. The studio mixes the preview in the browser (see [Preview mix](#preview-mix)).
 - **Effects** per stem: EQ, reverb, delay, compressor and low-pass filter. They are saved with the stem.
-- **Instruments**: a drum machine (kick, snare, clap, hats, tom, rim, shaker) and a piano roll with keys, pluck, pad, bass and lead sounds. Both are synthesized in the browser and uploaded as WAV stems. The pattern is kept, so it can be edited later.
+- **Instruments**: synth, drums and sampler stems from `@toneflix/studio`. They are edited in its piano roll and step grid, played live on its keys, and the record button can record their notes. An instrument stem has no audio file: its `meta.instrument` holds the instrument, its patterns, its clips and links to any samples, and the studio plays and mixes the notes. Features that need a stem's audio (AI split and edit, transcription, stem downloads) don't apply to instrument stems.
 - **Recording** from the microphone into a new stem, uploaded as WAV.
 - **Beat grid** with BPM and meter, for snapping and for instruments.
 - **Version history**: earlier versions of the track can be restored. How long they are kept is the plan's `history_days`, and `studio:prune-history` deletes older ones.
@@ -51,8 +51,8 @@ A project's privacy decides who outside it can see what. The owner and accepted 
 
 ## In code
 
-- `src/components/Studio/StemEditor.vue` wraps [`@dawcore/components`](https://www.npmjs.com/package/@dawcore/components) (pinned to 0.0.37). The editor is created in `onMounted`, so it is SSR safe.
+- `src/components/Studio/StemEditor.vue` hosts the [`@toneflix/studio`](https://github.com/toneflix/studio) editor. It is created in `onMounted`, so it is SSR safe.
 - The mix is rendered by the studio, in the browser or in headless Chrome on the worker (see [Preview mix](#preview-mix)).
-- Effects and instruments are defined in `src/utils/studio/effects.ts` and `src/utils/studio/instruments.ts`.
+- Effects are defined in `src/utils/studio/effects.ts`; Faust effects compile in the browser with `@shren/faust2wam`. Instrument stems are read and saved by `src/utils/studio/instrument-notes.ts`.
 - Side panels wrap their content in `src/components/Studio/StudioSheet.vue`.
 - On the API, stems are `ProjectTrackStem` rows. Their `meta` JSON holds the editor state, such as clips. Versions are in `project_track_versions`.
