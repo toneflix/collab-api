@@ -7,6 +7,7 @@ use App\Models\Artist;
 use App\Models\Genre;
 use App\Models\Project;
 use App\Models\ProjectTrack;
+use App\Models\ProjectTrackStem;
 use App\Models\User;
 use App\Services\Audio\StemAudio;
 use App\Services\Studio\Faust\FaustLibrary;
@@ -70,10 +71,24 @@ class MixRenderTest extends TestCase
     /**
      * @param  array<string, mixed>  $meta
      */
-    protected function stem(string $path, array $meta = []): void
+    protected function stem(string $path, array $meta = []): ProjectTrackStem
     {
-        app(StemFiles::class)
+        return app(StemFiles::class)
             ->addStem($this->track, $this->owner, $path, 'Stem', $meta, 'wav');
+    }
+
+    /**
+     * The peak in dBFS of a file between two times, in seconds.
+     */
+    protected function peakBetween(string $path, float $from, float $to): ?float
+    {
+        $part = $this->files[] = tempnam(sys_get_temp_dir(), 'part-') . '.wav';
+        exec(sprintf(
+            'ffmpeg -loglevel error -y -i %s -af "atrim=start=%s:end=%s" %s',
+            escapeshellarg($path), $from, $to, escapeshellarg($part)
+        ));
+
+        return app(StemAudio::class)->peak($part);
     }
 
     protected function save(array $data = []): void
@@ -140,6 +155,38 @@ class MixRenderTest extends TestCase
 
         $this->assertSame(MixPreview::READY, $this->track->fresh()->meta['mix']['status']);
         $this->assertEqualsWithDelta(5, app(StemAudio::class)->probe($this->preview())['duration'], 0.1);
+    }
+
+    public function test_a_later_clip_covers_the_one_under_it(): void
+    {
+        $this->stem($this->tone(4), ['clips' => [
+            ['start' => 0, 'offset' => 0, 'duration' => 4],
+            ['start' => 1, 'offset' => 1, 'duration' => 1, 'gain' => 0.1],
+        ]]);
+        $this->save();
+
+        $preview = $this->preview();
+
+        $this->assertEqualsWithDelta(4, app(StemAudio::class)->probe($preview)['duration'], 0.1);
+        // Only the quiet clip is heard while it plays, the loud one again after it (centre pan is -3 dB).
+        $this->assertEqualsWithDelta(-23.9, $this->peakBetween($preview, 1.2, 1.8), 1.5);
+        $this->assertGreaterThan(-5, $this->peakBetween($preview, 2.2, 3.8));
+    }
+
+    public function test_a_clip_moved_to_another_stem_plays_its_first_stems_audio(): void
+    {
+        $first = $this->stem($this->tone(3), ['muted' => true]);
+        $this->stem($this->tone(1, 220, 0.05), ['clips' => [
+            ['start' => 0, 'offset' => 0, 'duration' => 1],
+            ['start' => 4, 'offset' => 0, 'duration' => 2, 'source' => (string) $first->id],
+        ]]);
+        $this->save();
+
+        $preview = $this->preview();
+
+        $this->assertEqualsWithDelta(6, app(StemAudio::class)->probe($preview)['duration'], 0.1);
+        $this->assertLessThan(-25, $this->peakBetween($preview, 0.2, 0.8));
+        $this->assertGreaterThan(-5, $this->peakBetween($preview, 4.2, 5.8));
     }
 
     public function test_every_studio_effect_renders(): void
