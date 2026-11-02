@@ -5,7 +5,7 @@
     "extensions": {
       "commands": [
         "...",
-        "install-php-extensions bcmath exif gd gmp intl pcntl pdo_pgsql pgsql zip"
+        "install-php-extensions bcmath exif gd gmp intl pcntl pdo_pgsql pgsql sockets zip"
       ],
       "deployOutputs": []
     }

@@ -16,6 +16,7 @@ Railpack builds on the FrankenPHP image for the PHP version in `composer.json` (
 | `intl`, `bcmath`, `zip` | Laravel and package requirements |
 | `gmp` | Fast web push encryption |
 | `pcntl` | Lets `queue:work --timeout` stop stuck jobs |
+| `sockets` | The headless Chrome client (`chrome-php/chrome`) talks to Chrome over a socket |
 
 Laravel's own required extensions are added by Railpack.
 
