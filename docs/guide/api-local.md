@@ -14,8 +14,7 @@ git clone git@github.com:toneflix/collab-api.git
 cd collab-api
 
 cp .env.example .env
-# composer.lock is not committed, so dependencies resolve from composer.json
-composer update
+composer install
 php artisan key:generate
 ```
 

@@ -22,7 +22,7 @@ git clone git@github.com:toneflix/collab-api.git /var/www/collab-api
 cd /var/www/collab-api
 
 cp .env.example .env            # then fill it in, see the API .env reference
-composer update --no-dev --optimize-autoloader
+composer install --no-dev --optimize-autoloader
 php artisan key:generate
 php artisan storage:link
 php artisan webpush:vapid       # writes VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY to .env
@@ -36,7 +36,7 @@ The seeder creates `admin@toneflix.ng` with the password `password`. Change its 
 :::
 
 ::: tip composer.lock
-`composer.lock` is not committed, so each deploy resolves packages again. Committing it would make deploys repeatable and let you use `composer install`.
+`composer.lock` is committed, so every deploy installs the package versions the tests ran with. To update packages, run `composer update` locally, run the tests, and commit the new lock file.
 :::
 
 Set at least these in `.env` (all keys are in [API .env](../reference/api-env)):
@@ -60,7 +60,7 @@ Set `MAIL_MAILER=sendpulse` with `SENDPULSE_API_ID` and `SENDPULSE_API_SECRET` w
 ```bash
 php artisan down
 git pull
-composer update --no-dev --optimize-autoloader
+composer install --no-dev --optimize-autoloader
 php artisan migrate --force
 php artisan app:sync-roles      # adds permissions new features need
 php artisan words:import --if-empty  # loads the Composer dictionary once
