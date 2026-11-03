@@ -59,12 +59,11 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/composer
-          key: composer-${{ runner.os }}-${{ hashFiles('composer.json') }}
+          key: composer-${{ runner.os }}-${{ hashFiles('composer.lock') }}
           restore-keys: composer-${{ runner.os }}-
 
-      # composer.lock is not committed, so dependencies resolve from composer.json
       - name: Install dependencies
-        run: composer update --prefer-dist --no-interaction --no-progress
+        run: composer install --prefer-dist --no-interaction --no-progress
 
       - name: Prepare the app
         run: |
