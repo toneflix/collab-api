@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\Ai\Tasks\AddVocals;
 use App\Services\Ai\Tasks\AiTask;
 use App\Services\Ai\Tasks\DrawStoryboard;
 use App\Services\Ai\Tasks\EditSection;
@@ -37,6 +38,7 @@ class AiJob extends Model
         'stems' => SplitStems::class,
         'lyrics' => TranscribeLyrics::class,
         'edit' => EditSection::class,
+        'vocals' => AddVocals::class,
         'artwork' => GenerateArtwork::class,
         'voice' => GenerateVoice::class,
         'video_storyboard' => DrawStoryboard::class,

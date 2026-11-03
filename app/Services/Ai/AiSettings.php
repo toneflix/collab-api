@@ -57,6 +57,7 @@ class AiSettings extends SettingsStore
         'ai_stems_suno_type' => ['Suno Stems', 'split_stem', 'Vocals and instrumental only (about $0.05 a split on sunoapi.org), or up to 12 stems (about $0.25).'],
         'ai_stems_suno_credits' => ['Suno Stem Split Credits', '50', 'Credits one split into stems uses on Suno.'],
         'ai_edit_credits' => ['Section Edit Credits', '5', 'Credits one AI edit of a part of a stem uses. It runs on Suno\'s replace section.'],
+        'ai_vocals_credits' => ['Sung Vocals Credits', '22', 'Credits singing vocals over a beat written as notes uses. It runs on Suno: a song with vocals added (about $0.06 on sunoapi.org) and a vocal split (about $0.05).'],
         'ai_artwork_engine' => ['Artwork Engine', 'replicate', 'Where artwork is drawn: FLUX.1 [schnell] on Replicate, or on Cloudflare Workers AI.'],
         'ai_artwork_credits' => ['Artwork Credits', '3', 'Credits one artwork request uses. FLUX.1 [schnell] costs about $0.003 an image on Replicate.'],
         'ai_artwork_images' => ['Artwork Images per Request', '4', 'How many images (1 to 4) people pick from for each request.'],
@@ -397,6 +398,14 @@ class AiSettings extends SettingsStore
     }
 
     /**
+     * Credits singing vocals over a beat uses.
+     */
+    public static function vocalsCredits(): int
+    {
+        return max(1, (int) self::get('ai_vocals_credits'));
+    }
+
+    /**
      * The engine artwork is drawn on.
      */
     public static function artworkEngine(): AiEngine
@@ -473,6 +482,7 @@ class AiSettings extends SettingsStore
                 'stems' => self::stemsCredits(),
                 'lyrics' => self::lyricsCredits(),
                 'edit' => self::editCredits(),
+                'vocals' => self::vocalsCredits(),
                 'artwork' => self::artworkCredits(),
                 'videoStoryboard' => self::videoStoryboardCredits(),
                 'video' => self::videoCredits(),

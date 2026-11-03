@@ -64,6 +64,10 @@ In the DAW, people select a part of a stem, choose **Edit with AI** and describe
 - **Splicing.** FFmpeg cuts the clip, and after Suno answers it takes the rewritten part back out, stretched in time (pitch kept) to its original length when Suno's clip came back longer or shorter, and splices only the selected part into the stem with 60 ms crossfades.
 - **Result.** The edit goes on the track as a new stem, "Title (AI edit)", with the original's place, clips, volume and effects, and the original is muted. Version history can undo it.
 
+## Sung vocals
+
+A `vocals` job sings lyrics over a track's preview mix, for songs whose beat the content agent wrote as notes. `App\Services\Ai\Tasks\AddVocals` uploads the mix to Suno's add vocals call (`api/v1/generate/add-vocals`) with the lyrics, style, title and vocal gender, then splits the first song it makes with `separate_vocal` and adds only the vocals to the track as a **Vocals** stem from 0 seconds. It costs "Sung vocals credits" (22 by default: a Suno song at about $0.06 and a vocal split at about $0.05). A track without a preview mix fails the job, and the credits go back.
+
 ## Artwork
 
 Project, release, track and artist forms have a **Generate with AI** button beside the image upload. People describe the picture, pick one of the images it draws, and the form saves it like an uploaded image.
