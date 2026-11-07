@@ -43,7 +43,7 @@ class AppConfiguration
         'account_deletion_days' => ['Account Deletion Grace (days)', 'number', ['required', 'integer', 'between:1,365'], 'Days a deleted account stays hidden before it is erased for good. Signing in during this time cancels the deletion.'],
         'track_downloads' => ['Track Downloads', 'boolean', ['required', 'boolean'], 'Let listeners whose plan includes downloads save tracks whose creator allowed it. People who bought a paid release can always download it.'],
         'studio_plugins' => ['Studio Plugins', 'boolean', ['required', 'boolean'], 'Let people add Web Audio Module plugins from other sites to their stems. Plugins run code from those sites in the browser.'],
-        'reference_prefix' => ['Payment Reference Prefix', 'string', ['required', 'string', 'max:10', 'regex:/^[A-Za-z0-9_-]+$/'], 'Starts every payment reference.'],
+        'reference_prefix' => ['Payment Reference Prefix', 'string', ['required', 'string', 'max:10', 'regex:/^[A-Za-z0-9_-]+$/'], 'Starts every payment reference. The payment relay sends Music its webhooks by this prefix, so change it there too.'],
     ];
 
     /**

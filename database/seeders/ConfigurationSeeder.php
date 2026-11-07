@@ -165,7 +165,7 @@ class ConfigurationSeeder extends Seeder
             [
                 'key' => 'reference_prefix',
                 'title' => 'Reference Prefix',
-                'value' => 'TFC-',
+                'value' => 'tfm_',
                 'type' => 'string',
                 'count' => null,
                 'max' => null,

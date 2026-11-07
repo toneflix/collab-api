@@ -61,7 +61,7 @@ class Checkout
             throw ValidationException::withMessages(['provider' => 'Payments are not available right now.']);
         }
 
-        $reference = Providers::config('reference_prefix', 'TRX-') . Random::string(20, false, true, true, false);
+        $reference = Providers::config('reference_prefix', 'tfm_') . Random::string(20, false, true, true, false);
         $charge = $options->charge($amount);
         $returnUrl = $this->returnUrl($reference);
 
@@ -76,7 +76,7 @@ class Checkout
                 reference: $reference,
                 returnUrl: $returnUrl,
                 inline: (bool) ($input['inline'] ?? false),
-                metadata: ['purpose' => $purpose, 'user_id' => $payer->id],
+                metadata: ['app' => 'music', 'purpose' => $purpose, 'user_id' => $payer->id],
             ));
 
         $transaction = new Transaction([
