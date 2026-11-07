@@ -120,19 +120,24 @@ Route::apiResource('playlist', PlaylistController::class)
 Route::get('plans', [PlanController::class, 'index'])
     ->name('plans.index');
 
-// Paystack tells us about payments here; the signature is checked in the controller.
-Route::post('payments/paystack/webhook', [PaymentController::class, 'webhook'])
-    ->name('payments.webhook');
+// Gateway webhooks. Each controller checks the gateway's own signature; the `relay`
+// middleware also requires the payment relay's once a relay secret is set.
+Route::middleware('relay')
+    ->group(function () {
+        // Paystack tells us about payments here.
+        Route::post('payments/paystack/webhook', [PaymentController::class, 'webhook'])
+            ->name('payments.webhook');
 
-// Flutterwave sends charges and payout transfers to one URL; both of these take them.
-Route::post('payments/flutterwave/webhook', [PaymentController::class, 'flutterwaveWebhook'])
-    ->name('payments.webhook.flutterwave');
-Route::post('payouts/flutterwave/webhook', [PaymentController::class, 'flutterwaveWebhook'])
-    ->name('payouts.webhook.flutterwave');
+        // Flutterwave sends charges and payout transfers to one URL; both of these take them.
+        Route::post('payments/flutterwave/webhook', [PaymentController::class, 'flutterwaveWebhook'])
+            ->name('payments.webhook.flutterwave');
+        Route::post('payouts/flutterwave/webhook', [PaymentController::class, 'flutterwaveWebhook'])
+            ->name('payouts.webhook.flutterwave');
 
-// Stripe tells us about payout transfers here.
-Route::post('payouts/stripe/webhook', [PayoutWebhookController::class, 'stripe'])
-    ->name('payouts.webhook.stripe');
+        // Stripe tells us about payout transfers here.
+        Route::post('payouts/stripe/webhook', [PayoutWebhookController::class, 'stripe'])
+            ->name('payouts.webhook.stripe');
+    });
 
 // Suno needs a callback for every task; jobs poll for results, so it's ignored.
 Route::post('ai/suno/callback', SunoCallbackController::class)

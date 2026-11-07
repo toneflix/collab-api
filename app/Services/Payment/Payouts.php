@@ -299,7 +299,7 @@ class Payouts
             return $user
                 ->payouts()
                 ->create([
-                    'reference' => 'po_' . Random::string(24, true, false, true, false),
+                    'reference' => PaymentReference::payout(),
                     'amount' => $amount,
                     'currency' => $this->currency(),
                     'status' => PayoutStatus::PENDING,

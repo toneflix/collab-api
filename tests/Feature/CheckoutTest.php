@@ -29,7 +29,6 @@ class FakeGateway implements PaymentGateway
 
     public array $initialized = [];
 
-
     public array $currencies = [];
 
     public function key(): string
@@ -471,6 +470,39 @@ class CheckoutTest extends TestCase
 
         $this->assertSame('complete', Transaction::where('reference', $reference)->value('status'));
         $this->assertTrue($listener->fresh()->is_premium);
+    }
+
+    public function test_webhooks_must_come_through_the_relay_once_a_relay_secret_is_set(): void
+    {
+        config(['services.relay.secret' => 'music-relay-secret']);
+
+        $listener = User::factory()
+            ->create();
+        Sanctum::actingAs($listener);
+
+        $reference = $this
+            ->postJson('/api/payments', ['purpose' => 'premium', 'plan' => 'premium'])
+            ->json('data.reference');
+
+        $payload = json_encode(['event' => 'charge.success', 'data' => ['reference' => $reference]]);
+        $paystack = hash_hmac('sha512', $payload, 'test-secret');
+
+        $this->assertStringStartsWith('tfm_', $reference);
+
+        $this->call('POST', '/api/payments/paystack/webhook', [], [], [], [
+            'CONTENT_TYPE' => 'application/json',
+            'HTTP_X_PAYSTACK_SIGNATURE' => $paystack,
+        ], $payload)->assertUnauthorized();
+
+        $this->assertSame('pending', Transaction::where('reference', $reference)->value('status'));
+
+        $this->call('POST', '/api/payments/paystack/webhook', [], [], [], [
+            'CONTENT_TYPE' => 'application/json',
+            'HTTP_X_PAYSTACK_SIGNATURE' => $paystack,
+            'HTTP_X_RELAY_SIGNATURE' => hash_hmac('sha256', $payload, 'music-relay-secret'),
+        ], $payload)->assertOk();
+
+        $this->assertSame('complete', Transaction::where('reference', $reference)->value('status'));
     }
 
     public function test_purchases_are_listed_for_the_buyer(): void

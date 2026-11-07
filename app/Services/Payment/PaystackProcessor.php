@@ -11,7 +11,6 @@ use Illuminate\Http\Request;
 use Toneflix\Paystack\Exception\ApiException;
 use Toneflix\Paystack\MetadataBuilder;
 use Toneflix\Paystack\Paystack;
-use Valorin\Random\Random;
 
 class PaystackProcessor implements PaymentInterface
 {
@@ -49,7 +48,7 @@ class PaystackProcessor implements PaymentInterface
         $due = $amount;
         $msg = 'Transaction Failed';
 
-        $reference = Providers::config('reference_prefix', 'TRX-') . Random::string(20, ! 1, ! 0, ! 0, ! 1);
+        $reference = PaymentReference::payment();
         $real_due = round($due * 100, 2);
 
         $response = new \stdClass;
@@ -306,7 +305,7 @@ class PaystackProcessor implements PaymentInterface
                 $user->save();
             }
 
-            $reference = Providers::config('reference_prefix', 'TRX-') . Random::string(20, ! 1, ! 0, ! 0, ! 1);
+            $reference = PaymentReference::payment();
 
             $tranx = $paystack->transfer->initiate([
                 'source' => 'balance',

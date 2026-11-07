@@ -19,7 +19,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Toneflix\Money\Money;
-use Valorin\Random\Random;
 
 /**
  * Turns "I want to pay for X" into a pending transaction, and a confirmed
@@ -61,7 +60,7 @@ class Checkout
             throw ValidationException::withMessages(['provider' => 'Payments are not available right now.']);
         }
 
-        $reference = Providers::config('reference_prefix', 'TRX-') . Random::string(20, false, true, true, false);
+        $reference = PaymentReference::payment();
         $charge = $options->charge($amount);
         $returnUrl = $this->returnUrl($reference);
 
@@ -76,7 +75,7 @@ class Checkout
                 reference: $reference,
                 returnUrl: $returnUrl,
                 inline: (bool) ($input['inline'] ?? false),
-                metadata: ['purpose' => $purpose, 'user_id' => $payer->id],
+                metadata: ['app' => config('services.relay.app', 'music'), 'purpose' => $purpose, 'user_id' => $payer->id],
             ));
 
         $transaction = new Transaction([
