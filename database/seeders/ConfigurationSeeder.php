@@ -165,7 +165,7 @@ class ConfigurationSeeder extends Seeder
             [
                 'key' => 'reference_prefix',
                 'title' => 'Reference Prefix',
-                'value' => 'tfm_',
+                'value' => config('services.relay.reference_prefix', 'tfm_'),
                 'type' => 'string',
                 'count' => null,
                 'max' => null,

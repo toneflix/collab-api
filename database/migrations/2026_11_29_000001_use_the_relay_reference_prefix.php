@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Cache;
 return new class extends Migration
 {
     /**
-     * Start payment references with tfm_, the prefix the payment relay routes to Music,
+     * Start payment references with the configured relay prefix (tfm_ by default),
      * unless an administrator already chose a prefix of their own.
      */
     public function up(): void
@@ -15,7 +15,7 @@ return new class extends Migration
         Configuration::query()
             ->where('key', 'reference_prefix')
             ->whereIn('value', ['TFC-', 'TRX-'])
-            ->update(['value' => 'tfm_']);
+            ->update(['value' => config('services.relay.reference_prefix', 'tfm_')]);
 
         Cache::forget('configuration::build');
     }
