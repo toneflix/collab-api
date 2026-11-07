@@ -7,6 +7,7 @@ use App\Http\Middleware\RedirectIfAuthenticated;
 use App\Http\Middleware\ResolvePlaceholderUrls;
 use App\Http\Middleware\SecureAsset;
 use App\Http\Middleware\VerifyCsrfToken;
+use App\Http\Middleware\VerifyRelaySignature;
 use App\Services\ExceptionHandler;
 use Faker\Factory;
 use Faker\Generator;
@@ -91,6 +92,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'guest' => RedirectIfAuthenticated::class,
             'role' => RoleMiddleware::class,
             'permission' => PermissionMiddleware::class,
+            'relay' => VerifyRelaySignature::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

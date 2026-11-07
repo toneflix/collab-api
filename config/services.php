@@ -68,6 +68,11 @@ return [
         'key' => env('EXCHANGERATE_API_KEY'),
     ],
 
+    // The Toneflix payment relay; once set, gateway webhooks must carry its signature.
+    'relay' => [
+        'secret' => env('RELAY_SECRET'),
+    ],
+
     'stripe' => [
         'secret_key' => env('STRIPE_SECRET_KEY'),
         // Used for Connect payouts instead of the secret key when set.
