@@ -1,22 +1,48 @@
 # Toneflix Music API
 
-A streaming platform that brings together creatives in the music industry to make awesome sounds through collaboration.
+Toneflix Music is a community-driven music platform: where music meets community, creativity and collaboration. People listen, discover artists, make music together in the studio, write songs with a smart songwriting assistant, and release their work.
 
-## Documentation
+This repository is the Laravel API behind it: accounts, content, the studio, payments and payouts, moderation, notifications, queues, webhooks and the admin logic. The app people use lives in [toneflix/collab](https://github.com/toneflix/collab).
 
-Setup guides, the `.env` reference and feature overviews for both the API and the app are in [`docs/`](docs/), a VitePress site. Run it with `cd docs && yarn install && yarn dev`.
+## Requirements
 
-### Database
+- PHP 8.3 with `pdo_pgsql`, `pgsql`, `gd`, `intl`, `zip`, `exif`, `bcmath`, `mbstring`, `curl` (and `gmp` for faster web push)
+- Composer 2
+- PostgreSQL 14 or newer
+- FFmpeg built with Chromaprint ([guide](docs/guide/ffmpeg.md))
 
-PostgreSQL is the preferred database. MySQL/MariaDB and SQLite also work.
+## Setup
 
 ```bash
+git clone git@github.com:toneflix/collab-api.git
+cd collab-api
+
+cp .env.example .env
+composer install
+php artisan key:generate
+
 createdb toneflix_collab
 php artisan migrate --seed
 php artisan app:sync-roles
+php artisan app:sync-roles 1 --roles=admin
+php artisan storage:link
 ```
 
-The tests use a separate `toneflix_collab_tests` database (see `phpunit.xml`):
+Seeding creates the default plans, genres, app configuration and an admin user, `admin@toneflix.ng` / `password`.
+
+## Run
+
+Run each in its own terminal:
+
+```bash
+php artisan serve --port=8001   # the app points here by default
+php artisan queue:work          # audio processing, AI jobs, notifications
+php artisan schedule:work       # scheduled tasks
+```
+
+For realtime, set `REALTIME_DRIVER=reverb` and the `REVERB_*` keys, then run `php artisan reverb:start --port=8080`.
+
+## Tests
 
 ```bash
 createdb toneflix_collab_tests
@@ -24,37 +50,12 @@ DB_DATABASE=toneflix_collab_tests php artisan migrate --seed
 php artisan test
 ```
 
-### Running Queues
+## Documentation
 
-Laravel includes an Artisan command that will start a queue worker and process new jobs as they are pushed onto the queue. You may run the worker using the `queue:work` Artisan command. Note that once the `queue:work` command has started, it will continue to run until it is manually stopped or you close your terminal ([From Laravel Docs](https://laravel.com/docs/9.x/queues#running-the-queue-worker))
-
-The system dispatches tasks and jobs requiring heavy system resource consumtion to a queue thereby limiting the strain on the user waiting for these tasks to complete. You may run the following command to begin processing all queues:
+The full guides for the API and the app (local setup, `.env` reference, production deploy, payments and every feature) are in [`docs/`](docs/), a VitePress site:
 
 ```bash
-php artisan queue:work
+cd docs && yarn install && yarn dev
 ```
 
-Remember, queue workers are long-lived processes and store the booted application state in memory. As a result, they will not notice changes in your code base after they have been started. So, during your deployment process, be sure to restart your queue workers. In addition, remember that any static state created or modified by your application will not be automatically reset between jobs.
-
-Alternatively, you may run the `queue:listen` command. When using the `queue:listen` command, you don't have to manually restart the worker when you want to reload your updated code or reset the application state; however, this command is significantly less efficient than the queue:work command:
-
-```bash
-php artisan queue:listen
-```
-
-To keep the `queue:work` process running permanently in the background, you should use a process monitor such as [Supervisor](https://laravel.com/docs/9.x/queues#supervisor-configuration) to ensure that the queue worker does not stop running.
-
-### Running The Scheduler and other task
-
-Where it is not possible to run queues, the task scheduller has also been implemented as an alternative that will automaticaally proccess queues and other schedulled tasks:
-
-```bash
-* * * * * installation-path/script.sh
-```
-
-This is best run as a cron job.
-
-### Important Dependencies
-
-1. FFmpeg (https://github.com/markus-perl/ffmpeg-build-script OR https://github.com/homebrew-ffmpeg/homebrew-ffmpeg for MAC)
-2. libfdk-aac
+Start with [Overview](docs/guide/overview.md), [API: local setup](docs/guide/api-local.md) and [API .env](docs/reference/api-env.md).
