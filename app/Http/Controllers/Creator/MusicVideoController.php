@@ -103,7 +103,8 @@ class MusicVideoController extends Controller
     }
 
     /**
-     * A music video with its storyboard and the video minutes left to render it.
+     * A music video with its storyboard, the video time left to render it and
+     * whether the plan takes the creator's own clips.
      */
     public function show(Request $request, MusicVideos $musicVideos, MusicVideo $video)
     {
@@ -112,11 +113,13 @@ class MusicVideoController extends Controller
         $video->load(['track', 'characters', 'shots.take', 'takes']);
         $secondsLeft = $musicVideos->secondsLeft($request->user());
         $minutesLeft = intdiv($secondsLeft, 60);
+        $ownPhotos = (bool) $request->user()->feature(Feature::VIDEO_OWN_PHOTOS);
 
         return (new MusicVideoResource($video))
             ->additional([
                 'minutesLeft' => $minutesLeft,
                 'secondsLeft' => $secondsLeft,
+                'ownPhotos' => $ownPhotos,
                 'message' => HttpStatus::message(HttpStatus::OK),
                 'status' => 'success',
                 'status_code' => HttpStatus::OK,
