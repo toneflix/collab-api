@@ -39,7 +39,9 @@ class VideoFiles
      * Clips cut one after another, each cropped to the size and trimmed or held
      * on its last frame to its length, with the song as the only sound. Each
      * clip is cut on its own first, so memory stays flat however many there
-     * are, then the cuts are joined without encoding again.
+     * are, then the cuts are joined without encoding again. Frame counts come
+     * from where each clip starts and ends on the song, so every cut lands
+     * within half a frame of its place however long the video runs.
      *
      * @param  list<array{0: string, 1: float}>  $clips  Path and length in seconds
      * @param  array{0: int, 1: int}  $size
@@ -53,14 +55,16 @@ class VideoFiles
 
         try {
             foreach (array_values($clips) as [$path, $length]) {
+                $frames = max(1, $this->frame($total + $length) - $this->frame($total));
                 $seconds = number_format($length, 3, '.', '');
                 $cut = $this->temp();
 
                 $this->run([
                     '-i', $path,
                     '-vf', 'fps=' . self::FPS . ",scale={$width}:{$height}:force_original_aspect_ratio=increase,crop={$width}:{$height},setsar=1,"
-                        . "tpad=stop_mode=clone:stop_duration={$seconds},trim=duration={$seconds},setpts=PTS-STARTPTS",
+                        . "tpad=stop_mode=clone:stop_duration={$seconds},setpts=PTS-STARTPTS",
                     '-an',
+                    '-frames:v', (string) $frames,
                     ...$this->videoEncoding(),
                     $cut,
                 ], $cut);
@@ -93,6 +97,14 @@ class VideoFiles
         }
 
         return $out;
+    }
+
+    /**
+     * The frame of the stitched video that shows this second of the song.
+     */
+    protected function frame(float $seconds): int
+    {
+        return (int) round($seconds * self::FPS);
     }
 
     /**
