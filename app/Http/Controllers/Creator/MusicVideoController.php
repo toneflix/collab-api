@@ -148,6 +148,26 @@ class MusicVideoController extends Controller
     }
 
     /**
+     * Draw a new still for a shot from its prompt.
+     */
+    public function redrawStill(MusicVideos $videos, MusicVideo $video, MusicVideoShot $shot)
+    {
+        $this->authorize('update', $video);
+        abort_unless((int) $shot->music_video_id === (int) $video->id, HttpStatus::NOT_FOUND->value);
+
+        $shot = $videos->redrawStill($video, $shot);
+
+        return (new MusicVideoShotResource($shot))
+            ->additional([
+                'message' => 'Drawing a new still.',
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
+    }
+
+    /**
      * Save the editor's strip of shots: order, trims, splits, merges, the
      * take each plays or the motion over its still.
      */

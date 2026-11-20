@@ -48,11 +48,7 @@ class KeyframeDrawer
 
         $this->drawSheets($video, $characters, $portrait);
 
-        $sheets = $characters
-            ->filter(fn(MusicVideoCharacter $character) => filled($character->sheet))
-            ->map(fn(MusicVideoCharacter $character) => $this->upload($character->sheet))
-            ->filter();
-
+        $sheets = $this->sheets($characters);
         $missing = collect($shots)
             ->keyBy('id')
             ->filter(fn(MusicVideoShot $shot) => blank($shot->keyframe));
@@ -62,6 +58,38 @@ class KeyframeDrawer
             ->all();
 
         $this->runAll($runs, fn(int $id, mixed $output) => $this->keep($video, $missing[$id], $output));
+    }
+
+    /**
+     * Draw a new still for one shot, in place of the one it has.
+     */
+    public function redraw(MusicVideo $video, MusicVideoShot $shot, ?string $portrait): void
+    {
+        $characters = $video
+            ->characters()
+            ->get()
+            ->keyBy('key');
+
+        $this->drawSheets($video, $characters, $portrait);
+
+        $sheets = $this->sheets($characters);
+        $runs = [$shot->id => [self::MODEL, $this->input($video, $shot, $characters, $sheets)]];
+
+        $this->runAll($runs, fn(int $id, mixed $output) => $this->keep($video, $shot, $output));
+    }
+
+    /**
+     * Sheet URLs the models can read, by character key.
+     *
+     * @param  Collection<string, MusicVideoCharacter>  $characters
+     * @return Collection<string, string>
+     */
+    protected function sheets(Collection $characters): Collection
+    {
+        return $characters
+            ->filter(fn(MusicVideoCharacter $character) => filled($character->sheet))
+            ->map(fn(MusicVideoCharacter $character) => $this->upload($character->sheet))
+            ->filter();
     }
 
     /**
@@ -207,7 +235,7 @@ class KeyframeDrawer
             @unlink($jpeg);
 
             $shot
-                ->forceFill(['keyframe' => $file, 'take_id' => null, 'motion' => null])
+                ->forceFill(['keyframe' => $file, 'take_id' => null, 'motion' => null, 'drawing' => false])
                 ->save();
 
             $this->takes->dropKeyframes($video, [$old]);

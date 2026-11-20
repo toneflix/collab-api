@@ -9,6 +9,7 @@ use App\Services\Ai\Tasks\EditSection;
 use App\Services\Ai\Tasks\GenerateArtwork;
 use App\Services\Ai\Tasks\GenerateMusic;
 use App\Services\Ai\Tasks\GenerateVoice;
+use App\Services\Ai\Tasks\RedrawStill;
 use App\Services\Ai\Tasks\RenderVideo;
 use App\Services\Ai\Tasks\SplitStems;
 use App\Services\Ai\Tasks\TranscribeLyrics;
@@ -43,6 +44,7 @@ class AiJob extends Model
         'voice' => GenerateVoice::class,
         'video_storyboard' => DrawStoryboard::class,
         'video_render' => RenderVideo::class,
+        'video_still' => RedrawStill::class,
     ];
 
     protected $attributes = [

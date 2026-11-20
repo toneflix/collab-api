@@ -612,6 +612,66 @@ class AiMusicVideoTest extends TestCase
         $this->assertTrue($disk->exists($files[4]));
     }
 
+    public function test_one_still_can_be_redrawn_for_the_shots_share_of_the_storyboard_rate(): void
+    {
+        Sanctum::actingAs($this->owner);
+
+        $video = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos")
+            ->json('data');
+        $shot = MusicVideoShot::query()
+            ->findOrFail($video['shots'][2]['id']);
+        $old = $shot->keyframe;
+        $disk = Storage::disk(config('filesystems.default'));
+
+        $this->postJson("/api/creator/videos/{$video['id']}/shots/{$shot->id}/still")
+            ->assertAccepted()
+            ->assertJsonPath('data.drawing', true);
+
+        $shot->refresh();
+
+        $this->assertFalse($shot->drawing);
+        $this->assertTrue($shot->needsClip());
+        $this->assertNotSame($old, $shot->keyframe);
+        $this->assertFalse($disk->exists($old));
+        $this->assertTrue($disk->exists($shot->keyframe));
+        // 3 seconds at 20 credits a minute
+        $this->assertSame(979, Credits::for($this->owner)->total());
+        Http::assertSent(fn(Request $request) => str_ends_with($request->url(), '/seedream-4/predictions')
+            && str_contains($request['input']['prompt'], 'Cars streaking')
+            && str_contains($request['input']['prompt'], 'The driver is the person on reference sheet 1'));
+    }
+
+    public function test_a_failed_still_is_refunded_and_a_drawing_shot_holds_the_render(): void
+    {
+        Sanctum::actingAs($this->owner);
+
+        $video = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos")
+            ->json('data');
+        $shot = MusicVideoShot::query()
+            ->findOrFail($video['shots'][0]['id']);
+        $old = $shot->keyframe;
+
+        $this->stillsDown = 'city skyline';
+
+        $this->postJson("/api/creator/videos/{$video['id']}/shots/{$shot->id}/still")
+            ->assertAccepted();
+
+        $shot->refresh();
+
+        $this->assertSame($old, $shot->keyframe);
+        $this->assertFalse($shot->drawing);
+        $this->assertSame(980, Credits::for($this->owner)->total());
+
+        $shot
+            ->forceFill(['drawing' => true])
+            ->save();
+
+        $this->postJson("/api/creator/videos/{$video['id']}/render")
+            ->assertUnprocessable();
+        $this->postJson("/api/creator/videos/{$video['id']}/shots/{$shot->id}/still")
+            ->assertUnprocessable();
+    }
+
     public function test_deleting_a_track_deletes_its_video_files(): void
     {
         Sanctum::actingAs($this->owner);
