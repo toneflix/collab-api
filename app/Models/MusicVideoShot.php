@@ -106,8 +106,8 @@ class MusicVideoShot extends Model
 
     /**
      * Whether the shot needs a new clip before the video can be stitched:
-     * it has no take, a singing shot sits outside the lines its take was
-     * synced to, or a b-roll take is too short for the shot.
+     * it has no take, a singing shot sits outside the lines its rendered take
+     * was synced to, or a b-roll or uploaded take is too short for the shot.
      */
     public function needsClip(): bool
     {
@@ -121,7 +121,7 @@ class MusicVideoShot extends Model
             return true;
         }
 
-        if ($this->kind === self::PERFORMANCE) {
+        if ($this->kind === self::PERFORMANCE && $take->source !== MusicVideoTake::UPLOAD) {
             return ! $take->synced()
                 || $this->start < $take->synced_from - 0.01
                 || $this->end > $take->synced_to + 0.01;

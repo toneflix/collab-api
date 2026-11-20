@@ -103,7 +103,8 @@ class MusicVideoController extends Controller
     }
 
     /**
-     * A music video with its storyboard and the video minutes left to render it.
+     * A music video with its storyboard, the video time left to render it and
+     * whether the plan takes the creator's own clips.
      */
     public function show(Request $request, MusicVideos $musicVideos, MusicVideo $video)
     {
@@ -112,11 +113,13 @@ class MusicVideoController extends Controller
         $video->load(['track', 'characters', 'shots.take', 'takes']);
         $secondsLeft = $musicVideos->secondsLeft($request->user());
         $minutesLeft = intdiv($secondsLeft, 60);
+        $ownPhotos = (bool) $request->user()->feature(Feature::VIDEO_OWN_PHOTOS);
 
         return (new MusicVideoResource($video))
             ->additional([
                 'minutesLeft' => $minutesLeft,
                 'secondsLeft' => $secondsLeft,
+                'ownPhotos' => $ownPhotos,
                 'message' => HttpStatus::message(HttpStatus::OK),
                 'status' => 'success',
                 'status_code' => HttpStatus::OK,
@@ -160,6 +163,37 @@ class MusicVideoController extends Controller
         return (new MusicVideoShotResource($shot))
             ->additional([
                 'message' => 'Drawing a new still.',
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
+    }
+
+    /**
+     * Use the creator's own clip as a take of a shot, or their image as its still.
+     */
+    public function addTake(Request $request, MusicVideos $videos, MusicVideo $video, MusicVideoShot $shot)
+    {
+        $this->authorize('update', $video);
+        abort_unless((int) $shot->music_video_id === (int) $video->id, HttpStatus::NOT_FOUND->value);
+
+        $request->validate([
+            'file' => ['required', 'file', 'max:' . 100 * 1024, 'mimetypes:video/mp4,video/quicktime,video/webm,image/jpeg,image/png,image/webp'],
+            'consent' => ['required', 'accepted'],
+        ], [
+            'consent.required' => 'Confirm the clip is yours, or that you have the right to use it.',
+            'consent.accepted' => 'Confirm the clip is yours, or that you have the right to use it.',
+        ]);
+
+        $file = $request->file('file');
+        $videos->addOwnTake($video, $shot, $file);
+
+        $video->load(['track', 'characters', 'shots.take', 'takes']);
+
+        return (new MusicVideoResource($video))
+            ->additional([
+                'message' => 'Added to the shot.',
                 'status' => 'success',
                 'status_code' => HttpStatus::ACCEPTED,
             ])

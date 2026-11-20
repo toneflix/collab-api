@@ -672,6 +672,58 @@ class AiMusicVideoTest extends TestCase
             ->assertUnprocessable();
     }
 
+    public function test_creators_can_use_their_own_clips_and_images_in_shots(): void
+    {
+        Sanctum::actingAs($this->owner);
+
+        $video = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos")
+            ->json('data');
+        $singing = $video['shots'][1]['id'];
+        $scene = $video['shots'][2]['id'];
+        $clip = new UploadedFile($this->ffmpeg('mov', ['-f', 'lavfi', '-i', 'testsrc=size=320x240:rate=30:duration=5', '-pix_fmt', 'yuv420p']), 'clip.mov', 'video/quicktime', null, true);
+        $image = new UploadedFile($this->ffmpeg('png', ['-f', 'lavfi', '-i', 'color=c=red:s=800x800', '-frames:v', '1']), 'still.png', 'image/png', null, true);
+
+        $this->post("/api/creator/videos/{$video['id']}/shots/{$singing}/takes", ['file' => $clip, 'consent' => true], ['Accept' => 'application/json'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('file');
+
+        $this->owner = $this->subscriber([Feature::AI_TOOLS->value => true, Feature::AI_CREDITS->value => 1000, Feature::VIDEO_OWN_PHOTOS->value => true]);
+        MusicVideo::query()
+            ->whereKey($video['id'])
+            ->update(['user_id' => $this->owner->id]);
+        Sanctum::actingAs($this->owner);
+
+        $this->post("/api/creator/videos/{$video['id']}/shots/{$singing}/takes", ['file' => $clip], ['Accept' => 'application/json'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('consent');
+
+        $this->post("/api/creator/videos/{$video['id']}/shots/{$singing}/takes", ['file' => $clip, 'consent' => true], ['Accept' => 'application/json'])
+            ->assertAccepted()
+            ->assertJsonPath('data.shots.1.rendered', true)
+            ->assertJsonPath('data.takes.0.source', MusicVideoTake::UPLOAD)
+            ->assertJsonPath('data.takes.0.syncedFrom', null);
+
+        $take = MusicVideoTake::query()
+            ->where('shot_id', $singing)
+            ->sole();
+
+        $this->assertEqualsWithDelta(5.0, $take->length, 0.1);
+        $this->assertStringContainsString('h264', $this->probe($take->file));
+
+        $old = MusicVideoShot::query()
+            ->findOrFail($scene)
+            ->keyframe;
+
+        $this->post("/api/creator/videos/{$video['id']}/shots/{$scene}/takes", ['file' => $image, 'consent' => true], ['Accept' => 'application/json'])
+            ->assertAccepted()
+            ->assertJsonPath('data.shots.2.motion', 'zoom_in')
+            ->assertJsonPath('data.shots.2.rendered', true)
+            ->assertJsonPath('data.edited', true);
+
+        $this->assertNotSame($old, MusicVideoShot::query()->findOrFail($scene)->keyframe);
+        $this->assertSame(1000, Credits::for($this->owner)->total());
+    }
+
     public function test_deleting_a_track_deletes_its_video_files(): void
     {
         Sanctum::actingAs($this->owner);

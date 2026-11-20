@@ -20,6 +20,9 @@ class MusicVideoTake extends Model
     /** Earlier takes a shot keeps beside the one it plays */
     public const KEEP = 3;
 
+    /** The longest part of an uploaded clip that is kept, in seconds */
+    public const MAX_UPLOAD_SECONDS = 60.0;
+
     protected $fillable = [
         'music_video_id',
         'shot_id',
