@@ -36,6 +36,53 @@ class VideoFiles
     }
 
     /**
+     * An uploaded clip as a silent H.264 MP4 at the size and frame rate of
+     * the video, at most `$max` seconds long.
+     *
+     * @param  array{0: int, 1: int}  $size
+     */
+    public function normalize(string $clip, array $size, float $max): string
+    {
+        [$width, $height] = $size;
+        $out = $this->temp();
+
+        $this->run([
+            '-i', $clip,
+            '-t', number_format($max, 3, '.', ''),
+            '-vf', 'fps=' . self::FPS . ",scale={$width}:{$height}:force_original_aspect_ratio=increase,crop={$width}:{$height},setsar=1",
+            '-an',
+            ...$this->videoEncoding(),
+            '-movflags', '+faststart',
+            $out,
+        ], $out);
+
+        return $out;
+    }
+
+    /**
+     * Seconds a video file runs.
+     */
+    public function length(string $file): float
+    {
+        $process = new Process([
+            config('laravel-ffmpeg.ffprobe.binaries') ?: 'ffprobe',
+            '-v', 'error',
+            '-show_entries', 'format=duration',
+            '-of', 'csv=p=0',
+            $file,
+        ]);
+        $process->run();
+
+        $seconds = (float) trim($process->getOutput());
+
+        if (! $process->isSuccessful() || $seconds <= 0) {
+            throw new RuntimeException('The clip couldn\'t be read.');
+        }
+
+        return round($seconds, 2);
+    }
+
+    /**
      * Parts cut one after another, each cropped to the size and trimmed or
      * held on its last frame to its length, with the song as the only sound.
      * Each part is cut on its own first, so memory stays flat however many

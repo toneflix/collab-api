@@ -13,7 +13,10 @@ use App\Models\Track;
 use App\Models\User;
 use App\Services\Ai\AiSettings;
 use App\Services\Ai\AiStudio;
+use App\Services\Ai\Artwork\ArtworkImages;
 use App\Services\Audio\TrackAudio;
+use App\Services\Video\VideoFiles;
+use App\Services\Video\VideoPart;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\UploadedFile;
@@ -39,6 +42,8 @@ class MusicVideos
         protected TrackAudio $audio,
         protected VideoStorage $storage,
         protected ShotTakes $takes,
+        protected VideoFiles $files,
+        protected ArtworkImages $images,
     ) {}
 
     /**
@@ -538,6 +543,70 @@ class MusicVideos
 
             return $shot->refresh();
         });
+    }
+
+    /**
+     * Use the creator's own clip as a take of the shot, or their own image as
+     * its still with a slow zoom. Uploads are free and only for plans that
+     * allow the owner's own photos.
+     */
+    public function addOwnTake(MusicVideo $video, MusicVideoShot $shot, UploadedFile $upload): MusicVideoShot
+    {
+        $this->ensureStatus($video, self::EDITABLE);
+
+        if (! $video->user?->feature(Feature::VIDEO_OWN_PHOTOS)) {
+            throw ValidationException::withMessages(['file' => 'Your plan doesn\'t include your own photos and clips in music videos.']);
+        }
+
+        if ($shot->drawing) {
+            throw ValidationException::withMessages(['file' => 'Wait for the new still to finish drawing.']);
+        }
+
+        $image = str_starts_with((string) $upload->getMimeType(), 'image/');
+
+        $image
+            ? $this->keepOwnStill($video, $shot, (string) $upload->getRealPath())
+            : $this->keepOwnClip($video, $shot, (string) $upload->getRealPath());
+
+        $video
+            ->forceFill(['edited_at' => now()])
+            ->save();
+
+        return $shot->refresh();
+    }
+
+    protected function keepOwnClip(MusicVideo $video, MusicVideoShot $shot, string $path): void
+    {
+        $clip = $this->files->normalize($path, $video->size(), MusicVideoTake::MAX_UPLOAD_SECONDS);
+
+        try {
+            $length = $this->files->length($clip);
+
+            $this->takes->keep($video, $shot, $clip, MusicVideoTake::UPLOAD, $length);
+        } finally {
+            @unlink($clip);
+        }
+    }
+
+    protected function keepOwnStill(MusicVideo $video, MusicVideoShot $shot, string $path): void
+    {
+        $jpeg = $this->images
+            ->cropped($path, $video->ratioParts())
+            ->getRealPath();
+        $old = $shot->keyframe;
+
+        try {
+            $file = $this->storage->put($video, $jpeg, "keyframe-{$shot->position}", 'jpg');
+        } finally {
+            @unlink($jpeg);
+        }
+
+        $shot
+            ->forceFill(['keyframe' => $file, 'take_id' => null, 'offset' => 0, 'motion' => VideoPart::ZOOM_IN])
+            ->save();
+
+        $this->takes->prune($video);
+        $this->takes->dropKeyframes($video, [$old]);
     }
 
     /**
