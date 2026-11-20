@@ -39,7 +39,9 @@ class VideoFiles
      * Parts cut one after another, each cropped to the size and trimmed or
      * held on its last frame to its length, with the song as the only sound.
      * Each part is cut on its own first, so memory stays flat however many
-     * there are, then the cuts are joined without encoding again.
+     * there are, then the cuts are joined without encoding again. Frame counts
+     * come from where each part starts and ends on the song, so every cut lands
+     * within half a frame of its place however long the video runs.
      *
      * @param  list<VideoPart>  $parts
      * @param  array{0: int, 1: int}  $size
@@ -52,7 +54,8 @@ class VideoFiles
 
         try {
             foreach ($parts as $part) {
-                $cuts[] = $this->cut($part, $size);
+                $frames = max(1, $this->frame($total + $part->length) - $this->frame($total));
+                $cuts[] = $this->cut($part, $frames, $size);
                 $total += $part->length;
             }
 
@@ -83,11 +86,20 @@ class VideoFiles
     }
 
     /**
-     * One part encoded on its own at the size and frame rate of the video.
+     * The frame of the stitched video that shows this second of the song.
+     */
+    protected function frame(float $seconds): int
+    {
+        return (int) round($seconds * self::FPS);
+    }
+
+    /**
+     * One part encoded on its own at the size and frame rate of the video,
+     * `$frames` long.
      *
      * @param  array{0: int, 1: int}  $size
      */
-    protected function cut(VideoPart $part, array $size): string
+    protected function cut(VideoPart $part, int $frames, array $size): string
     {
         [$width, $height] = $size;
         $seconds = number_format($part->length, 3, '.', '');
@@ -95,20 +107,19 @@ class VideoFiles
         $cut = $this->temp();
 
         if ($part->isStill()) {
-            $frames = max(1, (int) round($part->length * self::FPS));
             $input = ['-i', $part->path];
             $filter = 'scale=' . ($width * 2) . ':' . ($height * 2) . ':force_original_aspect_ratio=increase,crop=' . ($width * 2) . ':' . ($height * 2) . ','
                 . $this->motion($part->motion, $frames, $width, $height) . ',setsar=1';
         } else {
             $input = ['-ss', number_format($part->offset, 3, '.', ''), '-i', $part->path];
-            $filter = 'fps=' . self::FPS . ",{$fit},tpad=stop_mode=clone:stop_duration={$seconds},trim=duration={$seconds},setpts=PTS-STARTPTS";
+            $filter = 'fps=' . self::FPS . ",{$fit},tpad=stop_mode=clone:stop_duration={$seconds},setpts=PTS-STARTPTS";
         }
 
         $this->run([
             ...$input,
             '-vf', $filter,
             '-an',
-            '-frames:v', (string) max(1, (int) round($part->length * self::FPS)),
+            '-frames:v', (string) $frames,
             ...$this->videoEncoding(),
             $cut,
         ], $cut);
