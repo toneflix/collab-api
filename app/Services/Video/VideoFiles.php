@@ -36,37 +36,24 @@ class VideoFiles
     }
 
     /**
-     * Clips cut one after another, each cropped to the size and trimmed or held
-     * on its last frame to its length, with the song as the only sound. Each
-     * clip is cut on its own first, so memory stays flat however many there
-     * are, then the cuts are joined without encoding again.
+     * Parts cut one after another, each cropped to the size and trimmed or
+     * held on its last frame to its length, with the song as the only sound.
+     * Each part is cut on its own first, so memory stays flat however many
+     * there are, then the cuts are joined without encoding again.
      *
-     * @param  list<array{0: string, 1: float}>  $clips  Path and length in seconds
+     * @param  list<VideoPart>  $parts
      * @param  array{0: int, 1: int}  $size
      */
-    public function stitch(array $clips, string $audio, array $size): string
+    public function stitch(array $parts, string $audio, array $size): string
     {
-        [$width, $height] = $size;
         $out = $this->temp();
         $cuts = [];
         $total = 0.0;
 
         try {
-            foreach (array_values($clips) as [$path, $length]) {
-                $seconds = number_format($length, 3, '.', '');
-                $cut = $this->temp();
-
-                $this->run([
-                    '-i', $path,
-                    '-vf', 'fps=' . self::FPS . ",scale={$width}:{$height}:force_original_aspect_ratio=increase,crop={$width}:{$height},setsar=1,"
-                        . "tpad=stop_mode=clone:stop_duration={$seconds},trim=duration={$seconds},setpts=PTS-STARTPTS",
-                    '-an',
-                    ...$this->videoEncoding(),
-                    $cut,
-                ], $cut);
-
-                $cuts[] = $cut;
-                $total += $length;
+            foreach ($parts as $part) {
+                $cuts[] = $this->cut($part, $size);
+                $total += $part->length;
             }
 
             $list = tempnam(sys_get_temp_dir(), 'concat-');
@@ -93,6 +80,56 @@ class VideoFiles
         }
 
         return $out;
+    }
+
+    /**
+     * One part encoded on its own at the size and frame rate of the video.
+     *
+     * @param  array{0: int, 1: int}  $size
+     */
+    protected function cut(VideoPart $part, array $size): string
+    {
+        [$width, $height] = $size;
+        $seconds = number_format($part->length, 3, '.', '');
+        $fit = "scale={$width}:{$height}:force_original_aspect_ratio=increase,crop={$width}:{$height},setsar=1";
+        $cut = $this->temp();
+
+        if ($part->isStill()) {
+            $frames = max(1, (int) round($part->length * self::FPS));
+            $input = ['-i', $part->path];
+            $filter = 'scale=' . ($width * 2) . ':' . ($height * 2) . ':force_original_aspect_ratio=increase,crop=' . ($width * 2) . ':' . ($height * 2) . ','
+                . $this->motion($part->motion, $frames, $width, $height) . ',setsar=1';
+        } else {
+            $input = ['-ss', number_format($part->offset, 3, '.', ''), '-i', $part->path];
+            $filter = 'fps=' . self::FPS . ",{$fit},tpad=stop_mode=clone:stop_duration={$seconds},trim=duration={$seconds},setpts=PTS-STARTPTS";
+        }
+
+        $this->run([
+            ...$input,
+            '-vf', $filter,
+            '-an',
+            '-frames:v', (string) max(1, (int) round($part->length * self::FPS)),
+            ...$this->videoEncoding(),
+            $cut,
+        ], $cut);
+
+        return $cut;
+    }
+
+    /**
+     * A zoompan filter that moves over a still for a number of frames.
+     */
+    protected function motion(?string $motion, int $frames, int $width, int $height): string
+    {
+        $last = max(1, $frames - 1);
+        $centre = "x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'";
+        $move = match ($motion) {
+            VideoPart::ZOOM_OUT => "z='1.2-0.2*on/{$last}':{$centre}",
+            VideoPart::PAN => "z='1.15':x='(iw-iw/zoom)*on/{$last}':y='(ih-ih/zoom)/2'",
+            default => "z='1+0.2*on/{$last}':{$centre}",
+        };
+
+        return "zoompan={$move}:d={$frames}:s={$width}x{$height}:fps=" . self::FPS;
     }
 
     /**

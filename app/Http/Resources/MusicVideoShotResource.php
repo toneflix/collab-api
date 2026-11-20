@@ -28,7 +28,11 @@ class MusicVideoShotResource extends JsonResource
             'prompt' => $this->prompt,
             'characters' => $this->characters ?? [],
             'keyframeUrl' => app(VideoStorage::class)->keyframeUrl($this->resource),
-            'rendered' => (bool) $this->clip,
+            'takeId' => $this->take_id,
+            'clipUrl' => $this->take && ! $this->stillOnly() ? app(VideoStorage::class)->takeUrl($this->take) : null,
+            'offset' => $this->takeOffset(),
+            'motion' => $this->motion,
+            'rendered' => ! $this->needsClip(),
         ];
     }
 }
