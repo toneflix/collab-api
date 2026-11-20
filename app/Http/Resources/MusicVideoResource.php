@@ -5,6 +5,7 @@ namespace App\Http\Resources;
 use App\Models\MusicVideo;
 use App\Models\MusicVideoCharacter;
 use App\Models\MusicVideoShot;
+use App\Models\MusicVideoTake;
 use App\Services\Ai\Video\VideoStorage;
 use Illuminate\Http\Request;
 use Toneflix\ResourceModifier\Services\Json\JsonResource;
@@ -53,6 +54,20 @@ class MusicVideoResource extends JsonResource
                 ->all()),
             'shots' => $this->whenLoaded('shots', fn() => $this->shots
                 ->map(fn(MusicVideoShot $shot) => (new MusicVideoShotResource($shot))->resolve($request))
+                ->values()
+                ->all()),
+            'takes' => $this->whenLoaded('takes', fn() => $this->takes
+                ->sortByDesc('id')
+                ->map(fn(MusicVideoTake $take) => [
+                    'id' => $take->id,
+                    'shotId' => $take->shot_id,
+                    'source' => $take->source,
+                    'length' => $take->length,
+                    'synced' => $take->synced(),
+                    'prompt' => $take->prompt,
+                    'clipUrl' => app(VideoStorage::class)->takeUrl($take),
+                    'createdAt' => $take->created_at,
+                ])
                 ->values()
                 ->all()),
             'createdAt' => $this->created_at,

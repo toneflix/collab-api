@@ -17,19 +17,26 @@ class EditList
     public function __construct(protected VideoStorage $storage) {}
 
     /**
-     * The edit list as stored with the finished video.
+     * The edit list as stored with the finished video: each shot as it was
+     * stitched, so unsaved changes can be put back.
      *
-     * @return list<array{shot: int, take: ?int, offset: float, length: float, motion: ?string}>
+     * @return list<array<string, mixed>>
      */
     public function describe(MusicVideo $video): array
     {
         return $video->shots
             ->map(fn(MusicVideoShot $shot) => [
                 'shot' => $shot->id,
-                'take' => $shot->stillOnly() ? null : $shot->take_id,
-                'offset' => $shot->stillOnly() ? 0.0 : $shot->takeOffset(),
+                'take' => $shot->take_id,
+                'offset' => $shot->offset,
                 'length' => $shot->length(),
                 'motion' => $shot->motion,
+                'start' => $shot->start,
+                'end' => $shot->end,
+                'kind' => $shot->kind,
+                'prompt' => $shot->prompt,
+                'keyframe' => $shot->keyframe,
+                'characters' => $shot->characters ?? [],
             ])
             ->values()
             ->all();

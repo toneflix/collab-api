@@ -400,7 +400,7 @@ class AiMusicVideoTest extends TestCase
             ->findOrFail($id)
             ->file;
 
-        $this->putJson("/api/creator/videos/{$id}/shots/order", ['shots' => [$ids[2], $ids[1], $ids[0], $ids[3]]])
+        $this->putJson("/api/creator/videos/{$id}/shots", ['shots' => $this->slots([$ids[2], $ids[1], $ids[0], $ids[3]])])
             ->assertAccepted()
             ->assertJsonPath('data.status', MusicVideo::READY)
             ->assertJsonPath('data.edited', true)
@@ -430,7 +430,7 @@ class AiMusicVideoTest extends TestCase
             ->json('data.id');
         $ids = array_column($this->postJson("/api/creator/videos/{$id}/render")->json('data.shots'), 'id');
 
-        $this->putJson("/api/creator/videos/{$id}/shots/order", ['shots' => [$ids[1], $ids[0], $ids[2], $ids[3]]])
+        $this->putJson("/api/creator/videos/{$id}/shots", ['shots' => $this->slots([$ids[1], $ids[0], $ids[2], $ids[3]])])
             ->assertAccepted()
             ->assertJsonPath('data.shots.0.rendered', false)
             ->assertJsonPath('data.shots.1.rendered', true);
@@ -649,7 +649,7 @@ class AiMusicVideoTest extends TestCase
 
         $order = [$ids[1], $ids[0], $ids[2], $ids[3]];
 
-        $this->putJson("/api/creator/videos/{$video['id']}/shots/order", ['shots' => $order])
+        $this->putJson("/api/creator/videos/{$video['id']}/shots", ['shots' => $this->slots($order)])
             ->assertAccepted()
             ->assertJsonPath('data.shots.0.id', $ids[1])
             ->assertJsonPath('data.shots.0.start', 0)
@@ -669,9 +669,91 @@ class AiMusicVideoTest extends TestCase
                 ->all(),
         );
 
-        $this->putJson("/api/creator/videos/{$video['id']}/shots/order", ['shots' => [$ids[0], $ids[1]]])
+        $this->putJson("/api/creator/videos/{$video['id']}/shots", ['shots' => $this->slots([$ids[0], $ids[1]])])
             ->assertUnprocessable()
             ->assertJsonValidationErrors('shots');
+        $this->putJson("/api/creator/videos/{$video['id']}/shots", ['shots' => [
+            ['id' => $ids[0], 'start' => 0, 'end' => 3], ['id' => $ids[1], 'start' => 4, 'end' => 12],
+        ]])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('shots.1');
+        $this->putJson("/api/creator/videos/{$video['id']}/shots", ['shots' => [
+            ['id' => $ids[0], 'start' => 0, 'end' => 6], ['id' => $ids[0], 'start' => 6, 'end' => 12],
+        ]])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('shots.1');
+    }
+
+    public function test_the_editor_trims_splits_merges_and_swaps_shots_and_saves_for_free(): void
+    {
+        Sanctum::actingAs($this->owner);
+
+        $id = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos")
+            ->json('data.id');
+        $shots = $this->postJson("/api/creator/videos/{$id}/render")
+            ->json('data.shots');
+        [$a, $b, $c, $d] = $shots;
+
+        // Split the first b-roll, trim the singing shot shorter, play the
+        // first b-roll take in the third shot and the last as a moving still.
+        $video = $this->putJson("/api/creator/videos/{$id}/shots", ['shots' => [
+            ['id' => $a['id'], 'start' => 0, 'end' => 1.5],
+            ['copy_of' => $a['id'], 'start' => 1.5, 'end' => 3.5, 'offset' => 1],
+            ['id' => $b['id'], 'start' => 3.5, 'end' => 6],
+            ['id' => $c['id'], 'start' => 6, 'end' => 9, 'take_id' => $a['takeId']],
+            ['id' => $d['id'], 'start' => 9, 'end' => 12, 'motion' => 'zoom_out'],
+        ]])
+            ->assertAccepted()
+            ->assertJsonPath('data.edited', true)
+            ->assertJsonCount(5, 'data.shots')
+            ->json('data');
+
+        $this->assertSame([true, true, true, true, true], array_column($video['shots'], 'rendered'));
+        $this->assertSame(0.5, $video['shots'][2]['offset']);
+        $this->assertSame($a['takeId'], $video['shots'][1]['takeId']);
+        $this->assertNotEmpty($video['takes']);
+
+        $this->postJson("/api/creator/videos/{$id}/render")
+            ->assertJsonPath('data.status', MusicVideo::READY)
+            ->assertJsonPath('data.edited', false);
+
+        $this->assertSame(790, Credits::for($this->owner)->total());
+        $this->assertEqualsWithDelta(12.0, $this->duration(MusicVideo::query()->findOrFail($id)->file), 0.2);
+    }
+
+    public function test_unsaved_changes_can_be_discarded(): void
+    {
+        Sanctum::actingAs($this->owner);
+
+        $id = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos")
+            ->json('data.id');
+        $shots = $this->postJson("/api/creator/videos/{$id}/render")
+            ->json('data.shots');
+
+        $this->deleteJson("/api/creator/videos/{$id}/edit")
+            ->assertAccepted();
+
+        $this->putJson("/api/creator/videos/{$id}/shots", ['shots' => [
+            ['id' => $shots[0]['id'], 'start' => 0, 'end' => 6],
+            ['id' => $shots[3]['id'], 'start' => 6, 'end' => 12],
+        ]])
+            ->assertAccepted();
+        $this->putJson("/api/creator/videos/{$id}/shots/{$shots[3]['id']}", ['prompt' => 'A quiet harbour at dawn'])
+            ->assertAccepted();
+
+        $this->deleteJson("/api/creator/videos/{$id}/edit")
+            ->assertAccepted()
+            ->assertJsonPath('data.edited', false)
+            ->assertJsonCount(4, 'data.shots');
+
+        $video = $this->getJson("/api/creator/videos/{$id}")
+            ->json('data');
+
+        $this->assertSame(array_column($shots, 'id'), array_column($video['shots'], 'id'));
+        $this->assertSame(array_column($shots, 'takeId'), array_column($video['shots'], 'takeId'));
+        $this->assertSame(array_column($shots, 'prompt'), array_column($video['shots'], 'prompt'));
+        $this->assertSame([true, true, true, true], array_column($video['shots'], 'rendered'));
+        $this->assertTrue(collect($video['shots'])->every(fn(array $shot) => $shot['keyframeUrl'] !== null));
     }
 
     public function test_listeners_get_the_owners_finished_video_for_a_track(): void
@@ -837,6 +919,17 @@ class AiMusicVideoTest extends TestCase
                 default => Http::response(['detail' => "Unexpected {$url}"], 500),
             };
         });
+    }
+
+    /**
+     * The shots in this order, each in the 3 second slot of its place.
+     *
+     * @param  list<int>  $ids
+     * @return list<array{id: int, start: int, end: int}>
+     */
+    protected function slots(array $ids): array
+    {
+        return array_map(fn(int $id, int $i) => ['id' => $id, 'start' => $i * 3, 'end' => $i * 3 + 3], $ids, array_keys($ids));
     }
 
     /**

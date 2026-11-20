@@ -31,6 +31,7 @@ class KeyframeDrawer
     public function __construct(
         protected VideoStorage $storage,
         protected ArtworkImages $images,
+        protected ShotTakes $takes,
     ) {}
 
     /**
@@ -209,7 +210,7 @@ class KeyframeDrawer
                 ->forceFill(['keyframe' => $file, 'take_id' => null, 'motion' => null])
                 ->save();
 
-            $this->storage->delete($old);
+            $this->takes->dropKeyframes($video, [$old]);
         } finally {
             @unlink($local);
         }
