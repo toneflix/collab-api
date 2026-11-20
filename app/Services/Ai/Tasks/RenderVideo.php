@@ -114,21 +114,60 @@ class RenderVideo implements AiTask, HandlesFailure
                 $this->renderShots($video, $todo, $vocals);
             }
 
-            $parts = $this->edits->parts($video);
-            $files = [...$files, ...array_map(fn(VideoPart $part) => $part->path, $parts)];
+            $billing = $job->input['billing'] ?? null;
+            $paid = $billing ? ['billing' => $billing, 'billed_at' => $job->created_at] : [];
 
+            $this->assemble($video, $song, $paid);
+        } finally {
+            array_map(fn(?string $file) => $file && @unlink($file), $files);
+        }
+
+        return ['music_video_id' => $video->id, 'shots' => $video->shots->count(), 'rendered' => $todo->count()];
+    }
+
+    /**
+     * Join a finished video's shots over its song again, without rendering
+     * or charging for any shot. Every shot must already have its clip.
+     */
+    public function restitch(MusicVideo $video): void
+    {
+        $video->load(['track', 'shots.take']);
+
+        if ($video->shots->contains(fn(MusicVideoShot $shot) => $shot->needsClip())) {
+            throw new RuntimeException('A shot needs a new clip; save the video from the editor.');
+        }
+
+        $song = $this->tracks->local($video->track, true) ?? throw new RuntimeException('The track has no audio.');
+
+        try {
+            $this->assemble($video, $song);
+        } finally {
+            @unlink($song);
+        }
+    }
+
+    /**
+     * Cut the shots together over the song and keep the result as the
+     * video's file, with the edit list it was cut from.
+     *
+     * @param  array<string, mixed>  $extra
+     */
+    protected function assemble(MusicVideo $video, string $song, array $extra = []): void
+    {
+        $parts = $this->edits->parts($video);
+        $files = array_map(fn(VideoPart $part) => $part->path, $parts);
+
+        try {
             $stitched = $this->video->stitch($parts, $song, $video->size());
             $files[] = $stitched;
 
             $old = $video->file;
             $file = $this->storage->put($video, $stitched, 'video', 'mp4');
             $cut = $this->edits->describe($video);
-            $billing = $job->input['billing'] ?? null;
-            $paid = $billing ? ['billing' => $billing, 'billed_at' => $job->created_at] : [];
 
             $video
                 ->forceFill([
-                    ...$paid,
+                    ...$extra,
                     'file' => $file,
                     'cut' => $cut,
                     'status' => MusicVideo::READY,
@@ -140,10 +179,8 @@ class RenderVideo implements AiTask, HandlesFailure
 
             $this->storage->delete($old);
         } finally {
-            array_map(fn(?string $file) => $file && @unlink($file), $files);
+            array_map(fn(string $file) => @unlink($file), $files);
         }
-
-        return ['music_video_id' => $video->id, 'shots' => $video->shots->count(), 'rendered' => $todo->count()];
     }
 
     /**
