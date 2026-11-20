@@ -206,7 +206,7 @@ class KeyframeDrawer
             @unlink($jpeg);
 
             $shot
-                ->forceFill(['keyframe' => $file, 'clip' => null])
+                ->forceFill(['keyframe' => $file, 'take_id' => null, 'motion' => null])
                 ->save();
 
             $this->storage->delete($old);

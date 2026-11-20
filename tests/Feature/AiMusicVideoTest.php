@@ -6,6 +6,7 @@ use App\Enums\Feature;
 use App\Models\MusicVideo;
 use App\Models\MusicVideoCharacter;
 use App\Models\MusicVideoShot;
+use App\Models\MusicVideoTake;
 use App\Models\Plan;
 use App\Models\Release;
 use App\Models\Track;
@@ -312,19 +313,11 @@ class AiMusicVideoTest extends TestCase
         Http::assertSent(fn(Request $request) => str_ends_with($request->url(), '/prunaai/p-video/predictions')
             && $request['input']['duration'] === 3);
 
-        $local = $this->path('mp4');
-        $content = Storage::disk(config('filesystems.default'))
-            ->get($video->file);
-
-        file_put_contents($local, $content);
-
-        $probe = new Process(['ffprobe', '-v', 'error', '-show_entries', 'format=duration:stream=width,height,codec_name', '-of', 'csv=p=0', $local]);
-        $probe->mustRun();
-        $info = $probe->getOutput();
+        $info = $this->probe($video->file);
 
         $this->assertStringContainsString('h264,1280,720', $info);
         $this->assertStringContainsString('aac', $info);
-        $this->assertEqualsWithDelta(12.0, (float) collect(explode("\n", trim($info)))->last(), 0.2);
+        $this->assertEqualsWithDelta(12.0, $this->duration($video->file), 0.2);
     }
 
     public function test_finished_videos_can_be_stitched_again_for_free(): void
@@ -412,18 +405,164 @@ class AiMusicVideoTest extends TestCase
 
         $this->assertSame(790, Credits::for($this->owner)->total());
 
-        MusicVideo::query()
-            ->whereKey($id)
-            ->update(['status' => MusicVideo::STORYBOARD, 'billing' => null, 'file' => null]);
         MusicVideoShot::query()
             ->where('music_video_id', $id)
             ->where('position', 2)
-            ->update(['clip' => null]);
+            ->update(['take_id' => null]);
 
         $this->postJson("/api/creator/videos/{$id}/render")
             ->assertJsonPath('data.status', MusicVideo::READY);
 
-        $this->assertSame(790 - 48, Credits::for($this->owner)->total());
+        // The 3 second shot at 190 credits a minute
+        $this->assertSame(790 - 10, Credits::for($this->owner)->total());
+        $this->assertSame(5, MusicVideoTake::query()->where('music_video_id', $id)->count());
+    }
+
+    public function test_a_ready_video_is_stitched_again_for_free_after_b_roll_moves(): void
+    {
+        Sanctum::actingAs($this->owner);
+
+        $id = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos")
+            ->json('data.id');
+        $ids = array_column($this->postJson("/api/creator/videos/{$id}/render")->json('data.shots'), 'id');
+        $file = MusicVideo::query()
+            ->findOrFail($id)
+            ->file;
+
+        $this->putJson("/api/creator/videos/{$id}/shots/order", ['shots' => [$ids[2], $ids[1], $ids[0], $ids[3]]])
+            ->assertAccepted()
+            ->assertJsonPath('data.status', MusicVideo::READY)
+            ->assertJsonPath('data.edited', true)
+            ->assertJsonPath('data.shots.0.rendered', true)
+            ->assertJsonPath('data.shots.2.rendered', true);
+
+        $this->postJson("/api/creator/videos/{$id}/render")
+            ->assertAccepted()
+            ->assertJsonPath('data.status', MusicVideo::READY)
+            ->assertJsonPath('data.edited', false);
+
+        $video = MusicVideo::query()
+            ->findOrFail($id);
+
+        $this->assertSame(790, Credits::for($this->owner)->total());
+        $this->assertNotSame($file, $video->file);
+        $this->assertFalse(Storage::disk(config('filesystems.default'))->exists($file));
+        $this->assertSame([$ids[2], $ids[1], $ids[0], $ids[3]], array_column($video->cut, 'shot'));
+        $this->assertSame(4, MusicVideoTake::query()->where('music_video_id', $id)->count());
+    }
+
+    public function test_a_singing_shot_moved_off_its_lines_needs_a_new_clip(): void
+    {
+        Sanctum::actingAs($this->owner);
+
+        $id = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos")
+            ->json('data.id');
+        $ids = array_column($this->postJson("/api/creator/videos/{$id}/render")->json('data.shots'), 'id');
+
+        $this->putJson("/api/creator/videos/{$id}/shots/order", ['shots' => [$ids[1], $ids[0], $ids[2], $ids[3]]])
+            ->assertAccepted()
+            ->assertJsonPath('data.shots.0.rendered', false)
+            ->assertJsonPath('data.shots.1.rendered', true);
+
+        $this->postJson("/api/creator/videos/{$id}/render")
+            ->assertJsonPath('data.status', MusicVideo::READY);
+
+        $this->assertSame(790 - 10, Credits::for($this->owner)->total());
+    }
+
+    public function test_still_only_shots_move_over_their_still(): void
+    {
+        Sanctum::actingAs($this->owner);
+
+        $id = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos")
+            ->json('data.id');
+
+        $this->postJson("/api/creator/videos/{$id}/render");
+
+        MusicVideoShot::query()
+            ->where('music_video_id', $id)
+            ->where('position', 1)
+            ->update(['motion' => 'zoom_in']);
+        MusicVideoShot::query()
+            ->where('music_video_id', $id)
+            ->where('position', 3)
+            ->update(['motion' => 'pan', 'take_id' => null]);
+
+        $this->postJson("/api/creator/videos/{$id}/render")
+            ->assertJsonPath('data.status', MusicVideo::READY)
+            ->assertJsonPath('data.shots.0.motion', 'zoom_in')
+            ->assertJsonPath('data.shots.0.clipUrl', null);
+
+        $this->assertSame(790, Credits::for($this->owner)->total());
+        $this->assertEqualsWithDelta(12.0, $this->duration(MusicVideo::query()->findOrFail($id)->file), 0.2);
+    }
+
+    public function test_a_failed_save_keeps_the_ready_video(): void
+    {
+        Sanctum::actingAs($this->owner);
+
+        $id = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos")
+            ->json('data.id');
+
+        $this->postJson("/api/creator/videos/{$id}/render");
+
+        $file = MusicVideo::query()
+            ->findOrFail($id)
+            ->file;
+
+        MusicVideoShot::query()
+            ->where('music_video_id', $id)
+            ->where('position', 2)
+            ->update(['take_id' => null]);
+
+        $this->clipsFail = true;
+
+        $this->postJson("/api/creator/videos/{$id}/render")
+            ->assertAccepted();
+
+        $video = MusicVideo::query()
+            ->findOrFail($id);
+
+        $this->assertSame(MusicVideo::READY, $video->status);
+        $this->assertSame($file, $video->file);
+        $this->assertSame(MusicVideo::CREDITS, $video->billing);
+        $this->assertNotNull($video->error);
+        $this->assertSame(790, Credits::for($this->owner)->total());
+    }
+
+    public function test_plan_video_time_is_counted_in_seconds(): void
+    {
+        $owner = $this->subscriber([Feature::AI_TOOLS->value => true, Feature::AI_CREDITS->value => 1000, Feature::VIDEO_MINUTES->value => 2]);
+        $track = $this->track($owner);
+        Sanctum::actingAs($owner);
+
+        $id = $this->postJson("/api/creator/tracks/{$track->slug}/videos")
+            ->json('data.id');
+
+        $this->postJson("/api/creator/videos/{$id}/render")
+            ->assertJsonPath('data.billing', MusicVideo::MINUTES);
+
+        MusicVideoShot::query()
+            ->where('music_video_id', $id)
+            ->where('position', 2)
+            ->update(['take_id' => null]);
+
+        $this->postJson("/api/creator/videos/{$id}/render")
+            ->assertJsonPath('data.billing', MusicVideo::MINUTES);
+
+        $this->assertSame(980, Credits::for($owner)->total());
+        $this->getJson("/api/creator/videos/{$id}")
+            ->assertOk()
+            ->assertJsonPath('secondsLeft', 57)
+            ->assertJsonPath('minutesLeft', 0);
+
+        MusicVideo::query()
+            ->whereKey($id)
+            ->delete();
+
+        $this->getJson('/api/creator/videos')
+            ->assertOk()
+            ->assertJsonPath('secondsLeft', 57);
     }
 
     public function test_shots_can_be_changed_before_rendering(): void
@@ -438,6 +577,84 @@ class AiMusicVideoTest extends TestCase
             ->assertJsonPath('data.prompt', 'A quiet harbour at dawn');
     }
 
+    public function test_a_prompt_change_keeps_the_old_take_and_drops_the_oldest(): void
+    {
+        Sanctum::actingAs($this->owner);
+
+        $video = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos")
+            ->json('data');
+        $shot = MusicVideoShot::query()
+            ->findOrFail($video['shots'][0]['id']);
+        $disk = Storage::disk(config('filesystems.default'));
+        $files = [];
+
+        foreach (range(1, 5) as $i) {
+            $files[] = $file = "ai/videos/{$video['id']}/take-{$i}.mp4";
+
+            $disk->put($file, 'clip');
+
+            $take = MusicVideoTake::query()
+                ->create(['music_video_id' => $video['id'], 'shot_id' => $shot->id, 'file' => $file, 'length' => 3]);
+        }
+
+        $shot
+            ->forceFill(['take_id' => $take->id])
+            ->save();
+
+        $this->putJson("/api/creator/videos/{$video['id']}/shots/{$shot->id}", ['prompt' => 'A quiet harbour at dawn'])
+            ->assertAccepted()
+            ->assertJsonPath('data.rendered', false)
+            ->assertJsonPath('data.takeId', null);
+
+        $this->assertSame(3, MusicVideoTake::query()->where('shot_id', $shot->id)->count());
+        $this->assertFalse($disk->exists($files[0]));
+        $this->assertFalse($disk->exists($files[1]));
+        $this->assertTrue($disk->exists($files[4]));
+    }
+
+    public function test_deleting_a_track_deletes_its_video_files(): void
+    {
+        Sanctum::actingAs($this->owner);
+
+        $id = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos")
+            ->json('data.id');
+        $disk = Storage::disk(config('filesystems.default'));
+
+        $this->assertNotEmpty($disk->allFiles("ai/videos/{$id}"));
+
+        $this->deleteJson("/api/creator/releases/{$this->track->release_id}/tracks/{$this->track->id}")
+            ->assertAccepted();
+
+        $this->assertNull(MusicVideo::query()->find($id));
+        $this->assertSame([], $disk->allFiles("ai/videos/{$id}"));
+
+        $track = $this->track($this->owner);
+        $other = $this->postJson("/api/creator/tracks/{$track->slug}/videos")
+            ->json('data.id');
+
+        $track->release->delete();
+
+        $this->assertSame([], $disk->allFiles("ai/videos/{$other}"));
+    }
+
+    public function test_files_of_videos_that_no_longer_exist_are_pruned(): void
+    {
+        Sanctum::actingAs($this->owner);
+
+        $id = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos")
+            ->json('data.id');
+        $disk = Storage::disk(config('filesystems.default'));
+        $gone = MusicVideo::query()->max('id') + 100;
+
+        $disk->put("ai/videos/{$gone}/video.mp4", 'video');
+
+        $this->artisan('videos:prune-files')
+            ->assertSuccessful();
+
+        $this->assertFalse($disk->exists("ai/videos/{$gone}/video.mp4"));
+        $this->assertNotEmpty($disk->allFiles("ai/videos/{$id}"));
+    }
+
     public function test_shots_can_be_reordered_into_the_same_time_slots(): void
     {
         Sanctum::actingAs($this->owner);
@@ -446,9 +663,18 @@ class AiMusicVideoTest extends TestCase
             ->json('data');
         $ids = array_column($video['shots'], 'id');
 
-        MusicVideoShot::query()
-            ->whereKey($ids)
-            ->update(['clip' => 'ai/videos/old.mp4']);
+        foreach (MusicVideoShot::query()->whereKey($ids)->get() as $shot) {
+            $performance = $shot->kind === MusicVideoShot::PERFORMANCE;
+            $take = MusicVideoTake::query()
+                ->create([
+                    'music_video_id' => $video['id'], 'shot_id' => $shot->id, 'file' => 'ai/videos/old.mp4', 'length' => $shot->length(),
+                    'synced_from' => $performance ? $shot->start : null, 'synced_to' => $performance ? $shot->end : null,
+                ]);
+
+            $shot
+                ->forceFill(['take_id' => $take->id])
+                ->save();
+        }
 
         $order = [$ids[1], $ids[0], $ids[2], $ids[3]];
 
@@ -459,6 +685,7 @@ class AiMusicVideoTest extends TestCase
             ->assertJsonPath('data.shots.0.rendered', false)
             ->assertJsonPath('data.shots.1.id', $ids[0])
             ->assertJsonPath('data.shots.1.start', 3)
+            ->assertJsonPath('data.shots.1.rendered', true)
             ->assertJsonPath('data.shots.2.id', $ids[2])
             ->assertJsonPath('data.shots.2.rendered', true);
 
@@ -639,6 +866,30 @@ class AiMusicVideoTest extends TestCase
                 default => Http::response(['detail' => "Unexpected {$url}"], 500),
             };
         });
+    }
+
+    /**
+     * Streams and length of a stored video, as ffprobe prints them.
+     */
+    protected function probe(string $file): string
+    {
+        $local = $this->path('mp4');
+        $content = Storage::disk(config('filesystems.default'))
+            ->get($file);
+
+        file_put_contents($local, $content);
+
+        $probe = new Process(['ffprobe', '-v', 'error', '-show_entries', 'format=duration:stream=width,height,codec_name', '-of', 'csv=p=0', $local]);
+        $probe->mustRun();
+
+        return $probe->getOutput();
+    }
+
+    protected function duration(string $file): float
+    {
+        $lines = explode("\n", trim($this->probe($file)));
+
+        return (float) end($lines);
     }
 
     /**

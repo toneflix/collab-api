@@ -6,6 +6,7 @@ use App\Enums\HttpStatus;
 use App\Models\MusicVideo;
 use App\Models\MusicVideoCharacter;
 use App\Models\MusicVideoShot;
+use App\Models\MusicVideoTake;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
@@ -16,7 +17,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * A music video's files on the uploads disk: its portrait, the stills and
- * clips of its shots, and the finished video.
+ * takes of its shots, and the finished video.
  */
 class VideoStorage
 {
@@ -87,6 +88,60 @@ class VideoStorage
     }
 
     /**
+     * Delete the folders of videos whose rows are gone, such as videos of
+     * deleted tracks or accounts. Folders are checked in batches as the
+     * disk lists them.
+     *
+     * @return int Folders deleted
+     */
+    public function pruneOrphans(int $batch = 200): int
+    {
+        $disk = $this->disk();
+        $ids = [];
+        $deleted = 0;
+
+        foreach ($disk->listContents(self::DIRECTORY, false) as $item) {
+            $id = basename($item->path());
+
+            if (! $item->isDir() || ! ctype_digit($id)) {
+                continue;
+            }
+
+            $ids[] = (int) $id;
+
+            if (count($ids) >= $batch) {
+                $deleted += $this->forgetMissing($ids);
+                $ids = [];
+            }
+        }
+
+        return $deleted + $this->forgetMissing($ids);
+    }
+
+    /**
+     * @param  list<int>  $ids
+     */
+    protected function forgetMissing(array $ids): int
+    {
+        if (! $ids) {
+            return 0;
+        }
+
+        $kept = MusicVideo::query()
+            ->whereKey($ids)
+            ->pluck('id')
+            ->all();
+        $missing = array_diff($ids, $kept);
+        $disk = $this->disk();
+
+        foreach ($missing as $id) {
+            $disk->deleteDirectory(self::DIRECTORY . "/{$id}");
+        }
+
+        return count($missing);
+    }
+
+    /**
      * A link to the finished video: straight from the bucket when the disk
      * can sign one, so players can seek, else through the API.
      */
@@ -106,6 +161,11 @@ class VideoStorage
         }
 
         return $this->signed($shot->keyframe, 'ai.videos.keyframe', ['video' => $shot->music_video_id, 'shot' => $shot->id]);
+    }
+
+    public function takeUrl(MusicVideoTake $take): string
+    {
+        return $this->signed($take->file, 'ai.videos.take', ['video' => $take->music_video_id, 'take' => $take->id]);
     }
 
     public function sheetUrl(MusicVideoCharacter $character): ?string

@@ -13,6 +13,8 @@ use App\Models\User;
 use App\Services\Ai\AiSettings;
 use App\Services\Ai\AiStudio;
 use App\Services\Audio\TrackAudio;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -22,15 +24,19 @@ use Toneflix\LaravelFileable\Media;
 
 /**
  * Makes music videos for released tracks: starts the storyboard, lets the
- * owner change shots, then starts the render, paid from the plan's video
- * minutes when it has enough, else from AI credits.
+ * owner change shots before and after rendering, then renders and stitches,
+ * paid from the plan's video time when it has enough, else from AI credits.
  */
 class MusicVideos
 {
+    /** Statuses in which the shots can be changed and the video saved */
+    public const EDITABLE = [MusicVideo::STORYBOARD, MusicVideo::READY];
+
     public function __construct(
         protected AiStudio $studio,
         protected TrackAudio $audio,
         protected VideoStorage $storage,
+        protected ShotTakes $takes,
     ) {}
 
     /**
@@ -182,29 +188,37 @@ class MusicVideos
     }
 
     /**
-     * Change what a shot shows before the video is rendered.
+     * Change what a shot shows. The take it played is kept with its earlier
+     * ones, so the next save renders a new clip from the shot's still.
      */
     public function updateShot(MusicVideo $video, MusicVideoShot $shot, string $prompt): MusicVideoShot
     {
-        $this->ensureStatus($video, [MusicVideo::STORYBOARD]);
+        $this->ensureStatus($video, self::EDITABLE);
 
-        $shot
-            ->forceFill(['prompt' => $prompt, 'clip' => null])
-            ->save();
+        DB::transaction(function () use ($video, $shot, $prompt) {
+            $shot
+                ->forceFill(['prompt' => $prompt, 'take_id' => null, 'offset' => 0, 'motion' => null])
+                ->save();
+            $video
+                ->forceFill(['edited_at' => now()])
+                ->save();
+        });
+
+        $this->takes->prune($shot);
 
         return $shot;
     }
 
     /**
      * Put the shots in a new order. The time slots stay where they are, so
-     * each shot takes the slot of its new place, and a shot that moves to a
-     * different slot is rendered again.
+     * each shot takes the slot of its new place. B-roll keeps its take; a
+     * singing shot moved off the lines its take was synced to needs a new one.
      *
      * @param  list<int>  $order  every shot id of the video, in the new order
      */
     public function reorderShots(MusicVideo $video, array $order): MusicVideo
     {
-        $this->ensureStatus($video, [MusicVideo::STORYBOARD]);
+        $this->ensureStatus($video, self::EDITABLE);
 
         $shots = $video
             ->shots()
@@ -229,37 +243,25 @@ class MusicVideos
             ->map(fn(MusicVideoShot $shot) => [$shot->start, $shot->end])
             ->values()
             ->all();
-        $byId = $shots->keyBy('id');
-        $stale = [];
 
-        DB::transaction(function () use ($video, $order, $slots, $byId, &$stale) {
+        DB::transaction(function () use ($video, $order, $slots) {
             // Positions are unique per video, so move them all out of the way first.
             $video
                 ->shots()
                 ->increment('position', 1000);
 
             foreach (array_values($order) as $i => $id) {
-                /** @var MusicVideoShot $shot */
-                $shot = $byId[(int) $id];
                 [$start, $end] = $slots[$i];
-                $moved = (float) $shot->start !== (float) $start || (float) $shot->end !== (float) $end;
-
-                if ($moved && $shot->clip) {
-                    $stale[] = $shot->clip;
-                }
 
                 MusicVideoShot::query()
-                    ->whereKey($shot->id)
-                    ->update([
-                        'position' => $i + 1,
-                        'start' => $start,
-                        'end' => $end,
-                        'clip' => $moved ? null : $shot->clip,
-                    ]);
+                    ->whereKey((int) $id)
+                    ->update(['position' => $i + 1, 'start' => $start, 'end' => $end]);
             }
-        });
 
-        array_map(fn(string $file) => $this->storage->delete($file), $stale);
+            $video
+                ->forceFill(['edited_at' => now()])
+                ->save();
+        });
 
         return $video;
     }
@@ -285,32 +287,34 @@ class MusicVideos
     }
 
     /**
-     * Start rendering the storyboard into the finished video.
+     * Save the video: render a new clip for each shot that needs one, then
+     * stitch every shot over the song. A first render is priced by started
+     * minutes of the song, a later one by the seconds of shots it renders,
+     * and a save that only stitches is free. Plan video time pays before
+     * credits when it covers the whole job.
      */
     public function render(MusicVideo $video): MusicVideo
     {
-        $this->ensureStatus($video, [MusicVideo::STORYBOARD]);
+        $this->ensureStatus($video, self::EDITABLE);
 
         $user = $video->user;
         $minutes = $video->startedMinutes();
-        $billing = $this->minutesLeft($user) >= $minutes ? MusicVideo::MINUTES : MusicVideo::CREDITS;
-        $total = $video
+        $shots = $video
             ->shots()
-            ->count();
-        $missing = $video
-            ->shots()
-            ->whereNull('clip')
-            ->count();
+            ->with('take')
+            ->get();
+        $todo = $shots->filter(fn(MusicVideoShot $shot) => $shot->needsClip());
+        $full = $shots->isNotEmpty() && $todo->count() === $shots->count();
+        $seconds = $full ? $minutes * 60 : (int) ceil($todo->sum(fn(MusicVideoShot $shot) => $shot->length()));
+        $billing = match (true) {
+            $seconds === 0 => null,
+            $this->secondsLeft($user) >= $seconds => MusicVideo::MINUTES,
+            default => MusicVideo::CREDITS,
+        };
 
-        return DB::transaction(function () use ($video, $user, $minutes, $billing, $total, $missing) {
+        return DB::transaction(function () use ($video, $user, $minutes, $billing, $seconds, $full, $shots, $todo) {
             $video
-                ->forceFill([
-                    'status' => MusicVideo::RENDERING,
-                    'billing' => $billing,
-                    'minutes' => $billing === MusicVideo::MINUTES ? $minutes : 0,
-                    'billed_at' => now(),
-                    'error' => null,
-                ])
+                ->forceFill(['status' => MusicVideo::RENDERING, 'error' => null])
                 ->save();
 
             $this->studio->start($user, null, 'video_render', [
@@ -318,8 +322,10 @@ class MusicVideos
                 'title' => $video->track?->title,
                 'minutes' => $minutes,
                 'billing' => $billing,
-                'shots' => $total,
-                'missing' => $missing,
+                'seconds' => $seconds,
+                'full' => $full,
+                'shots' => $shots->count(),
+                'missing' => $todo->count(),
             ]);
 
             return $video;
@@ -361,19 +367,27 @@ class MusicVideos
     }
 
     /**
-     * Video minutes the user's plan has left this month.
+     * Seconds of video time the user's plan has left this month, counted
+     * from the renders it paid for that didn't fail.
      */
-    public function minutesLeft(User $user): int
+    public function secondsLeft(User $user): int
     {
-        $allowance = (int) $user->feature(Feature::VIDEO_MINUTES);
+        $allowance = (int) $user->feature(Feature::VIDEO_MINUTES) * 60;
 
         if ($allowance <= 0) {
             return 0;
         }
 
-        $used = (int) MusicVideo::query()
-            ->billedInMinutesThisMonth($user)
-            ->sum('minutes');
+        $seconds = DB::getDriverName() === 'pgsql'
+            ? "COALESCE((input->>'seconds')::numeric, (input->>'minutes')::numeric * 60, 0)"
+            : "COALESCE(json_extract(input, '$.seconds'), json_extract(input, '$.minutes') * 60, 0)";
+        $used = (int) AiJob::query()
+            ->where('user_id', $user->id)
+            ->where('kind', 'video_render')
+            ->where('input->billing', MusicVideo::MINUTES)
+            ->where('status', '!=', AiJob::FAILED)
+            ->where('created_at', '>=', now()->startOfMonth())
+            ->sum(DB::raw($seconds));
 
         return max(0, $allowance - $used);
     }
@@ -387,6 +401,23 @@ class MusicVideos
 
         $this->storage->forget($video);
         $video->delete();
+    }
+
+    /**
+     * Remove the files of every video made for these tracks, before the
+     * tracks are deleted and the database drops the videos with them.
+     */
+    public function forgetForTracks(Builder|Relation $tracks): void
+    {
+        $query = $tracks instanceof Relation ? $tracks->getQuery() : $tracks;
+        $ids = (clone $query)
+            ->withoutGlobalScopes()
+            ->select('tracks.id');
+
+        MusicVideo::query()
+            ->whereIn('track_id', $ids)
+            ->select('id')
+            ->chunkById(100, fn($videos) => $videos->each(fn(MusicVideo $video) => $this->storage->forget($video)));
     }
 
     /**

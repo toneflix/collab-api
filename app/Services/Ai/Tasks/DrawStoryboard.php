@@ -7,6 +7,7 @@ use App\Models\AiJob;
 use App\Models\MusicVideo;
 use App\Models\MusicVideoCharacter;
 use App\Models\MusicVideoShot;
+use App\Models\MusicVideoTake;
 use App\Services\Ai\AiSettings;
 use App\Services\Ai\Video\KeyframeDrawer;
 use App\Services\Ai\Video\ScenePlanner;
@@ -105,6 +106,12 @@ class DrawStoryboard implements AiTask, HandlesFailure
             ->forceFill(['style' => $plan['style'], 'status' => MusicVideo::PLANNING, 'error' => null])
             ->save();
 
+        $video
+            ->takes()
+            ->each(fn(MusicVideoTake $take) => $this->storage->delete($take->file));
+        $video
+            ->takes()
+            ->delete();
         $video
             ->shots()
             ->each(fn(MusicVideoShot $shot) => $this->storage->delete($shot->keyframe));

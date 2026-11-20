@@ -10,6 +10,7 @@ These run from `php artisan schedule:run`, which cron calls every minute (see [P
 | `realtime:prune` | hourly | Deletes realtime events older than an hour from Firebase. Does nothing on other drivers. |
 | `sounds:sync` | daily, 03:30 | Adds CC0 sounds from Freesound to the shared library. Skipped while the library is off or the sync is paused. |
 | `studio:prune-history` | daily, 04:00 | Deletes track versions older than the owner's plan keeps, and stems only those versions used. Also deletes autosaved Composer song versions past the writer's `history_days`; named versions stay. |
+| `videos:prune-files` | daily, 04:30 | Deletes the files of music videos whose rows are gone, such as videos of deleted accounts. |
 | `payouts:sync` | every 30 minutes | Checks payouts that have been processing for over 10 minutes with their provider, in case a webhook never came. |
 | `ai:sweep` | every 10 minutes | Refunds AI jobs that stopped without finishing. |
 | `agent:tick` | every minute | Starts the next queued content agent run and gives the active one a pass. |
@@ -24,7 +25,7 @@ These run from `php artisan schedule:run`, which cron calls every minute (see [P
 | `php artisan app:user-access <user> --grant-role=<role>` | To give someone a role. `--revoke-role`, `--grant-permission` and `--revoke-permission` work the same way. With no options it shows their access. Changes are kept in the user's admin history. |
 | `php artisan ai:jobs` | To list AI jobs a page at a time with what went wrong. Filter with `--status`, `--user` and `--failures`. See [AI tools](../features/ai#when-a-job-fails). |
 | `php artisan ai:video-trial <track>` | To compare music video models on one song before choosing defaults. Renders an 8 second window (from the first sung line, or `--from`) through each lip-sync and b-roll model with the song under it, after showing the cost. Pick models with `--only`, the still with `--image`, the shape with `--ratio`. Clips are saved under `ai/video-trials` and listed with week-long links. |
-| `php artisan videos:restitch <video>...` | To join finished music videos' clips over their songs again, free, without rendering any shot. `--all` does every finished video. |
+| `php artisan videos:restitch <video>...` | To join finished music videos' clips over their songs again, free, without rendering any shot. `--all` does every finished video; a video with a shot that needs a new clip is skipped. |
 | `php artisan webpush:vapid` | Once, to create the browser push keys. |
 | `php artisan words:import` | Once after the Composer migration (`--if-empty` skips it when loaded; the container start script runs that), and after replacing the dictionary file. Loads the bundled CMU dictionary. See [Composer](../features/composer#the-local-dictionary). |
 | `php artisan storage:link` | Once, with the local disk. |

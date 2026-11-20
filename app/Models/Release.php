@@ -6,6 +6,7 @@ use App\Contracts\CanBeTakenDown;
 use App\Helpers\Freq;
 use App\Models\Scopes\HideDeactivatedAccounts;
 use App\Models\Scopes\RestrictBlockedUserScope;
+use App\Services\Ai\Video\MusicVideos;
 use App\Traits\HasAiReviews;
 use App\Traits\HasLikedScope;
 use App\Traits\Metricable;
@@ -160,6 +161,8 @@ class Release extends Model implements CanBeTakenDown
         });
 
         static::deleting(function (self $model) {
+            app(MusicVideos::class)->forgetForTracks($model->tracks());
+
             $model
                 ->tracks()
                 ->delete();

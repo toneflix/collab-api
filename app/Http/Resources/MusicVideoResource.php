@@ -38,6 +38,7 @@ class MusicVideoResource extends JsonResource
             'billing' => $this->billing,
             'videoUrl' => app(VideoStorage::class)->videoUrl($this->resource),
             'error' => $this->error,
+            'edited' => $this->edited(),
             'characters' => $this->whenLoaded('characters', fn() => $this->characters
                 ->map(fn(MusicVideoCharacter $character) => [
                     'id' => $character->id,

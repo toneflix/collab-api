@@ -12,6 +12,7 @@ use App\Http\Resources\TrackVideoResource;
 use App\Models\MusicVideo;
 use App\Models\MusicVideoCharacter;
 use App\Models\MusicVideoShot;
+use App\Models\MusicVideoTake;
 use App\Models\Track;
 use App\Services\Ai\Video\MusicVideos;
 use App\Services\Ai\Video\ShotList;
@@ -43,12 +44,14 @@ class MusicVideoController extends Controller
             ->when($track, fn($query) => $query->where('track_id', $track))
             ->latest('id')
             ->paginate($request->perPage(20));
-        $minutesLeft = $musicVideos->minutesLeft($request->user());
+        $secondsLeft = $musicVideos->secondsLeft($request->user());
+        $minutesLeft = intdiv($secondsLeft, 60);
         $ownPhotos = (bool) $request->user()->feature(Feature::VIDEO_OWN_PHOTOS);
 
         return (new MusicVideoCollection($videos))
             ->additional([
                 'minutesLeft' => $minutesLeft,
+                'secondsLeft' => $secondsLeft,
                 'ownPhotos' => $ownPhotos,
                 'message' => HttpStatus::message(HttpStatus::OK),
                 'status' => 'success',
@@ -87,7 +90,7 @@ class MusicVideoController extends Controller
 
         $video
             ->refresh()
-            ->load(['track', 'characters', 'shots']);
+            ->load(['track', 'characters', 'shots.take']);
 
         return (new MusicVideoResource($video))
             ->additional([
@@ -106,12 +109,14 @@ class MusicVideoController extends Controller
     {
         $this->authorize('view', $video);
 
-        $video->load(['track', 'characters', 'shots']);
-        $minutesLeft = $musicVideos->minutesLeft($request->user());
+        $video->load(['track', 'characters', 'shots.take']);
+        $secondsLeft = $musicVideos->secondsLeft($request->user());
+        $minutesLeft = intdiv($secondsLeft, 60);
 
         return (new MusicVideoResource($video))
             ->additional([
                 'minutesLeft' => $minutesLeft,
+                'secondsLeft' => $secondsLeft,
                 'message' => HttpStatus::message(HttpStatus::OK),
                 'status' => 'success',
                 'status_code' => HttpStatus::OK,
@@ -119,7 +124,7 @@ class MusicVideoController extends Controller
     }
 
     /**
-     * Change what a shot shows before rendering.
+     * Change what a shot shows.
      */
     public function updateShot(Request $request, MusicVideos $videos, MusicVideo $video, MusicVideoShot $shot)
     {
@@ -143,7 +148,7 @@ class MusicVideoController extends Controller
     }
 
     /**
-     * Put the storyboard's shots in a new order.
+     * Put the video's shots in a new order.
      */
     public function reorderShots(Request $request, MusicVideos $videos, MusicVideo $video)
     {
@@ -158,7 +163,7 @@ class MusicVideoController extends Controller
 
         $video
             ->refresh()
-            ->load(['track', 'characters', 'shots']);
+            ->load(['track', 'characters', 'shots.take']);
 
         return (new MusicVideoResource($video))
             ->additional([
@@ -191,7 +196,7 @@ class MusicVideoController extends Controller
     }
 
     /**
-     * Render the storyboard into the finished video.
+     * Save the video: render the shots that need new clips and stitch it.
      */
     public function render(MusicVideos $videos, MusicVideo $video)
     {
@@ -201,7 +206,7 @@ class MusicVideoController extends Controller
 
         $video
             ->refresh()
-            ->load(['track', 'characters', 'shots']);
+            ->load(['track', 'characters', 'shots.take']);
 
         return (new MusicVideoResource($video))
             ->additional([
@@ -224,7 +229,7 @@ class MusicVideoController extends Controller
 
         $video
             ->refresh()
-            ->load(['track', 'characters', 'shots']);
+            ->load(['track', 'characters', 'shots.take']);
 
         return (new MusicVideoResource($video))
             ->additional([
@@ -268,6 +273,16 @@ class MusicVideoController extends Controller
         abort_unless((int) $shot->music_video_id === (int) $video->id, HttpStatus::NOT_FOUND->value);
 
         return $storage->stream($shot->keyframe, 'image/jpeg');
+    }
+
+    /**
+     * Stream a shot's take from a signed link.
+     */
+    public function take(VideoStorage $storage, MusicVideo $video, MusicVideoTake $take)
+    {
+        abort_unless((int) $take->music_video_id === (int) $video->id, HttpStatus::NOT_FOUND->value);
+
+        return $storage->stream($take->file, 'video/mp4');
     }
 
     /**

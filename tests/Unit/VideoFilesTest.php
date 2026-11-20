@@ -4,6 +4,7 @@ namespace Tests\Unit;
 
 use App\Services\Audio\StemAudio;
 use App\Services\Video\VideoFiles;
+use App\Services\Video\VideoPart;
 use Symfony\Component\Process\Process;
 use Tests\TestCase;
 
@@ -27,9 +28,9 @@ class VideoFilesTest extends TestCase
         $song = $this->make($ffmpeg, ['-f', 'lavfi', '-i', 'sine=d=60'], 'mp3');
 
         // Lengths that don't fall on whole frames, like beat cuts at 95 BPM.
-        $clips = array_fill(0, 20, [$clip, 2.53]);
+        $parts = array_fill(0, 20, VideoPart::clip($clip, 2.53));
 
-        $out = app(VideoFiles::class)->stitch($clips, $song, [160, 90]);
+        $out = app(VideoFiles::class)->stitch($parts, $song, [160, 90]);
         $this->files[] = $out;
 
         $probe = new Process([

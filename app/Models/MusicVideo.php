@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -47,11 +46,12 @@ class MusicVideo extends Model
         'style',
         'duration',
         'billing',
-        'minutes',
         'file',
+        'cut',
         'error',
         'billed_at',
         'finished_at',
+        'edited_at',
     ];
 
     protected function casts(): array
@@ -59,9 +59,10 @@ class MusicVideo extends Model
         return [
             'style' => 'array',
             'duration' => 'float',
-            'minutes' => 'integer',
+            'cut' => 'array',
             'billed_at' => 'datetime',
             'finished_at' => 'datetime',
+            'edited_at' => 'datetime',
         ];
     }
 
@@ -80,6 +81,11 @@ class MusicVideo extends Model
         return $this
             ->hasMany(MusicVideoShot::class)
             ->orderBy('position');
+    }
+
+    public function takes(): HasMany
+    {
+        return $this->hasMany(MusicVideoTake::class);
     }
 
     public function characters(): HasMany
@@ -125,13 +131,10 @@ class MusicVideo extends Model
     }
 
     /**
-     * Renders paid from a plan's video minutes since the start of this month.
+     * Whether the shots changed since the video was last stitched.
      */
-    public function scopeBilledInMinutesThisMonth(Builder $query, User $user): void
+    public function edited(): bool
     {
-        $query
-            ->where('user_id', $user->id)
-            ->where('billing', self::MINUTES)
-            ->where('billed_at', '>=', now()->startOfMonth());
+        return $this->edited_at !== null;
     }
 }

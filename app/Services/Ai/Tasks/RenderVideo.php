@@ -12,11 +12,14 @@ use App\Services\Ai\Replicate\ReplicateBatch;
 use App\Services\Ai\Replicate\ReplicateClient;
 use App\Services\Ai\Replicate\ReplicateException;
 use App\Services\Ai\Stems\DemucsSplitter;
+use App\Services\Ai\Video\EditList;
 use App\Services\Ai\Video\KeyframeDrawer;
+use App\Services\Ai\Video\ShotTakes;
 use App\Services\Ai\Video\VideoStorage;
 use App\Services\Audio\StemAudio;
 use App\Services\Audio\TrackAudio;
 use App\Services\Video\VideoFiles;
+use App\Services\Video\VideoPart;
 use Illuminate\Support\Collection;
 use RuntimeException;
 use Throwable;
@@ -24,7 +27,8 @@ use Throwable;
 /**
  * Renders a music video from its storyboard: singing shots lip-synced to the
  * song's vocal, b-roll animated from its still, all cut together over the
- * song. Shots already rendered from the same still are kept.
+ * song. Shots whose take still fits are not rendered again, so a save
+ * after trims and moves only stitches.
  */
 class RenderVideo implements AiTask, HandlesFailure
 {
@@ -46,6 +50,8 @@ class RenderVideo implements AiTask, HandlesFailure
         protected KeyframeDrawer $keyframes,
         protected VideoStorage $storage,
         protected VideoFiles $video,
+        protected ShotTakes $takes,
+        protected EditList $edits,
     ) {}
 
     /**
@@ -57,8 +63,9 @@ class RenderVideo implements AiTask, HandlesFailure
     }
 
     /**
-     * The full price per started minute; clips kept from an earlier render
-     * aren't paid for again, so a render pays only the share still to make.
+     * A first render pays the full price per started minute of the song. A
+     * later one pays for the seconds of shots that need a new clip, and a
+     * save with none to make only stitches, for free.
      */
     public function credits(array $input): int
     {
@@ -66,14 +73,17 @@ class RenderVideo implements AiTask, HandlesFailure
             return 0;
         }
 
-        $credits = AiSettings::videoCredits() * max(1, (int) ($input['minutes'] ?? 1));
-        $total = (int) ($input['shots'] ?? 0);
-
-        if ($total <= 0) {
-            return $credits;
+        if (! empty($input['full'])) {
+            return AiSettings::videoCredits() * max(1, (int) ($input['minutes'] ?? 1));
         }
 
-        return max(1, (int) ceil($credits * (int) ($input['missing'] ?? $total) / $total));
+        $seconds = (float) ($input['seconds'] ?? 0);
+
+        if ($seconds <= 0) {
+            return 0;
+        }
+
+        return max(1, (int) ceil(AiSettings::videoCredits() * $seconds / 60));
     }
 
     public function describe(array $input): string
@@ -89,34 +99,43 @@ class RenderVideo implements AiTask, HandlesFailure
     public function handle(AiJob $job): array
     {
         $video = MusicVideo::query()
-            ->with(['track', 'shots'])
+            ->with(['track', 'shots.take'])
             ->findOrFail($job->input['music_video_id']);
 
         $song = $this->tracks->local($video->track, true) ?? throw new RuntimeException('The track has no audio.');
         $files = [$song];
 
         try {
-            $todo = $video->shots->filter(fn(MusicVideoShot $shot) => ! $shot->clip);
+            $todo = $video->shots->filter(fn(MusicVideoShot $shot) => $shot->needsClip());
             $vocals = $todo->contains('kind', MusicVideoShot::PERFORMANCE) ? $this->vocals($song) : null;
             $files[] = $vocals;
 
-            $this->renderShots($video, $todo, $vocals);
-            $video->load('shots');
-            $this->assemble($video, $song);
+            if ($todo->isNotEmpty()) {
+                $this->renderShots($video, $todo, $vocals);
+            }
+
+            $billing = $job->input['billing'] ?? null;
+            $paid = $billing ? ['billing' => $billing, 'billed_at' => $job->created_at] : [];
+
+            $this->assemble($video, $song, $paid);
         } finally {
             array_map(fn(?string $file) => $file && @unlink($file), $files);
         }
 
-        return ['music_video_id' => $video->id, 'shots' => $video->shots->count()];
+        return ['music_video_id' => $video->id, 'shots' => $video->shots->count(), 'rendered' => $todo->count()];
     }
 
     /**
-     * Join a finished video's clips over its song again, without rendering
-     * or charging for any shot.
+     * Join a finished video's shots over its song again, without rendering
+     * or charging for any shot. Every shot must already have its clip.
      */
     public function restitch(MusicVideo $video): void
     {
-        $video->load(['track', 'shots']);
+        $video->load(['track', 'shots.take']);
+
+        if ($video->shots->contains(fn(MusicVideoShot $shot) => $shot->needsClip())) {
+            throw new RuntimeException('A shot needs a new clip; save the video from the editor.');
+        }
 
         $song = $this->tracks->local($video->track, true) ?? throw new RuntimeException('The track has no audio.');
 
@@ -128,29 +147,34 @@ class RenderVideo implements AiTask, HandlesFailure
     }
 
     /**
-     * Cut the shots' clips together over the song and keep the result as the
-     * video's file.
+     * Cut the shots together over the song and keep the result as the
+     * video's file, with the edit list it was cut from.
+     *
+     * @param  array<string, mixed>  $extra
      */
-    protected function assemble(MusicVideo $video, string $song): void
+    protected function assemble(MusicVideo $video, string $song, array $extra = []): void
     {
-        $clips = $video->shots
-            ->map(fn(MusicVideoShot $shot) => [$this->storage->local($shot->clip), $shot->length()])
-            ->all();
-        $files = array_filter(array_column($clips, 0));
+        $parts = $this->edits->parts($video);
+        $files = array_map(fn(VideoPart $part) => $part->path, $parts);
 
         try {
-            if (count($files) !== count($clips)) {
-                throw new RuntimeException('A rendered shot is missing.');
-            }
-
-            $stitched = $this->video->stitch($clips, $song, $video->size());
+            $stitched = $this->video->stitch($parts, $song, $video->size());
             $files[] = $stitched;
 
             $old = $video->file;
             $file = $this->storage->put($video, $stitched, 'video', 'mp4');
+            $cut = $this->edits->describe($video);
 
             $video
-                ->forceFill(['file' => $file, 'status' => MusicVideo::READY, 'error' => null, 'finished_at' => now()])
+                ->forceFill([
+                    ...$extra,
+                    'file' => $file,
+                    'cut' => $cut,
+                    'status' => MusicVideo::READY,
+                    'error' => null,
+                    'finished_at' => now(),
+                    'edited_at' => null,
+                ])
                 ->save();
 
             $this->storage->delete($old);
@@ -159,17 +183,21 @@ class RenderVideo implements AiTask, HandlesFailure
         }
     }
 
+    /**
+     * Put the video back as it was before the render: a stitched video stays
+     * ready with its file, a new one goes back to its storyboard.
+     */
     public function failed(AiJob $job): void
     {
-        MusicVideo::query()
-            ->whereKey($job->input['music_video_id'] ?? null)
-            ->update([
-                'status' => MusicVideo::STORYBOARD,
-                'billing' => null,
-                'minutes' => 0,
-                'billed_at' => null,
+        $video = MusicVideo::query()
+            ->find($job->input['music_video_id'] ?? null);
+
+        $video
+            ?->forceFill([
+                'status' => $video->file ? MusicVideo::READY : MusicVideo::STORYBOARD,
                 'error' => 'The video couldn\'t be rendered. Your credits or minutes were given back.',
-            ]);
+            ])
+            ->save();
     }
 
     /**
@@ -241,14 +269,7 @@ class RenderVideo implements AiTask, HandlesFailure
         $local = ReplicateClient::make()->download($url);
 
         try {
-            $old = $shot->clip;
-            $file = $this->storage->put($video, $local, "clip-{$shot->position}", 'mp4');
-
-            $shot
-                ->forceFill(['clip' => $file])
-                ->save();
-
-            $this->storage->delete($old);
+            $this->takes->keep($video, $shot, $local);
         } finally {
             @unlink($local);
         }

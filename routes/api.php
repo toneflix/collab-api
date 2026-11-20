@@ -185,6 +185,9 @@ Route::get('ai/videos/{video}/file', [MusicVideoController::class, 'file'])
 Route::get('ai/videos/{video}/shots/{shot}/keyframe', [MusicVideoController::class, 'keyframe'])
     ->middleware('signed')
     ->name('ai.videos.keyframe');
+Route::get('ai/videos/{video}/takes/{take}/clip', [MusicVideoController::class, 'take'])
+    ->middleware('signed')
+    ->name('ai.videos.take');
 Route::get('ai/videos/{video}/characters/{character}/sheet', [MusicVideoController::class, 'sheet'])
     ->middleware('signed')
     ->name('ai.videos.character');
