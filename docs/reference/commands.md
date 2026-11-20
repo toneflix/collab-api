@@ -10,6 +10,7 @@ These run from `php artisan schedule:run`, which cron calls every minute (see [P
 | `realtime:prune` | hourly | Deletes realtime events older than an hour from Firebase. Does nothing on other drivers. |
 | `sounds:sync` | daily, 03:30 | Adds CC0 sounds from Freesound to the shared library. Skipped while the library is off or the sync is paused. |
 | `studio:prune-history` | daily, 04:00 | Deletes track versions older than the owner's plan keeps, and stems only those versions used. Also deletes autosaved Composer song versions past the writer's `history_days`; named versions stay. |
+| `videos:prune-files` | daily, 04:30 | Deletes the files of music videos whose rows are gone, such as videos of deleted accounts. |
 | `payouts:sync` | every 30 minutes | Checks payouts that have been processing for over 10 minutes with their provider, in case a webhook never came. |
 | `ai:sweep` | every 10 minutes | Refunds AI jobs that stopped without finishing. |
 | `agent:tick` | every minute | Starts the next queued content agent run and gives the active one a pass. |
