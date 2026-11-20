@@ -20,6 +20,9 @@ class MusicVideoShot extends Model
     /** Ways a shot can move over its still instead of playing a take */
     public const MOTIONS = ['zoom_in', 'zoom_out', 'pan'];
 
+    /** The shortest a creator can make a shot */
+    public const MIN_SECONDS = 1.0;
+
     /** Seconds a b-roll take may fall short of its shot, held on its last frame */
     public const HOLD_SECONDS = 1.0;
 

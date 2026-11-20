@@ -131,6 +131,40 @@ class MusicVideo extends Model
     }
 
     /**
+     * Ids of the takes the shots play or the finished video was cut from.
+     *
+     * @return list<int>
+     */
+    public function takesInUse(): array
+    {
+        $playing = $this
+            ->shots()
+            ->whereNotNull('take_id')
+            ->pluck('take_id')
+            ->all();
+        $cut = array_column($this->cut ?? [], 'take');
+
+        return array_values(array_unique(array_map('intval', array_filter([...$playing, ...$cut]))));
+    }
+
+    /**
+     * Stills the shots show or the finished video was cut from.
+     *
+     * @return list<string>
+     */
+    public function keyframesInUse(): array
+    {
+        $shown = $this
+            ->shots()
+            ->whereNotNull('keyframe')
+            ->pluck('keyframe')
+            ->all();
+        $cut = array_column($this->cut ?? [], 'keyframe');
+
+        return array_values(array_unique(array_filter([...$shown, ...$cut])));
+    }
+
+    /**
      * Whether the shots changed since the video was last stitched.
      */
     public function edited(): bool

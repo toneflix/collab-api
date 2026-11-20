@@ -8,6 +8,7 @@ use App\Models\Artist;
 use App\Models\MusicVideo;
 use App\Models\MusicVideoCharacter;
 use App\Models\MusicVideoShot;
+use App\Models\MusicVideoTake;
 use App\Models\Track;
 use App\Models\User;
 use App\Services\Ai\AiSettings;
@@ -16,6 +17,7 @@ use App\Services\Audio\TrackAudio;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -204,58 +206,76 @@ class MusicVideos
                 ->save();
         });
 
-        $this->takes->prune($shot);
+        $this->takes->prune($video);
 
         return $shot;
     }
 
     /**
-     * Put the shots in a new order. The time slots stay where they are, so
-     * each shot takes the slot of its new place. B-roll keeps its take; a
-     * singing shot moved off the lines its take was synced to needs a new one.
+     * Save the whole strip of shots as the editor has it: their order, where
+     * each starts and ends, the take each plays from where, or the motion
+     * over its still. Shots left out are removed, and a shot copied from
+     * another (a split) starts as that shot. The shots must cover the song
+     * from start to end with no gaps.
      *
-     * @param  list<int>  $order  every shot id of the video, in the new order
+     * @param  list<array{id?: ?int, copy_of?: ?int, start: float|int|string, end: float|int|string, take_id?: ?int, offset?: float|int|string|null, motion?: ?string}>  $items
      */
-    public function reorderShots(MusicVideo $video, array $order): MusicVideo
+    public function saveShots(MusicVideo $video, array $items): MusicVideo
     {
         $this->ensureStatus($video, self::EDITABLE);
 
         $shots = $video
             ->shots()
-            ->orderBy('position')
-            ->get();
-        $ids = $shots
-            ->pluck('id')
-            ->sort()
-            ->values()
-            ->all();
-        $sent = collect($order)
-            ->map(fn($id) => (int) $id)
-            ->sort()
-            ->values()
-            ->all();
+            ->with('take')
+            ->get()
+            ->keyBy('id');
+        $takes = MusicVideoTake::query()
+            ->where('music_video_id', $video->id)
+            ->take(1000)
+            ->get()
+            ->keyBy('id');
+        $rows = $this->checkStrip($video, $items, $shots, $takes);
+        $removed = $shots->except(array_filter(array_column($rows, 'id')));
 
-        if ($ids !== $sent) {
-            throw ValidationException::withMessages(['shots' => 'Send every shot of this video once.']);
-        }
-
-        $slots = $shots
-            ->map(fn(MusicVideoShot $shot) => [$shot->start, $shot->end])
-            ->values()
-            ->all();
-
-        DB::transaction(function () use ($video, $order, $slots) {
+        DB::transaction(function () use ($video, $rows, $shots, $removed) {
             // Positions are unique per video, so move them all out of the way first.
             $video
                 ->shots()
                 ->increment('position', 1000);
 
-            foreach (array_values($order) as $i => $id) {
-                [$start, $end] = $slots[$i];
+            MusicVideoShot::query()
+                ->whereKey($removed->keys())
+                ->delete();
+
+            foreach ($rows as $i => $row) {
+                $values = [
+                    'position' => $i + 1,
+                    'start' => $row['start'],
+                    'end' => $row['end'],
+                    'take_id' => $row['take_id'],
+                    'offset' => $row['offset'],
+                    'motion' => $row['motion'],
+                ];
+
+                if ($row['id']) {
+                    MusicVideoShot::query()
+                        ->whereKey($row['id'])
+                        ->update($values);
+
+                    continue;
+                }
+
+                $source = $shots[$row['copy_of']];
 
                 MusicVideoShot::query()
-                    ->whereKey((int) $id)
-                    ->update(['position' => $i + 1, 'start' => $start, 'end' => $end]);
+                    ->create([
+                        ...$values,
+                        'music_video_id' => $video->id,
+                        'kind' => $source->kind,
+                        'prompt' => $source->prompt,
+                        'keyframe' => $source->keyframe,
+                        'characters' => $source->characters,
+                    ]);
             }
 
             $video
@@ -263,7 +283,131 @@ class MusicVideos
                 ->save();
         });
 
+        $this->takes->prune($video);
+        $this->takes->dropKeyframes($video, $removed->pluck('keyframe')->all());
+
         return $video;
+    }
+
+    /**
+     * Put the shots back as the finished video was cut from them.
+     */
+    public function discardEdits(MusicVideo $video): MusicVideo
+    {
+        $this->ensureStatus($video, [MusicVideo::READY]);
+
+        if (! $video->cut) {
+            throw ValidationException::withMessages(['video' => 'This video has no saved cut to go back to.']);
+        }
+
+        $kept = array_column($video->cut, 'shot');
+        $removed = $video
+            ->shots()
+            ->whereKeyNot($kept)
+            ->pluck('keyframe')
+            ->all();
+        $takes = MusicVideoTake::query()
+            ->where('music_video_id', $video->id)
+            ->whereKey(array_filter(array_column($video->cut, 'take')))
+            ->pluck('id')
+            ->all();
+
+        DB::transaction(function () use ($video, $kept, $takes) {
+            $video
+                ->shots()
+                ->whereKeyNot($kept)
+                ->delete();
+            $video
+                ->shots()
+                ->increment('position', 1000);
+
+            foreach ($video->cut as $i => $entry) {
+                $take = in_array((int) $entry['take'], $takes, true) ? (int) $entry['take'] : null;
+
+                $shot = MusicVideoShot::query()
+                    ->findOrNew($entry['shot']);
+
+                $shot
+                    ->forceFill([
+                        'id' => $entry['shot'],
+                        'music_video_id' => $video->id,
+                        'position' => $i + 1,
+                        'start' => $entry['start'],
+                        'end' => $entry['end'],
+                        'kind' => $entry['kind'],
+                        'prompt' => $entry['prompt'],
+                        'keyframe' => $entry['keyframe'],
+                        'characters' => $entry['characters'],
+                        'take_id' => $take,
+                        'offset' => $entry['offset'],
+                        'motion' => $entry['motion'],
+                    ])
+                    ->save();
+            }
+
+            $video
+                ->forceFill(['edited_at' => null])
+                ->save();
+        });
+
+        $this->takes->prune($video);
+        $this->takes->dropKeyframes($video, $removed);
+
+        return $video;
+    }
+
+    /**
+     * Check a strip sent by the editor and turn it into rows to save.
+     *
+     * @param  list<array<string, mixed>>  $items
+     * @param  Collection<int, MusicVideoShot>  $shots
+     * @param  Collection<int, MusicVideoTake>  $takes
+     * @return list<array{id: ?int, copy_of: ?int, start: float, end: float, take_id: ?int, offset: float, motion: ?string}>
+     */
+    protected function checkStrip(MusicVideo $video, array $items, Collection $shots, Collection $takes): array
+    {
+        $rows = [];
+        $seen = [];
+        $at = 0.0;
+
+        foreach (array_values($items) as $i => $item) {
+            $id = isset($item['id']) ? (int) $item['id'] : null;
+            $copyOf = isset($item['copy_of']) ? (int) $item['copy_of'] : null;
+            $start = round((float) $item['start'], 2);
+            $end = round((float) $item['end'], 2);
+            $shot = $shots[$id ?? $copyOf] ?? null;
+            $takeId = array_key_exists('take_id', $item) ? ($item['take_id'] === null ? null : (int) $item['take_id']) : $shot?->take_id;
+            $offset = round((float) ($item['offset'] ?? 0), 2);
+            $motion = $item['motion'] ?? null;
+            $error = match (true) {
+                ! $shot => 'A shot isn\'t part of this video.',
+                $id !== null && in_array($id, $seen, true) => 'Send each shot once.',
+                abs($start - $at) > 0.05 => 'Shots must follow each other with no gaps.',
+                $end - $start < MusicVideoShot::MIN_SECONDS - 0.01 => 'A shot must be at least ' . MusicVideoShot::MIN_SECONDS . ' second long.',
+                $takeId !== null && ! $takes->has($takeId) => 'A take isn\'t part of this video.',
+                $takeId !== null && $offset > $takes[$takeId]->length => 'A shot starts past the end of its take.',
+                default => null,
+            };
+
+            if ($error) {
+                throw ValidationException::withMessages(["shots.{$i}" => $error]);
+            }
+
+            if ($id !== null) {
+                $seen[] = $id;
+            }
+
+            $rows[] = ['id' => $id, 'copy_of' => $id === null ? $copyOf : null, 'start' => $start, 'end' => $end, 'take_id' => $takeId, 'offset' => $offset, 'motion' => $motion];
+            $at = $end;
+        }
+
+        if (! $rows || abs($at - $video->duration) > 0.05) {
+            throw ValidationException::withMessages(['shots' => 'Shots must cover the whole song.']);
+        }
+
+        $rows[array_key_last($rows)]['end'] = round($video->duration, 2);
+
+        return $rows;
     }
 
     /**

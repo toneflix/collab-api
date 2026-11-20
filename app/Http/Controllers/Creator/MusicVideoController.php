@@ -90,7 +90,7 @@ class MusicVideoController extends Controller
 
         $video
             ->refresh()
-            ->load(['track', 'characters', 'shots.take']);
+            ->load(['track', 'characters', 'shots.take', 'takes']);
 
         return (new MusicVideoResource($video))
             ->additional([
@@ -109,7 +109,7 @@ class MusicVideoController extends Controller
     {
         $this->authorize('view', $video);
 
-        $video->load(['track', 'characters', 'shots.take']);
+        $video->load(['track', 'characters', 'shots.take', 'takes']);
         $secondsLeft = $musicVideos->secondsLeft($request->user());
         $minutesLeft = intdiv($secondsLeft, 60);
 
@@ -148,26 +148,61 @@ class MusicVideoController extends Controller
     }
 
     /**
-     * Put the video's shots in a new order.
+     * Save the editor's strip of shots: order, trims, splits, merges, the
+     * take each plays or the motion over its still.
      */
-    public function reorderShots(Request $request, MusicVideos $videos, MusicVideo $video)
+    public function saveShots(Request $request, MusicVideos $videos, MusicVideo $video)
     {
         $this->authorize('update', $video);
 
         $valid = $request->validate([
-            'shots' => ['required', 'array', 'max:' . ShotList::MAX_SHOTS],
-            'shots.*' => ['integer', 'distinct'],
+            'shots' => ['required', 'array', 'min:1', 'max:' . ShotList::MAX_SHOTS],
+            'shots.*.id' => ['nullable', 'integer', 'required_without:shots.*.copy_of'],
+            'shots.*.copy_of' => ['nullable', 'integer'],
+            'shots.*.start' => ['required', 'numeric', 'min:0'],
+            'shots.*.end' => ['required', 'numeric', 'min:0'],
+            'shots.*.take_id' => ['nullable', 'integer'],
+            'shots.*.offset' => ['nullable', 'numeric', 'min:0'],
+            'shots.*.motion' => ['nullable', 'string', Rule::in(MusicVideoShot::MOTIONS)],
         ]);
 
-        $video = $videos->reorderShots($video, $valid['shots']);
+        $shots = $valid['shots'];
+
+        // Validated rows come back keyed in the order rules matched them
+        ksort($shots);
+
+        $video = $videos->saveShots($video, array_values($shots));
 
         $video
             ->refresh()
-            ->load(['track', 'characters', 'shots.take']);
+            ->load(['track', 'characters', 'shots.take', 'takes']);
 
         return (new MusicVideoResource($video))
             ->additional([
-                'message' => 'Shots reordered.',
+                'message' => 'Shots saved.',
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
+    }
+
+    /**
+     * Put the shots back as the finished video has them.
+     */
+    public function discardEdits(MusicVideos $videos, MusicVideo $video)
+    {
+        $this->authorize('update', $video);
+
+        $video = $videos->discardEdits($video);
+
+        $video
+            ->refresh()
+            ->load(['track', 'characters', 'shots.take', 'takes']);
+
+        return (new MusicVideoResource($video))
+            ->additional([
+                'message' => 'Changes discarded.',
                 'status' => 'success',
                 'status_code' => HttpStatus::ACCEPTED,
             ])
@@ -206,7 +241,7 @@ class MusicVideoController extends Controller
 
         $video
             ->refresh()
-            ->load(['track', 'characters', 'shots.take']);
+            ->load(['track', 'characters', 'shots.take', 'takes']);
 
         return (new MusicVideoResource($video))
             ->additional([
@@ -229,7 +264,7 @@ class MusicVideoController extends Controller
 
         $video
             ->refresh()
-            ->load(['track', 'characters', 'shots.take']);
+            ->load(['track', 'characters', 'shots.take', 'takes']);
 
         return (new MusicVideoResource($video))
             ->additional([
