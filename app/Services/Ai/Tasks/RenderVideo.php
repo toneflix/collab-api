@@ -101,13 +101,45 @@ class RenderVideo implements AiTask, HandlesFailure
             $files[] = $vocals;
 
             $this->renderShots($video, $todo, $vocals);
+            $video->load('shots');
+            $this->assemble($video, $song);
+        } finally {
+            array_map(fn(?string $file) => $file && @unlink($file), $files);
+        }
 
-            $clips = $video->shots
-                ->map(fn(MusicVideoShot $shot) => [$this->storage->local($shot->refresh()->clip), $shot->length()])
-                ->all();
-            $files = [...$files, ...array_column($clips, 0)];
+        return ['music_video_id' => $video->id, 'shots' => $video->shots->count()];
+    }
 
-            if (in_array(null, array_column($clips, 0), true)) {
+    /**
+     * Join a finished video's clips over its song again, without rendering
+     * or charging for any shot.
+     */
+    public function restitch(MusicVideo $video): void
+    {
+        $video->load(['track', 'shots']);
+
+        $song = $this->tracks->local($video->track, true) ?? throw new RuntimeException('The track has no audio.');
+
+        try {
+            $this->assemble($video, $song);
+        } finally {
+            @unlink($song);
+        }
+    }
+
+    /**
+     * Cut the shots' clips together over the song and keep the result as the
+     * video's file.
+     */
+    protected function assemble(MusicVideo $video, string $song): void
+    {
+        $clips = $video->shots
+            ->map(fn(MusicVideoShot $shot) => [$this->storage->local($shot->clip), $shot->length()])
+            ->all();
+        $files = array_filter(array_column($clips, 0));
+
+        try {
+            if (count($files) !== count($clips)) {
                 throw new RuntimeException('A rendered shot is missing.');
             }
 
@@ -123,10 +155,8 @@ class RenderVideo implements AiTask, HandlesFailure
 
             $this->storage->delete($old);
         } finally {
-            array_map(fn(?string $file) => $file && @unlink($file), $files);
+            array_map(fn(string $file) => @unlink($file), $files);
         }
-
-        return ['music_video_id' => $video->id, 'shots' => $video->shots->count()];
     }
 
     public function failed(AiJob $job): void

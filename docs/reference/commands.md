@@ -24,6 +24,7 @@ These run from `php artisan schedule:run`, which cron calls every minute (see [P
 | `php artisan app:user-access <user> --grant-role=<role>` | To give someone a role. `--revoke-role`, `--grant-permission` and `--revoke-permission` work the same way. With no options it shows their access. Changes are kept in the user's admin history. |
 | `php artisan ai:jobs` | To list AI jobs a page at a time with what went wrong. Filter with `--status`, `--user` and `--failures`. See [AI tools](../features/ai#when-a-job-fails). |
 | `php artisan ai:video-trial <track>` | To compare music video models on one song before choosing defaults. Renders an 8 second window (from the first sung line, or `--from`) through each lip-sync and b-roll model with the song under it, after showing the cost. Pick models with `--only`, the still with `--image`, the shape with `--ratio`. Clips are saved under `ai/video-trials` and listed with week-long links. |
+| `php artisan videos:restitch <video>...` | To join finished music videos' clips over their songs again, free, without rendering any shot. `--all` does every finished video. |
 | `php artisan webpush:vapid` | Once, to create the browser push keys. |
 | `php artisan words:import` | Once after the Composer migration (`--if-empty` skips it when loaded; the container start script runs that), and after replacing the dictionary file. Loads the bundled CMU dictionary. See [Composer](../features/composer#the-local-dictionary). |
 | `php artisan storage:link` | Once, with the local disk. |

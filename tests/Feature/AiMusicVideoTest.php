@@ -327,6 +327,35 @@ class AiMusicVideoTest extends TestCase
         $this->assertEqualsWithDelta(12.0, (float) collect(explode("\n", trim($info)))->last(), 0.2);
     }
 
+    public function test_finished_videos_can_be_stitched_again_for_free(): void
+    {
+        Sanctum::actingAs($this->owner);
+
+        $id = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos")
+            ->json('data.id');
+
+        $this->postJson("/api/creator/videos/{$id}/render")
+            ->assertAccepted();
+
+        $video = MusicVideo::query()
+            ->findOrFail($id);
+
+        $file = $video->file;
+        $credits = Credits::for($this->owner)->total();
+        $requests = count(Http::recorded());
+
+        $this->artisan('videos:restitch', ['videos' => [$id]])
+            ->assertSuccessful();
+
+        $video->refresh();
+
+        $this->assertSame(MusicVideo::READY, $video->status);
+        $this->assertNotSame($file, $video->file);
+        $this->assertFalse(Storage::disk(config('filesystems.default'))->exists($file));
+        $this->assertSame($credits, Credits::for($this->owner)->total());
+        $this->assertCount($requests, Http::recorded());
+    }
+
     public function test_plan_video_minutes_pay_for_the_render_before_credits(): void
     {
         $owner = $this->subscriber([Feature::AI_TOOLS->value => true, Feature::AI_CREDITS->value => 1000, Feature::VIDEO_MINUTES->value => 2]);
