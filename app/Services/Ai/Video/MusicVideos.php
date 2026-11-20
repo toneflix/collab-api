@@ -300,10 +300,11 @@ class MusicVideos
             throw ValidationException::withMessages(['video' => 'This video has no saved cut to go back to.']);
         }
 
+        $this->ensureNotDrawing($video);
+
         $kept = array_column($video->cut, 'shot');
         $removed = $video
             ->shots()
-            ->whereKeyNot($kept)
             ->pluck('keyframe')
             ->all();
         $takes = MusicVideoTake::query()
@@ -440,6 +441,7 @@ class MusicVideos
     public function render(MusicVideo $video): MusicVideo
     {
         $this->ensureStatus($video, self::EDITABLE);
+        $this->ensureNotDrawing($video);
 
         $user = $video->user;
         $minutes = $video->startedMinutes();
@@ -511,6 +513,34 @@ class MusicVideos
     }
 
     /**
+     * Draw a new still for one shot from its prompt, paid by the shot's
+     * length at the storyboard rate. The shot needs a new clip after.
+     */
+    public function redrawStill(MusicVideo $video, MusicVideoShot $shot): MusicVideoShot
+    {
+        $this->ensureStatus($video, self::EDITABLE);
+
+        if ($shot->drawing) {
+            throw ValidationException::withMessages(['shot' => 'A new still is already being drawn for this shot.']);
+        }
+
+        return DB::transaction(function () use ($video, $shot) {
+            $shot
+                ->forceFill(['drawing' => true])
+                ->save();
+
+            $this->studio->start($video->user, null, 'video_still', [
+                'music_video_id' => $video->id,
+                'shot_id' => $shot->id,
+                'title' => $video->track?->title,
+                'seconds' => $shot->length(),
+            ]);
+
+            return $shot->refresh();
+        });
+    }
+
+    /**
      * Seconds of video time the user's plan has left this month, counted
      * from the renders it paid for that didn't fail.
      */
@@ -575,6 +605,18 @@ class MusicVideos
             ->unfinished()
             ->latest('id')
             ->first();
+    }
+
+    protected function ensureNotDrawing(MusicVideo $video): void
+    {
+        $drawing = $video
+            ->shots()
+            ->where('drawing', true)
+            ->exists();
+
+        if ($drawing) {
+            throw ValidationException::withMessages(['video' => 'Wait for the new stills to finish drawing.']);
+        }
     }
 
     /**

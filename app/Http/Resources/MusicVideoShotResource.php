@@ -33,6 +33,7 @@ class MusicVideoShotResource extends JsonResource
             'offset' => $this->takeOffset(),
             'motion' => $this->motion,
             'rendered' => ! $this->needsClip(),
+            'drawing' => $this->drawing,
         ];
     }
 }

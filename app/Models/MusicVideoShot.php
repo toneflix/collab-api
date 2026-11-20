@@ -38,6 +38,7 @@ class MusicVideoShot extends Model
         'offset',
         'motion',
         'characters',
+        'drawing',
     ];
 
     protected function casts(): array
@@ -48,6 +49,7 @@ class MusicVideoShot extends Model
             'end' => 'float',
             'offset' => 'float',
             'characters' => 'array',
+            'drawing' => 'boolean',
         ];
     }
 
