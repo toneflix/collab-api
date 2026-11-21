@@ -19,7 +19,8 @@ class TrialVideoModels extends Command
             {--image= : Portrait or still as a local path or URL (default: the artist picture, else the artwork)}
             {--ratio=16:9 : Shape the still is cropped to}
             {--prompt= : What the clips should show}
-            {--only=* : Models to run (default: all)}
+            {--only=* : Models to run (default: the standard tier)}
+            {--advanced : Run the advanced tier instead of the standard one}
             {--force : Run without asking to confirm the cost}
     ';
 
@@ -49,7 +50,7 @@ class TrialVideoModels extends Command
             ['Model', 'Kind', 'Seconds', 'About (USD)'],
             collect($candidates)->map(fn(VideoCandidate $candidate) => [
                 $candidate->model(),
-                $candidate->sings() ? 'lip sync' : 'b-roll',
+                $this->kind($candidate),
                 $candidate->length($seconds),
                 number_format($candidate->cost($seconds), 3),
             ])
@@ -132,7 +133,7 @@ class TrialVideoModels extends Command
         $only = (array) $this->option('only');
 
         if (! $only) {
-            return VideoCandidate::cases();
+            return VideoCandidate::tier((bool) $this->option('advanced'));
         }
 
         $candidates = array_map(fn(string $key) => VideoCandidate::tryFrom($key), $only);
@@ -149,6 +150,14 @@ class TrialVideoModels extends Command
             ->unique(fn(VideoCandidate $candidate) => $candidate->value)
             ->values()
             ->all();
+    }
+
+    protected function kind(VideoCandidate $candidate): string
+    {
+        $source = $candidate->source();
+        $kind = $candidate->sings() ? 'lip sync' : 'b-roll';
+
+        return $source ? "{$kind} over a {$source->value} clip" : $kind;
     }
 
     /**
