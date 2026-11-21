@@ -3,11 +3,10 @@
 namespace App\Services\Ai\Tasks;
 
 use App\Enums\AiEngine;
-use App\Enums\VideoCandidate;
+use App\Enums\VideoQuality;
 use App\Models\AiJob;
 use App\Models\MusicVideo;
 use App\Models\MusicVideoShot;
-use App\Services\Ai\AiSettings;
 use App\Services\Ai\Replicate\ReplicateBatch;
 use App\Services\Ai\Replicate\ReplicateClient;
 use App\Services\Ai\Replicate\ReplicateException;
@@ -32,9 +31,6 @@ use Throwable;
  */
 class RenderVideo implements AiTask, HandlesFailure
 {
-    /** The model that makes the singing shots */
-    public const SINGER = VideoCandidate::PRUNA_AVATAR;
-
     /** Clips rendered at once */
     protected const PARALLEL = 5;
 
@@ -55,11 +51,11 @@ class RenderVideo implements AiTask, HandlesFailure
     ) {}
 
     /**
-     * The longest shot the chosen b-roll model renders whole.
+     * The longest shot the quality's b-roll model renders whole.
      */
-    public static function maxShotSeconds(): float
+    public static function maxShotSeconds(VideoQuality $quality = VideoQuality::STANDARD): float
     {
-        return min(8.0, AiSettings::videoBrollModel()->length(60));
+        return min(8.0, $quality->broll()->length(60));
     }
 
     /**
@@ -73,8 +69,10 @@ class RenderVideo implements AiTask, HandlesFailure
             return 0;
         }
 
+        $rate = (VideoQuality::tryFrom($input['quality'] ?? '') ?? VideoQuality::STANDARD)->credits();
+
         if (! empty($input['full'])) {
-            return AiSettings::videoCredits() * max(1, (int) ($input['minutes'] ?? 1));
+            return $rate * max(1, (int) ($input['minutes'] ?? 1));
         }
 
         $seconds = (float) ($input['seconds'] ?? 0);
@@ -83,7 +81,7 @@ class RenderVideo implements AiTask, HandlesFailure
             return 0;
         }
 
-        return max(1, (int) ceil(AiSettings::videoCredits() * $seconds / 60));
+        return max(1, (int) ceil($rate * $seconds / 60));
     }
 
     public function describe(array $input): string
@@ -209,6 +207,8 @@ class RenderVideo implements AiTask, HandlesFailure
     protected function renderShots(MusicVideo $video, Collection $shots, ?string $vocals): void
     {
         $client = ReplicateClient::make();
+        $singer = $video->quality->singer();
+        $broll = $video->quality->broll();
         $runs = [];
         $temp = [];
 
@@ -220,10 +220,9 @@ class RenderVideo implements AiTask, HandlesFailure
                     $cut = $this->audio->cut($vocals, $shot->start, $shot->end);
                     $temp[] = $cut;
                     $audio = $client->upload($cut, 'audio/mpeg');
-                    $runs[$shot->id] = [self::SINGER->model(), self::SINGER->input($image, $audio, self::SING_PROMPT . ' ' . $shot->prompt, $shot->length())];
+                    $runs[$shot->id] = [$singer->model(), $singer->input($image, $audio, self::SING_PROMPT . ' ' . $shot->prompt, $shot->length())];
                 } else {
-                    $model = AiSettings::videoBrollModel();
-                    $runs[$shot->id] = [$model->model(), $model->input($image, null, $shot->prompt, $shot->length())];
+                    $runs[$shot->id] = [$broll->model(), $broll->input($image, null, $shot->prompt, $shot->length())];
                 }
             }
         } finally {

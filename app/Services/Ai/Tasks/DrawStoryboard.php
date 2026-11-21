@@ -107,7 +107,7 @@ class DrawStoryboard implements AiTask, HandlesFailure
             throw new RuntimeException('AI writing isn\'t set up yet.');
         }
 
-        $plan = $planner->plan($video, RenderVideo::maxShotSeconds());
+        $plan = $planner->plan($video, RenderVideo::maxShotSeconds($video->quality));
 
         $video
             ->forceFill([

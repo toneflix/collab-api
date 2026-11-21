@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Creator;
 
 use App\Enums\Feature;
 use App\Enums\HttpStatus;
+use App\Enums\VideoQuality;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\MusicVideoCollection;
 use App\Http\Resources\MusicVideoResource;
@@ -28,7 +29,8 @@ class MusicVideoController extends Controller
 {
     /**
      * The person's music videos, newest first, for one track when asked,
-     * with the video minutes left and whether their plan takes own photos.
+     * with the video minutes left and whether their plan takes own photos
+     * and advanced quality.
      */
     public function index(Request $request, MusicVideos $musicVideos)
     {
@@ -47,12 +49,14 @@ class MusicVideoController extends Controller
         $secondsLeft = $musicVideos->secondsLeft($request->user());
         $minutesLeft = intdiv($secondsLeft, 60);
         $ownPhotos = (bool) $request->user()->feature(Feature::VIDEO_OWN_PHOTOS);
+        $advanced = (bool) $request->user()->feature(Feature::VIDEO_ADVANCED);
 
         return (new MusicVideoCollection($videos))
             ->additional([
                 'minutesLeft' => $minutesLeft,
                 'secondsLeft' => $secondsLeft,
                 'ownPhotos' => $ownPhotos,
+                'advanced' => $advanced,
                 'message' => HttpStatus::message(HttpStatus::OK),
                 'status' => 'success',
                 'status_code' => HttpStatus::OK,
@@ -69,6 +73,7 @@ class MusicVideoController extends Controller
         $valid = $request->validate([
             'ratio' => ['nullable', 'string', Rule::in(MusicVideo::RATIOS)],
             'mode' => ['nullable', 'string', Rule::in(MusicVideo::MODES)],
+            'quality' => ['nullable', Rule::enum(VideoQuality::class)],
             'brief' => ['nullable', 'string', 'max:1000'],
             'photo' => ['nullable', 'prohibits:characters', 'image', 'max:10240', 'dimensions:min_width=512,min_height=512'],
             'characters' => ['nullable', 'array', 'max:' . MusicVideoCharacter::MAX],
