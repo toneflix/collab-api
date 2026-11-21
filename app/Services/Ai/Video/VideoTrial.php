@@ -96,38 +96,33 @@ class VideoTrial
 
     /**
      * Run one model over the window and save its clip with the song under it.
-     * Returns the clip's path on the uploads disk.
+     * A dubbing model first gets its source clip. Returns the clip's path on
+     * the uploads disk.
      */
     public function render(VideoCandidate $candidate, TrialWindow $window, string $prompt, string $folder): string
     {
         $client = ReplicateClient::make();
-        $input = $candidate->input($window->image, $window->vocals, $prompt, $window->seconds);
+        $source = $candidate->source();
+        $video = $source ? $this->run($client, $source, $window, $prompt) : null;
 
-        $prediction = $client->run($candidate->model(), $input, self::TIMEOUT);
-
-        $output = is_array($prediction['output']) ? reset($prediction['output']) : $prediction['output'];
-
-        if (! ReplicateClient::isFile($output)) {
-            throw new ReplicateException("{$candidate->model()} returned no video.");
-        }
-
+        $output = $this->run($client, $candidate, $window, $prompt, $video);
         $clip = $client->download($output);
 
         try {
-            $video = $this->video->withAudio($clip, $window->song);
+            $saved = $this->video->withAudio($clip, $window->song);
         } finally {
             @unlink($clip);
         }
 
         $file = "{$folder}/{$candidate->value}.mp4";
-        $stream = fopen($video, 'r');
+        $stream = fopen($saved, 'r');
 
         $this
             ->disk()
             ->writeStream($file, $stream);
 
         fclose($stream);
-        @unlink($video);
+        @unlink($saved);
 
         return $file;
     }
@@ -144,6 +139,23 @@ class VideoTrial
             fn() => $disk->url($file),
             false,
         );
+    }
+
+    /**
+     * Run one model over the window and return the link to its video.
+     */
+    protected function run(ReplicateClient $client, VideoCandidate $candidate, TrialWindow $window, string $prompt, ?string $video = null): string
+    {
+        $input = $candidate->input($window->image, $window->vocals, $prompt, $window->seconds, $video);
+        $prediction = $client->run($candidate->model(), $input, self::TIMEOUT);
+
+        $output = is_array($prediction['output']) ? reset($prediction['output']) : $prediction['output'];
+
+        if (! ReplicateClient::isFile($output)) {
+            throw new ReplicateException("{$candidate->model()} returned no video.");
+        }
+
+        return $output;
     }
 
     protected function firstLine(Track $track): float

@@ -136,6 +136,77 @@ class AiVideoTrialTest extends TestCase
             && $request['input']['save_audio'] === false);
     }
 
+    public function test_the_dubbing_model_lip_syncs_a_clip_rendered_first(): void
+    {
+        $track = $this->track();
+        $image = $this->file('png', ['-f', 'lavfi', '-i', 'color=c=green:s=1024x1024', '-frames:v', '1']);
+        $clip = $this->file('mp4', ['-f', 'lavfi', '-i', 'testsrc=size=640x360:rate=24:duration=3', '-pix_fmt', 'yuv420p']);
+        $vocal = $this->file('wav', ['-f', 'lavfi', '-i', 'aevalsrc=0.3*sin(440*2*PI*t):s=44100:d=4']);
+        $vocalBytes = (string) file_get_contents($vocal);
+        $clipBytes = (string) file_get_contents($clip);
+
+        Http::fake([
+            self::REPLICATE . '/files' => Http::response(['urls' => ['get' => self::REPLICATE . '/files/f1']], 201),
+            self::REPLICATE . '/predictions' => Http::response([
+                'id' => 'split',
+                'status' => 'succeeded',
+                'output' => ['vocals' => self::CDN . '/vocals.wav'],
+            ], 201),
+            self::REPLICATE . '/models/prunaai/p-video/predictions' => Http::response([
+                'id' => 'source',
+                'status' => 'succeeded',
+                'output' => self::CDN . '/source.mp4',
+            ], 201),
+            self::REPLICATE . '/models/*/predictions' => Http::response([
+                'id' => 'clip',
+                'status' => 'succeeded',
+                'output' => self::CDN . '/clip.mp4',
+            ], 201),
+            self::CDN . '/vocals.wav' => Http::response($vocalBytes),
+            self::CDN . '/clip.mp4' => Http::response($clipBytes),
+        ]);
+
+        $this->artisan('ai:video-trial', [
+            'track' => $track->slug,
+            '--seconds' => 4,
+            '--image' => $image,
+            '--only' => ['lipsync-2-pro'],
+            '--force' => true,
+        ])
+            ->assertSuccessful();
+
+        Http::assertSent(fn(Request $request) => str_ends_with($request->url(), '/sync/lipsync-2-pro/predictions')
+            && $request['input']['video'] === self::CDN . '/source.mp4'
+            && $request['input']['audio'] === self::REPLICATE . '/files/f1');
+        Http::assertNotSent(fn(Request $request) => $request->url() === self::CDN . '/source.mp4');
+
+        $files = Storage::disk(config('filesystems.default'))
+            ->allFiles(VideoTrial::DIRECTORY . "/{$track->id}");
+
+        $this->assertCount(1, $files);
+        $this->assertStringEndsWith('/lipsync-2-pro.mp4', $files[0]);
+    }
+
+    public function test_the_advanced_tier_runs_only_its_own_models(): void
+    {
+        Http::fake();
+
+        $this->artisan('ai:video-trial', ['track' => $this->track()->slug, '--advanced' => true, '--seconds' => 5])
+            ->expectsTable(['Model', 'Kind', 'Seconds', 'About (USD)'], [
+                ['bytedance/omni-human-1.5', 'lip sync', 5, '0.800'],
+                ['kwaivgi/kling-avatar-v2', 'lip sync', 5, '0.280'],
+                ['veed/fabric-1.0', 'lip sync', 5, '0.750'],
+                ['sync/lipsync-2-pro', 'lip sync over a p-video clip', 5, '0.516'],
+                ['kwaivgi/kling-v3-video', 'b-roll', 5, '0.840'],
+                ['google/veo-3.1-fast', 'b-roll', 6, '0.600'],
+                ['bytedance/seedance-2.0', 'b-roll', 5, '0.900'],
+            ])
+            ->expectsConfirmation('This spends about $4.69 on Replicate. Go ahead?', 'no')
+            ->assertSuccessful();
+
+        Http::assertNothingSent();
+    }
+
     public function test_unknown_models_are_refused_before_anything_runs(): void
     {
         Http::fake();
@@ -155,6 +226,11 @@ class AiVideoTrialTest extends TestCase
         $this->assertSame(0.11, VideoCandidate::WAN_I2V_FAST->cost(8));
         $this->assertTrue(VideoCandidate::OMNI_HUMAN->sings());
         $this->assertFalse(VideoCandidate::P_VIDEO->sings());
+        $this->assertSame(8.0, VideoCandidate::VEO_FAST->length(10));
+        $this->assertSame(4.0, VideoCandidate::SEEDANCE_2->length(2));
+        $this->assertSame(0.08, VideoCandidate::P_VIDEO->cost(4));
+        $this->assertSame(0.413, VideoCandidate::LIPSYNC_2_PRO->cost(4));
+        $this->assertNotContains('kling-v3', array_keys(VideoCandidate::brollOptions()));
     }
 
     /**
