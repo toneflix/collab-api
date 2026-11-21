@@ -87,8 +87,9 @@ class VideoFiles
      * held on its last frame to its length, with the song as the only sound.
      * Each part is cut on its own first, so memory stays flat however many
      * there are, then the cuts are joined without encoding again. Frame counts
-     * come from where each part starts and ends on the song, so every cut lands
-     * within half a frame of its place however long the video runs.
+     * come from where each part starts and ends on the song, and each cut is
+     * listed with its exact length, so every cut lands within half a frame of
+     * its place however long the video runs.
      *
      * @param  list<VideoPart>  $parts
      * @param  array{0: int, 1: int}  $size
@@ -97,17 +98,20 @@ class VideoFiles
     {
         $out = $this->temp();
         $cuts = [];
+        $lines = [];
         $total = 0.0;
 
         try {
             foreach ($parts as $part) {
                 $frames = max(1, $this->frame($total + $part->length) - $this->frame($total));
-                $cuts[] = $this->cut($part, $frames, $size);
+                $cut = $this->cut($part, $frames, $size);
+                $cuts[] = $cut;
+                $lines[] = "file '" . str_replace("'", "'\\''", $cut) . "'";
+                $lines[] = 'duration ' . number_format($frames / self::FPS, 6, '.', '');
                 $total += $part->length;
             }
 
             $list = tempnam(sys_get_temp_dir(), 'concat-');
-            $lines = array_map(fn(string $cut) => "file '" . str_replace("'", "'\\''", $cut) . "'", $cuts);
 
             file_put_contents($list, implode("\n", $lines) . "\n");
 

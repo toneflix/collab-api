@@ -45,6 +45,21 @@ class VideoFilesTest extends TestCase
         $probe->mustRun();
 
         $this->assertSame((int) round(20 * 2.53 * VideoFiles::FPS), (int) trim($probe->getOutput()));
+
+        $packets = new Process([
+            config('laravel-ffmpeg.ffprobe.binaries') ?: 'ffprobe',
+            '-v', 'error',
+            '-select_streams', 'v',
+            '-show_entries', 'packet=pts',
+            '-of', 'csv=p=0',
+            $out,
+        ]);
+        $packets->mustRun();
+
+        $pts = array_map('intval', array_filter(explode("\n", trim($packets->getOutput()))));
+
+        // Every frame has its own time, so no cut overlaps the one before it.
+        $this->assertSame(count($pts), count(array_unique($pts)));
     }
 
     /**
