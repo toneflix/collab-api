@@ -59,7 +59,7 @@ class AiMusicVideoTest extends TestCase
             'ai.providers.replicate.url' => self::REPLICATE,
         ]);
 
-        AiSettings::update(['ai_enabled' => true, 'ai_video_storyboard_credits' => 20, 'ai_video_credits' => 190]);
+        AiSettings::update(['ai_enabled' => true, 'ai_video_storyboard_credits' => 20, 'ai_video_location_storyboard_credits' => 6, 'ai_video_credits' => 190]);
 
         $this->owner = $this->subscriber([Feature::AI_TOOLS->value => true, Feature::AI_CREDITS->value => 1000]);
         $this->track = $this->track($this->owner);
@@ -68,6 +68,36 @@ class AiMusicVideoTest extends TestCase
         {
             public function ask(string $system, string $prompt, int $maxTokens = 1200): string
             {
+                if (str_contains($system, '"locations"')) {
+                    return json_encode([
+                        'style' => ['look' => 'Neon night', 'character' => 'A young woman with short braids'],
+                        'characters' => [
+                            ['key' => 'singer', 'name' => 'The singer', 'description' => 'A young woman with short braids in a red jacket'],
+                            ['key' => 'dancer', 'name' => 'The dancer', 'description' => 'A tall man in a silver coat'],
+                            ['key' => 'driver', 'name' => 'The driver', 'description' => 'An older man in a grey cab driver jacket'],
+                        ],
+                        'locations' => [
+                            ['key' => 'street', 'name' => 'Neon street', 'setting' => 'A wet street at night', 'frames' => [
+                                ['key' => 'street_wide', 'kind' => 'broll', 'prompt' => 'A wide neon street in the rain', 'characters' => []],
+                                ['key' => 'street_sing', 'kind' => 'performance', 'prompt' => 'The singer under a street light'],
+                                ['key' => 'street_detail', 'kind' => 'broll', 'prompt' => 'The dancer spinning by a shop window', 'characters' => ['dancer']],
+                                ['key' => 'street_extra', 'kind' => 'broll', 'prompt' => 'A fourth frame that is dropped'],
+                            ]],
+                            ['key' => 'roof', 'name' => 'Rooftop', 'setting' => 'A rooftop at dawn', 'frames' => [
+                                ['key' => 'roof_sing', 'kind' => 'performance', 'prompt' => 'The singer on a rooftop at dawn'],
+                            ]],
+                        ],
+                        'shots' => [
+                            ['start' => 0, 'frame' => 'street_wide', 'action' => 'Slow push in.'],
+                            ['start' => 2.5, 'frame' => 'street_sing', 'action' => 'She sings to the lens.'],
+                            ['start' => 5, 'frame' => 'street_sing', 'action' => 'Handheld drift.'],
+                            ['start' => 6.2, 'frame' => 'nowhere', 'action' => 'Dropped.'],
+                            ['start' => 7.5, 'frame' => 'street_wide', 'action' => 'Crane up.'],
+                            ['start' => 10, 'frame' => 'roof_sing', 'action' => 'Sunrise behind her.'],
+                        ],
+                    ]);
+                }
+
                 return json_encode([
                     'style' => ['look' => 'Neon night', 'character' => 'A young woman with short braids'],
                     'characters' => [
@@ -109,7 +139,7 @@ class AiMusicVideoTest extends TestCase
     {
         Sanctum::actingAs($this->owner);
 
-        $id = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos", ['brief' => 'Night city', 'ratio' => '16:9'])
+        $id = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos", ['mode' => 'legacy', 'brief' => 'Night city', 'ratio' => '16:9'])
             ->assertCreated()
             ->assertJsonPath('data.status', MusicVideo::STORYBOARD)
             ->assertJsonPath('data.minutes', 1)
@@ -156,13 +186,82 @@ class AiMusicVideoTest extends TestCase
             && isset($request['input']['image_input']));
     }
 
+    public function test_a_location_storyboard_draws_each_frame_once(): void
+    {
+        Sanctum::actingAs($this->owner);
+
+        $id = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos")
+            ->assertCreated()
+            ->assertJsonPath('data.mode', MusicVideo::LOCATIONS)
+            ->assertJsonPath('data.status', MusicVideo::STORYBOARD)
+            ->assertJsonPath('data.locations.0.name', 'Neon street')
+            ->assertJsonPath('data.locations.1.key', 'roof')
+            ->assertJsonPath('data.shots.0.location', 'street')
+            ->assertJsonCount(5, 'data.shots')
+            ->json('data.id');
+
+        $shots = MusicVideoShot::query()
+            ->where('music_video_id', $id)
+            ->orderBy('position')
+            ->get();
+
+        $this->assertSame(['street_wide', 'street_sing', 'street_detail', 'street_wide', 'roof_sing'], $shots->pluck('frame')->all());
+        $this->assertSame([MusicVideoShot::BROLL, MusicVideoShot::PERFORMANCE, MusicVideoShot::BROLL, MusicVideoShot::BROLL, MusicVideoShot::PERFORMANCE], $shots->pluck('kind')->all());
+        $this->assertSame('A wide neon street in the rain Crane up.', $shots[3]->prompt);
+        $this->assertSame($shots[0]->keyframe, $shots[3]->keyframe);
+        $this->assertSame(4, $shots->pluck('keyframe')->unique()->count());
+        $this->assertSame([[], ['singer'], ['dancer'], [], ['singer']], $shots->pluck('characters')->all());
+        $this->assertSame(994, Credits::for($this->owner)->total());
+
+        $characters = MusicVideoCharacter::query()
+            ->where('music_video_id', $id)
+            ->pluck('key')
+            ->all();
+
+        $this->assertEqualsCanonicalizing(['singer', 'dancer'], $characters);
+
+        $stills = collect(Http::recorded())
+            ->filter(fn(array $sent) => str_ends_with($sent[0]->url(), '/seedream-4/predictions'));
+
+        $this->assertCount(6, $stills);
+        $this->assertSame(1, $stills->filter(fn(array $sent) => str_contains($sent[0]['input']['prompt'], 'wide neon street'))->count());
+    }
+
+    public function test_a_failed_location_storyboard_retries_only_the_missing_frames(): void
+    {
+        Sleep::fake();
+        Sanctum::actingAs($this->owner);
+        $this->stillsDown = 'wide neon street';
+
+        $id = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos")
+            ->assertJsonPath('data.status', MusicVideo::FAILED)
+            ->json('data.id');
+
+        $this->assertSame(1000, Credits::for($this->owner)->total());
+
+        $this->stillsDown = null;
+
+        $this->postJson("/api/creator/videos/{$id}/storyboard")
+            ->assertAccepted()
+            ->assertJsonPath('data.status', MusicVideo::STORYBOARD);
+
+        $shots = MusicVideoShot::query()
+            ->where('music_video_id', $id)
+            ->orderBy('position')
+            ->get();
+
+        $this->assertTrue($shots->every(fn(MusicVideoShot $shot) => (bool) $shot->keyframe));
+        $this->assertSame($shots[0]->keyframe, $shots[3]->keyframe);
+        $this->assertSame(998, Credits::for($this->owner)->total());
+    }
+
     public function test_a_brief_replicate_outage_is_waited_out(): void
     {
         Sleep::fake();
         Sanctum::actingAs($this->owner);
         $this->stillOutages = 2;
 
-        $this->postJson("/api/creator/tracks/{$this->track->slug}/videos")
+        $this->postJson("/api/creator/tracks/{$this->track->slug}/videos", ['mode' => 'legacy', 'mode' => 'legacy'])
             ->assertCreated()
             ->assertJsonPath('data.status', MusicVideo::STORYBOARD);
     }
@@ -173,7 +272,7 @@ class AiMusicVideoTest extends TestCase
         Sanctum::actingAs($this->owner);
         $this->stillsDown = 'Cars streaking';
 
-        $id = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos")
+        $id = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos", ['mode' => 'legacy', 'mode' => 'legacy'])
             ->assertJsonPath('data.status', MusicVideo::FAILED)
             ->json('data.id');
 
@@ -214,7 +313,7 @@ class AiMusicVideoTest extends TestCase
         Sanctum::actingAs($this->owner);
         $this->stillsDown = 'Cars streaking';
 
-        $id = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos")
+        $id = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos", ['mode' => 'legacy', 'mode' => 'legacy'])
             ->json('data.id');
 
         MusicVideoCharacter::query()
@@ -243,7 +342,7 @@ class AiMusicVideoTest extends TestCase
             ['name' => 'The driver', 'description' => 'Grey beard, flat cap', 'sheet' => UploadedFile::fake()->image('driver.jpg', 1280, 720)],
         ];
 
-        $this->post("/api/creator/tracks/{$this->track->slug}/videos", ['characters' => $sheets(), 'consent' => '1'], ['Accept' => 'application/json'])
+        $this->post("/api/creator/tracks/{$this->track->slug}/videos", ['mode' => 'legacy', 'characters' => $sheets(), 'consent' => '1'], ['Accept' => 'application/json'])
             ->assertUnprocessable()
             ->assertJsonValidationErrors('characters');
 
@@ -256,7 +355,7 @@ class AiMusicVideoTest extends TestCase
 
         Sanctum::actingAs($artist);
 
-        $this->post("/api/creator/tracks/{$track->slug}/videos", ['characters' => $sheets()], ['Accept' => 'application/json'])
+        $this->post("/api/creator/tracks/{$track->slug}/videos", ['mode' => 'legacy', 'characters' => $sheets()], ['Accept' => 'application/json'])
             ->assertUnprocessable()
             ->assertJsonValidationErrors('consent');
 
@@ -267,7 +366,7 @@ class AiMusicVideoTest extends TestCase
             ->assertUnprocessable()
             ->assertJsonValidationErrors('characters');
 
-        $id = $this->post("/api/creator/tracks/{$track->slug}/videos", ['characters' => $sheets(), 'consent' => '1'], ['Accept' => 'application/json'])
+        $id = $this->post("/api/creator/tracks/{$track->slug}/videos", ['mode' => 'legacy', 'characters' => $sheets(), 'consent' => '1'], ['Accept' => 'application/json'])
             ->assertCreated()
             ->assertJsonPath('data.status', MusicVideo::STORYBOARD)
             ->assertJsonPath('data.characters.0.key', 'singer')
@@ -294,7 +393,7 @@ class AiMusicVideoTest extends TestCase
     {
         Sanctum::actingAs($this->owner);
 
-        $id = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos")
+        $id = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos", ['mode' => 'legacy', 'mode' => 'legacy'])
             ->json('data.id');
 
         $this->postJson("/api/creator/videos/{$id}/render")
@@ -324,7 +423,7 @@ class AiMusicVideoTest extends TestCase
     {
         Sanctum::actingAs($this->owner);
 
-        $id = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos")
+        $id = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos", ['mode' => 'legacy', 'mode' => 'legacy'])
             ->json('data.id');
 
         $this->postJson("/api/creator/videos/{$id}/render")
@@ -355,7 +454,7 @@ class AiMusicVideoTest extends TestCase
         $track = $this->track($owner);
         Sanctum::actingAs($owner);
 
-        $id = $this->postJson("/api/creator/tracks/{$track->slug}/videos")
+        $id = $this->postJson("/api/creator/tracks/{$track->slug}/videos", ['mode' => 'legacy', 'mode' => 'legacy'])
             ->json('data.id');
 
         $this->postJson("/api/creator/videos/{$id}/render")
@@ -376,7 +475,7 @@ class AiMusicVideoTest extends TestCase
     {
         Sanctum::actingAs($this->owner);
 
-        $id = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos")
+        $id = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos", ['mode' => 'legacy', 'mode' => 'legacy'])
             ->json('data.id');
 
         $this->clipsFail = true;
@@ -397,7 +496,7 @@ class AiMusicVideoTest extends TestCase
     {
         Sanctum::actingAs($this->owner);
 
-        $id = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos")
+        $id = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos", ['mode' => 'legacy', 'mode' => 'legacy'])
             ->json('data.id');
 
         $this->postJson("/api/creator/videos/{$id}/render")
@@ -422,7 +521,7 @@ class AiMusicVideoTest extends TestCase
     {
         Sanctum::actingAs($this->owner);
 
-        $id = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos")
+        $id = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos", ['mode' => 'legacy', 'mode' => 'legacy'])
             ->json('data.id');
         $ids = array_column($this->postJson("/api/creator/videos/{$id}/render")->json('data.shots'), 'id');
         $file = MusicVideo::query()
@@ -455,7 +554,7 @@ class AiMusicVideoTest extends TestCase
     {
         Sanctum::actingAs($this->owner);
 
-        $id = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos")
+        $id = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos", ['mode' => 'legacy', 'mode' => 'legacy'])
             ->json('data.id');
         $ids = array_column($this->postJson("/api/creator/videos/{$id}/render")->json('data.shots'), 'id');
 
@@ -474,7 +573,7 @@ class AiMusicVideoTest extends TestCase
     {
         Sanctum::actingAs($this->owner);
 
-        $id = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos")
+        $id = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos", ['mode' => 'legacy', 'mode' => 'legacy'])
             ->json('data.id');
 
         $this->postJson("/api/creator/videos/{$id}/render");
@@ -501,7 +600,7 @@ class AiMusicVideoTest extends TestCase
     {
         Sanctum::actingAs($this->owner);
 
-        $id = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos")
+        $id = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos", ['mode' => 'legacy', 'mode' => 'legacy'])
             ->json('data.id');
 
         $this->postJson("/api/creator/videos/{$id}/render");
@@ -536,7 +635,7 @@ class AiMusicVideoTest extends TestCase
         $track = $this->track($owner);
         Sanctum::actingAs($owner);
 
-        $id = $this->postJson("/api/creator/tracks/{$track->slug}/videos")
+        $id = $this->postJson("/api/creator/tracks/{$track->slug}/videos", ['mode' => 'legacy', 'mode' => 'legacy'])
             ->json('data.id');
 
         $this->postJson("/api/creator/videos/{$id}/render")
@@ -569,7 +668,7 @@ class AiMusicVideoTest extends TestCase
     {
         Sanctum::actingAs($this->owner);
 
-        $video = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos")
+        $video = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos", ['mode' => 'legacy', 'mode' => 'legacy'])
             ->json('data');
 
         $this->putJson("/api/creator/videos/{$video['id']}/shots/{$video['shots'][0]['id']}", ['prompt' => 'A quiet harbour at dawn'])
@@ -581,7 +680,7 @@ class AiMusicVideoTest extends TestCase
     {
         Sanctum::actingAs($this->owner);
 
-        $video = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos")
+        $video = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos", ['mode' => 'legacy', 'mode' => 'legacy'])
             ->json('data');
         $shot = MusicVideoShot::query()
             ->findOrFail($video['shots'][0]['id']);
@@ -616,7 +715,7 @@ class AiMusicVideoTest extends TestCase
     {
         Sanctum::actingAs($this->owner);
 
-        $video = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos")
+        $video = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos", ['mode' => 'legacy', 'mode' => 'legacy'])
             ->json('data');
         $shot = MusicVideoShot::query()
             ->findOrFail($video['shots'][2]['id']);
@@ -645,7 +744,7 @@ class AiMusicVideoTest extends TestCase
     {
         Sanctum::actingAs($this->owner);
 
-        $video = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos")
+        $video = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos", ['mode' => 'legacy', 'mode' => 'legacy'])
             ->json('data');
         $shot = MusicVideoShot::query()
             ->findOrFail($video['shots'][0]['id']);
@@ -676,7 +775,7 @@ class AiMusicVideoTest extends TestCase
     {
         Sanctum::actingAs($this->owner);
 
-        $video = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos")
+        $video = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos", ['mode' => 'legacy', 'mode' => 'legacy'])
             ->json('data');
         $singing = $video['shots'][1]['id'];
         $scene = $video['shots'][2]['id'];
@@ -728,7 +827,7 @@ class AiMusicVideoTest extends TestCase
     {
         Sanctum::actingAs($this->owner);
 
-        $id = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos")
+        $id = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos", ['mode' => 'legacy', 'mode' => 'legacy'])
             ->json('data.id');
         $disk = Storage::disk(config('filesystems.default'));
 
@@ -741,7 +840,7 @@ class AiMusicVideoTest extends TestCase
         $this->assertSame([], $disk->allFiles("ai/videos/{$id}"));
 
         $track = $this->track($this->owner);
-        $other = $this->postJson("/api/creator/tracks/{$track->slug}/videos")
+        $other = $this->postJson("/api/creator/tracks/{$track->slug}/videos", ['mode' => 'legacy', 'mode' => 'legacy'])
             ->json('data.id');
 
         $track->release->delete();
@@ -753,7 +852,7 @@ class AiMusicVideoTest extends TestCase
     {
         Sanctum::actingAs($this->owner);
 
-        $id = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos")
+        $id = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos", ['mode' => 'legacy', 'mode' => 'legacy'])
             ->json('data.id');
         $disk = Storage::disk(config('filesystems.default'));
         $gone = MusicVideo::query()->max('id') + 100;
@@ -771,7 +870,7 @@ class AiMusicVideoTest extends TestCase
     {
         Sanctum::actingAs($this->owner);
 
-        $video = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos")
+        $video = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos", ['mode' => 'legacy', 'mode' => 'legacy'])
             ->json('data');
         $ids = array_column($video['shots'], 'id');
 
@@ -829,7 +928,7 @@ class AiMusicVideoTest extends TestCase
     {
         Sanctum::actingAs($this->owner);
 
-        $id = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos")
+        $id = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos", ['mode' => 'legacy', 'mode' => 'legacy'])
             ->json('data.id');
         $shots = $this->postJson("/api/creator/videos/{$id}/render")
             ->json('data.shots');
@@ -866,7 +965,7 @@ class AiMusicVideoTest extends TestCase
     {
         Sanctum::actingAs($this->owner);
 
-        $id = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos")
+        $id = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos", ['mode' => 'legacy', 'mode' => 'legacy'])
             ->json('data.id');
         $shots = $this->postJson("/api/creator/videos/{$id}/render")
             ->json('data.shots');
@@ -920,11 +1019,11 @@ class AiMusicVideoTest extends TestCase
         Sanctum::actingAs($this->owner);
         $photo = UploadedFile::fake()->image('me.jpg', 800, 800);
 
-        $this->postJson("/api/creator/tracks/{$this->track->slug}/videos", ['photo' => $photo])
+        $this->postJson("/api/creator/tracks/{$this->track->slug}/videos", ['mode' => 'legacy', 'photo' => $photo])
             ->assertUnprocessable()
             ->assertJsonValidationErrors('consent');
 
-        $this->postJson("/api/creator/tracks/{$this->track->slug}/videos", ['photo' => $photo, 'consent' => true])
+        $this->postJson("/api/creator/tracks/{$this->track->slug}/videos", ['mode' => 'legacy', 'photo' => $photo, 'consent' => true])
             ->assertUnprocessable()
             ->assertJsonValidationErrors('photo');
 
@@ -936,12 +1035,12 @@ class AiMusicVideoTest extends TestCase
         $other = $this->subscriber([Feature::AI_TOOLS->value => true, Feature::AI_CREDITS->value => 1000]);
         Sanctum::actingAs($this->owner);
 
-        $id = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos")
+        $id = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos", ['mode' => 'legacy', 'mode' => 'legacy'])
             ->json('data.id');
 
         Sanctum::actingAs($other);
 
-        $this->postJson("/api/creator/tracks/{$this->track->slug}/videos")
+        $this->postJson("/api/creator/tracks/{$this->track->slug}/videos", ['mode' => 'legacy', 'mode' => 'legacy'])
             ->assertForbidden();
         $this->getJson("/api/creator/videos/{$id}")
             ->assertForbidden();

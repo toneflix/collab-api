@@ -53,7 +53,7 @@ class MusicVideos
      * Character sheets the creator gives are used as they are and none are
      * drawn for the video.
      *
-     * @param  array{ratio?: string, brief?: ?string}  $options
+     * @param  array{ratio?: string, mode?: string, brief?: ?string}  $options
      * @param  list<array{name: string, description?: ?string, singer?: bool, sheet: UploadedFile}>  $characters
      */
     public function create(User $user, Track $track, array $options, ?UploadedFile $photo = null, array $characters = []): MusicVideo
@@ -83,6 +83,7 @@ class MusicVideos
                 'user_id' => $user->id,
                 'track_id' => $track->id,
                 'ratio' => $options['ratio'] ?? '16:9',
+                'mode' => $options['mode'] ?? MusicVideo::LOCATIONS,
                 'brief' => $options['brief'] ?? null,
                 'duration' => round($duration, 2),
             ]);
@@ -97,6 +98,7 @@ class MusicVideos
             $this->studio->start($user, null, 'video_storyboard', [
                 'music_video_id' => $video->id,
                 'title' => $track->title,
+                'mode' => $video->mode,
                 'minutes' => $video->startedMinutes(),
             ]);
         } catch (Throwable $e) {
@@ -280,6 +282,8 @@ class MusicVideos
                         'prompt' => $source->prompt,
                         'keyframe' => $source->keyframe,
                         'characters' => $source->characters,
+                        'location' => $source->location,
+                        'frame' => $source->frame,
                     ]);
             }
 
@@ -491,12 +495,14 @@ class MusicVideos
     {
         $this->ensureStatus($video, [MusicVideo::FAILED]);
 
-        $total = $video
+        $stills = $video
             ->shots()
-            ->count();
-        $missing = $video
-            ->shots()
-            ->whereNull('keyframe')
+            ->take(ShotList::MAX_SHOTS * 2)
+            ->get(['id', 'frame', 'keyframe'])
+            ->groupBy(fn(MusicVideoShot $shot) => $shot->frame ?: "shot-{$shot->id}");
+        $total = $stills->count();
+        $missing = $stills
+            ->reject(fn(Collection $shots) => $shots->contains(fn(MusicVideoShot $shot) => filled($shot->keyframe)))
             ->count();
 
         return DB::transaction(function () use ($video, $total, $missing) {
@@ -507,6 +513,7 @@ class MusicVideos
             $this->studio->start($video->user, null, 'video_storyboard', [
                 'music_video_id' => $video->id,
                 'title' => $video->track?->title,
+                'mode' => $video->mode,
                 'minutes' => $video->startedMinutes(),
                 'resume' => $total > 0,
                 'shots' => $total,

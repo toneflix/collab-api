@@ -68,6 +68,7 @@ class MusicVideoController extends Controller
 
         $valid = $request->validate([
             'ratio' => ['nullable', 'string', Rule::in(MusicVideo::RATIOS)],
+            'mode' => ['nullable', 'string', Rule::in(MusicVideo::MODES)],
             'brief' => ['nullable', 'string', 'max:1000'],
             'photo' => ['nullable', 'prohibits:characters', 'image', 'max:10240', 'dimensions:min_width=512,min_height=512'],
             'characters' => ['nullable', 'array', 'max:' . MusicVideoCharacter::MAX],

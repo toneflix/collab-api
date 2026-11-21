@@ -66,6 +66,7 @@ class AiSettingsController extends Controller
             'ai_artwork_images' => ['nullable', 'integer', 'between:1,4'],
             'ai_music_max_seconds' => ['nullable', 'integer', 'between:10,300'],
             'ai_video_storyboard_credits' => ['nullable', 'integer', 'between:1,1000'],
+            'ai_video_location_storyboard_credits' => ['nullable', 'integer', 'between:1,1000'],
             'ai_video_credits' => ['nullable', 'integer', 'between:1,5000'],
             'ai_video_broll_model' => ['nullable', 'string', Rule::in(array_keys(VideoCandidate::brollOptions()))],
             'ai_video_max_seconds' => ['nullable', 'integer', 'between:30,600'],

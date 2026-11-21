@@ -62,6 +62,7 @@ class AiSettings extends SettingsStore
         'ai_artwork_credits' => ['Artwork Credits', '3', 'Credits one artwork request uses. FLUX.1 [schnell] costs about $0.003 an image on Replicate.'],
         'ai_artwork_images' => ['Artwork Images per Request', '4', 'How many images (1 to 4) people pick from for each request.'],
         'ai_video_storyboard_credits' => ['Music Video Storyboard Credits per Minute', '20', 'Credits the scene plan and stills of a music video use for every started minute of the song. Each still costs about $0.03 on Replicate, about 12 a minute.'],
+        'ai_video_location_storyboard_credits' => ['Music Video Location Storyboard Credits per Minute', '6', 'Credits the plan and stills of a music video shot in 2 or 3 locations use for every started minute of the song. It draws about 9 stills and 2 character sheets in all, about $0.03 each on Replicate.'],
         'ai_video_credits' => ['Music Video Credits per Minute', '190', 'Credits rendering a music video uses for every started minute of the song. About $2.50 a minute on Replicate with lip-synced singing shots.'],
         'ai_video_broll_model' => ['Music Video B-roll Model', 'p-video', 'The model that animates the shots between the singing: p-video ($0.02/s at 720p), Seedance 1 Pro Fast ($0.025/s) or Wan 2.2 i2v fast (about $0.022/s, 5 s clips).'],
         'ai_video_max_seconds' => ['Longest Music Video (seconds)', '360', 'Songs longer than this can\'t get a music video.'],
@@ -438,6 +439,15 @@ class AiSettings extends SettingsStore
     }
 
     /**
+     * Credits the storyboard of a music video shot in a few locations uses
+     * per started minute.
+     */
+    public static function videoLocationStoryboardCredits(): int
+    {
+        return max(1, (int) self::get('ai_video_location_storyboard_credits'));
+    }
+
+    /**
      * Credits rendering a music video uses per started minute.
      */
     public static function videoCredits(): int
@@ -485,6 +495,7 @@ class AiSettings extends SettingsStore
                 'vocals' => self::vocalsCredits(),
                 'artwork' => self::artworkCredits(),
                 'videoStoryboard' => self::videoStoryboardCredits(),
+                'videoLocationStoryboard' => self::videoLocationStoryboardCredits(),
                 'video' => self::videoCredits(),
                 'composer' => collect(['line', 'block', 'verse', 'rewrite'])
                     ->mapWithKeys(fn(string $kind) => [$kind => self::composerCredits($kind)])

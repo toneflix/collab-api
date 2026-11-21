@@ -38,6 +38,8 @@ class MusicVideoShot extends Model
         'offset',
         'motion',
         'characters',
+        'location',
+        'frame',
         'drawing',
     ];
 

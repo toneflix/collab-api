@@ -17,6 +17,9 @@ class ShotList
     /** Most shots one video can have */
     public const MAX_SHOTS = 120;
 
+    /** Keys a planned shot may carry through to the cut list as they are */
+    protected const CARRY = ['location', 'frame', 'action'];
+
     /**
      * @param  float  $maxSeconds  Longest shot, in seconds
      */
@@ -28,7 +31,7 @@ class ShotList
 
     /**
      * @param  list<array<string, mixed>>  $planned  Shots with start, kind and prompt
-     * @return list<array{start: float, end: float, kind: string, prompt: string, characters: list<string>}>
+     * @return list<array{start: float, end: float, kind: string, prompt: string, characters: list<string>, location?: ?string, frame?: ?string, action?: ?string}>
      */
     public function build(array $planned): array
     {
@@ -45,6 +48,10 @@ class ShotList
                     ->filter(fn($key) => is_string($key) && $key !== '')
                     ->unique()
                     ->values()
+                    ->all(),
+                'carry' => collect(self::CARRY)
+                    ->filter(fn(string $key) => array_key_exists($key, $shot))
+                    ->mapWithKeys(fn(string $key) => [$key => $shot[$key]])
                     ->all(),
             ])
             ->sortBy('start')
@@ -68,7 +75,14 @@ class ShotList
                 ->filter(fn(array $shot) => $shot['start'] <= $start + $tolerance)
                 ->last() ?? $planned->first();
 
-            $shots[] = ['start' => $start, 'end' => $end, 'kind' => $source['kind'], 'prompt' => $source['prompt'], 'characters' => $source['characters']];
+            $shots[] = [
+                'start' => $start,
+                'end' => $end,
+                'kind' => $source['kind'],
+                'prompt' => $source['prompt'],
+                'characters' => $source['characters'],
+                ...$source['carry'],
+            ];
         }
 
         return $shots;
