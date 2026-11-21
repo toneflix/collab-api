@@ -13,12 +13,14 @@ use Illuminate\Support\Collection;
 use RuntimeException;
 
 /**
- * Plans a music video with the Composer writing model: a look for the whole
- * video and a shot list timed to the song's lyrics, which ShotList then cuts
- * on the beat.
+ * Plans a legacy story music video with the Composer writing model: a look
+ * for the whole video and a new scene every few seconds, timed to the song's
+ * lyrics, which ShotList then cuts on the beat.
  *
  * @phpstan-type Character array{key: string, name: string, description: string, singer: bool}
- * @phpstan-type Plan array{style: array<string, string>, characters: list<Character>, shots: list<array{start: float, end: float, kind: string, prompt: string, characters: list<string>}>}
+ * @phpstan-type Frame array{key: string, kind: string, prompt: string, characters: list<string>}
+ * @phpstan-type Location array{key: string, name: string, setting: string, frames: list<Frame>}
+ * @phpstan-type Plan array{style: array<string, string>, characters: list<Character>, shots: list<array{start: float, end: float, kind: string, prompt: string, characters: list<string>, location?: ?string, frame?: ?string}>, locations: list<Location>}
  */
 class ScenePlanner
 {
@@ -68,15 +70,18 @@ class ScenePlanner
             ->characters()
             ->where('provided', true)
             ->get();
-        $answer = $this->model->ask(self::SYSTEM, $this->prompt($video, $track, $cast), $this->budget($video));
+        $answer = $this->model->ask(static::SYSTEM, $this->prompt($video, $track, $cast), $this->budget($video));
         $data = JsonAnswer::decode($answer);
+        $locations = $this->locations($data);
 
         $shots = (new ShotList($video->duration, $track->bpm ? (float) $track->bpm : null, $maxShotSeconds))
-            ->build((array) ($data['shots'] ?? []));
+            ->build($this->plannedShots($data, $locations));
 
         if (! $shots) {
             throw new RuntimeException('The AI planner returned no shots.');
         }
+
+        $shots = $this->arrange($shots, $locations);
 
         $style = collect((array) ($data['style'] ?? []))
             ->only(['look', 'setting', 'palette', 'wardrobe', 'character'])
@@ -105,7 +110,50 @@ class ScenePlanner
             $shots[$i]['characters'] = $seen;
         }
 
-        return ['style' => $style, 'characters' => $characters, 'shots' => $shots];
+        return ['style' => $style, 'characters' => $characters, 'shots' => $shots, 'locations' => $locations];
+    }
+
+    /**
+     * The locations the video is shot in; story scenes have none.
+     *
+     * @param  array<string, mixed>  $data
+     * @return list<Location>
+     */
+    protected function locations(array $data): array
+    {
+        return [];
+    }
+
+    /**
+     * The shots of the answer, ready for the cut list.
+     *
+     * @param  array<string, mixed>  $data
+     * @param  list<Location>  $locations
+     * @return list<array<string, mixed>>
+     */
+    protected function plannedShots(array $data, array $locations): array
+    {
+        return (array) ($data['shots'] ?? []);
+    }
+
+    /**
+     * The cut shots as they are stored.
+     *
+     * @param  list<array<string, mixed>>  $shots
+     * @param  list<Location>  $locations
+     * @return list<array<string, mixed>>
+     */
+    protected function arrange(array $shots, array $locations): array
+    {
+        return $shots;
+    }
+
+    /**
+     * Most characters the planner may cast.
+     */
+    protected function castSize(): int
+    {
+        return MusicVideoCharacter::MAX;
     }
 
     /**
@@ -149,7 +197,7 @@ class ScenePlanner
 
         return collect([$singer])
             ->merge($characters->values())
-            ->take(MusicVideoCharacter::MAX)
+            ->take($this->castSize())
             ->map(fn(array $character) => [...$character, 'singer' => $character['key'] === MusicVideoCharacter::SINGER])
             ->values()
             ->all();

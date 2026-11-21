@@ -10,30 +10,35 @@ use App\Models\MusicVideoShot;
 use App\Models\MusicVideoTake;
 use App\Services\Ai\AiSettings;
 use App\Services\Ai\Video\KeyframeDrawer;
+use App\Services\Ai\Video\LocationPlanner;
 use App\Services\Ai\Video\ScenePlanner;
 use App\Services\Ai\Video\VideoStorage;
 use RuntimeException;
 
 /**
  * Plans a music video's characters and shots, draws a character sheet for
- * each character and the still each shot starts from, for the owner to check
+ * each character and the stills the shots start from, for the owner to check
  * before paying for the render.
  */
 class DrawStoryboard implements AiTask, HandlesFailure
 {
     public function __construct(
         protected ScenePlanner $planner,
+        protected LocationPlanner $locationPlanner,
         protected KeyframeDrawer $keyframes,
         protected VideoStorage $storage,
     ) {}
 
     /**
-     * The full price for a new storyboard; a retry pays only for the share of
-     * stills it still has to draw.
+     * The full price for a new storyboard at its mode's rate; a retry pays
+     * only for the share of stills it still has to draw.
      */
     public function credits(array $input): int
     {
-        $credits = AiSettings::videoStoryboardCredits() * max(1, (int) ($input['minutes'] ?? 1));
+        $rate = ($input['mode'] ?? MusicVideo::LEGACY) === MusicVideo::LOCATIONS
+            ? AiSettings::videoLocationStoryboardCredits()
+            : AiSettings::videoStoryboardCredits();
+        $credits = $rate * max(1, (int) ($input['minutes'] ?? 1));
         $total = (int) ($input['shots'] ?? 0);
 
         if (! ($input['resume'] ?? false) || $total <= 0) {
@@ -96,14 +101,21 @@ class DrawStoryboard implements AiTask, HandlesFailure
      */
     protected function plan(MusicVideo $video): void
     {
-        if (! $this->planner->available()) {
+        $planner = $video->mode === MusicVideo::LOCATIONS ? $this->locationPlanner : $this->planner;
+
+        if (! $planner->available()) {
             throw new RuntimeException('AI writing isn\'t set up yet.');
         }
 
-        $plan = $this->planner->plan($video, RenderVideo::maxShotSeconds());
+        $plan = $planner->plan($video, RenderVideo::maxShotSeconds());
 
         $video
-            ->forceFill(['style' => $plan['style'], 'status' => MusicVideo::PLANNING, 'error' => null])
+            ->forceFill([
+                'style' => $plan['style'],
+                'locations' => $plan['locations'] ?: null,
+                'status' => MusicVideo::PLANNING,
+                'error' => null,
+            ])
             ->save();
 
         $video

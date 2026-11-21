@@ -31,9 +31,18 @@ class MusicVideo extends Model
 
     public const MINUTES = 'minutes';
 
+    /** The storyboard is shot in two or three locations, each drawn once */
+    public const LOCATIONS = 'locations';
+
+    /** The storyboard tells a story with a new scene every few seconds */
+    public const LEGACY = 'legacy';
+
+    public const MODES = [self::LOCATIONS, self::LEGACY];
+
     protected $attributes = [
         'status' => self::PLANNING,
         'ratio' => '16:9',
+        'mode' => self::LOCATIONS,
     ];
 
     protected $fillable = [
@@ -41,9 +50,11 @@ class MusicVideo extends Model
         'track_id',
         'status',
         'ratio',
+        'mode',
         'brief',
         'portrait',
         'style',
+        'locations',
         'duration',
         'billing',
         'file',
@@ -58,6 +69,7 @@ class MusicVideo extends Model
     {
         return [
             'style' => 'array',
+            'locations' => 'array',
             'duration' => 'float',
             'cut' => 'array',
             'billed_at' => 'datetime',
@@ -128,6 +140,22 @@ class MusicVideo extends Model
     public function startedMinutes(): int
     {
         return max(1, (int) ceil($this->duration / 60));
+    }
+
+    /**
+     * A frame of one of the video's locations, by its key.
+     *
+     * @return array{key: string, kind: string, prompt: string, characters: list<string>}|null
+     */
+    public function frame(?string $key): ?array
+    {
+        if (! $key) {
+            return null;
+        }
+
+        return collect($this->locations ?? [])
+            ->flatMap(fn(array $location) => $location['frames'] ?? [])
+            ->firstWhere('key', $key);
     }
 
     /**

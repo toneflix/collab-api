@@ -32,6 +32,14 @@ class MusicVideoResource extends JsonResource
             ]),
             'status' => $this->status,
             'ratio' => $this->ratio,
+            'mode' => $this->mode,
+            'locations' => collect($this->locations ?? [])
+                ->map(fn(array $location) => [
+                    'key' => $location['key'],
+                    'name' => $location['name'],
+                    'setting' => $location['setting'] ?? '',
+                ])
+                ->all(),
             'brief' => $this->brief,
             'hasPortrait' => (bool) $this->portrait,
             'duration' => $this->duration,

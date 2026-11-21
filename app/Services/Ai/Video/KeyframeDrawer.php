@@ -13,7 +13,7 @@ use Illuminate\Support\Collection;
 use Throwable;
 
 /**
- * Draws a music video's character sheets, then the still each shot starts
+ * Draws a music video's character sheets, then the stills the shots start
  * from. Every still of a character is drawn from that character's sheet, so
  * people look the same from shot to shot. The singer's sheet follows the
  * video's portrait when it has one.
@@ -35,9 +35,10 @@ class KeyframeDrawer
     ) {}
 
     /**
-     * Draw what's missing: character sheets first, then a still for every
-     * shot that has none. Drawings that come back are kept even when others
-     * fail, so a retry only draws the rest.
+     * Draw what's missing: character sheets first, then the stills of shots
+     * that have none. Shots that start from the same frame of a location
+     * share one still, drawn once. Drawings that come back are kept even when
+     * others fail, so a retry only draws the rest.
      *
      * @param  iterable<MusicVideoCharacter>  $characters
      * @param  iterable<MusicVideoShot>  $shots
@@ -48,16 +49,29 @@ class KeyframeDrawer
 
         $this->drawSheets($video, $characters, $portrait);
 
-        $sheets = $this->sheets($characters);
-        $missing = collect($shots)
-            ->keyBy('id')
-            ->filter(fn(MusicVideoShot $shot) => blank($shot->keyframe));
+        $shots = collect($shots);
+        $drawn = $shots
+            ->filter(fn(MusicVideoShot $shot) => $shot->frame && filled($shot->keyframe))
+            ->pluck('keyframe', 'frame');
+        $groups = $shots
+            ->filter(fn(MusicVideoShot $shot) => blank($shot->keyframe))
+            ->groupBy(fn(MusicVideoShot $shot) => $shot->frame ?: "shot-{$shot->id}");
 
-        $runs = $missing
-            ->map(fn(MusicVideoShot $shot) => [self::MODEL, $this->input($video, $shot, $characters, $sheets)])
+        foreach ($groups as $frame => $group) {
+            if ($drawn->has($frame)) {
+                $this->share($video, $group, $drawn[$frame]);
+                $groups->forget($frame);
+            }
+        }
+
+        $groups = $groups->keyBy(fn(Collection $group) => $group->first()->id);
+        $sheets = $this->sheets($characters);
+
+        $runs = $groups
+            ->map(fn(Collection $group) => [self::MODEL, $this->input($video, $group->first(), $characters, $sheets, $video->frame($group->first()->frame)['prompt'] ?? null)])
             ->all();
 
-        $this->runAll($runs, fn(int $id, mixed $output) => $this->keep($video, $missing[$id], $output));
+        $this->runAll($runs, fn(int $id, mixed $output) => $this->keep($video, $groups[$id], $output));
     }
 
     /**
@@ -75,7 +89,7 @@ class KeyframeDrawer
         $sheets = $this->sheets($characters);
         $runs = [$shot->id => [self::MODEL, $this->input($video, $shot, $characters, $sheets)]];
 
-        $this->runAll($runs, fn(int $id, mixed $output) => $this->keep($video, $shot, $output));
+        $this->runAll($runs, fn(int $id, mixed $output) => $this->keep($video, collect([$shot]), $output));
     }
 
     /**
@@ -163,10 +177,12 @@ class KeyframeDrawer
     /**
      * @param  Collection<string, MusicVideoCharacter>  $characters
      * @param  Collection<string, string>  $sheets  Sheet URLs by character key
+     * @param  ?string  $prompt  What the still shows, when not the shot's own prompt
      * @return array<string, mixed>
      */
-    protected function input(MusicVideo $video, MusicVideoShot $shot, Collection $characters, Collection $sheets): array
+    protected function input(MusicVideo $video, MusicVideoShot $shot, Collection $characters, Collection $sheets, ?string $prompt = null): array
     {
+        $prompt ??= $shot->prompt;
         $style = $this->style($video, ['look', 'setting', 'palette']);
         $cast = collect($shot->characters ?? [])
             ->filter(fn(string $key) => $characters->has($key))
@@ -186,7 +202,7 @@ class KeyframeDrawer
             ->implode(' ');
 
         return array_filter([
-            'prompt' => trim("Music video still. {$shot->prompt} {$people} {$style}. Cinematic, photographic, one moment of the scene, not a sheet, no text."),
+            'prompt' => trim("Music video still. {$prompt} {$people} {$style}. Cinematic, photographic, one moment of the scene, not a sheet, no text."),
             'image_input' => $references
                 ->map(fn(string $key) => $sheets[$key])
                 ->all() ?: null,
@@ -221,27 +237,49 @@ class KeyframeDrawer
         }
     }
 
-    protected function keep(MusicVideo $video, MusicVideoShot $shot, mixed $output): void
+    /**
+     * Store a drawn still as the one these shots start from.
+     *
+     * @param  Collection<int, MusicVideoShot>  $shots
+     */
+    protected function keep(MusicVideo $video, Collection $shots, mixed $output): void
     {
         $local = $this->download($output);
+        $first = $shots->first();
 
         try {
             $jpeg = $this->images
                 ->cropped($local, $video->ratioParts())
                 ->getRealPath();
-            $old = $shot->keyframe;
-            $file = $this->storage->put($video, $jpeg, "keyframe-{$shot->position}", 'jpg');
+            $name = $shots->count() > 1 && $first->frame ? "keyframe-{$first->frame}" : "keyframe-{$first->position}";
+            $file = $this->storage->put($video, $jpeg, $name, 'jpg');
 
             @unlink($jpeg);
 
-            $shot
-                ->forceFill(['keyframe' => $file, 'take_id' => null, 'motion' => null, 'drawing' => false])
-                ->save();
-
-            $this->takes->dropKeyframes($video, [$old]);
+            $this->share($video, $shots, $file);
         } finally {
             @unlink($local);
         }
+    }
+
+    /**
+     * Start these shots from a stored still, each needing a new take.
+     *
+     * @param  Collection<int, MusicVideoShot>  $shots
+     */
+    protected function share(MusicVideo $video, Collection $shots, string $file): void
+    {
+        $old = $shots
+            ->pluck('keyframe')
+            ->all();
+
+        foreach ($shots as $shot) {
+            $shot
+                ->forceFill(['keyframe' => $file, 'take_id' => null, 'motion' => null, 'drawing' => false])
+                ->save();
+        }
+
+        $this->takes->dropKeyframes($video, $old);
     }
 
     /**
