@@ -8,6 +8,7 @@ use App\Http\Controllers\Creator\AudioTagController;
 use App\Http\Controllers\Creator\ContentAgentController;
 use App\Http\Controllers\Creator\LyricsController;
 use App\Http\Controllers\Creator\MusicVideoController;
+use App\Http\Controllers\Creator\MusicVideoShortController;
 use App\Http\Controllers\Creator\ProjectCollaboratorController;
 use App\Http\Controllers\Creator\ProjectController;
 use App\Http\Controllers\Creator\ProjectTrackAssetController;
@@ -91,6 +92,10 @@ Route::middleware(['auth:sanctum'])
         Route::post('videos/{video}/shots/{shot}/takes', [MusicVideoController::class, 'addTake'])->middleware('throttle:20,1')->name('videos.shots.takes.store');
         Route::post('videos/{video}/storyboard', [MusicVideoController::class, 'retryStoryboard'])->middleware('throttle:10,1')->name('videos.storyboard');
         Route::post('videos/{video}/render', [MusicVideoController::class, 'render'])->middleware('throttle:10,1')->name('videos.render');
+        Route::get('videos/{video}/shorts', [MusicVideoShortController::class, 'index'])->name('videos.shorts.index');
+        Route::post('videos/{video}/shorts', [MusicVideoShortController::class, 'store'])->middleware('throttle:10,1')->name('videos.shorts.store');
+        Route::get('videos/{video}/shorts/{short}', [MusicVideoShortController::class, 'show'])->name('videos.shorts.show');
+        Route::delete('videos/{video}/shorts/{short}', [MusicVideoShortController::class, 'destroy'])->name('videos.shorts.destroy');
         Route::put('tracks/{track}/lyrics', [LyricsController::class, 'updateTrack'])->name('tracks.lyrics.update');
         Route::put('tracks/{track}/tags', [AudioTagController::class, 'updateTrack'])->name('tracks.tags.update');
         Route::put('tracks/{track}/moods', [StyleTagController::class, 'updateTrack'])->name('tracks.moods.update');
