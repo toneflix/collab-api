@@ -12,6 +12,7 @@ use App\Models\MusicVideoShot;
 use App\Models\MusicVideoTake;
 use App\Models\Track;
 use App\Models\User;
+use App\Models\VideoCharacter;
 use App\Services\Ai\AiSettings;
 use App\Services\Ai\AiStudio;
 use App\Services\Ai\Artwork\ArtworkImages;
@@ -45,6 +46,7 @@ class MusicVideos
         protected ShotTakes $takes,
         protected VideoFiles $files,
         protected ArtworkImages $images,
+        protected VideoCharacters $library,
     ) {}
 
     /**
@@ -52,13 +54,14 @@ class MusicVideos
      * taken from plans that allow the owner's own photos, and advanced
      * quality only from plans that include it.
      *
-     * Character sheets the creator gives are used as they are and none are
-     * drawn for the video.
+     * The cast can be the creator's own character sheets and characters they
+     * saved, used as they are. When none of them sings, AI draws the singer.
      *
      * @param  array{ratio?: string, mode?: string, quality?: string, brief?: ?string}  $options
      * @param  list<array{name: string, description?: ?string, singer?: bool, sheet: UploadedFile}>  $characters
+     * @param  list<array{id: int, singer?: bool}>  $saved
      */
-    public function create(User $user, Track $track, array $options, ?UploadedFile $photo = null, array $characters = []): MusicVideo
+    public function create(User $user, Track $track, array $options, ?UploadedFile $photo = null, array $characters = [], array $saved = []): MusicVideo
     {
         if (($photo || $characters) && ! $user->feature(Feature::VIDEO_OWN_PHOTOS)) {
             throw ValidationException::withMessages([
@@ -72,8 +75,28 @@ class MusicVideos
             throw ValidationException::withMessages(['quality' => 'Your plan doesn\'t include advanced music videos.']);
         }
 
-        if ($characters && count(array_filter($characters, fn(array $character) => ! empty($character['singer']))) !== 1) {
-            throw ValidationException::withMessages(['characters' => 'Mark which character sheet is the singer.']);
+        $library = $this->library->forCasting($user, array_map(fn(array $pick) => (int) $pick['id'], $saved));
+
+        $picked = array_map(fn(array $pick) => [
+            'name' => $library[(int) $pick['id']]->name,
+            'description' => $library[(int) $pick['id']]->description,
+            'singer' => ! empty($pick['singer']),
+            'saved' => $library[(int) $pick['id']],
+        ], $saved);
+
+        $cast = [...$characters, ...$picked];
+        $singers = count(array_filter($cast, fn(array $character) => ! empty($character['singer'])));
+
+        if ($singers > 1 || ($characters && $singers === 0)) {
+            throw ValidationException::withMessages([$characters ? 'characters' : 'saved' => 'Mark which character is the singer.']);
+        }
+
+        if (count($cast) + ($singers ? 0 : 1) > MusicVideoCharacter::MAX) {
+            throw ValidationException::withMessages(['saved' => 'A video can have up to ' . MusicVideoCharacter::MAX . ' characters, the singer included.']);
+        }
+
+        if ($photo && $singers) {
+            throw ValidationException::withMessages(['photo' => 'The singer already has a character sheet.']);
         }
 
         $duration = (float) ($track->duration ?: $this->audio->measure($track));
@@ -98,9 +121,9 @@ class MusicVideos
             ]);
 
         try {
-            if ($characters) {
-                $this->keepCharacters($video, $characters);
-            } else {
+            $this->keepCharacters($video, $cast);
+
+            if (! $singers) {
                 $this->keepPortrait($video, $user, $track, $photo);
             }
 
@@ -121,9 +144,10 @@ class MusicVideos
     }
 
     /**
-     * Store the creator's own character sheets, the singer keyed as such.
+     * Store the cast the creator gave, the singer keyed as such: their own
+     * sheets as uploaded, and copies of the sheets of their saved characters.
      *
-     * @param  list<array{name: string, description?: ?string, singer?: bool, sheet: UploadedFile}>  $characters
+     * @param  list<array{name: string, description?: ?string, singer?: bool, sheet?: UploadedFile, saved?: VideoCharacter}>  $characters
      */
     protected function keepCharacters(MusicVideo $video, array $characters): void
     {
@@ -142,8 +166,11 @@ class MusicVideos
             }
 
             $keys[] = $key;
-            $sheet = $character['sheet'];
-            $file = $this->storage->put($video, (string) $sheet->getRealPath(), "character-{$key}", $sheet->extension() ?: 'jpg');
+            $saved = $character['saved'] ?? null;
+            $sheet = $character['sheet'] ?? null;
+            $file = $saved
+                ? $this->storage->copyInto($video, $saved->sheet, "character-{$key}")
+                : $this->storage->put($video, (string) $sheet->getRealPath(), "character-{$key}", $sheet->extension() ?: 'jpg');
 
             $video
                 ->characters()
@@ -154,6 +181,7 @@ class MusicVideos
                     'singer' => $singer,
                     'sheet' => $file,
                     'provided' => true,
+                    'video_character_id' => $saved?->id,
                 ]);
         }
     }

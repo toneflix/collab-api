@@ -18,6 +18,7 @@ use App\Http\Controllers\Creator\ProjectTrackVersionController;
 use App\Http\Controllers\Creator\ReleaseController;
 use App\Http\Controllers\Creator\StyleTagController;
 use App\Http\Controllers\Creator\TrackController;
+use App\Http\Controllers\Creator\VideoCharacterController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth:sanctum'])
@@ -91,6 +92,11 @@ Route::middleware(['auth:sanctum'])
         Route::post('videos/{video}/shots/{shot}/takes', [MusicVideoController::class, 'addTake'])->middleware('throttle:20,1')->name('videos.shots.takes.store');
         Route::post('videos/{video}/storyboard', [MusicVideoController::class, 'retryStoryboard'])->middleware('throttle:10,1')->name('videos.storyboard');
         Route::post('videos/{video}/render', [MusicVideoController::class, 'render'])->middleware('throttle:10,1')->name('videos.render');
+        Route::post('videos/{video}/characters/{character}/keep', [VideoCharacterController::class, 'keep'])->middleware('throttle:20,1')->name('videos.characters.keep');
+        Route::get('video-characters', [VideoCharacterController::class, 'index'])->name('video-characters.index');
+        Route::post('video-characters', [VideoCharacterController::class, 'store'])->middleware('throttle:20,1')->name('video-characters.store');
+        Route::put('video-characters/{character}', [VideoCharacterController::class, 'update'])->name('video-characters.update');
+        Route::delete('video-characters/{character}', [VideoCharacterController::class, 'destroy'])->name('video-characters.destroy');
         Route::put('tracks/{track}/lyrics', [LyricsController::class, 'updateTrack'])->name('tracks.lyrics.update');
         Route::put('tracks/{track}/tags', [AudioTagController::class, 'updateTrack'])->name('tracks.tags.update');
         Route::put('tracks/{track}/moods', [StyleTagController::class, 'updateTrack'])->name('tracks.moods.update');

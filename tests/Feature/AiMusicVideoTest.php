@@ -11,6 +11,7 @@ use App\Models\Plan;
 use App\Models\Release;
 use App\Models\Track;
 use App\Models\User;
+use App\Models\VideoCharacter;
 use App\Services\Ai\AiSettings;
 use App\Services\Ai\Credits;
 use App\Services\Ai\Video\ShotList;
@@ -387,6 +388,161 @@ class AiMusicVideoTest extends TestCase
         Http::assertSent(fn(Request $request) => str_ends_with($request->url(), '/seedream-4/predictions')
             && str_contains($request['input']['prompt'], 'The singer on a rooftop')
             && str_contains($request['input']['prompt'], 'Ada is the person on reference sheet 1'));
+    }
+
+    public function test_characters_from_a_video_are_saved_and_cast_in_the_next_one(): void
+    {
+        Sanctum::actingAs($this->owner);
+
+        $first = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos", ['mode' => 'legacy'])
+            ->json('data');
+        $singer = collect($first['characters'])->firstWhere('key', 'singer');
+        $driver = collect($first['characters'])->firstWhere('key', 'driver');
+
+        $saved = $this->postJson("/api/creator/videos/{$first['id']}/characters/{$singer['id']}/keep")
+            ->assertCreated()
+            ->assertJsonPath('data.name', 'The singer')
+            ->assertJsonPath('data.uploaded', false)
+            ->json('data.id');
+
+        $this->postJson("/api/creator/videos/{$first['id']}/characters/{$singer['id']}/keep")
+            ->assertCreated()
+            ->assertJsonPath('data.id', $saved);
+
+        $driverId = $this->postJson("/api/creator/videos/{$first['id']}/characters/{$driver['id']}/keep")
+            ->json('data.id');
+
+        $this->getJson('/api/creator/video-characters')
+            ->assertOk()
+            ->assertJsonCount(2, 'data')
+            ->assertJsonPath('data.0.id', $driverId)
+            ->assertJsonPath('ownPhotos', false);
+        $this->getJson("/api/creator/videos/{$first['id']}")
+            ->assertJsonPath('data.characters.0.savedId', $saved);
+
+        $sheets = $this->sheetRequests();
+        $second = $this->track($this->owner);
+
+        $id = $this->postJson("/api/creator/tracks/{$second->slug}/videos", [
+            'mode' => 'legacy',
+            'saved' => [['id' => $driverId], ['id' => $saved, 'singer' => true]],
+        ])
+            ->assertCreated()
+            ->assertJsonPath('data.status', MusicVideo::STORYBOARD)
+            ->assertJsonCount(2, 'data.characters')
+            ->json('data.id');
+
+        $cast = MusicVideoCharacter::query()
+            ->where('music_video_id', $id)
+            ->orderByDesc('singer')
+            ->get();
+        $disk = Storage::disk(config('filesystems.default'));
+
+        $this->assertSame(['singer', 'the_driver'], $cast->pluck('key')->all());
+        $this->assertSame([$saved, $driverId], $cast->pluck('video_character_id')->all());
+        $this->assertTrue($cast->every(fn(MusicVideoCharacter $character) => $character->provided && str_starts_with($character->sheet, "ai/videos/{$id}/") && $disk->exists($character->sheet)));
+        $this->assertSame($sheets, $this->sheetRequests());
+    }
+
+    public function test_a_saved_cast_without_the_singer_gets_a_drawn_singer(): void
+    {
+        Sanctum::actingAs($this->owner);
+
+        $first = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos", ['mode' => 'legacy'])
+            ->json('data');
+        $driver = collect($first['characters'])->firstWhere('key', 'driver');
+
+        $saved = $this->postJson("/api/creator/videos/{$first['id']}/characters/{$driver['id']}/keep")
+            ->json('data.id');
+
+        $sheets = $this->sheetRequests();
+        $second = $this->track($this->owner);
+
+        $id = $this->postJson("/api/creator/tracks/{$second->slug}/videos", ['mode' => 'legacy', 'saved' => [['id' => $saved]]])
+            ->assertCreated()
+            ->json('data.id');
+
+        $cast = MusicVideoCharacter::query()
+            ->where('music_video_id', $id)
+            ->orderByDesc('singer')
+            ->get();
+
+        $this->assertSame(['singer', 'the_driver'], $cast->pluck('key')->all());
+        $this->assertSame([false, true], $cast->pluck('provided')->all());
+        $this->assertTrue($cast->every(fn(MusicVideoCharacter $character) => (bool) $character->sheet));
+        $this->assertSame($sheets + 1, $this->sheetRequests());
+    }
+
+    public function test_saved_characters_belong_to_their_owner_and_own_sheets_need_the_plan_feature(): void
+    {
+        $artist = $this->subscriber([
+            Feature::AI_TOOLS->value => true,
+            Feature::AI_CREDITS->value => 1000,
+            Feature::VIDEO_OWN_PHOTOS->value => true,
+        ]);
+        $sheet = fn() => UploadedFile::fake()->image('ada.jpg', 1280, 720);
+
+        Sanctum::actingAs($this->owner);
+
+        $this->post('/api/creator/video-characters', ['name' => 'Ada', 'sheet' => $sheet(), 'consent' => '1'], ['Accept' => 'application/json'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('sheet');
+
+        Sanctum::actingAs($artist);
+
+        $this->post('/api/creator/video-characters', ['name' => 'Ada', 'sheet' => $sheet()], ['Accept' => 'application/json'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('consent');
+
+        $id = $this->post('/api/creator/video-characters', ['name' => 'Ada', 'description' => 'Short braids', 'sheet' => $sheet(), 'consent' => '1'], ['Accept' => 'application/json'])
+            ->assertCreated()
+            ->assertJsonPath('data.uploaded', true)
+            ->json('data.id');
+
+        Sanctum::actingAs($this->owner);
+
+        $this->putJson("/api/creator/video-characters/{$id}", ['name' => 'Mine now'])
+            ->assertForbidden();
+        $this->deleteJson("/api/creator/video-characters/{$id}")
+            ->assertForbidden();
+        $this->postJson("/api/creator/tracks/{$this->track->slug}/videos", ['mode' => 'legacy', 'saved' => [['id' => $id, 'singer' => true]]])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('saved');
+
+        $own = VideoCharacter::query()
+            ->create(['user_id' => $this->owner->id, 'name' => 'Upload', 'description' => '', 'sheet' => 'ai/characters/x.jpg', 'uploaded' => true]);
+
+        $this->postJson("/api/creator/tracks/{$this->track->slug}/videos", ['mode' => 'legacy', 'saved' => [['id' => $own->id, 'singer' => true]]])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('saved');
+
+        $this->assertSame(0, MusicVideo::query()->where('user_id', $this->owner->id)->count());
+    }
+
+    public function test_saved_characters_can_be_renamed_and_removed(): void
+    {
+        Sanctum::actingAs($this->owner);
+
+        $video = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos", ['mode' => 'legacy'])
+            ->json('data');
+        $character = $video['characters'][0];
+
+        $saved = VideoCharacter::query()
+            ->findOrFail($this->postJson("/api/creator/videos/{$video['id']}/characters/{$character['id']}/keep")->json('data.id'));
+        $disk = Storage::disk(config('filesystems.default'));
+
+        $this->assertTrue($disk->exists($saved->sheet));
+
+        $this->putJson("/api/creator/video-characters/{$saved->id}", ['name' => 'Ada', 'description' => 'Red jacket'])
+            ->assertAccepted()
+            ->assertJsonPath('data.name', 'Ada')
+            ->assertJsonPath('data.description', 'Red jacket');
+        $this->deleteJson("/api/creator/video-characters/{$saved->id}")
+            ->assertAccepted();
+
+        $this->assertFalse($disk->exists($saved->sheet));
+        $this->assertNull(MusicVideoCharacter::query()->findOrFail($character['id'])->video_character_id);
+        $this->assertTrue($disk->exists(MusicVideoCharacter::query()->findOrFail($character['id'])->sheet));
     }
 
     public function test_rendering_lip_syncs_singing_shots_and_cuts_the_video_over_the_song(): void
@@ -941,6 +1097,21 @@ class AiMusicVideoTest extends TestCase
         $this->assertNotEmpty($disk->allFiles("ai/videos/{$id}"));
     }
 
+    public function test_saved_character_folders_of_deleted_accounts_are_pruned(): void
+    {
+        $disk = Storage::disk(config('filesystems.default'));
+        $gone = User::query()->max('id') + 100;
+
+        $disk->put("ai/characters/{$gone}/sheet.jpg", 'sheet');
+        $disk->put("ai/characters/{$this->owner->id}/sheet.jpg", 'sheet');
+
+        $this->artisan('videos:prune-files')
+            ->assertSuccessful();
+
+        $this->assertFalse($disk->exists("ai/characters/{$gone}/sheet.jpg"));
+        $this->assertTrue($disk->exists("ai/characters/{$this->owner->id}/sheet.jpg"));
+    }
+
     public function test_shots_can_be_reordered_into_the_same_time_slots(): void
     {
         Sanctum::actingAs($this->owner);
@@ -1209,6 +1380,16 @@ class AiMusicVideoTest extends TestCase
         $track->saveQuietly();
 
         return $track;
+    }
+
+    /**
+     * Character sheet drawings sent to Replicate so far.
+     */
+    protected function sheetRequests(): int
+    {
+        return Http::recorded(fn(Request $request) => str_ends_with($request->url(), '/seedream-4/predictions')
+            && str_contains($request['input']['prompt'], 'Character reference sheet'))
+            ->count();
     }
 
     protected function fakeReplicate(): void

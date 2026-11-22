@@ -10,6 +10,7 @@ use App\Http\Controllers\Creator\AiArtworkController;
 use App\Http\Controllers\Creator\AiController;
 use App\Http\Controllers\Creator\ArtistVoiceController;
 use App\Http\Controllers\Creator\MusicVideoController;
+use App\Http\Controllers\Creator\VideoCharacterController;
 use App\Http\Controllers\ExploreController;
 use App\Http\Controllers\FaustEffectController;
 use App\Http\Controllers\FileDownloadController;
@@ -191,6 +192,9 @@ Route::get('ai/videos/{video}/takes/{take}/clip', [MusicVideoController::class, 
 Route::get('ai/videos/{video}/characters/{character}/sheet', [MusicVideoController::class, 'sheet'])
     ->middleware('signed')
     ->name('ai.videos.character');
+Route::get('ai/characters/{character}/sheet', [VideoCharacterController::class, 'sheet'])
+    ->middleware('signed')
+    ->name('ai.characters.sheet');
 
 // A track or stem saved as a file, from a signed link the download endpoints hand out
 Route::get('files/download', FileDownloadController::class)
