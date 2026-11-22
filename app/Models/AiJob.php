@@ -7,6 +7,7 @@ use App\Services\Ai\Tasks\AiTask;
 use App\Services\Ai\Tasks\DrawStoryboard;
 use App\Services\Ai\Tasks\EditSection;
 use App\Services\Ai\Tasks\GenerateArtwork;
+use App\Services\Ai\Tasks\GenerateCanvas;
 use App\Services\Ai\Tasks\GenerateMusic;
 use App\Services\Ai\Tasks\GenerateVoice;
 use App\Services\Ai\Tasks\RedrawStill;
@@ -45,6 +46,7 @@ class AiJob extends Model
         'video_storyboard' => DrawStoryboard::class,
         'video_render' => RenderVideo::class,
         'video_still' => RedrawStill::class,
+        'canvas' => GenerateCanvas::class,
     ];
 
     protected $attributes = [

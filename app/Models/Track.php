@@ -161,6 +161,14 @@ class Track extends Model implements CanBeTakenDown
         return $this->files['image'];
     }
 
+    /**
+     * Whether the track, its release or its studio project has artwork of its own.
+     */
+    public function hasArtwork(): bool
+    {
+        return (bool) ($this->image ?: $this->release?->image ?: $this->projectTrack?->project?->image);
+    }
+
     public function registerFileable()
     {
         $this->fileableLoader([

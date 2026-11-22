@@ -10,6 +10,7 @@ use App\Http\Controllers\Creator\AiArtworkController;
 use App\Http\Controllers\Creator\AiController;
 use App\Http\Controllers\Creator\ArtistVoiceController;
 use App\Http\Controllers\Creator\MusicVideoController;
+use App\Http\Controllers\Creator\TrackCanvasController;
 use App\Http\Controllers\ExploreController;
 use App\Http\Controllers\FaustEffectController;
 use App\Http\Controllers\FileDownloadController;
@@ -81,6 +82,8 @@ Route::get('tracks/{track}/credits', [TrackCreditsController::class, 'show'])
     ->name('tracks.credits');
 Route::get('tracks/{track}/video', [MusicVideoController::class, 'track'])
     ->name('tracks.video');
+Route::get('tracks/{track}/canvas', [TrackCanvasController::class, 'track'])
+    ->name('tracks.canvas');
 Route::post('tracks/{track}/plays', [TrackController::class, 'play'])
     ->middleware(['auth:sanctum', 'throttle:120,1'])
     ->name('tracks.plays');
@@ -191,6 +194,14 @@ Route::get('ai/videos/{video}/takes/{take}/clip', [MusicVideoController::class, 
 Route::get('ai/videos/{video}/characters/{character}/sheet', [MusicVideoController::class, 'sheet'])
     ->middleware('signed')
     ->name('ai.videos.character');
+
+// A track canvas's clip and first frame, from the signed links on the canvas
+Route::get('ai/canvases/{canvas}/clip', [TrackCanvasController::class, 'clip'])
+    ->middleware('signed')
+    ->name('ai.canvases.clip');
+Route::get('ai/canvases/{canvas}/poster', [TrackCanvasController::class, 'poster'])
+    ->middleware('signed')
+    ->name('ai.canvases.poster');
 
 // A track or stem saved as a file, from a signed link the download endpoints hand out
 Route::get('files/download', FileDownloadController::class)

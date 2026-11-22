@@ -7,6 +7,7 @@ use App\Models\MusicVideo;
 use App\Models\MusicVideoCharacter;
 use App\Models\MusicVideoShot;
 use App\Models\MusicVideoTake;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
@@ -27,11 +28,11 @@ class VideoStorage
     protected const LINK_HOURS = 24;
 
     /**
-     * Copy a local file into the video's folder and return its path on the disk.
+     * Copy a local file into its owner's folder and return its path on the disk.
      */
-    public function put(MusicVideo $video, string $local, string $name, string $ext): string
+    public function put(Model $owner, string $local, string $name, string $ext): string
     {
-        $file = self::DIRECTORY . "/{$video->id}/{$name}-" . Str::random(8) . ".{$ext}";
+        $file = static::DIRECTORY . "/{$owner->getKey()}/{$name}-" . Str::random(8) . ".{$ext}";
         $stream = fopen($local, 'r');
 
         $this
@@ -78,13 +79,13 @@ class VideoStorage
     }
 
     /**
-     * Remove every file of a video.
+     * Remove every file of a video, or of whatever owns the folder.
      */
-    public function forget(MusicVideo $video): void
+    public function forget(Model $owner): void
     {
         $this
             ->disk()
-            ->deleteDirectory(self::DIRECTORY . "/{$video->id}");
+            ->deleteDirectory(static::DIRECTORY . "/{$owner->getKey()}");
     }
 
     /**
@@ -100,7 +101,7 @@ class VideoStorage
         $ids = [];
         $deleted = 0;
 
-        foreach ($disk->listContents(self::DIRECTORY, false) as $item) {
+        foreach ($disk->listContents(static::DIRECTORY, false) as $item) {
             $id = basename($item->path());
 
             if (! $item->isDir() || ! ctype_digit($id)) {
@@ -127,7 +128,9 @@ class VideoStorage
             return 0;
         }
 
-        $kept = MusicVideo::query()
+        $kept = $this
+            ->model()
+            ->newQuery()
             ->whereKey($ids)
             ->pluck('id')
             ->all();
@@ -135,7 +138,7 @@ class VideoStorage
         $disk = $this->disk();
 
         foreach ($missing as $id) {
-            $disk->deleteDirectory(self::DIRECTORY . "/{$id}");
+            $disk->deleteDirectory(static::DIRECTORY . "/{$id}");
         }
 
         return count($missing);
@@ -208,6 +211,14 @@ class VideoStorage
         }
 
         return $disk->response($file, $download, $headers);
+    }
+
+    /**
+     * The model whose rows own the folders.
+     */
+    protected function model(): Model
+    {
+        return new MusicVideo;
     }
 
     protected function disk(): FilesystemAdapter

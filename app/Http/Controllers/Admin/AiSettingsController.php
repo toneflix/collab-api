@@ -74,6 +74,7 @@ class AiSettingsController extends Controller
             'ai_video_advanced_singer_model' => ['nullable', 'string', Rule::in(array_keys(VideoCandidate::advancedOptions(true)))],
             'ai_video_advanced_broll_model' => ['nullable', 'string', Rule::in(array_keys(VideoCandidate::advancedOptions(false)))],
             'ai_video_max_seconds' => ['nullable', 'integer', 'between:30,600'],
+            'ai_canvas_credits' => ['nullable', 'integer', 'between:1,1000'],
             'ai_lyrics_credits' => ['nullable', 'integer', 'between:1,1000'],
             'ai_lyrics_auto' => ['nullable', 'boolean'],
             'ai_lyrics_explicit_words' => ['nullable', 'string', 'max:2000'],

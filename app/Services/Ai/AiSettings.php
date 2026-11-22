@@ -69,6 +69,7 @@ class AiSettings extends SettingsStore
         'ai_video_advanced_minutes' => ['Advanced Music Video Minute Rate', '4', 'Plan video minutes one minute of an advanced music video uses.'],
         'ai_video_advanced_singer_model' => ['Advanced Music Video Lip Sync Model', 'omni-human-1.5', 'The model that makes the singing shots of advanced videos: OmniHuman 1.5 ($0.16/s), Kling Avatar 2 ($0.056/s) or VEED Fabric 1.0 ($0.15/s at 720p).'],
         'ai_video_advanced_broll_model' => ['Advanced Music Video B-roll Model', 'kling-v3', 'The model that animates the shots between the singing in advanced videos: Kling 3.0 ($0.168/s), Veo 3.1 Fast ($0.10/s) or Seedance 2.0 ($0.18/s, refuses stills that may show a real person).'],
+        'ai_canvas_credits' => ['Canvas Loop Credits', '30', 'Credits one AI canvas loop for a track uses: a tall still drawn from the artwork (about $0.03 on Replicate) animated for 6 seconds with the music video b-roll model (about $0.12 with p-video).'],
         'ai_video_max_seconds' => ['Longest Music Video (seconds)', '360', 'Songs longer than this can\'t get a music video.'],
         'ai_music_max_seconds' => ['Longest Generated Track (seconds)', '300', 'The longest track people can generate at once.'],
         'ai_lyrics_engine' => ['Lyrics Engine', 'replicate', 'Where Whisper writes out lyrics: Replicate, or Cloudflare Workers AI.'],
@@ -460,6 +461,14 @@ class AiSettings extends SettingsStore
     }
 
     /**
+     * Credits one AI canvas loop uses.
+     */
+    public static function canvasCredits(): int
+    {
+        return max(1, (int) self::get('ai_canvas_credits'));
+    }
+
+    /**
      * The model that animates b-roll shots.
      */
     public static function videoBrollModel(): VideoCandidate
@@ -543,6 +552,7 @@ class AiSettings extends SettingsStore
                 'video' => self::videoCredits(),
                 'videoAdvanced' => self::videoAdvancedCredits(),
                 'videoAdvancedMinutes' => self::videoAdvancedMinuteRate(),
+                'canvas' => self::canvasCredits(),
                 'composer' => collect(['line', 'block', 'verse', 'rewrite'])
                     ->mapWithKeys(fn(string $kind) => [$kind => self::composerCredits($kind)])
                     ->all(),

@@ -54,7 +54,7 @@ Schedule::command('earnings:settle-streams')
     ->monthlyOn(1, '03:00')
     ->withoutOverlapping();
 
-// Delete the files of music videos whose rows are gone.
+// Delete the files of music videos and track canvases whose rows are gone.
 Schedule::command('videos:prune-files')
     ->dailyAt('04:30')
     ->withoutOverlapping();
