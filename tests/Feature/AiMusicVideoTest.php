@@ -471,6 +471,81 @@ class AiMusicVideoTest extends TestCase
             ->assertJsonPath('ownPhotos', false);
     }
 
+    public function test_advanced_videos_need_the_plan_feature(): void
+    {
+        Sanctum::actingAs($this->owner);
+
+        $this->postJson("/api/creator/tracks/{$this->track->slug}/videos", ['mode' => 'legacy', 'quality' => 'advanced'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('quality');
+        $this->getJson('/api/creator/videos')
+            ->assertOk()
+            ->assertJsonPath('advanced', false);
+
+        $this->assertSame(0, MusicVideo::query()->where('user_id', $this->owner->id)->count());
+    }
+
+    public function test_advanced_videos_render_with_the_advanced_models_and_price(): void
+    {
+        AiSettings::update(['ai_video_advanced_credits' => 800]);
+
+        $owner = $this->subscriber([Feature::AI_TOOLS->value => true, Feature::AI_CREDITS->value => 1000, Feature::VIDEO_ADVANCED->value => true]);
+        $track = $this->track($owner);
+        Sanctum::actingAs($owner);
+
+        $id = $this->postJson("/api/creator/tracks/{$track->slug}/videos", ['mode' => 'legacy', 'quality' => 'advanced'])
+            ->assertCreated()
+            ->assertJsonPath('data.quality', 'advanced')
+            ->json('data.id');
+
+        $this->postJson("/api/creator/videos/{$id}/render")
+            ->assertAccepted()
+            ->assertJsonPath('data.status', MusicVideo::READY)
+            ->assertJsonPath('data.billing', MusicVideo::CREDITS);
+
+        $this->assertSame(180, Credits::for($owner)->total());
+
+        Http::assertSent(fn(Request $request) => str_ends_with($request->url(), '/bytedance/omni-human-1.5/predictions')
+            && isset($request['input']['audio']));
+        Http::assertSent(fn(Request $request) => str_ends_with($request->url(), '/kwaivgi/kling-v3-video/predictions')
+            && $request['input']['duration'] === 3
+            && $request['input']['generate_audio'] === false);
+        Http::assertNotSent(fn(Request $request) => str_contains($request->url(), '/prunaai/'));
+    }
+
+    public function test_advanced_videos_use_plan_minutes_at_their_rate(): void
+    {
+        AiSettings::update(['ai_video_advanced_minutes' => 4]);
+
+        $short = $this->subscriber([Feature::AI_TOOLS->value => true, Feature::AI_CREDITS->value => 1000, Feature::VIDEO_ADVANCED->value => true, Feature::VIDEO_MINUTES->value => 3]);
+        $track = $this->track($short);
+        Sanctum::actingAs($short);
+
+        $id = $this->postJson("/api/creator/tracks/{$track->slug}/videos", ['mode' => 'legacy', 'quality' => 'advanced'])
+            ->json('data.id');
+
+        $this->postJson("/api/creator/videos/{$id}/render")
+            ->assertAccepted()
+            ->assertJsonPath('data.billing', MusicVideo::CREDITS);
+
+        $owner = $this->subscriber([Feature::AI_TOOLS->value => true, Feature::AI_CREDITS->value => 1000, Feature::VIDEO_ADVANCED->value => true, Feature::VIDEO_MINUTES->value => 5]);
+        $track = $this->track($owner);
+        Sanctum::actingAs($owner);
+
+        $id = $this->postJson("/api/creator/tracks/{$track->slug}/videos", ['mode' => 'legacy', 'quality' => 'advanced'])
+            ->json('data.id');
+
+        $this->postJson("/api/creator/videos/{$id}/render")
+            ->assertAccepted()
+            ->assertJsonPath('data.billing', MusicVideo::MINUTES);
+
+        $this->assertSame(980, Credits::for($owner)->total());
+        $this->getJson('/api/creator/videos')
+            ->assertOk()
+            ->assertJsonPath('minutesLeft', 1)
+            ->assertJsonPath('advanced', true);
+    }
+
     public function test_a_failed_render_goes_back_to_the_storyboard_and_refunds(): void
     {
         Sanctum::actingAs($this->owner);
@@ -1153,6 +1228,7 @@ class AiMusicVideoTest extends TestCase
                 $url === self::REPLICATE . '/predictions' => Http::response(['id' => 'd1', 'status' => 'succeeded', 'output' => ['vocals' => self::CDN . '/vocals.wav']], 201),
                 str_contains($url, '/prunaai/') && $this->clipsFail => Http::response(['id' => 'c1', 'status' => 'failed', 'error' => 'boom'], 201),
                 str_contains($url, '/prunaai/') => Http::response(['id' => 'c1', 'status' => 'succeeded', 'output' => self::CDN . '/clip.mp4'], 201),
+                str_ends_with($url, '/omni-human-1.5/predictions'), str_ends_with($url, '/kling-v3-video/predictions') => Http::response(['id' => 'c2', 'status' => 'succeeded', 'output' => self::CDN . '/clip.mp4'], 201),
                 $url === self::CDN . '/still.png' => Http::response($still),
                 $url === self::CDN . '/clip.mp4' => Http::response($clip),
                 $url === self::CDN . '/vocals.wav' => Http::response($vocals),

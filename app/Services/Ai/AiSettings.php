@@ -65,6 +65,10 @@ class AiSettings extends SettingsStore
         'ai_video_location_storyboard_credits' => ['Music Video Location Storyboard Credits per Minute', '6', 'Credits the plan and stills of a music video shot in 2 or 3 locations use for every started minute of the song. It draws about 9 stills and 2 character sheets in all, about $0.03 each on Replicate.'],
         'ai_video_credits' => ['Music Video Credits per Minute', '190', 'Credits rendering a music video uses for every started minute of the song. About $2.50 a minute on Replicate with lip-synced singing shots.'],
         'ai_video_broll_model' => ['Music Video B-roll Model', 'p-video', 'The model that animates the shots between the singing: p-video ($0.02/s at 720p), Seedance 1 Pro Fast ($0.025/s) or Wan 2.2 i2v fast (about $0.022/s, 5 s clips).'],
+        'ai_video_advanced_credits' => ['Advanced Music Video Credits per Minute', '800', 'Credits rendering an advanced music video uses for every started minute of the song. About $10 a minute on Replicate with OmniHuman 1.5 singing ($0.16/s) and Kling 3.0 b-roll ($0.168/s).'],
+        'ai_video_advanced_minutes' => ['Advanced Music Video Minute Rate', '4', 'Plan video minutes one minute of an advanced music video uses.'],
+        'ai_video_advanced_singer_model' => ['Advanced Music Video Lip Sync Model', 'omni-human-1.5', 'The model that makes the singing shots of advanced videos: OmniHuman 1.5 ($0.16/s), Kling Avatar 2 ($0.056/s) or VEED Fabric 1.0 ($0.15/s at 720p).'],
+        'ai_video_advanced_broll_model' => ['Advanced Music Video B-roll Model', 'kling-v3', 'The model that animates the shots between the singing in advanced videos: Kling 3.0 ($0.168/s), Veo 3.1 Fast ($0.10/s) or Seedance 2.0 ($0.18/s, refuses stills that may show a real person).'],
         'ai_video_max_seconds' => ['Longest Music Video (seconds)', '360', 'Songs longer than this can\'t get a music video.'],
         'ai_music_max_seconds' => ['Longest Generated Track (seconds)', '300', 'The longest track people can generate at once.'],
         'ai_lyrics_engine' => ['Lyrics Engine', 'replicate', 'Where Whisper writes out lyrics: Replicate, or Cloudflare Workers AI.'],
@@ -465,6 +469,46 @@ class AiSettings extends SettingsStore
         return $candidate && ! $candidate->sings() ? $candidate : VideoCandidate::P_VIDEO;
     }
 
+    /**
+     * Credits rendering an advanced music video uses per started minute.
+     */
+    public static function videoAdvancedCredits(): int
+    {
+        return max(1, (int) self::get('ai_video_advanced_credits'));
+    }
+
+    /**
+     * Plan video minutes one minute of an advanced music video uses.
+     */
+    public static function videoAdvancedMinuteRate(): int
+    {
+        return min(20, max(1, (int) self::get('ai_video_advanced_minutes')));
+    }
+
+    /**
+     * The model that makes the singing shots of advanced videos.
+     */
+    public static function videoAdvancedSingerModel(): VideoCandidate
+    {
+        $candidate = VideoCandidate::tryFrom((string) self::get('ai_video_advanced_singer_model'));
+
+        return $candidate && array_key_exists($candidate->value, VideoCandidate::advancedOptions(true))
+            ? $candidate
+            : VideoCandidate::OMNI_HUMAN_15;
+    }
+
+    /**
+     * The model that animates b-roll shots of advanced videos.
+     */
+    public static function videoAdvancedBrollModel(): VideoCandidate
+    {
+        $candidate = VideoCandidate::tryFrom((string) self::get('ai_video_advanced_broll_model'));
+
+        return $candidate && array_key_exists($candidate->value, VideoCandidate::advancedOptions(false))
+            ? $candidate
+            : VideoCandidate::KLING_V3;
+    }
+
     public static function videoMaxSeconds(): int
     {
         return min(600, max(30, (int) self::get('ai_video_max_seconds')));
@@ -497,6 +541,8 @@ class AiSettings extends SettingsStore
                 'videoStoryboard' => self::videoStoryboardCredits(),
                 'videoLocationStoryboard' => self::videoLocationStoryboardCredits(),
                 'video' => self::videoCredits(),
+                'videoAdvanced' => self::videoAdvancedCredits(),
+                'videoAdvancedMinutes' => self::videoAdvancedMinuteRate(),
                 'composer' => collect(['line', 'block', 'verse', 'rewrite'])
                     ->mapWithKeys(fn(string $kind) => [$kind => self::composerCredits($kind)])
                     ->all(),

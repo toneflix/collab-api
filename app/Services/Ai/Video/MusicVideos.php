@@ -3,6 +3,7 @@
 namespace App\Services\Ai\Video;
 
 use App\Enums\Feature;
+use App\Enums\VideoQuality;
 use App\Models\AiJob;
 use App\Models\Artist;
 use App\Models\MusicVideo;
@@ -48,12 +49,13 @@ class MusicVideos
 
     /**
      * Start a video for the track and draw its storyboard. A photo is only
-     * taken from plans that allow the owner's own photos.
+     * taken from plans that allow the owner's own photos, and advanced
+     * quality only from plans that include it.
      *
      * Character sheets the creator gives are used as they are and none are
      * drawn for the video.
      *
-     * @param  array{ratio?: string, mode?: string, brief?: ?string}  $options
+     * @param  array{ratio?: string, mode?: string, quality?: string, brief?: ?string}  $options
      * @param  list<array{name: string, description?: ?string, singer?: bool, sheet: UploadedFile}>  $characters
      */
     public function create(User $user, Track $track, array $options, ?UploadedFile $photo = null, array $characters = []): MusicVideo
@@ -62,6 +64,12 @@ class MusicVideos
             throw ValidationException::withMessages([
                 $photo ? 'photo' : 'characters' => 'Your plan doesn\'t include music videos from your own images.',
             ]);
+        }
+
+        $quality = VideoQuality::tryFrom($options['quality'] ?? '') ?? VideoQuality::STANDARD;
+
+        if ($quality === VideoQuality::ADVANCED && ! $user->feature(Feature::VIDEO_ADVANCED)) {
+            throw ValidationException::withMessages(['quality' => 'Your plan doesn\'t include advanced music videos.']);
         }
 
         if ($characters && count(array_filter($characters, fn(array $character) => ! empty($character['singer']))) !== 1) {
@@ -84,6 +92,7 @@ class MusicVideos
                 'track_id' => $track->id,
                 'ratio' => $options['ratio'] ?? '16:9',
                 'mode' => $options['mode'] ?? MusicVideo::LOCATIONS,
+                'quality' => $quality,
                 'brief' => $options['brief'] ?? null,
                 'duration' => round($duration, 2),
             ]);
@@ -445,7 +454,7 @@ class MusicVideos
      * stitch every shot over the song. A first render is priced by started
      * minutes of the song, a later one by the seconds of shots it renders,
      * and a save that only stitches is free. Plan video time pays before
-     * credits when it covers the whole job.
+     * credits when it covers the whole job, at the quality's minute rate.
      */
     public function render(MusicVideo $video): MusicVideo
     {
@@ -461,13 +470,14 @@ class MusicVideos
         $todo = $shots->filter(fn(MusicVideoShot $shot) => $shot->needsClip());
         $full = $shots->isNotEmpty() && $todo->count() === $shots->count();
         $seconds = $full ? $minutes * 60 : (int) ceil($todo->sum(fn(MusicVideoShot $shot) => $shot->length()));
+        $planSeconds = $seconds * $video->quality->minuteRate();
         $billing = match (true) {
             $seconds === 0 => null,
-            $this->secondsLeft($user) >= $seconds => MusicVideo::MINUTES,
+            $this->secondsLeft($user) >= $planSeconds => MusicVideo::MINUTES,
             default => MusicVideo::CREDITS,
         };
 
-        return DB::transaction(function () use ($video, $user, $minutes, $billing, $seconds, $full, $shots, $todo) {
+        return DB::transaction(function () use ($video, $user, $minutes, $billing, $seconds, $planSeconds, $full, $shots, $todo) {
             $video
                 ->forceFill(['status' => MusicVideo::RENDERING, 'error' => null])
                 ->save();
@@ -477,7 +487,9 @@ class MusicVideos
                 'title' => $video->track?->title,
                 'minutes' => $minutes,
                 'billing' => $billing,
+                'quality' => $video->quality->value,
                 'seconds' => $seconds,
+                'plan_seconds' => $planSeconds,
                 'full' => $full,
                 'shots' => $shots->count(),
                 'missing' => $todo->count(),
@@ -618,7 +630,7 @@ class MusicVideos
 
     /**
      * Seconds of video time the user's plan has left this month, counted
-     * from the renders it paid for that didn't fail.
+     * from the renders it paid for that didn't fail, at their minute rate.
      */
     public function secondsLeft(User $user): int
     {
@@ -629,8 +641,8 @@ class MusicVideos
         }
 
         $seconds = DB::getDriverName() === 'pgsql'
-            ? "COALESCE((input->>'seconds')::numeric, (input->>'minutes')::numeric * 60, 0)"
-            : "COALESCE(json_extract(input, '$.seconds'), json_extract(input, '$.minutes') * 60, 0)";
+            ? "COALESCE((input->>'plan_seconds')::numeric, (input->>'seconds')::numeric, (input->>'minutes')::numeric * 60, 0)"
+            : "COALESCE(json_extract(input, '$.plan_seconds'), json_extract(input, '$.seconds'), json_extract(input, '$.minutes') * 60, 0)";
         $used = (int) AiJob::query()
             ->where('user_id', $user->id)
             ->where('kind', 'video_render')

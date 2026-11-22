@@ -78,6 +78,20 @@ enum VideoCandidate: string
     }
 
     /**
+     * The advanced lip sync or b-roll models admins can pick, with their
+     * model names. Models that dub a clip are left out.
+     *
+     * @return array<string, string>
+     */
+    public static function advancedOptions(bool $sings): array
+    {
+        return collect(self::tier(true))
+            ->filter(fn(self $candidate) => $candidate->sings() === $sings && ! $candidate->source())
+            ->mapWithKeys(fn(self $candidate) => [$candidate->value => $candidate->model()])
+            ->all();
+    }
+
+    /**
      * Whether the model lip-syncs a portrait to the vocal.
      */
     public function sings(): bool

@@ -29,6 +29,7 @@ enum Feature: string
     case EARN_STREAMS = 'earn_streams';
     case VIDEO_MINUTES = 'video_minutes';
     case VIDEO_OWN_PHOTOS = 'video_own_photos';
+    case VIDEO_ADVANCED = 'video_advanced';
 
     public function title(): string
     {
@@ -50,6 +51,7 @@ enum Feature: string
             self::EARN_STREAMS => 'Earn from streams',
             self::VIDEO_MINUTES => 'Music video minutes',
             self::VIDEO_OWN_PHOTOS => 'Music videos from your own photos',
+            self::VIDEO_ADVANCED => 'Advanced music videos',
         };
     }
 
@@ -73,6 +75,7 @@ enum Feature: string
             self::EARN_STREAMS => 'Get a share of each month\'s stream pool for signed-in plays of your released tracks.',
             self::VIDEO_MINUTES => 'Minutes of AI music video each month, used before your AI credits.',
             self::VIDEO_OWN_PHOTOS => 'Upload a photo of yourself for the singing shots of your AI music videos.',
+            self::VIDEO_ADVANCED => 'Render AI music videos at advanced quality, with more lifelike singing and motion.',
         };
     }
 
@@ -106,7 +109,7 @@ enum Feature: string
     public function fallback(): bool|int
     {
         return match ($this) {
-            self::DOWNLOADS, self::BADGE, self::AI_TOOLS, self::CONTENT_AGENT, self::EARN_STREAMS, self::VIDEO_OWN_PHOTOS => false,
+            self::DOWNLOADS, self::BADGE, self::AI_TOOLS, self::CONTENT_AGENT, self::EARN_STREAMS, self::VIDEO_OWN_PHOTOS, self::VIDEO_ADVANCED => false,
             self::SELL_RELEASES, self::SELL_STEMS, self::RECEIVE_TIPS => true,
             self::MAX_PROJECTS => 10,
             self::MAX_SONGS => 10,

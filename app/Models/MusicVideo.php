@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\VideoQuality;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -43,6 +44,7 @@ class MusicVideo extends Model
         'status' => self::PLANNING,
         'ratio' => '16:9',
         'mode' => self::LOCATIONS,
+        'quality' => 'standard',
     ];
 
     protected $fillable = [
@@ -51,6 +53,7 @@ class MusicVideo extends Model
         'status',
         'ratio',
         'mode',
+        'quality',
         'brief',
         'portrait',
         'style',
@@ -70,6 +73,7 @@ class MusicVideo extends Model
         return [
             'style' => 'array',
             'locations' => 'array',
+            'quality' => VideoQuality::class,
             'duration' => 'float',
             'cut' => 'array',
             'billed_at' => 'datetime',
