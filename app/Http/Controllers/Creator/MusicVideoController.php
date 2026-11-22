@@ -75,6 +75,7 @@ class MusicVideoController extends Controller
             'mode' => ['nullable', 'string', Rule::in(MusicVideo::MODES)],
             'quality' => ['nullable', Rule::enum(VideoQuality::class)],
             'brief' => ['nullable', 'string', 'max:1000'],
+            'lyrics' => ['nullable', 'string', Rule::in(MusicVideo::LYRIC_STYLES)],
             'photo' => ['nullable', 'prohibits:characters', 'image', 'max:10240', 'dimensions:min_width=512,min_height=512'],
             'characters' => ['nullable', 'array', 'max:' . MusicVideoCharacter::MAX],
             'characters.*.name' => ['required', 'string', 'max:80'],
@@ -102,9 +103,11 @@ class MusicVideoController extends Controller
             ->refresh()
             ->load(['track', 'characters', 'shots.take', 'takes']);
 
+        $message = $video->isLyricVideo() ? 'Making your lyric video.' : 'Planning your music video.';
+
         return (new MusicVideoResource($video))
             ->additional([
-                'message' => 'Planning your music video.',
+                'message' => $message,
                 'status' => 'success',
                 'status_code' => HttpStatus::CREATED,
             ])
@@ -310,6 +313,40 @@ class MusicVideoController extends Controller
         return (new MusicVideoResource($video))
             ->additional([
                 'message' => 'Rendering your music video.',
+                'status' => 'success',
+                'status_code' => HttpStatus::ACCEPTED,
+            ])
+            ->response()
+            ->setStatusCode(HttpStatus::ACCEPTED->value);
+    }
+
+    /**
+     * Show the song's synced lyrics on the video in a style, or stop showing them.
+     */
+    public function lyrics(Request $request, MusicVideos $videos, MusicVideo $video)
+    {
+        $this->authorize('update', $video);
+
+        $valid = $request->validate([
+            'lyrics' => ['present', 'nullable', 'string', Rule::in(MusicVideo::LYRIC_STYLES)],
+        ]);
+
+        $video = $videos->setLyrics($video, $valid['lyrics']);
+
+        $video
+            ->refresh()
+            ->load(['track', 'characters', 'shots.take', 'takes']);
+        $rendering = $video->status === MusicVideo::RENDERING;
+        $message = match (true) {
+            $rendering && $valid['lyrics'] => 'Adding the lyrics to your video.',
+            $rendering => 'Taking the lyrics off your video.',
+            $valid['lyrics'] => 'Lyrics turned on.',
+            default => 'Lyrics turned off.',
+        };
+
+        return (new MusicVideoResource($video))
+            ->additional([
+                'message' => $message,
                 'status' => 'success',
                 'status_code' => HttpStatus::ACCEPTED,
             ])

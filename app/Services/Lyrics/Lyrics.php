@@ -39,6 +39,23 @@ class Lyrics
     }
 
     /**
+     * The track's lines that carry a start time, in order, taking the lyrics
+     * of the project track it came from when it has none of its own.
+     *
+     * @return list<array{start: float, end: ?float, text: string}>
+     */
+    public function timedLines(Track $track): array
+    {
+        $lyric = $this->for($track) ?? $this->inherit($track);
+
+        return collect($lyric?->lines ?? [])
+            ->filter(fn(array $line) => isset($line['start']) && $line['start'] !== null)
+            ->sortBy('start')
+            ->values()
+            ->all();
+    }
+
+    /**
      * Save lyrics, or remove them when there are no lines.
      *
      * @param  array<int, mixed>  $lines

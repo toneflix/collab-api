@@ -93,6 +93,7 @@ Route::middleware(['auth:sanctum'])
         Route::post('videos/{video}/shots/{shot}/still', [MusicVideoController::class, 'redrawStill'])->middleware('throttle:10,1')->name('videos.shots.still');
         Route::post('videos/{video}/shots/{shot}/takes', [MusicVideoController::class, 'addTake'])->middleware('throttle:20,1')->name('videos.shots.takes.store');
         Route::post('videos/{video}/storyboard', [MusicVideoController::class, 'retryStoryboard'])->middleware('throttle:10,1')->name('videos.storyboard');
+        Route::put('videos/{video}/lyrics', [MusicVideoController::class, 'lyrics'])->middleware('throttle:10,1')->name('videos.lyrics');
         Route::post('videos/{video}/render', [MusicVideoController::class, 'render'])->middleware('throttle:10,1')->name('videos.render');
         Route::post('videos/{video}/characters/{character}/keep', [VideoCharacterController::class, 'keep'])->middleware('throttle:20,1')->name('videos.characters.keep');
         Route::get('video-characters', [VideoCharacterController::class, 'index'])->name('video-characters.index');

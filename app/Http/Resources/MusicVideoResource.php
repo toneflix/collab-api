@@ -42,6 +42,7 @@ class MusicVideoResource extends JsonResource
                 ])
                 ->all(),
             'brief' => $this->brief,
+            'lyrics' => $this->lyrics,
             'hasPortrait' => (bool) $this->portrait,
             'duration' => $this->duration,
             'minutes' => $this->startedMinutes(),

@@ -17,6 +17,7 @@ use App\Services\Ai\AiSettings;
 use App\Services\Ai\AiStudio;
 use App\Services\Ai\Artwork\ArtworkImages;
 use App\Services\Audio\TrackAudio;
+use App\Services\Lyrics\Lyrics;
 use App\Services\Video\VideoFiles;
 use App\Services\Video\VideoPart;
 use Illuminate\Database\Eloquent\Builder;
@@ -39,6 +40,9 @@ class MusicVideos
     /** Statuses in which the shots can be changed and the video saved */
     public const EDITABLE = [MusicVideo::STORYBOARD, MusicVideo::READY];
 
+    /** About how long each still shot of a lyric video runs */
+    protected const LYRIC_SHOT_SECONDS = 10;
+
     public function __construct(
         protected AiStudio $studio,
         protected TrackAudio $audio,
@@ -47,6 +51,7 @@ class MusicVideos
         protected VideoFiles $files,
         protected ArtworkImages $images,
         protected VideoCharacters $library,
+        protected Lyrics $lyrics,
     ) {}
 
     /**
@@ -56,8 +61,10 @@ class MusicVideos
      *
      * The cast can be the creator's own character sheets and characters they
      * saved, used as they are. When none of them sings, AI draws the singer.
+     * A lyric video skips the storyboard and renders straight away over
+     * the song's artwork.
      *
-     * @param  array{ratio?: string, mode?: string, quality?: string, brief?: ?string}  $options
+     * @param  array{ratio?: string, mode?: string, quality?: string, brief?: ?string, lyrics?: ?string}  $options
      * @param  list<array{name: string, description?: ?string, singer?: bool, sheet: UploadedFile}>  $characters
      * @param  list<array{id: int, singer?: bool}>  $saved
      */
@@ -69,7 +76,9 @@ class MusicVideos
             ]);
         }
 
-        $quality = VideoQuality::tryFrom($options['quality'] ?? '') ?? VideoQuality::STANDARD;
+        $quality = ($options['mode'] ?? null) === MusicVideo::LYRICS
+            ? VideoQuality::STANDARD
+            : (VideoQuality::tryFrom($options['quality'] ?? '') ?? VideoQuality::STANDARD);
 
         if ($quality === VideoQuality::ADVANCED && ! $user->feature(Feature::VIDEO_ADVANCED)) {
             throw ValidationException::withMessages(['quality' => 'Your plan doesn\'t include advanced music videos.']);
@@ -99,6 +108,13 @@ class MusicVideos
             throw ValidationException::withMessages(['photo' => 'The singer already has a character sheet.']);
         }
 
+        $mode = $options['mode'] ?? MusicVideo::LOCATIONS;
+        $lyrics = $options['lyrics'] ?? ($mode === MusicVideo::LYRICS ? MusicVideo::CAPTIONS : null);
+
+        if ($lyrics && ! $this->lyrics->timedLines($track)) {
+            throw ValidationException::withMessages(['lyrics' => 'This song has no synced lyrics yet.']);
+        }
+
         $duration = (float) ($track->duration ?: $this->audio->measure($track));
 
         if ($duration <= 0) {
@@ -114,11 +130,16 @@ class MusicVideos
                 'user_id' => $user->id,
                 'track_id' => $track->id,
                 'ratio' => $options['ratio'] ?? '16:9',
-                'mode' => $options['mode'] ?? MusicVideo::LOCATIONS,
+                'mode' => $mode,
                 'quality' => $quality,
                 'brief' => $options['brief'] ?? null,
+                'lyrics' => $lyrics,
                 'duration' => round($duration, 2),
             ]);
+
+        if ($video->isLyricVideo()) {
+            return $this->startLyricVideo($video, $track);
+        }
 
         try {
             $this->keepCharacters($video, $cast);
@@ -141,6 +162,127 @@ class MusicVideos
         }
 
         return $video;
+    }
+
+    /**
+     * Lay the song's artwork over the whole song as still shots that zoom in
+     * and out in turn, then render it. Nothing needs a clip, so it's free.
+     */
+    protected function startLyricVideo(MusicVideo $video, Track $track): MusicVideo
+    {
+        try {
+            $keyframe = $this->lyricPoster($video, $track);
+            $count = max(1, (int) round($video->duration / self::LYRIC_SHOT_SECONDS));
+            $length = $video->duration / $count;
+            $shots = [];
+
+            for ($i = 0; $i < $count; $i++) {
+                $shots[] = [
+                    'music_video_id' => $video->id,
+                    'position' => $i + 1,
+                    'start' => round($i * $length, 2),
+                    'end' => $i === $count - 1 ? $video->duration : round(($i + 1) * $length, 2),
+                    'kind' => MusicVideoShot::BROLL,
+                    'prompt' => 'A slow camera move over the song\'s cover art',
+                    'keyframe' => $keyframe,
+                    'characters' => [],
+                    'motion' => $i % 2 === 0 ? VideoPart::ZOOM_IN : VideoPart::ZOOM_OUT,
+                ];
+            }
+
+            DB::transaction(function () use ($video, $shots) {
+                foreach ($shots as $shot) {
+                    MusicVideoShot::query()
+                        ->create($shot);
+                }
+
+                $video
+                    ->forceFill(['status' => MusicVideo::STORYBOARD])
+                    ->save();
+            });
+
+            return $this->render($video);
+        } catch (Throwable $e) {
+            $this->storage->forget($video);
+            $video->delete();
+
+            throw $e;
+        }
+    }
+
+    /**
+     * Store the still a lyric video moves over, drawn from the track's artwork.
+     */
+    protected function lyricPoster(MusicVideo $video, Track $track): string
+    {
+        $name = $track->artworkFile();
+        $artwork = null;
+
+        if ($name && ! filter_var($name, FILTER_VALIDATE_URL)) {
+            $media = new Media;
+            $path = $media->mediaInfo('artwork', $name)['path'] ?? null;
+
+            if ($path && $media->disk->exists($path)) {
+                $artwork = tempnam(sys_get_temp_dir(), 'artwork-');
+                $content = $media->disk->get($path);
+
+                file_put_contents($artwork, $content);
+            }
+        }
+
+        try {
+            $poster = $this->files->lyricPoster($artwork, $video->size());
+        } finally {
+            $artwork && @unlink($artwork);
+        }
+
+        try {
+            return $this->storage->put($video, $poster, 'keyframe-artwork', 'jpg');
+        } finally {
+            @unlink($poster);
+        }
+    }
+
+    /**
+     * Show the song's synced lyrics on the video in a style, or stop showing
+     * them. A finished video whose shots all have their clips is stitched
+     * again straight away for free; otherwise the next save shows them.
+     */
+    public function setLyrics(MusicVideo $video, ?string $style): MusicVideo
+    {
+        $this->ensureStatus($video, self::EDITABLE);
+
+        if (! $style && $video->isLyricVideo()) {
+            throw ValidationException::withMessages(['lyrics' => 'A lyric video always shows its lyrics.']);
+        }
+
+        if ($style && ! $this->lyrics->timedLines($video->track)) {
+            throw ValidationException::withMessages(['lyrics' => 'This song has no synced lyrics yet.']);
+        }
+
+        $video
+            ->forceFill(['lyrics' => $style])
+            ->save();
+
+        if ($video->status !== MusicVideo::READY) {
+            return $video;
+        }
+
+        $shots = $video
+            ->shots()
+            ->with('take')
+            ->get();
+        $waiting = $shots->contains(fn(MusicVideoShot $shot) => $shot->needsClip() || $shot->drawing);
+
+        if ($waiting) {
+            $video
+                ->forceFill(['edited_at' => now()])
+                ->save();
+
+            return $video;
+        }
+
+        return $this->render($video);
     }
 
     /**

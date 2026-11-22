@@ -17,6 +17,8 @@ use App\Services\Ai\Video\ShotTakes;
 use App\Services\Ai\Video\VideoStorage;
 use App\Services\Audio\StemAudio;
 use App\Services\Audio\TrackAudio;
+use App\Services\Lyrics\Lyrics;
+use App\Services\Video\LyricCaptions;
 use App\Services\Video\VideoFiles;
 use App\Services\Video\VideoPart;
 use Illuminate\Support\Collection;
@@ -48,6 +50,8 @@ class RenderVideo implements AiTask, HandlesFailure
         protected VideoFiles $video,
         protected ShotTakes $takes,
         protected EditList $edits,
+        protected Lyrics $lyrics,
+        protected LyricCaptions $captions,
     ) {}
 
     /**
@@ -145,8 +149,9 @@ class RenderVideo implements AiTask, HandlesFailure
     }
 
     /**
-     * Cut the shots together over the song and keep the result as the
-     * video's file, with the edit list it was cut from.
+     * Cut the shots together over the song, draw the lyrics on when the
+     * video shows them, and keep the result as the video's file, with the
+     * edit list it was cut from.
      *
      * @param  array<string, mixed>  $extra
      */
@@ -158,6 +163,11 @@ class RenderVideo implements AiTask, HandlesFailure
         try {
             $stitched = $this->video->stitch($parts, $song, $video->size());
             $files[] = $stitched;
+
+            if ($video->lyrics) {
+                $stitched = $this->withLyrics($video, $stitched);
+                $files[] = $stitched;
+            }
 
             $old = $video->file;
             $file = $this->storage->put($video, $stitched, 'video', 'mp4');
@@ -178,6 +188,26 @@ class RenderVideo implements AiTask, HandlesFailure
             $this->storage->delete($old);
         } finally {
             array_map(fn(string $file) => @unlink($file), $files);
+        }
+    }
+
+    /**
+     * The stitched video with the song's synced lyrics drawn on, or the same
+     * file when none of its lines fall inside the video.
+     */
+    protected function withLyrics(MusicVideo $video, string $stitched): string
+    {
+        $lines = $this->lyrics->timedLines($video->track);
+        $subtitles = $this->captions->write($lines, $video->size(), $video->lyrics, $video->duration);
+
+        if (! $subtitles) {
+            return $stitched;
+        }
+
+        try {
+            return $this->video->caption($stitched, $subtitles);
+        } finally {
+            @unlink($subtitles);
         }
     }
 
