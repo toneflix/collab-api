@@ -18,6 +18,7 @@ use App\Http\Controllers\Creator\ProjectTrackStemController;
 use App\Http\Controllers\Creator\ProjectTrackVersionController;
 use App\Http\Controllers\Creator\ReleaseController;
 use App\Http\Controllers\Creator\StyleTagController;
+use App\Http\Controllers\Creator\TrackCanvasController;
 use App\Http\Controllers\Creator\TrackController;
 use App\Http\Controllers\Creator\VideoCharacterController;
 use Illuminate\Support\Facades\Route;
@@ -102,6 +103,16 @@ Route::middleware(['auth:sanctum'])
         Route::post('videos/{video}/shorts', [MusicVideoShortController::class, 'store'])->middleware('throttle:10,1')->name('videos.shorts.store');
         Route::get('videos/{video}/shorts/{short}', [MusicVideoShortController::class, 'show'])->name('videos.shorts.show');
         Route::delete('videos/{video}/shorts/{short}', [MusicVideoShortController::class, 'destroy'])->name('videos.shorts.destroy');
+        Route::get('tracks/{track}/canvas', [TrackCanvasController::class, 'show'])
+            ->name('tracks.canvas.show');
+        Route::post('tracks/{track}/canvas', [TrackCanvasController::class, 'store'])
+            ->middleware('throttle:10,1')
+            ->name('tracks.canvas.store');
+        Route::post('tracks/{track}/canvas/upload', [TrackCanvasController::class, 'upload'])
+            ->middleware('throttle:10,1')
+            ->name('tracks.canvas.upload');
+        Route::delete('tracks/{track}/canvas', [TrackCanvasController::class, 'destroy'])
+            ->name('tracks.canvas.destroy');
         Route::put('tracks/{track}/lyrics', [LyricsController::class, 'updateTrack'])->name('tracks.lyrics.update');
         Route::put('tracks/{track}/tags', [AudioTagController::class, 'updateTrack'])->name('tracks.tags.update');
         Route::put('tracks/{track}/moods', [StyleTagController::class, 'updateTrack'])->name('tracks.moods.update');

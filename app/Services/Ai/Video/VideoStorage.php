@@ -34,11 +34,11 @@ class VideoStorage
     protected const LINK_HOURS = 24;
 
     /**
-     * Copy a local file into the video's folder and return its path on the disk.
+     * Copy a local file into its owner's folder and return its path on the disk.
      */
-    public function put(MusicVideo $video, string $local, string $name, string $ext): string
+    public function put(Model $owner, string $local, string $name, string $ext): string
     {
-        $file = self::DIRECTORY . "/{$video->id}/{$name}-" . Str::random(8) . ".{$ext}";
+        $file = static::DIRECTORY . "/{$owner->getKey()}/{$name}-" . Str::random(8) . ".{$ext}";
         $stream = fopen($local, 'r');
 
         $this
@@ -126,13 +126,13 @@ class VideoStorage
     }
 
     /**
-     * Remove every file of a video.
+     * Remove every file of a video, or of whatever owns the folder.
      */
-    public function forget(MusicVideo $video): void
+    public function forget(Model $owner): void
     {
         $this
             ->disk()
-            ->deleteDirectory(self::DIRECTORY . "/{$video->id}");
+            ->deleteDirectory(static::DIRECTORY . "/{$owner->getKey()}");
     }
 
     /**

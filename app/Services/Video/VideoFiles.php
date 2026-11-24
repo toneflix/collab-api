@@ -88,6 +88,61 @@ class VideoFiles
     }
 
     /**
+     * A clip as a silent loop at this size, at most `$max` seconds long: its
+     * last `$fade` seconds dissolve into its start, so the end runs straight
+     * back into the beginning.
+     *
+     * @param  array{0: int, 1: int}  $size
+     */
+    public function loop(string $clip, array $size, float $max, float $fade = 1.0): string
+    {
+        [$width, $height] = $size;
+        $length = min($max + $fade, $this->length($clip));
+        $fade = min($fade, max(0.0, ($length - 1) / 2));
+
+        if ($fade <= 0) {
+            return $this->normalize($clip, $size, $max);
+        }
+
+        $out = $this->temp();
+        $fit = 'fps=' . self::FPS . ",scale={$width}:{$height}:force_original_aspect_ratio=increase,crop={$width}:{$height},setsar=1";
+        $at = fn(float $seconds) => number_format($seconds, 3, '.', '');
+        $filter = "[0:v]trim=duration={$at($length)},{$fit},split[body][head];"
+            . "[body]trim=start={$at($fade)},setpts=PTS-STARTPTS[main];"
+            . "[head]trim=duration={$at($fade)},setpts=PTS-STARTPTS[tail];"
+            . "[main][tail]xfade=transition=fade:duration={$at($fade)}:offset={$at($length - 2 * $fade)},format=yuv420p[out]";
+
+        $this->run([
+            '-i', $clip,
+            '-filter_complex', $filter,
+            '-map', '[out]',
+            '-an',
+            ...$this->videoEncoding(),
+            '-movflags', '+faststart',
+            $out,
+        ], $out);
+
+        return $out;
+    }
+
+    /**
+     * The first frame of a video as a JPEG.
+     */
+    public function poster(string $video): string
+    {
+        $out = $this->temp('jpg');
+
+        $this->run([
+            '-i', $video,
+            '-frames:v', '1',
+            '-q:v', '3',
+            $out,
+        ], $out);
+
+        return $out;
+    }
+
+    /**
      * Seconds a video file runs.
      */
     public function length(string $file): float
@@ -261,11 +316,11 @@ class VideoFiles
         }
     }
 
-    protected function temp(): string
+    protected function temp(string $ext = 'mp4'): string
     {
         $base = tempnam(sys_get_temp_dir(), 'video-');
         @unlink($base);
 
-        return "{$base}.mp4";
+        return "{$base}.{$ext}";
     }
 }

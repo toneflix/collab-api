@@ -10,6 +10,7 @@ use App\Http\Resources\TrackCollection;
 use App\Http\Resources\TrackResource;
 use App\Models\Release;
 use App\Models\Track;
+use App\Services\Ai\Video\Canvases;
 use App\Services\Ai\Video\MusicVideos;
 use App\Services\Artists\FeaturedArtists;
 use App\Services\Limits;
@@ -227,7 +228,7 @@ class TrackController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Request $request, MusicVideos $videos, string $release_id, string $id)
+    public function destroy(Request $request, MusicVideos $videos, Canvases $canvases, string $release_id, string $id)
     {
         /** @var Release $release */
         $release = $this->user->releases()
@@ -239,6 +240,7 @@ class TrackController extends Controller
             ->where(fn($q) => $q->where('slug', $id)->when(is_numeric($id), fn($q) => $q->orWhere('tracks.id', $id)));
 
         $videos->forgetForTracks($tracks);
+        $canvases->forgetForTracks($tracks);
         $tracks->delete();
 
         return (new TrackCollection([]))
