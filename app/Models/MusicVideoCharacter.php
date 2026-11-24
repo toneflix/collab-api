@@ -25,6 +25,7 @@ class MusicVideoCharacter extends Model
         'singer',
         'sheet',
         'provided',
+        'video_character_id',
     ];
 
     protected function casts(): array
@@ -38,5 +39,13 @@ class MusicVideoCharacter extends Model
     public function video(): BelongsTo
     {
         return $this->belongsTo(MusicVideo::class, 'music_video_id');
+    }
+
+    /**
+     * The saved character this one was cast from or saved as.
+     */
+    public function savedAs(): BelongsTo
+    {
+        return $this->belongsTo(VideoCharacter::class, 'video_character_id');
     }
 }

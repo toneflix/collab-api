@@ -8,6 +8,8 @@ use App\Models\MusicVideoCharacter;
 use App\Models\MusicVideoShort;
 use App\Models\MusicVideoShot;
 use App\Models\MusicVideoTake;
+use App\Models\User;
+use App\Models\VideoCharacter;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Facades\Storage;
@@ -19,11 +21,14 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * A music video's files on the uploads disk: its portrait, the stills and
- * takes of its shots, and the finished video.
+ * takes of its shots, and the finished video. Saved characters keep their
+ * sheets in a folder per person.
  */
 class VideoStorage
 {
     public const DIRECTORY = 'ai/videos';
+
+    public const CHARACTERS = 'ai/characters';
 
     /** Hours a signed link to a file works */
     protected const LINK_HOURS = 24;
@@ -39,6 +44,47 @@ class VideoStorage
         $this
             ->disk()
             ->writeStream($file, $stream);
+
+        if (is_resource($stream)) {
+            fclose($stream);
+        }
+
+        return $file;
+    }
+
+    /**
+     * Copy a sheet on the disk into the video's folder and return its new path.
+     */
+    public function copyInto(MusicVideo $video, string $file, string $name): string
+    {
+        $ext = pathinfo($file, PATHINFO_EXTENSION) ?: 'jpg';
+        $copy = self::DIRECTORY . "/{$video->id}/{$name}-" . Str::random(8) . ".{$ext}";
+
+        $this
+            ->disk()
+            ->copy($file, $copy);
+
+        return $copy;
+    }
+
+    /**
+     * Keep a character sheet in the person's folder of saved characters,
+     * copied from a file on the disk or from a local one.
+     */
+    public function putCharacter(User $user, string $source, string $ext, bool $local = false): string
+    {
+        $file = self::CHARACTERS . "/{$user->id}/sheet-" . Str::random(12) . ".{$ext}";
+        $disk = $this->disk();
+
+        if (! $local) {
+            $disk->copy($source, $file);
+
+            return $file;
+        }
+
+        $stream = fopen($source, 'r');
+
+        $disk->writeStream($file, $stream);
 
         if (is_resource($stream)) {
             fclose($stream);
@@ -91,18 +137,27 @@ class VideoStorage
 
     /**
      * Delete the folders of videos whose rows are gone, such as videos of
-     * deleted tracks or accounts. Folders are checked in batches as the
-     * disk lists them.
+     * deleted tracks or accounts, and the saved character folders of deleted
+     * accounts. Folders are checked in batches as the disk lists them.
      *
      * @return int Folders deleted
      */
     public function pruneOrphans(int $batch = 200): int
     {
+        return $this->pruneFolders(self::DIRECTORY, MusicVideo::class, $batch)
+            + $this->pruneFolders(self::CHARACTERS, User::class, $batch);
+    }
+
+    /**
+     * @param  class-string<Model>  $model  The model each folder is named after by id
+     */
+    protected function pruneFolders(string $directory, string $model, int $batch): int
+    {
         $disk = $this->disk();
         $ids = [];
         $deleted = 0;
 
-        foreach ($disk->listContents(static::DIRECTORY, false) as $item) {
+        foreach ($disk->listContents($directory, false) as $item) {
             $id = basename($item->path());
 
             if (! $item->isDir() || ! ctype_digit($id)) {
@@ -112,26 +167,25 @@ class VideoStorage
             $ids[] = (int) $id;
 
             if (count($ids) >= $batch) {
-                $deleted += $this->forgetMissing($ids);
+                $deleted += $this->forgetMissing($directory, $model, $ids);
                 $ids = [];
             }
         }
 
-        return $deleted + $this->forgetMissing($ids);
+        return $deleted + $this->forgetMissing($directory, $model, $ids);
     }
 
     /**
+     * @param  class-string<Model>  $model
      * @param  list<int>  $ids
      */
-    protected function forgetMissing(array $ids): int
+    protected function forgetMissing(string $directory, string $model, array $ids): int
     {
         if (! $ids) {
             return 0;
         }
 
-        $kept = $this
-            ->model()
-            ->newQuery()
+        $kept = $model::query()
             ->whereKey($ids)
             ->pluck('id')
             ->all();
@@ -139,7 +193,7 @@ class VideoStorage
         $disk = $this->disk();
 
         foreach ($missing as $id) {
-            $disk->deleteDirectory(static::DIRECTORY . "/{$id}");
+            $disk->deleteDirectory("{$directory}/{$id}");
         }
 
         return count($missing);
@@ -179,6 +233,11 @@ class VideoStorage
         }
 
         return $this->signed($character->sheet, 'ai.videos.character', ['video' => $character->music_video_id, 'character' => $character->id]);
+    }
+
+    public function savedSheetUrl(VideoCharacter $character): string
+    {
+        return $this->signed($character->sheet, 'ai.characters.sheet', ['character' => $character->id]);
     }
 
     /**
@@ -247,14 +306,6 @@ class VideoStorage
         }
 
         return $disk->response($file, null, $headers);
-    }
-
-    /**
-     * The model whose rows own the folders.
-     */
-    protected function model(): Model
-    {
-        return new MusicVideo;
     }
 
     protected function disk(): FilesystemAdapter

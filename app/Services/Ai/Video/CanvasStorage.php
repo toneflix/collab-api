@@ -3,7 +3,6 @@
 namespace App\Services\Ai\Video;
 
 use App\Models\TrackCanvas;
-use Illuminate\Database\Eloquent\Model;
 
 /**
  * Track canvases' clips and posters on the uploads disk, one folder per canvas.
@@ -30,8 +29,13 @@ class CanvasStorage extends VideoStorage
         return $this->signed($canvas->poster, 'ai.canvases.poster', ['canvas' => $canvas->id]);
     }
 
-    protected function model(): Model
+    /**
+     * Delete the folders of canvases whose rows are gone.
+     *
+     * @return int Folders deleted
+     */
+    public function pruneOrphans(int $batch = 200): int
     {
-        return new TrackCanvas;
+        return $this->pruneFolders(self::DIRECTORY, TrackCanvas::class, $batch);
     }
 }
