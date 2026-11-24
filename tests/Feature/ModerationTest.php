@@ -170,7 +170,7 @@ class ModerationTest extends TestCase
             ->forceFill(['title' => 'Midnight Harbour'])
             ->saveQuietly();
         $user = User::factory()
-            ->create(['username' => 'loudneighbour']);
+            ->create(['username' => 'loudneighbour', 'firstname' => 'Loud', 'lastname' => 'Neighbour', 'email' => 'loudneighbour@example.test']);
 
         $this
             ->report('release', $this->release->id)
