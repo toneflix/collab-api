@@ -92,12 +92,14 @@ class ScenePlanner
             ->filter()
             ->all();
 
+        $planned = $this->characters((array) ($data['characters'] ?? []), $style);
         $characters = $cast->isNotEmpty()
             ? $cast
                 ->map(fn(MusicVideoCharacter $character) => $character->only(['key', 'name', 'description', 'singer']))
+                ->when(! $cast->contains('singer', true), fn(Collection $given) => $given->prepend($planned[0]))
                 ->values()
                 ->all()
-            : $this->characters((array) ($data['characters'] ?? []), $style);
+            : $planned;
         $keys = array_column($characters, 'key');
 
         foreach ($shots as $i => $shot) {
@@ -228,7 +230,8 @@ class ScenePlanner
             ->implode("\n");
 
         if ($cast->isNotEmpty()) {
-            $facts .= "\n\nThe creator gave the cast. Use only these characters, with these keys, and copy them into \"characters\" as given:\n"
+            $singer = $cast->contains('singer', true) ? '' : ' Add the singer, key "singer", and no one else.';
+            $facts .= "\n\nThe creator gave the cast. Use only these characters, with these keys, and copy them into \"characters\" as given.{$singer}\n"
                 . $cast
                     ->map(fn(MusicVideoCharacter $character) => "- {$character->key}: {$character->name}"
                         . ($character->singer ? ' (the singer)' : '')

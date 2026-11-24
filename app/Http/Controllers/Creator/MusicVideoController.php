@@ -81,6 +81,9 @@ class MusicVideoController extends Controller
             'characters.*.description' => ['nullable', 'string', 'max:600'],
             'characters.*.singer' => ['nullable', 'boolean'],
             'characters.*.sheet' => ['required', 'image', 'max:10240', 'dimensions:min_width=512,min_height=512'],
+            'saved' => ['nullable', 'array', 'max:' . MusicVideoCharacter::MAX],
+            'saved.*.id' => ['required', 'integer', 'distinct'],
+            'saved.*.singer' => ['nullable', 'boolean'],
             'consent' => [Rule::excludeIf(! $request->hasFile('photo') && ! $request->filled('characters')), 'required', 'accepted'],
         ], [
             'consent.required' => 'Confirm the images are of you, or that you have the right to use them.',
@@ -92,7 +95,8 @@ class MusicVideoController extends Controller
             ->map(fn(array $character, int $i) => [...$character, 'sheet' => $request->file("characters.{$i}.sheet")])
             ->values()
             ->all();
-        $video = $videos->create($request->user(), $track, $valid, $photo, $characters);
+        $saved = $valid['saved'] ?? [];
+        $video = $videos->create($request->user(), $track, $valid, $photo, $characters, $saved);
 
         $video
             ->refresh()
