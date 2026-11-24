@@ -126,6 +126,27 @@ class VideoFiles
     }
 
     /**
+     * The video with the lines of an ASS subtitle file drawn into its frames,
+     * its sound copied as it is.
+     */
+    public function caption(string $video, string $subtitles): string
+    {
+        $out = $this->temp();
+        $filter = 'ass=filename=' . $this->filterPath($subtitles) . ':fontsdir=' . $this->filterPath(LyricCaptions::fontsDir());
+
+        $this->run([
+            '-i', $video,
+            '-vf', $filter,
+            ...$this->videoEncoding(),
+            '-c:a', 'copy',
+            '-movflags', '+faststart',
+            $out,
+        ], $out);
+
+        return $out;
+    }
+
+    /**
      * The first frame of a video as a JPEG.
      */
     public function poster(string $video): string
@@ -140,6 +161,46 @@ class VideoFiles
         ], $out);
 
         return $out;
+    }
+
+    /**
+     * A still twice the size of the video for a lyric video: the artwork
+     * whole in the middle over a dimmed, blurred fill of itself, or a plain
+     * dark background without artwork.
+     *
+     * @param  array{0: int, 1: int}  $size
+     */
+    public function lyricPoster(?string $artwork, array $size): string
+    {
+        [$width, $height] = [$size[0] * 2, $size[1] * 2];
+        $side = (int) (round(min($width * 0.8, $height * 0.52)) / 2) * 2;
+        $out = $this->temp('jpg');
+
+        if (! $artwork) {
+            $this->run(['-f', 'lavfi', '-i', "color=c=0x15171c:s={$width}x{$height}", '-frames:v', '1', $out], $out);
+
+            return $out;
+        }
+
+        $this->run([
+            '-i', $artwork,
+            '-filter_complex',
+            "[0:v]split[a][b];[a]scale={$width}:{$height}:force_original_aspect_ratio=increase,crop={$width}:{$height},boxblur=40:2,eq=brightness=-0.25[bg];"
+                . "[b]scale={$side}:{$side}:force_original_aspect_ratio=decrease[fg];[bg][fg]overlay=(W-w)/2:(H-h)*2/5,setsar=1",
+            '-frames:v', '1',
+            '-q:v', '3',
+            $out,
+        ], $out);
+
+        return $out;
+    }
+
+    /**
+     * A path quoted for use as an FFmpeg filter option.
+     */
+    protected function filterPath(string $path): string
+    {
+        return "'" . str_replace("'", "'\\''", $path) . "'";
     }
 
     /**

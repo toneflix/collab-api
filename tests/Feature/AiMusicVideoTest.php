@@ -16,6 +16,7 @@ use App\Services\Ai\AiSettings;
 use App\Services\Ai\Credits;
 use App\Services\Ai\Video\ShotList;
 use App\Services\Composer\Ai\LyricModel;
+use App\Services\Video\LyricCaptions;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\Client\Request;
 use Illuminate\Http\UploadedFile;
@@ -1242,6 +1243,100 @@ class AiMusicVideoTest extends TestCase
         $this->assertTrue(collect($video['shots'])->every(fn(array $shot) => $shot['keyframeUrl'] !== null));
     }
 
+    public function test_a_lyric_video_shows_the_synced_lyrics_over_the_artwork_for_free(): void
+    {
+        Sanctum::actingAs($this->owner);
+
+        $this->withLyrics();
+        $this->withArtwork('red');
+
+        $id = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos", ['mode' => MusicVideo::LYRICS])
+            ->assertCreated()
+            ->assertJsonPath('message', 'Making your lyric video.')
+            ->assertJsonPath('data.status', MusicVideo::READY)
+            ->assertJsonPath('data.mode', MusicVideo::LYRICS)
+            ->assertJsonPath('data.lyrics', MusicVideo::CAPTIONS)
+            ->assertJsonPath('data.billing', null)
+            ->assertJsonPath('data.shots.0.motion', 'zoom_in')
+            ->json('data.id');
+
+        $video = MusicVideo::query()
+            ->findOrFail($id);
+
+        $this->assertSame(1000, Credits::for($this->owner)->total());
+        $this->assertCount(0, Http::recorded());
+        $this->assertEqualsWithDelta(12.0, $this->duration($video->file), 0.2);
+        $this->assertGreaterThan(200, $this->brightest($video->file, 1.5));
+        $this->assertLessThan(100, $this->brightest($video->file, 11.5));
+        $this->assertGreaterThan(150, $this->centre($video->file, 1.5)[0]);
+    }
+
+    public function test_lyric_videos_need_synced_lyrics(): void
+    {
+        Sanctum::actingAs($this->owner);
+
+        $this->postJson("/api/creator/tracks/{$this->track->slug}/videos", ['mode' => MusicVideo::LYRICS])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['lyrics' => 'This song has no synced lyrics yet.']);
+
+        $this->assertSame(0, MusicVideo::query()->where('track_id', $this->track->id)->count());
+    }
+
+    public function test_lyrics_can_be_put_on_and_taken_off_a_finished_video_for_free(): void
+    {
+        Sanctum::actingAs($this->owner);
+
+        $id = $this->postJson("/api/creator/tracks/{$this->track->slug}/videos", ['mode' => 'legacy'])
+            ->json('data.id');
+
+        $this->postJson("/api/creator/videos/{$id}/render");
+
+        $this->putJson("/api/creator/videos/{$id}/lyrics", ['lyrics' => MusicVideo::CENTERED])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('lyrics');
+
+        $this->withLyrics();
+
+        $file = MusicVideo::query()->findOrFail($id)->file;
+        $credits = Credits::for($this->owner)->total();
+        $requests = count(Http::recorded());
+
+        $this->putJson("/api/creator/videos/{$id}/lyrics", ['lyrics' => MusicVideo::CENTERED])
+            ->assertAccepted()
+            ->assertJsonPath('data.status', MusicVideo::READY)
+            ->assertJsonPath('data.lyrics', MusicVideo::CENTERED);
+
+        $video = MusicVideo::query()
+            ->findOrFail($id);
+
+        $this->assertNotSame($file, $video->file);
+        $this->assertSame($credits, Credits::for($this->owner)->total());
+        $this->assertCount($requests, Http::recorded());
+
+        $this->putJson("/api/creator/videos/{$id}/lyrics", ['lyrics' => null])
+            ->assertAccepted()
+            ->assertJsonPath('data.lyrics', null);
+    }
+
+    public function test_lyric_lines_become_timed_captions_that_end_by_the_next_line(): void
+    {
+        $file = (new LyricCaptions)->write([
+            ['start' => 0.5, 'end' => null, 'text' => 'First {line}'],
+            ['start' => 2.0, 'end' => 9.0, 'text' => 'Second line'],
+            ['start' => 3.0, 'end' => 3.1, 'text' => 'Too short'],
+            ['start' => 13.0, 'end' => 14.0, 'text' => 'After the end'],
+        ], [1280, 720], MusicVideo::CAPTIONS, 12.0);
+        $this->temp[] = $file;
+        $ass = (string) file_get_contents($file);
+
+        $this->assertStringContainsString('PlayResX: 1280', $ass);
+        $this->assertStringContainsString('Dialogue: 0,0:00:00.50,0:00:02.00,Lyric,,0,0,0,,First (line)', $ass);
+        $this->assertStringContainsString('Dialogue: 0,0:00:02.00,0:00:03.00,Lyric,,0,0,0,,Second line', $ass);
+        $this->assertStringNotContainsString('Too short', $ass);
+        $this->assertStringNotContainsString('After the end', $ass);
+        $this->assertNull((new LyricCaptions)->write([], [1280, 720], MusicVideo::CAPTIONS, 12.0));
+    }
+
     public function test_listeners_get_the_owners_finished_video_for_a_track(): void
     {
         $this->getJson("/api/tracks/{$this->track->slug}/video")
@@ -1427,6 +1522,92 @@ class AiMusicVideoTest extends TestCase
     protected function slots(array $ids): array
     {
         return array_map(fn(int $id, int $i) => ['id' => $id, 'start' => $i * 3, 'end' => $i * 3 + 3], $ids, array_keys($ids));
+    }
+
+    /**
+     * Give the test track synced lyrics for its first ten seconds.
+     */
+    protected function withLyrics(): void
+    {
+        $this->track
+            ->lyric()
+            ->create([
+                'lines' => [
+                    ['start' => 0.5, 'end' => 4.5, 'text' => 'Driving through the night'],
+                    ['start' => 5.0, 'end' => 10.0, 'text' => 'City lights are calling'],
+                ],
+                'text' => "Driving through the night\nCity lights are calling",
+                'source' => 'written',
+            ]);
+    }
+
+    /**
+     * Give the test track a square artwork of one colour.
+     */
+    protected function withArtwork(string $colour): void
+    {
+        $media = new Media;
+        $name = 'art-' . uniqid() . '.png';
+        $image = $this->ffmpeg('png', ['-f', 'lavfi', '-i', "color=c={$colour}:s=600x600", '-frames:v', '1']);
+        $bytes = (string) file_get_contents($image);
+
+        $media->disk->put($media->mediaInfo('artwork', $name)['path'], $bytes);
+        $this->track
+            ->forceFill(['image' => $name])
+            ->saveQuietly();
+    }
+
+    /**
+     * The brightest luma in the bottom fifth of a stored video's frame at
+     * this second, where lyric captions sit.
+     */
+    protected function brightest(string $file, float $at): int
+    {
+        $local = $this->local($file);
+        $probe = new Process([
+            'ffmpeg', '-hide_banner', '-ss', (string) $at, '-i', $local,
+            '-vf', 'crop=iw:ih/5:0:ih*4/5,signalstats,metadata=print:key=lavfi.signalstats.YMAX',
+            '-frames:v', '1', '-f', 'null', '-',
+        ]);
+        $probe->mustRun();
+
+        preg_match('/YMAX=(\d+)/', $probe->getErrorOutput() . $probe->getOutput(), $match);
+
+        return (int) ($match[1] ?? 0);
+    }
+
+    /**
+     * Red, green and blue of the middle of a stored video's frame at this second.
+     *
+     * @return array{0: int, 1: int, 2: int}
+     */
+    protected function centre(string $file, float $at): array
+    {
+        $local = $this->local($file);
+        $probe = new Process([
+            'ffmpeg', '-hide_banner', '-loglevel', 'error', '-ss', (string) $at, '-i', $local,
+            '-vf', 'crop=iw/10:ih/10:iw*9/20:ih*9/20,scale=1:1',
+            '-frames:v', '1', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-',
+        ]);
+        $probe->mustRun();
+
+        $rgb = array_values(unpack('C3', $probe->getOutput()));
+
+        return [$rgb[0], $rgb[1], $rgb[2]];
+    }
+
+    /**
+     * A stored file copied to a local temporary path.
+     */
+    protected function local(string $file): string
+    {
+        $local = $this->path(pathinfo($file, PATHINFO_EXTENSION) ?: 'mp4');
+        $content = Storage::disk(config('filesystems.default'))
+            ->get($file);
+
+        file_put_contents($local, $content);
+
+        return $local;
     }
 
     /**

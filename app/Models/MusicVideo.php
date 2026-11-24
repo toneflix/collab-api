@@ -38,7 +38,18 @@ class MusicVideo extends Model
     /** The storyboard tells a story with a new scene every few seconds */
     public const LEGACY = 'legacy';
 
-    public const MODES = [self::LOCATIONS, self::LEGACY];
+    /** The song's synced lyrics over its artwork, with no AI clips */
+    public const LYRICS = 'lyrics';
+
+    public const MODES = [self::LOCATIONS, self::LEGACY, self::LYRICS];
+
+    /** One line at a time along the bottom */
+    public const CAPTIONS = 'captions';
+
+    /** One large line at a time in the middle */
+    public const CENTERED = 'centered';
+
+    public const LYRIC_STYLES = [self::CAPTIONS, self::CENTERED];
 
     protected $attributes = [
         'status' => self::PLANNING,
@@ -55,6 +66,7 @@ class MusicVideo extends Model
         'mode',
         'quality',
         'brief',
+        'lyrics',
         'portrait',
         'style',
         'locations',
@@ -199,6 +211,14 @@ class MusicVideo extends Model
         $cut = array_column($this->cut ?? [], 'keyframe');
 
         return array_values(array_unique(array_filter([...$shown, ...$cut])));
+    }
+
+    /**
+     * Whether the video is a lyric video over the song's artwork.
+     */
+    public function isLyricVideo(): bool
+    {
+        return $this->mode === self::LYRICS;
     }
 
     /**
