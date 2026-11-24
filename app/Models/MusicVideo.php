@@ -104,6 +104,11 @@ class MusicVideo extends Model
         return $this->hasMany(MusicVideoTake::class);
     }
 
+    public function shorts(): HasMany
+    {
+        return $this->hasMany(MusicVideoShort::class);
+    }
+
     public function characters(): HasMany
     {
         return $this

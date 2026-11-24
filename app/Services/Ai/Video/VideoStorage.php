@@ -5,6 +5,7 @@ namespace App\Services\Ai\Video;
 use App\Enums\HttpStatus;
 use App\Models\MusicVideo;
 use App\Models\MusicVideoCharacter;
+use App\Models\MusicVideoShort;
 use App\Models\MusicVideoShot;
 use App\Models\MusicVideoTake;
 use Illuminate\Database\Eloquent\Model;
@@ -181,23 +182,54 @@ class VideoStorage
     }
 
     /**
-     * @param  array<string, int>  $parameters
+     * A link to a short, or one that saves it as a file when `$download` is set.
      */
-    protected function signed(string $file, string $route, array $parameters): string
+    public function shortUrl(MusicVideoShort $short, bool $download = false): ?string
+    {
+        if (! $short->file) {
+            return null;
+        }
+
+        $parameters = ['video' => $short->music_video_id, 'short' => $short->id];
+        $options = [];
+
+        if ($download) {
+            $parameters['download'] = 1;
+            $options['ResponseContentDisposition'] = 'attachment; filename="' . $this->shortName($short) . '"';
+        }
+
+        return $this->signed($short->file, 'ai.videos.short', $parameters, $options);
+    }
+
+    /**
+     * The file name a short downloads as.
+     */
+    public function shortName(MusicVideoShort $short): string
+    {
+        $slug = $short->video?->track?->slug ?: 'music-video';
+
+        return "{$slug}-short-{$short->id}.mp4";
+    }
+
+    /**
+     * @param  array<string, int>  $parameters
+     * @param  array<string, string>  $options
+     */
+    protected function signed(string $file, string $route, array $parameters, array $options = []): string
     {
         $expires = now()->addHours(self::LINK_HOURS);
         $disk = $this->disk();
 
         return rescue(
-            fn() => $disk->temporaryUrl($file, $expires),
+            fn() => $disk->temporaryUrl($file, $expires, $options),
             fn() => URL::temporarySignedRoute($route, $expires, $parameters),
             false,
         );
     }
 
     /**
-     * Send a stored file. Files on a local disk go out with byte range
-     * support, so players can seek in them.
+     * Send a stored file, as an attachment named `$download` when set. Files
+     * on a local disk play with byte range support, so players can seek in them.
      */
     public function stream(?string $file, string $type, ?string $download = null): StreamedResponse|BinaryFileResponse
     {
@@ -206,11 +238,15 @@ class VideoStorage
 
         abort_unless($file && $disk->exists($file), HttpStatus::NOT_FOUND->value, 'That file is gone.');
 
-        if (! $download && $disk->getAdapter() instanceof LocalFilesystemAdapter) {
+        if ($download) {
+            return $disk->download($file, $download, $headers);
+        }
+
+        if ($disk->getAdapter() instanceof LocalFilesystemAdapter) {
             return response()->file($disk->path($file), $headers);
         }
 
-        return $disk->response($file, $download, $headers);
+        return $disk->response($file, null, $headers);
     }
 
     /**

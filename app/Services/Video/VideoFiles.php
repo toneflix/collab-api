@@ -60,6 +60,34 @@ class VideoFiles
     }
 
     /**
+     * A stretch of a video as a vertical H.264/AAC MP4 at `$size`. The frame
+     * is the full height of the video, placed across it by `$focus` from 0
+     * (left edge) to 1 (right edge), and the sound fades in and out.
+     *
+     * @param  array{0: int, 1: int}  $size
+     */
+    public function vertical(string $video, float $start, float $length, float $focus, array $size): string
+    {
+        [$width, $height] = $size;
+        $out = $this->temp();
+        $frame = "min(iw\\,ih*{$width}/{$height})";
+        $focus = number_format(min(1, max(0, $focus)), 3, '.', '');
+        $fadeOut = number_format(max(0, $length - 1), 3, '.', '');
+
+        $this->run([
+            '-ss', number_format($start, 3, '.', ''),
+            '-i', $video,
+            '-t', number_format($length, 3, '.', ''),
+            '-vf', "crop={$frame}:ih:(iw-{$frame})*{$focus}:0,scale={$width}:{$height},fps=" . self::FPS . ',setsar=1',
+            '-af', "afade=t=in:d=0.3,afade=t=out:st={$fadeOut}:d=1",
+            ...$this->encoding(),
+            $out,
+        ], $out);
+
+        return $out;
+    }
+
+    /**
      * A clip as a silent loop at this size, at most `$max` seconds long: its
      * last `$fade` seconds dissolve into its start, so the end runs straight
      * back into the beginning.
