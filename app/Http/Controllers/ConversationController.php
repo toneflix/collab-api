@@ -217,6 +217,7 @@ class ConversationController extends Controller
         Conversations::broadcast($comment, 'comment.deleted');
         Conversations::forgetVoice($comment);
         $comment->delete();
+        Conversations::withdrawn($root, $comment);
 
         return (new ConversationMessageResource($comment))
             ->additional([

@@ -7,6 +7,7 @@ use App\Models\Project;
 use App\Models\ProjectTrack;
 use App\Models\Release;
 use App\Models\User;
+use App\Notifications\NewMessagesNotification;
 use App\Services\Realtime\Realtime;
 use App\Services\Realtime\RealtimeSettings;
 use Illuminate\Broadcasting\Broadcasters\Broadcaster;
@@ -225,6 +226,24 @@ class ConversationTest extends TestCase
         $this
             ->getJson($this->url('/messages'))
             ->assertForbidden();
+    }
+
+    public function test_deleting_a_message_withdraws_its_notification_once_nothing_is_unread(): void
+    {
+        $first = $this->track->commentAsUser($this->collaborator, 'First');
+        $second = $this->track->commentAsUser($this->collaborator, 'Second');
+        $this->owner->notify(new NewMessagesNotification('project-track', $this->track->id, 'Chat track', 2, ['Ben'], 'Second'));
+
+        Sanctum::actingAs($this->collaborator);
+        $this
+            ->deleteJson($this->url("/messages/{$second->id}"))
+            ->assertStatus(202);
+        $this->assertSame(1, $this->owner->unreadNotifications()->count());
+
+        $this
+            ->deleteJson($this->url("/messages/{$first->id}"))
+            ->assertStatus(202);
+        $this->assertSame(0, $this->owner->unreadNotifications()->count());
     }
 
     public function test_people_delete_their_own_messages_and_owners_any(): void

@@ -11,6 +11,7 @@ use App\Models\ProjectTrack;
 use App\Models\Release;
 use App\Models\Track;
 use App\Models\User;
+use App\Notifications\NewMessagesNotification;
 use App\Services\Realtime\Realtime;
 use Illuminate\Contracts\Pagination\CursorPaginator;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -403,6 +404,33 @@ class Conversations
             ->map(fn($id) => (int) $id)
             ->unique()
             ->values();
+    }
+
+    /**
+     * A message was deleted: drop the "new messages" notification of each
+     * recipient who has nothing left unread in the conversation.
+     */
+    public static function withdrawn(Model $root, Comment $comment): void
+    {
+        $ids = static::recipients($root, $comment)
+            ->reject(fn(int $id) => $id === (int) $comment->user_id);
+
+        if ($ids->isEmpty()) {
+            return;
+        }
+
+        $path = '/messages/' . static::typeOf($root) . '/' . $root->getKey();
+
+        User::query()
+            ->withoutGlobalScopes()
+            ->whereIn('id', $ids)
+            ->get()
+            ->reject(fn(User $user) => static::unreadCount($root, $user) > 0)
+            ->each(fn(User $user) => $user
+                ->unreadNotifications()
+                ->where('type', NewMessagesNotification::class)
+                ->where('data->path', $path)
+                ->delete());
     }
 
     /**
