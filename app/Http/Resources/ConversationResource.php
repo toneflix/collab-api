@@ -20,7 +20,7 @@ class ConversationResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        $user = $request->user();
+        $user = $request->user('sanctum');
         $last = $this->resource->relationLoaded('latestMessage') ? $this->resource->getRelation('latestMessage') : null;
 
         return [

@@ -11,6 +11,7 @@ use App\Models\ProjectTrack;
 use App\Models\Release;
 use App\Models\Track;
 use App\Models\User;
+use App\Notifications\NewMessagesNotification;
 use App\Services\Realtime\Realtime;
 use Illuminate\Contracts\Pagination\CursorPaginator;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -43,9 +44,10 @@ class Conversations
     }
 
     /**
-     * The conversation's subject, if it exists and the user may see it.
+     * The conversation's subject, if it exists and the user (or a guest) may
+     * see it.
      */
-    public static function find(string $type, string|int $id, User $user): Model
+    public static function find(string $type, string|int $id, ?User $user): Model
     {
         $class = static::classFor($type);
         abort_unless($class, 404, 'There is no such conversation.');
@@ -276,8 +278,12 @@ class Conversations
         };
     }
 
-    public static function unreadCount(Model $root, User $user, mixed $readAt = false): int
+    public static function unreadCount(Model $root, ?User $user, mixed $readAt = false): int
     {
+        if (! $user) {
+            return 0;
+        }
+
         if ($readAt === false) {
             $readAt = DB::table('conversation_reads')
                 ->where(['user_id' => $user->id, 'root_type' => $root::class, 'root_id' => $root->getKey()])
@@ -398,6 +404,33 @@ class Conversations
             ->map(fn($id) => (int) $id)
             ->unique()
             ->values();
+    }
+
+    /**
+     * A message was deleted: drop the "new messages" notification of each
+     * recipient who has nothing left unread in the conversation.
+     */
+    public static function withdrawn(Model $root, Comment $comment): void
+    {
+        $ids = static::recipients($root, $comment)
+            ->reject(fn(int $id) => $id === (int) $comment->user_id);
+
+        if ($ids->isEmpty()) {
+            return;
+        }
+
+        $path = '/messages/' . static::typeOf($root) . '/' . $root->getKey();
+
+        User::query()
+            ->withoutGlobalScopes()
+            ->whereIn('id', $ids)
+            ->get()
+            ->reject(fn(User $user) => static::unreadCount($root, $user) > 0)
+            ->each(fn(User $user) => $user
+                ->unreadNotifications()
+                ->where('type', NewMessagesNotification::class)
+                ->where('data->path', $path)
+                ->delete());
     }
 
     /**

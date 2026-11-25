@@ -5,7 +5,9 @@ namespace Tests\Feature;
 use App\Models\Comment;
 use App\Models\Project;
 use App\Models\ProjectTrack;
+use App\Models\Release;
 use App\Models\User;
+use App\Notifications\NewMessagesNotification;
 use App\Services\Realtime\Realtime;
 use App\Services\Realtime\RealtimeSettings;
 use Illuminate\Broadcasting\Broadcasters\Broadcaster;
@@ -201,6 +203,47 @@ class ConversationTest extends TestCase
         $this
             ->getJson('/api/conversations/nonsense/1')
             ->assertNotFound();
+    }
+
+    public function test_guests_read_public_conversations_only(): void
+    {
+        $release = Release::factory()
+            ->create(['user_id' => $this->owner->id, 'privacy' => 'public']);
+        $release->commentAsUser($this->collaborator, 'Great album!');
+
+        $this
+            ->getJson("/api/conversations/release/{$release->id}")
+            ->assertOk()
+            ->assertJsonPath('data.unread', 0)
+            ->assertJsonPath('data.canDeleteAny', false);
+        $this
+            ->getJson("/api/conversations/release/{$release->id}/messages")
+            ->assertOk()
+            ->assertJsonPath('data.0.body', 'Great album!');
+        $this
+            ->postJson("/api/conversations/release/{$release->id}/messages", ['body' => 'Hi'])
+            ->assertUnauthorized();
+        $this
+            ->getJson($this->url('/messages'))
+            ->assertForbidden();
+    }
+
+    public function test_deleting_a_message_withdraws_its_notification_once_nothing_is_unread(): void
+    {
+        $first = $this->track->commentAsUser($this->collaborator, 'First');
+        $second = $this->track->commentAsUser($this->collaborator, 'Second');
+        $this->owner->notify(new NewMessagesNotification('project-track', $this->track->id, 'Chat track', 2, ['Ben'], 'Second'));
+
+        Sanctum::actingAs($this->collaborator);
+        $this
+            ->deleteJson($this->url("/messages/{$second->id}"))
+            ->assertStatus(202);
+        $this->assertSame(1, $this->owner->unreadNotifications()->count());
+
+        $this
+            ->deleteJson($this->url("/messages/{$first->id}"))
+            ->assertStatus(202);
+        $this->assertSame(0, $this->owner->unreadNotifications()->count());
     }
 
     public function test_people_delete_their_own_messages_and_owners_any(): void

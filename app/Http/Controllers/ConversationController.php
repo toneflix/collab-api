@@ -44,11 +44,11 @@ class ConversationController extends Controller
     }
 
     /**
-     * What one conversation is about.
+     * What one conversation is about. Guests can read public ones.
      */
     public function show(Request $request, string $type, string $id)
     {
-        $root = Conversations::find($type, $id, $request->user());
+        $root = Conversations::find($type, $id, $request->user('sanctum'));
 
         return (new ConversationResource($root))
             ->additional([
@@ -61,14 +61,14 @@ class ConversationController extends Controller
     /**
      * A page of messages, oldest first. Without a cursor it's the newest
      * page; pass `meta.next_cursor` as `cursor` for the page above it.
+     * Guests can read public conversations.
      */
     public function messages(Request $request, string $type, string $id)
     {
         $request->validate(['limit' => ['nullable', 'integer', 'between:1,100']]);
 
-        $root = Conversations::find($type, $id, $request->user());
-
-        $messages = Conversations::messagesPage($root, (int) $request->input('limit', 30));
+        $root = Conversations::find($type, $id, $request->user('sanctum'));
+        $messages = Conversations::messagesPage($root, $request->perPage(30));
 
         return (new ConversationMessageCollection($messages))
             ->additional([
@@ -217,6 +217,7 @@ class ConversationController extends Controller
         Conversations::broadcast($comment, 'comment.deleted');
         Conversations::forgetVoice($comment);
         $comment->delete();
+        Conversations::withdrawn($root, $comment);
 
         return (new ConversationMessageResource($comment))
             ->additional([

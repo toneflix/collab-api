@@ -61,11 +61,11 @@ class Channels
     }
 
     /**
-     * Whether a user can see a model, and so listen to its channels. Public
-     * items are open to everyone signed in; private ones to their owner and,
-     * for projects, the accepted collaborators.
+     * Whether a user, or a guest when there is none, can see a model and its
+     * conversation. Public items are open to everyone; private ones to their
+     * owner and, for projects, the accepted collaborators.
      */
-    public static function canView(User $user, Model $model): bool
+    public static function canView(?User $user, Model $model): bool
     {
         if ($model instanceof Project || $model instanceof ProjectTrack) {
             return Gate::forUser($user)
@@ -82,7 +82,7 @@ class Channels
             default => null,
         };
 
-        return $ownerId !== null && (int) $ownerId === (int) $user->id;
+        return $user !== null && $ownerId !== null && (int) $ownerId === (int) $user->id;
     }
 
     /**
