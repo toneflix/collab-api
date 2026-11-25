@@ -43,9 +43,10 @@ class Conversations
     }
 
     /**
-     * The conversation's subject, if it exists and the user may see it.
+     * The conversation's subject, if it exists and the user (or a guest) may
+     * see it.
      */
-    public static function find(string $type, string|int $id, User $user): Model
+    public static function find(string $type, string|int $id, ?User $user): Model
     {
         $class = static::classFor($type);
         abort_unless($class, 404, 'There is no such conversation.');
@@ -276,8 +277,12 @@ class Conversations
         };
     }
 
-    public static function unreadCount(Model $root, User $user, mixed $readAt = false): int
+    public static function unreadCount(Model $root, ?User $user, mixed $readAt = false): int
     {
+        if (! $user) {
+            return 0;
+        }
+
         if ($readAt === false) {
             $readAt = DB::table('conversation_reads')
                 ->where(['user_id' => $user->id, 'root_type' => $root::class, 'root_id' => $root->getKey()])
