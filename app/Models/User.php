@@ -694,11 +694,52 @@ class User extends Authenticatable implements Commentator, Reportable
     }
 
     /**
-     * What the user's plan gives for a feature.
+     * Plan features admins gave this account on top of its plan.
+     */
+    public function featureGrants(): HasMany
+    {
+        return $this->hasMany(FeatureGrant::class);
+    }
+
+    /**
+     * The features granted to this account now, as feature values.
+     * There is at most one grant per feature.
+     */
+    public function grantedFeatures(): Attribute
+    {
+        return Attribute::make(
+            get: fn() => $this
+                ->featureGrants()
+                ->active()
+                ->pluck('feature')
+                ->map(fn(Feature $feature) => $feature->value)
+                ->all(),
+        )->shouldCache();
+    }
+
+    /**
+     * What the account gets for a feature: on when an admin granted it,
+     * otherwise what the plan gives.
      */
     public function feature(Feature $feature): bool|int
     {
+        if ($feature->type() === 'toggle' && in_array($feature->value, $this->granted_features, true)) {
+            return true;
+        }
+
         return $this->current_plan->feature($feature);
+    }
+
+    /**
+     * Every catalogue feature with what this account gets for it.
+     *
+     * @return array<string, bool|int>
+     */
+    public function allFeatures(): array
+    {
+        return collect(Feature::cases())
+            ->mapWithKeys(fn(Feature $f) => [$f->value => $this->feature($f)])
+            ->all();
     }
 
     /**

@@ -2,9 +2,11 @@
 
 namespace App\Services\Admin;
 
+use App\Enums\Feature;
 use App\Enums\HttpStatus;
 use App\Models\AdminAction;
 use App\Models\AiCreditEntry;
+use App\Models\FeatureGrant;
 use App\Models\Plan;
 use App\Models\User;
 use App\Services\Ai\Credits;
@@ -33,6 +35,7 @@ class UserManager
         'verify' => [],
         'credits' => [],
         'plan' => ['manage-plans'],
+        'features' => ['manage-plans'],
         'funds' => ['manage-payouts'],
         'roles' => ['manage-admins'],
     ];
@@ -328,6 +331,55 @@ class UserManager
             }
 
             $this->record($admin, $user, 'plan.removed', $reason, ['plan' => $plan]);
+
+            return $user;
+        });
+    }
+
+    /**
+     * Give the account a plan feature on top of its plan, until a date or
+     * until revoked. Granting it again replaces the earlier grant.
+     */
+    public function grantFeature(?User $admin, User $user, Feature $feature, ?Carbon $until = null, ?string $reason = null): FeatureGrant
+    {
+        if (! in_array($feature, Feature::grantable(), true)) {
+            throw ValidationException::withMessages(['feature' => 'Only on or off features can be granted.']);
+        }
+
+        return DB::transaction(function () use ($admin, $user, $feature, $until, $reason) {
+            $grant = $user
+                ->featureGrants()
+                ->updateOrCreate(['feature' => $feature->value], [
+                    'granted_by_id' => $admin?->id,
+                    'reason' => $reason,
+                    'expires_at' => $until,
+                ]);
+
+            $this->record($admin, $user, 'feature.granted', $reason, [
+                'feature' => $feature->title(),
+                'until' => $until?->toIso8601String(),
+            ]);
+
+            return $grant;
+        });
+    }
+
+    /**
+     * Take back a feature an admin granted. What the plan gives stays.
+     */
+    public function revokeFeature(?User $admin, User $user, Feature $feature, ?string $reason = null): User
+    {
+        return DB::transaction(function () use ($admin, $user, $feature, $reason) {
+            $deleted = $user
+                ->featureGrants()
+                ->where('feature', $feature->value)
+                ->delete();
+
+            if (! $deleted) {
+                throw ValidationException::withMessages(['feature' => 'This account wasn\'t granted that feature.']);
+            }
+
+            $this->record($admin, $user, 'feature.revoked', $reason, ['feature' => $feature->title()]);
 
             return $user;
         });
