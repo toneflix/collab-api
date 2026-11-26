@@ -308,6 +308,7 @@ class ReleaseController extends Controller
             'tracks.*.description' => ['nullable', 'string'],
             'tracks.*.project_track_id' => ['nullable', 'exists:project_tracks,id'],
             'tracks.*.stems_price' => ['nullable', 'numeric', 'min:0', 'max:9999999'],
+            'tracks.*.open_download' => ['nullable', 'boolean'],
             ...FeaturedArtists::rules('tracks.*.featured_ids'),
         ], [
             // 'tracks.*.id' => 'Invalid track.'
@@ -327,9 +328,22 @@ class ReleaseController extends Controller
             'tracks.*.featured_ids.*' => 'featured artist',
         ]);
 
+        $limits = Limits::for($this->user);
+
         foreach ($tracks as $i => $form) {
-            $current = isset($form['id']) ? (float) $release->tracks()->whereKey($form['id'])->value('stems_price') : 0;
-            Limits::for($this->user)->ensureCanCharge(Feature::SELL_STEMS, $form['stems_price'] ?? null, $current, "tracks.{$i}.stems_price");
+            $current = isset($form['id'])
+                ? $release
+                    ->tracks()
+                    ->whereKey($form['id'])
+                    ->first(['id', 'stems_price', 'open_download'])
+                : null;
+
+            $limits->ensureCanCharge(Feature::SELL_STEMS, $form['stems_price'] ?? null, (float) ($current?->stems_price ?? 0), "tracks.{$i}.stems_price");
+
+            // A track opened before keeps its download, so the release can still be edited
+            if (filter_var($form['open_download'] ?? false, FILTER_VALIDATE_BOOL) && ! $current?->open_download) {
+                $limits->ensureAllowed(Feature::OPEN_DOWNLOADS, "tracks.{$i}.open_download");
+            }
         }
 
         collect($tracks)

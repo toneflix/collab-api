@@ -27,11 +27,19 @@ class Limits
     }
 
     /**
+     * What the account gets for a feature, admin grants included.
+     */
+    public function value(Feature $feature): bool|int
+    {
+        return $this->user?->feature($feature) ?? $this->plan()->feature($feature);
+    }
+
+    /**
      * The limit for a feature on this account. 0 means no limit.
      */
     public function get(Feature $feature): int
     {
-        return (int) $this->plan()->feature($feature);
+        return (int) $this->value($feature);
     }
 
     /**
@@ -53,7 +61,7 @@ class Limits
      */
     public function ensureAllowed(Feature $feature, string $field, ?string $message = null): void
     {
-        if (! $this->plan()->feature($feature)) {
+        if (! $this->value($feature)) {
             throw ValidationException::withMessages([
                 $field => $message ?? __(':feature is not included in your plan.', ['feature' => $feature->title()]),
             ]);

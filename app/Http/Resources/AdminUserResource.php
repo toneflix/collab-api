@@ -36,6 +36,7 @@ class AdminUserResource extends JsonResource
             'suspendedAt' => $this->when($this->isSuspended(), $this->suspended_at),
             'suspendedUntil' => $this->when($this->isSuspended(), $this->suspended_until),
             'suspensionReason' => $this->when($this->isSuspended(), $this->suspension_reason),
+            'featureGrants' => FeatureGrantResource::collection($this->whenLoaded('featureGrants')),
             'plan' => $plan ? ['id' => $plan->id, 'name' => $plan->name, 'isDefault' => (bool) $plan->is_default] : null,
             'projectsCount' => (int) $this->projects_count,
             'releasesCount' => $this->whenCounted('releases'),

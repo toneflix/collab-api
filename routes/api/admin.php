@@ -177,5 +177,7 @@ Route::middleware(['auth:sanctum'])
             Route::delete('{managedUser}/plan', [UserController::class, 'endPlan'])->whereNumber('managedUser')->name('plan.end');
             Route::post('{managedUser}/funds', [UserController::class, 'funds'])->whereNumber('managedUser')->name('funds');
             Route::post('{managedUser}/credits', [UserController::class, 'credits'])->whereNumber('managedUser')->name('credits');
+            Route::post('{managedUser}/features', [UserController::class, 'grantFeature'])->whereNumber('managedUser')->name('features.grant');
+            Route::delete('{managedUser}/features/{feature}', [UserController::class, 'revokeFeature'])->whereNumber('managedUser')->name('features.revoke');
         });
     });

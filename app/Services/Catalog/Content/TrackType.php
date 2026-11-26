@@ -8,10 +8,12 @@ use App\Models\Release;
 use App\Models\Track;
 use App\Models\User;
 use App\Services\Moderation\Reportables;
+use App\Services\Releases\Downloads;
 use App\Services\Releases\TrackOrigins;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Released tracks. Each belongs to a release, whose owner owns the track.
@@ -48,6 +50,7 @@ class TrackType extends ContentType
             'description' => ['nullable', 'string', 'max:5000'],
             'privacy' => ['nullable', Rule::in(['public', 'private'])],
             'stems_price' => ['nullable', 'numeric', 'min:0', 'max:9999999'],
+            'open_download' => ['nullable', 'boolean'],
             'image' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:8192'],
             'audio' => [$item ? 'nullable' : 'required', 'file', SoundController::audioRule()],
             'origin' => ['nullable', Rule::in(TrackOrigin::values())],
@@ -72,6 +75,18 @@ class TrackType extends ContentType
         $item->description = $data['description'] ?? '';
         $item->privacy = $data['privacy'] ?? $item->privacy ?? 'public';
         $item->stems_price = $data['stems_price'] ?? $item->stems_price ?? 0;
+        $item->open_download = (bool) ($data['open_download'] ?? $item->open_download);
+
+        if ($item->isDirty('release_id')) {
+            $item->unsetRelation('release');
+        }
+
+        if ($item->open_download && $item->isDirty(['open_download', 'release_id']) && ! Downloads::canOpen($item)) {
+            throw ValidationException::withMessages([
+                'open_download' => 'The owner\'s plan doesn\'t include downloads for everyone. Grant it on their account first.',
+            ]);
+        }
+
         $item->save();
 
         $this->rank($item, $data);
@@ -112,12 +127,18 @@ class TrackType extends ContentType
         return [
             'make_public' => 'Make public',
             'make_private' => 'Make private',
+            'open_download' => 'Let anyone download',
+            'close_download' => 'Stop downloads for everyone',
         ];
     }
 
     public function applyBulk(Model $item, string $action, User $admin): bool
     {
         /** @var Track $item */
+        if (in_array($action, ['open_download', 'close_download'])) {
+            return $this->setOpenDownload($item, $action === 'open_download');
+        }
+
         $privacy = $action === 'make_public' ? 'public' : 'private';
 
         if ($item->privacy === $privacy) {
@@ -125,6 +146,21 @@ class TrackType extends ContentType
         }
 
         $item->privacy = $privacy;
+
+        return $item->save();
+    }
+
+    /**
+     * Open or close the download for everyone. Tracks whose owner doesn't
+     * have the feature are left as they are.
+     */
+    protected function setOpenDownload(Track $item, bool $open): bool
+    {
+        if ($item->open_download === $open || ($open && ! Downloads::canOpen($item))) {
+            return false;
+        }
+
+        $item->open_download = $open;
 
         return $item->save();
     }
@@ -144,6 +180,7 @@ class TrackType extends ContentType
             'description' => $item->description,
             'privacy' => $item->privacy,
             'stemsPrice' => (float) $item->stems_price,
+            'openDownload' => (bool) $item->open_download,
             'duration' => (float) $item->duration,
             'hasAudio' => (bool) ($item->audio || $item->project_track_id),
             'imageUrl' => $item->files['image'] ?? null,

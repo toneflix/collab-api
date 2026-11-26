@@ -35,7 +35,8 @@ class SubscriptionOverviewResource extends JsonResource
             'current' => $current ? new SubscriptionResource($current) : null,
             'plan' => new PlanResource($plan),
             // 0 means no limit
-            'features' => $plan->allFeatures(),
+            'features' => $this->allFeatures(),
+            'grantedFeatures' => $this->granted_features,
             'currency' => Providers::config('app_currency', 'NGN'),
         ];
     }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\Feature;
 use App\Enums\HttpStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\AdminActionCollection;
@@ -196,6 +197,43 @@ class UserController extends Controller
     }
 
     /**
+     * Give the account a plan feature without changing its plan.
+     */
+    public function grantFeature(Request $request, User $managedUser)
+    {
+        $this->manager->authorize($request->user(), 'features', $managedUser);
+
+        $valid = $request->validate([
+            'feature' => ['required', Rule::in(array_map(fn(Feature $f) => $f->value, Feature::grantable()))],
+            'until' => ['nullable', 'date', 'after:now'],
+            'reason' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $feature = Feature::from($valid['feature']);
+        $until = isset($valid['until']) ? Carbon::parse($valid['until']) : null;
+
+        $this->manager->grantFeature($request->user(), $managedUser, $feature, $until, $valid['reason'] ?? null);
+
+        return $this->user($request, $managedUser, __(':feature granted to :user.', ['feature' => $feature->title(), 'user' => $managedUser->username]));
+    }
+
+    /**
+     * Take back a feature granted to the account.
+     */
+    public function revokeFeature(Request $request, User $managedUser, string $feature)
+    {
+        $this->manager->authorize($request->user(), 'features', $managedUser);
+
+        $feature = Feature::tryFrom($feature);
+
+        abort_unless($feature !== null, HttpStatus::NOT_FOUND->value, 'Unknown feature.');
+
+        $this->manager->revokeFeature($request->user(), $managedUser, $feature, $request->input('reason'));
+
+        return $this->user($request, $managedUser, __(':feature removed from :user.', ['feature' => $feature->title(), 'user' => $managedUser->username]));
+    }
+
+    /**
      * What admins have done to the account, newest first.
      */
     public function activity(Request $request, User $managedUser)
@@ -246,15 +284,21 @@ class UserController extends Controller
     {
         $user
             ->refresh()
-            ->load(['roles', 'subscriptions' => fn($q) => $q->active()->with('planModel')])
+            ->load([
+                'roles',
+                'subscriptions' => fn($q) => $q->active()->with('planModel'),
+                'featureGrants' => fn($q) => $q->active()->with('grantedBy'),
+            ])
             ->loadCount('releases');
 
         $can = $this->manager->abilities($request->user(), $user);
+        $grantable = array_map(fn(Feature $f) => ['key' => $f->value, 'title' => $f->title()], Feature::grantable());
 
         return (new AdminUserResource($user))
             ->additional([
                 'can' => $can,
                 'roles' => config('permission-defs.roles', []),
+                'grantableFeatures' => $grantable,
                 ...$extra,
                 'message' => $message,
                 'status' => 'success',

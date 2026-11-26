@@ -211,6 +211,11 @@ Route::get('ai/canvases/{canvas}/poster', [TrackCanvasController::class, 'poster
     ->middleware('signed')
     ->name('ai.canvases.poster');
 
+// A track download link, for guests too when its creator opened downloads to everyone
+Route::get('tracks/{track}/download', [TrackController::class, 'download'])
+    ->middleware('throttle:30,1')
+    ->name('tracks.download');
+
 // A track or stem saved as a file, from a signed link the download endpoints hand out
 Route::get('files/download', FileDownloadController::class)
     ->middleware('signed')
@@ -226,7 +231,6 @@ Route::middleware(['auth:sanctum'])
 
         // Paid downloads
         Route::get('tracks/{track}/stems', [TrackController::class, 'stems'])->name('tracks.stems');
-        Route::get('tracks/{track}/download', [TrackController::class, 'download'])->name('tracks.download');
 
         // Collaborators Routes
         Route::apiResource(
