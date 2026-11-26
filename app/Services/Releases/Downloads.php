@@ -10,15 +10,41 @@ use App\Models\User;
 /**
  * Who may download a track.
  *
- * Owners and people who bought a paid release can always download it. Everyone
- * else needs downloads in their plan, the creator's opt-in on the release and
- * the admin setting turned on.
+ * Owners and people who bought a paid release can always download it. When
+ * the creator opened a track of a live release to everyone and their plan or
+ * an admin grant includes open downloads, anyone can. Everyone else needs
+ * downloads in their plan and the creator's opt-in on the release. Apart from
+ * owners and buyers, the admin setting has to be on.
  */
 class Downloads
 {
     public static function enabled(): bool
     {
         return filter_var(Providers::config('track_downloads', true), FILTER_VALIDATE_BOOL);
+    }
+
+    /**
+     * Whether the track's owner may open its download to everyone.
+     */
+    public static function canOpen(Track $track): bool
+    {
+        return (bool) $track->release?->user?->feature(Feature::OPEN_DOWNLOADS);
+    }
+
+    /**
+     * Whether anyone, signed in or not, can download the track.
+     */
+    public static function open(Track $track): bool
+    {
+        $release = $track->release;
+
+        return self::enabled()
+            && $track->open_download
+            && $release !== null
+            && ! $release->draft
+            && ! $release->isRetired()
+            && ! $release->isInReview()
+            && self::canOpen($track);
     }
 
     /**
@@ -39,12 +65,23 @@ class Downloads
      */
     public static function available(Track $track, ?User $user): bool
     {
-        return self::bought($track) || self::offered($track) || (bool) $track->release?->isOwnedBy($user);
+        return self::bought($track)
+            || self::offered($track)
+            || self::open($track)
+            || (bool) $track->release?->isOwnedBy($user);
     }
 
     public static function allowedFor(Track $track, ?User $user): bool
     {
-        if (! $user || ! $track->isUnlockedFor($user)) {
+        if (! $track->isUnlockedFor($user)) {
+            return false;
+        }
+
+        if (self::open($track)) {
+            return true;
+        }
+
+        if (! $user) {
             return false;
         }
 

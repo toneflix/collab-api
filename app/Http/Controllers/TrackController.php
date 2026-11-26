@@ -173,11 +173,12 @@ class TrackController extends Controller
 
     /**
      * A download link for offline listening, following the rules in Downloads.
+     * Guests can download tracks whose creator opened downloads to everyone.
      */
     public function download(Request $request, Track $track)
     {
-        /** @var User $user */
-        $user = $request->user();
+        /** @var User|null $user */
+        $user = $request->user('sanctum');
 
         abort_unless($track->isUnlockedFor($user), HttpStatus::PAYMENT_REQUIRED->value, 'Buy this release to download it.');
 
@@ -185,6 +186,12 @@ class TrackController extends Controller
             Downloads::available($track, $user),
             HttpStatus::FORBIDDEN->value,
             'This track is not available for download.'
+        );
+
+        abort_unless(
+            $user || Downloads::allowedFor($track, $user),
+            HttpStatus::UNAUTHORIZED->value,
+            'Sign in to download this track.'
         );
 
         abort_unless(

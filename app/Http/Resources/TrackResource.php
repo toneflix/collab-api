@@ -73,6 +73,9 @@ class TrackResource extends JsonResource
             'price' => (float) ($this->release?->price ?? 0),
             'locked' => $locked,
             'downloadable' => Downloads::available($this->resource, $user),
+            // The creator's choice, and whether anyone can download it now
+            'openDownload' => (bool) $this->open_download,
+            'freeDownload' => Downloads::open($this->resource),
             'stemsPrice' => $this->stems_price,
             'stemsForSale' => $this->when($with->contains('stems'), fn() => $this->stemsForSale()),
             'stemsUnlocked' => $this->when($with->contains('stems'), fn() => $this->stemsUnlockedFor($user)),

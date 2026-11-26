@@ -76,6 +76,7 @@ class Track extends Model implements CanBeTakenDown
         'description',
         'project_track_id',
         'stems_price',
+        'open_download',
     ];
 
     /**
@@ -102,6 +103,7 @@ class Track extends Model implements CanBeTakenDown
             'duration' => 'float',
             'explicit' => 'boolean',
             'stems_price' => 'float',
+            'open_download' => 'boolean',
             'origin' => TrackOrigin::class,
             'meta' => AsCollection::class,
         ];

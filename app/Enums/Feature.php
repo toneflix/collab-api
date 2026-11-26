@@ -13,6 +13,7 @@ namespace App\Enums;
 enum Feature: string
 {
     case DOWNLOADS = 'downloads';
+    case OPEN_DOWNLOADS = 'open_downloads';
     case BADGE = 'badge';
     case SELL_RELEASES = 'sell_releases';
     case SELL_STEMS = 'sell_stems';
@@ -35,6 +36,7 @@ enum Feature: string
     {
         return match ($this) {
             self::DOWNLOADS => 'Download tracks for offline listening',
+            self::OPEN_DOWNLOADS => 'Downloads for everyone',
             self::BADGE => 'Premium badge on your profile',
             self::SELL_RELEASES => 'Sell releases',
             self::SELL_STEMS => 'Sell stems',
@@ -59,6 +61,7 @@ enum Feature: string
     {
         return match ($this) {
             self::DOWNLOADS => 'Download any track you can stream.',
+            self::OPEN_DOWNLOADS => 'Let anyone download the tracks you choose, even without downloads in their plan.',
             self::BADGE => 'Show a Premium badge next to your name.',
             self::SELL_RELEASES => 'Put a price on your releases.',
             self::SELL_STEMS => 'Put a price on the stems of your released tracks.',
@@ -109,7 +112,7 @@ enum Feature: string
     public function fallback(): bool|int
     {
         return match ($this) {
-            self::DOWNLOADS, self::BADGE, self::AI_TOOLS, self::CONTENT_AGENT, self::EARN_STREAMS, self::VIDEO_OWN_PHOTOS, self::VIDEO_ADVANCED => false,
+            self::DOWNLOADS, self::OPEN_DOWNLOADS, self::BADGE, self::AI_TOOLS, self::CONTENT_AGENT, self::EARN_STREAMS, self::VIDEO_OWN_PHOTOS, self::VIDEO_ADVANCED => false,
             self::SELL_RELEASES, self::SELL_STEMS, self::RECEIVE_TIPS => true,
             self::MAX_PROJECTS => 10,
             self::MAX_SONGS => 10,
@@ -146,5 +149,15 @@ enum Feature: string
             'unit' => $f->unit(),
             'default' => $f->fallback(),
         ], self::cases());
+    }
+
+    /**
+     * Features an admin can grant one account on top of its plan.
+     *
+     * @return list<self>
+     */
+    public static function grantable(): array
+    {
+        return array_values(array_filter(self::cases(), fn(self $f) => $f->type() === 'toggle'));
     }
 }

@@ -67,6 +67,8 @@ class UserResource extends JsonResource
             $this->mergeWhen($previleged, fn() => [
                 'contentAgent' => (bool) $this->content_agent,
                 'agentAccess' => $this->usesContentAgent(),
+                'canDownload' => (bool) $this->feature(Feature::DOWNLOADS),
+                'canOpenDownloads' => (bool) $this->feature(Feature::OPEN_DOWNLOADS),
                 'email' => $this->email,
                 'phone' => $this->phone,
                 'city' => $this->city,
